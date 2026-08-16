@@ -1,0 +1,17 @@
+% Pagebreak na inhoudsopgave
+\let\oldtableofcontents\tableofcontents
+\renewcommand{\tableofcontents}{\oldtableofcontents\newpage}
+
+% Unicode-support via fontspec (lualatex)
+\usepackage{fontspec}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+
+% Schaal afbeeldingen automatisch naar maximaal 70% van de paginabreedte.
+% Gebruik \includeimage{pad}{breedte} voor afwijkende breedte per afbeelding.
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth#1{\ifdim\Gin@nat@width>#1#1\else\Gin@nat@width\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth{0.7\linewidth},keepaspectratio}

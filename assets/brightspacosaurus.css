@@ -1,0 +1,318 @@
+/**
+ * brightspacosaurus.css
+ *
+ * Gedeelde styling voor cursuscontent in HAN-huisstijl.
+ * Gebruikt door:
+ * - Brightspacosaurus (inline geïnjecteerd in gegenereerde HTML)
+ * - Docusaurus (geïmporteerd als extra stylesheet voor preview-parity)
+ *
+ * Gebaseerd op de HAN Academy visuele identiteit (Barlow font, --han-red accent).
+ * Brightspace voegt eigen CSS toe; deze stijlen werken daarmee samen via
+ * specifieke selectors en !important waar nodig.
+ */
+
+:root {
+  --han-red: #e50056;
+  --han-ink: #0a1b3a;
+  --han-ink-2: #13294b;
+  --han-text: #14213d;
+  --han-muted: #5f6673;
+  --han-line: #e3e3e3;
+  --han-soft: #f8f8f8;
+  --han-white: #ffffff;
+  --han-pink-soft: #fdeaf2;
+  --han-code-bg: #f5f5f5;
+  --han-code-border: #e0e0e0;
+}
+
+/* === Basis typografie === */
+
+.brightspace-content,
+article.markdown {
+  font-family: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--han-text);
+  line-height: 1.6;
+  max-width: 52rem;
+  padding: 1.5rem 2rem;
+}
+
+.brightspace-content h1,
+.brightspace-content h2,
+.brightspace-content h3,
+.brightspace-content h4,
+.brightspace-content h5,
+.brightspace-content h6,
+article.markdown h1,
+article.markdown h2,
+article.markdown h3,
+article.markdown h4,
+article.markdown h5,
+article.markdown h6 {
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  color: var(--han-ink);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 1.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.brightspace-content h1,
+article.markdown h1 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  text-transform: none;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0.3rem;
+}
+
+.brightspace-content h2,
+article.markdown h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--han-red);
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-top: 2rem;
+}
+
+.brightspace-content h3,
+article.markdown h3 {
+  font-size: 1.15rem;
+  color: var(--han-ink);
+}
+
+.brightspace-content h4,
+article.markdown h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.brightspace-content p,
+article.markdown p {
+  margin-bottom: 0.8rem;
+}
+
+/* === Links === */
+
+.brightspace-content a,
+article.markdown a {
+  color: var(--han-red);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.brightspace-content a:hover,
+article.markdown a:hover {
+  color: var(--han-ink-2);
+}
+
+/* === Lijsten === */
+
+.brightspace-content ul,
+.brightspace-content ol,
+article.markdown ul,
+article.markdown ol {
+  margin-bottom: 0.8rem;
+  padding-left: 1.5rem;
+}
+
+.brightspace-content li,
+article.markdown li {
+  margin-bottom: 0.3rem;
+}
+
+.brightspace-content li > ul,
+.brightspace-content li > ol,
+article.markdown li > ul,
+article.markdown li > ol {
+  margin-top: 0.3rem;
+  margin-bottom: 0;
+}
+
+/* === Code === */
+
+.brightspace-content code,
+article.markdown code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.875em;
+  background: var(--han-code-bg);
+  border: 1px solid var(--han-code-border);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+}
+
+.brightspace-content pre,
+article.markdown pre {
+  background: var(--han-code-bg);
+  border: 1px solid var(--han-code-border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.brightspace-content pre code,
+article.markdown pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+/* === Tabellen === */
+
+.brightspace-content table,
+article.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  font-size: 0.9em;
+}
+
+.brightspace-content thead,
+article.markdown thead {
+  background: var(--han-ink-2);
+  color: var(--han-white);
+}
+
+.brightspace-content th,
+article.markdown th {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+}
+
+.brightspace-content td,
+article.markdown td {
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--han-line);
+}
+
+.brightspace-content tbody tr:nth-child(even),
+article.markdown tbody tr:nth-child(even) {
+  background: var(--han-soft);
+}
+
+.brightspace-content tbody tr:hover,
+article.markdown tbody tr:hover {
+  background: var(--han-pink-soft);
+}
+
+/* === Blockquotes === */
+
+.brightspace-content blockquote,
+article.markdown blockquote {
+  border-left: 4px solid var(--han-red);
+  background: var(--han-pink-soft);
+  margin: 1rem 0;
+  padding: 0.8rem 1.2rem;
+  border-radius: 0 8px 8px 0;
+}
+
+.brightspace-content blockquote p:last-child,
+article.markdown blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* === Horizontale lijn === */
+
+.brightspace-content hr,
+article.markdown hr {
+  border: none;
+  border-top: 2px solid var(--han-line);
+  margin: 2rem 0;
+}
+
+/* === Afbeeldingen === */
+
+.brightspace-content img,
+article.markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+}
+
+/* === Taaklijsten (GFM) === */
+
+.brightspace-content ul.contains-task-list,
+article.markdown ul.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.brightspace-content .task-list-item,
+article.markdown .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.brightspace-content .task-list-item input[type="checkbox"],
+article.markdown .task-list-item input[type="checkbox"] {
+  margin-top: 0.3rem;
+  accent-color: var(--han-red);
+}
+
+/* === Strikethrough === */
+
+.brightspace-content del,
+article.markdown del {
+  color: var(--han-muted);
+}
+
+/* === Strong/emphasis === */
+
+.brightspace-content strong,
+article.markdown strong {
+  font-weight: 700;
+  color: var(--han-ink);
+}
+
+/* === Details/summary (als gebruikt) === */
+
+.brightspace-content details,
+article.markdown details {
+  border: 1px solid var(--han-line);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.brightspace-content summary,
+article.markdown summary {
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--han-ink);
+}
+
+.brightspace-content details[open] summary,
+article.markdown details[open] summary {
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--han-line);
+  padding-bottom: 0.5rem;
+}
+
+/* === LUK-badges bij leerdoelen === */
+
+.luk-badge {
+  display: inline-block;
+  background: var(--han-pink-soft, #fdeaf2);
+  color: var(--han-red, #e50056);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.75em;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  margin-left: 0.4em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
