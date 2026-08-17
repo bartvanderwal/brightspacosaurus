@@ -272,16 +272,18 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
 
     // Fase 4b: Brightspacosaurus-handleiding als aparte PDF
     {
-      const bssDocsDir = resolve(repoRoot, "scripts/brightspacosaurus/docs");
+      // Paden relatief aan de locatie van main.ts zelf (locatie-onafhankelijk)
+      const bssScriptDir = import.meta.dirname ?? dirname(new URL(import.meta.url).pathname);
+      const bssDocsDir = resolve(bssScriptDir, "..", "docs");
+      const bssAssetsDir = resolve(bssScriptDir, "..", "assets");
       const bssSource = resolve(bssDocsDir, "brightspacosaurus-handleiding.md");
       // Zorg dat docs/images/ bestaat (kopieer assets als nodig)
       const bssImagesDir = join(bssDocsDir, "images");
       try { await Deno.stat(bssImagesDir); } catch {
         await Deno.mkdir(bssImagesDir, { recursive: true });
-        const assetsDir = resolve(repoRoot, "scripts/brightspacosaurus/assets");
-        for await (const entry of Deno.readDir(assetsDir)) {
+        for await (const entry of Deno.readDir(bssAssetsDir)) {
           if (entry.isFile && entry.name.endsWith(".png")) {
-            await Deno.copyFile(join(assetsDir, entry.name), join(bssImagesDir, entry.name));
+            await Deno.copyFile(join(bssAssetsDir, entry.name), join(bssImagesDir, entry.name));
           }
         }
       }
@@ -289,7 +291,7 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
       await Deno.stat(bssSource);
       const bssOutput = join(docentenOutputDir, "brightspacosaurus-handleiding.pdf");
       console.log("Genereer Brightspacosaurus-handleiding PDF...");
-      const includeFilterPath = resolve(repoRoot, "scripts/brightspacosaurus/assets/include-filter.lua");
+      const includeFilterPath = resolve(bssAssetsDir, "include-filter.lua");
       const bssCmd = new Deno.Command("pandoc", {
         args: [
           bssSource,
@@ -298,7 +300,7 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
           "--pdf-engine=xelatex",
           "-V", "geometry:margin=2.5cm",
           "-V", "lang=nl",
-          `--include-in-header=${resolve(repoRoot, "scripts/brightspacosaurus/assets/reader-header.tex")}`,
+          `--include-in-header=${resolve(bssAssetsDir, "reader-header.tex")}`,
           `--lua-filter=${includeFilterPath}`,
           "--syntax-highlighting=tango",
           "--toc",
@@ -478,9 +480,9 @@ async function main(): Promise<void> {
     Deno.exit(1);
   }
 
-  // Bepaal de repository-root (drie niveaus omhoog vanuit scripts/brightspacosaurus/src/)
-  const scriptDir = new URL(".", import.meta.url).pathname;
-  const repoRoot = resolve(scriptDir, "..", "..", "..");
+  // repoRoot = de map van waaruit deno run wordt aangeroepen (werkmap)
+  // Dit maakt brightspacosaurus locatie-onafhankelijk: de tool kan overal staan.
+  const repoRoot = Deno.cwd();
 
   try {
     if (parsed.command === "prepare") {
