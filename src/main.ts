@@ -333,10 +333,22 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
 async function runPack(repoRoot: string, sourcesDir: string, output: string = ""): Promise<void> {
   const buildDir = resolveBuildDir(repoRoot, output);
 
-  // Lees versienummer en naam uit package.json
-  const packageJsonPath = join(repoRoot, "package.json");
-  const packageJson = JSON.parse(await Deno.readTextFile(packageJsonPath));
-  const version = packageJson.version || "0.0.0";
+  // Lees versienummer en naam uit package.json (of deno.json als package.json ontbreekt)
+  let version = "0.0.0";
+  let projectNameFromConfig = "";
+  try {
+    const packageJsonPath = join(repoRoot, "package.json");
+    const packageJson = JSON.parse(await Deno.readTextFile(packageJsonPath));
+    version = packageJson.version || "0.0.0";
+    projectNameFromConfig = packageJson.name || "";
+  } catch {
+    // Geen package.json — probeer deno.json in repoRoot
+    try {
+      const denoJsonPath = join(repoRoot, "deno.json");
+      const denoJson = JSON.parse(await Deno.readTextFile(denoJsonPath));
+      version = denoJson.version || "0.0.0";
+    } catch { /* geen versie beschikbaar */ }
+  }
 
   // Bepaal output-pad: --output wint, anders rc-bestand, anders package.json name
   let outputPath: string;

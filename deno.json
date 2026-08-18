@@ -1,4 +1,5 @@
 {
+  "version": "0.3.0",
   "tasks": {
     "prepare": "deno run --allow-read --allow-write=../../build/ --allow-run=pandoc --allow-env src/main.ts prepare",
     "pack": "deno run --allow-read --allow-write=../../build/ --allow-env src/main.ts pack",
