@@ -23,6 +23,7 @@ Commando's:
   pack      Verpak build/brightspace/ tot een .imscc-archief
 
 Opties:
+  --config <pad>     Pad naar configuratiebestand (standaard: brightspacosaurus.config.json in cwd)
   --sources <map>    Bronmap voor les- en quiz-Markdown (standaard: ${DEFAULT_SOURCES})
   --output <pad>     Uitvoerpad of naam voor .imscc; bepaalt ook de tussentijdse build-map
                      (standaard: uit .brightspacosaurus.json of package.json name)
@@ -35,7 +36,7 @@ function printUsage(): void {
   console.error(USAGE);
 }
 
-function parseArgs(args: string[]): { command: string; sources: string; readersOnly: boolean; output: string } | null {
+function parseArgs(args: string[]): { command: string; sources: string; readersOnly: boolean; output: string; config: string } | null {
   if (args.length === 0) return null;
 
   const command = args[0];
@@ -44,6 +45,7 @@ function parseArgs(args: string[]): { command: string; sources: string; readersO
   let sources = DEFAULT_SOURCES;
   let readersOnly = false;
   let output = "";
+  let config = "";
 
   for (let i = 1; i < args.length; i++) {
     if (args[i] === "--sources" && i + 1 < args.length) {
@@ -54,10 +56,12 @@ function parseArgs(args: string[]): { command: string; sources: string; readersO
       output = args[++i]; // backwards compat
     } else if (args[i] === "--output" && i + 1 < args.length) {
       output = args[++i];
+    } else if (args[i] === "--config" && i + 1 < args.length) {
+      config = args[++i];
     }
   }
 
-  return { command, sources, readersOnly, output };
+  return { command, sources, readersOnly, output, config };
 }
 
 /**

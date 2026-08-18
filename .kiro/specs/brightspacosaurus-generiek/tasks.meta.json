@@ -1,0 +1,208 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Definieer config-interfaces in `src/types.ts`": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737264
+      },
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056756597
+      },
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056891692
+      }
+    ],
+    "1.2 Implementeer `src/config-loader.ts`": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737459
+      },
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056899970
+      },
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787057745410
+      }
+    ],
+    "1.3 Voeg `--config` argument toe aan de CLI-parser in `src/main.ts`": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737528
+      },
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056900831
+      },
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787057745607
+      }
+    ],
+    "2.1 Refactor `main()` entry point in `src/main.ts`": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737564
+      },
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787057754337
+      }
+    ],
+    "2.2 Refactor `runPrepare()` in `src/main.ts`": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737593
+      }
+    ],
+    "2.3 Refactor `runPack()` in `src/main.ts`": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737623
+      }
+    ],
+    "3. Checkpoint - Basisrefactoring valideren": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737652
+      }
+    ],
+    "4.1 Maak manifest-builder generiek (`src/manifest-builder.ts`)": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737703
+      }
+    ],
+    "4.2 Verwijder `package.json`-afhankelijkheid uit packer-flow": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737794
+      }
+    ],
+    "4.3 Breid `src/markdown-converter.ts` uit met config-parameters": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737843
+      }
+    ],
+    "5. Checkpoint - Modules gerefactored": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737890
+      }
+    ],
+    "8. Checkpoint - Tests valideren": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737940
+      }
+    ],
+    "9.1 Maak `brightspacosaurus.config.json` voorbeeld voor OWE-1": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737966
+      }
+    ],
+    "9.2 Verwijder OWE-1 content uit assets": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056737994
+      }
+    ],
+    "10.1 Update `deno.json` voor JSR-publicatie": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738025
+      }
+    ],
+    "10.2 Valideer dat BSS geen externe imports heeft": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738070
+      }
+    ],
+    "11. Checkpoint - Publicatie-gereedheid": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738112
+      }
+    ],
+    "12.1 Migreer relevante ADR's naar BSS-repository": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738141
+      }
+    ],
+    "12.2 Maak generieke handleiding": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738164
+      }
+    ],
+    "12.3 Update `README.md` met installatie en quickstart": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738186
+      }
+    ],
+    "13.1 Verplaats Brightspace-opschoningsscript naar `utils/`": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738217
+      }
+    ],
+    "13.2 Documenteer de opschoningsutility in de handleiding": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738249
+      }
+    ],
+    "14. Final checkpoint - Alle tests en integratie": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787056738281
+      }
+    ],
+    "1. Config Loader: types, interfaces en kernfunctionaliteit": [
+      {
+        "executionId": "0260e290-3735-4ad2-ad67-49af818886bf",
+        "chatSessionId": "sess_dafa5366-0e06-4f27-9753-8d32d3b94ebb",
+        "timestamp": 1787057745662
+      }
+    ]
+  }
+}
