@@ -112,6 +112,8 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         sourcePath: mdFile,
         outputDir: contentOutputDir,
         repoRoot,
+        version: config.version,
+        customCssPath: config.customCss ?? undefined,
       });
       const relPath = relative(contentOutputDir, result.outputPath);
       console.log(`  ✓ ${relPath}`);
@@ -129,6 +131,8 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         sourcePath: readmePath,
         outputDir: week1OutputDir,
         repoRoot,
+        version: config.version,
+        customCssPath: config.customCss ?? undefined,
       });
       const relReadmePath = relative(contentOutputDir, readmeResult.outputPath);
       console.log(`  ✓ ${relReadmePath} (Studentenhandleiding)`);

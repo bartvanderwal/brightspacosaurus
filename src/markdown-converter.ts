@@ -100,21 +100,6 @@ export function convertReaderLinks(markdown: string): string {
   });
 }
 
-/** Cache voor het versienummer uit package.json (eenmalig per proces). */
-let _versionCache: string | null = null;
-
-async function getVersion(repoRoot: string): Promise<string> {
-  if (_versionCache === null) {
-    try {
-      const pkg = JSON.parse(await Deno.readTextFile(join(repoRoot, "package.json")));
-      _versionCache = pkg.version ?? "?";
-    } catch {
-      _versionCache = "?";
-    }
-  }
-  return _versionCache!;
-}
-
 /** Pad naar het gedeelde CSS-bestand (relatief aan deze module). */
 const CONTENT_CSS_PATH = new URL("../assets/brightspacosaurus.css", import.meta.url);
 
@@ -134,9 +119,19 @@ async function getContentCss(): Promise<string> {
 /**
  * Wikkelt HTML-body in een volledig HTML-document met lang="nl", UTF-8,
  * HAN-huisstijl CSS en Google Fonts link.
+ * Optioneel wordt een custom CSS-bestand ingelined naast de standaard-CSS.
  */
-async function wrapHtml(body: string, title: string, version: string): Promise<string> {
+async function wrapHtml(body: string, title: string, version: string, customCssPath?: string): Promise<string> {
   const css = await getContentCss();
+  let customCssBlock = "";
+  if (customCssPath) {
+    try {
+      const customCss = await Deno.readTextFile(customCssPath);
+      customCssBlock = `\n/* Custom CSS */\n${customCss}`;
+    } catch {
+      // Custom CSS-bestand niet gevonden — doorgaan zonder
+    }
+  }
   return `<!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -145,7 +140,7 @@ async function wrapHtml(body: string, title: string, version: string): Promise<s
 <title>${escapeHtml(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-${css}
+${css}${customCssBlock}
 .bss-version-badge {
   position: absolute;
   top: 6px;
@@ -235,8 +230,8 @@ export async function convertMarkdown(options: ConvertOptions): Promise<ConvertR
 
   const htmlBody = String(await processor.process(convertedMarkdown));
   const title = basename(sourcePath, extname(sourcePath));
-  const version = await getVersion(repoRoot);
-  const fullHtml = await wrapHtml(htmlBody, title, version);
+  const version = options.version ?? "?";
+  const fullHtml = await wrapHtml(htmlBody, title, version, options.customCssPath);
 
   await Deno.writeTextFile(outputPath, fullHtml);
 

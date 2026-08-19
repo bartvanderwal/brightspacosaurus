@@ -96,8 +96,8 @@ Deno.test("Eigenschap 3: manifest met lege entries-lijst genereert geldig XML zo
   assertEquals(xml.includes("<resources>"), true, "Moet een resources-element bevatten");
 });
 
-Deno.test("Brightspace-manifest groepeert weekmappen met dezelfde niveauconventie als Docusaurus", () => {
-  const xml = buildManifest("OWE 1", [
+Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => {
+  const xml = buildManifest("Cursus X", [
     {
       id: "res_content_week_1_lesoverzicht_1_1_html",
       title: "lesoverzicht-1.1",
@@ -110,10 +110,22 @@ Deno.test("Brightspace-manifest groepeert weekmappen met dezelfde niveauconventi
       href: "content/week-8/lesoverzicht-8.1.html",
       type: "webcontent",
     },
+    {
+      id: "res_content_module_a_intro_html",
+      title: "Introductie",
+      href: "content/module-a/intro.html",
+      type: "webcontent",
+    },
   ]);
 
-  assertEquals(xml.includes("<title>Week 1 — Niveau 1</title>"), true);
-  assertEquals(xml.includes("<title>Week 8 — Niveau 4</title>"), true);
+  // Generieke groepering op mapnaam, geen OWE-1 week/niveau mapping
+  assertEquals(xml.includes("<title>week-1</title>"), true, "Moet groep 'week-1' bevatten");
+  assertEquals(xml.includes("<title>week-8</title>"), true, "Moet groep 'week-8' bevatten");
+  assertEquals(xml.includes("<title>module-a</title>"), true, "Moet groep 'module-a' bevatten");
   assertEquals(xml.includes('identifierref="res_content_week_1_lesoverzicht_1_1_html"'), true);
   assertEquals(xml.includes('identifierref="res_content_week_8_lesoverzicht_8_1_html"'), true);
+  assertEquals(xml.includes('identifierref="res_content_module_a_intro_html"'), true);
+
+  // Mag GEEN OWE-1-specifieke niveaulabels bevatten
+  assertEquals(xml.includes("Niveau"), false, "Mag geen OWE-1-specifieke niveaulabels bevatten");
 });

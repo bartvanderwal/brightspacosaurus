@@ -4,8 +4,8 @@
  * Validates:
  * - --output bare name → build/<name>.v<version>.imscc (unchanged behaviour)
  * - --output with path → .imscc in that directory, buildDir derived from it
- * - Folder name used as fallback when no --output and no .brightspacosaurus.json
- * - .brightspacosaurus.json name overrides package.json name
+ * - Folder name used as fallback when no --output and no config name
+ * - Config name (rcName) overrides packageName fallback
  */
 
 import { assertEquals } from "@std/assert";
@@ -90,7 +90,7 @@ Deno.test("--output: relative .imscc path → prefixed with repoRoot", () => {
   assertEquals(result, "/repo/dist/course.imscc");
 });
 
-Deno.test("no --output: falls back to package.json name", () => {
+Deno.test("no --output: falls back to config name", () => {
   const result = resolveOutputPath({
     repoRoot: "/repo",
     output: "",
@@ -100,7 +100,7 @@ Deno.test("no --output: falls back to package.json name", () => {
   assertEquals(result, "/repo/build/my-project.v2.0.0.imscc");
 });
 
-Deno.test("no --output: .brightspacosaurus.json name overrides package.json name", () => {
+Deno.test("no --output: rcName (config name) overrides packageName fallback", () => {
   const result = resolveOutputPath({
     repoRoot: "/repo",
     output: "",
@@ -121,7 +121,7 @@ Deno.test("no --output, no package name: falls back to folder name", () => {
   assertEquals(result, "/projects/my-repo/build/my-repo.v0.1.0.imscc");
 });
 
-Deno.test("--output: empty string → falls back to package.json name", () => {
+Deno.test("--output: empty string → falls back to config name", () => {
   const result = resolveOutputPath({
     repoRoot: "/repo",
     output: "",

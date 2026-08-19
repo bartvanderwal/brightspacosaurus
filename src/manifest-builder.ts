@@ -17,21 +17,20 @@ function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function getNiveau(weekNr: number): number | null {
-  if (weekNr === 1) return 1;
-  if (weekNr >= 2 && weekNr <= 4) return 2;
-  if (weekNr >= 5 && weekNr <= 7) return 3;
-  if (weekNr === 8) return 4;
-  return null;
-}
-
-function getWeekLabel(href: string): string | null {
-  const match = href.match(/(?:^|\/)week-(\d+)\//);
-  if (!match) return null;
-
-  const weekNr = Number(match[1]);
-  const niveau = getNiveau(weekNr);
-  return niveau ? `Week ${weekNr} — Niveau ${niveau}` : `Week ${weekNr}`;
+/**
+ * Extraheert een groepslabel op basis van de eerste submap in het href-pad.
+ * Bijv. "content/week-1/les.html" → "week-1", "content/module-a/intro.html" → "module-a".
+ * Bestanden zonder submap (bijv. "content/index.html") retourneren null.
+ *
+ * De groepering is generiek: er wordt geen cursusspecifieke mapping (zoals week→niveau) toegepast.
+ */
+function getGroupLabel(href: string): string | null {
+  // Strip het eerste "content/" of "quiz/" prefix indien aanwezig
+  const stripped = href.replace(/^(?:content|quiz)\//, "");
+  // Zoek de eerste submap (alles vóór de eerste '/' in het gestripte pad)
+  const slashIdx = stripped.indexOf("/");
+  if (slashIdx <= 0) return null;
+  return stripped.substring(0, slashIdx);
 }
 
 function buildOrganizationItems(entries: ManifestEntry[]): string {
@@ -53,28 +52,28 @@ function buildOrganizationItems(entries: ManifestEntry[]): string {
       continue;
     }
 
-    // Quizzen (QTI) en HTML-lessen worden beide per week gegroepeerd
-    const weekLabel = getWeekLabel(entry.href);
-    if (!weekLabel) {
+    // Groepeer op basis van de eerste submap (bijv. "week-1", "module-a", "sad")
+    const groupLabel = getGroupLabel(entry.href);
+    if (!groupLabel) {
       ungroupedEntries.push(entry);
       continue;
     }
 
-    const weekEntries = groupedEntries.get(weekLabel) ?? [];
-    weekEntries.push(entry);
-    groupedEntries.set(weekLabel, weekEntries);
+    const groupEntries = groupedEntries.get(groupLabel) ?? [];
+    groupEntries.push(entry);
+    groupedEntries.set(groupLabel, groupEntries);
   }
 
-  const weekItems = [...groupedEntries.entries()].map(([weekLabel, weekEntries]) => {
-    const weekId = "week_" + weekLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-    const childItems = weekEntries.map((entry) => {
+  const groupItems = [...groupedEntries.entries()].map(([groupLabel, groupEntries]) => {
+    const groupId = "group_" + groupLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    const childItems = groupEntries.map((entry) => {
       return `        <item identifier="item_${escapeXml(entry.id)}" identifierref="${escapeXml(entry.id)}">
           <title>${escapeXml(entry.title)}</title>
         </item>`;
     }).join("\n");
 
-    return `      <item identifier="${escapeXml(weekId)}">
-        <title>${escapeXml(weekLabel)}</title>
+    return `      <item identifier="${escapeXml(groupId)}">
+        <title>${escapeXml(groupLabel)}</title>
 ${childItems}
       </item>`;
   });
@@ -105,7 +104,7 @@ ${docentenEntries.map((entry) => `        <item identifier="item_${escapeXml(ent
       </item>`]
     : [];
 
-  return [...weekItems, ...looseItems, ...readersModule, ...docentenItems].join("\n");
+  return [...groupItems, ...looseItems, ...readersModule, ...docentenItems].join("\n");
 }
 
 /**

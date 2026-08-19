@@ -33,6 +33,10 @@ export interface ConvertOptions {
   outputDir: string;
   /** Repository-root voor padvalidatie. */
   repoRoot: string;
+  /** Versienummer voor de badge (uit config). Standaard: "?" als niet opgegeven. */
+  version?: string;
+  /** Absoluut pad naar een custom CSS-bestand. Wordt naast de standaard-CSS opgenomen. */
+  customCssPath?: string;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */
