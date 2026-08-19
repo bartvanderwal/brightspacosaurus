@@ -138,7 +138,7 @@ De kern van de wijziging: scheiding van de generieke build-tool (Markdown → HT
 3. THE Quiz_Converter SHALL een quiz-Markdown bestand parsen op basis van het formaat: H1 als quiztitel, H2 als vragnummer, opties als `- A. tekst` t/m `- D. tekst`, en `Correct antwoord: **X**` als aanduiding van het juiste antwoord
 4. THE Quiz_Converter SHALL per quiz-Markdown bestand één geldig QTI 1.2 XML-bestand genereren conform het IMS CC QTI-profiel (`cc.exam.v0p1`)
 5. WHEN een quiz-Markdown bestand geen vragen bevat, THE Quiz_Converter SHALL een foutmelding geven met het pad naar het bronbestand
-6. THE Manifest_Builder SHALL QTI-bestanden opnemen als resource met type `imsqti_xmlv1p2/imscc_xmlv1p3/assessment` zonder ze als organization-item (content module) toe te voegen
+6. THE Manifest_Builder SHALL QTI-bestanden opnemen als resource met type `imsqti_xmlv1p2/imscc_xmlv1p3/assessment` én als organization-item, zodat ze in Brightspace zowel in de Quizzes-tool als in de content-navigatie verschijnen
 7. THE Quiz_Converter SHALL de bronmap voor quizzen bepalen op basis van het Config_File (`sourcesDir`), niet op basis van hardcoded paden
 
 ### Requirement 10: Generieke reader-PDF-conversie
