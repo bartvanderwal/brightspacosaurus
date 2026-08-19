@@ -1,9 +1,19 @@
 {
+  "name": "@bartvanderwal/brightspacosaurus",
   "version": "0.3.0",
+  "exports": {
+    ".": "./src/main.ts",
+    "./config": "./src/config-loader.ts",
+    "./scanner": "./src/source-scanner.ts",
+    "./markdown": "./src/markdown-converter.ts",
+    "./quiz": "./src/quiz-converter.ts",
+    "./reader": "./src/reader-pdf-converter.ts",
+    "./manifest": "./src/manifest-builder.ts",
+    "./packer": "./src/packer.ts"
+  },
   "tasks": {
-    "prepare": "deno run --allow-read --allow-write=../../build/ --allow-run=pandoc --allow-env src/main.ts prepare",
-    "pack": "deno run --allow-read --allow-write=../../build/ --allow-env src/main.ts pack",
-    "marp": "deno run --allow-read=../../6.2.Onderwijsmateriaal-voor-docenten/6.2.4.Instructiemateriaal --allow-write=../../build src/marp-exporter.ts",
+    "prepare": "deno run --allow-read --allow-write --allow-run=pandoc --allow-env src/main.ts prepare",
+    "pack": "deno run --allow-read --allow-write --allow-env src/main.ts pack",
     "test": "deno test --allow-read --allow-write --allow-run --allow-env tests/"
   },
   "imports": {
@@ -17,5 +27,15 @@
     "rehype-stringify": "npm:rehype-stringify@^10.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",
     "@std/assert": "jsr:@std/assert@^1.0.0"
+  },
+  "publish": {
+    "include": [
+      "src/",
+      "assets/brightspacosaurus.css",
+      "assets/reader-header.tex",
+      "assets/include-filter.lua",
+      "README.md",
+      "deno.json"
+    ]
   }
 }
