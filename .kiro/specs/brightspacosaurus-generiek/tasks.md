@@ -117,11 +117,11 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - Voeg test toe: foutmelding zonder config en zonder `--sources`
     - _Requirements: 5.5, 1.4_
 
-- [ ] 8. Checkpoint - Tests valideren
+- [x] 8. Checkpoint - Tests valideren
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Voorbeeldconfiguraties voor Client_Projects
-  - [ ] 9.1 Maak voorbeeldconfiguraties voor twee Client_Projects
+- [x] 9. Voorbeeldconfiguraties voor Client_Projects
+  - [x] 9.1 Maak voorbeeldconfiguraties voor twee Client_Projects
     - Maak `examples/owe-1.config.json` met de huidige OWE-1 standaardwaarden
     - Maak `examples/oose-dt.config.json` met OOSE-DT standaardwaarden
     - Valideer de "rule of two": beide projecten moeten correct bouwen met dezelfde generieke tool
@@ -153,7 +153,7 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 12. ADR-migratie en documentatie
-  - [ ] 12.1 Migreer relevante ADR's naar BSS-repository
+  - [x] 12.1 Migreer relevante ADR's naar BSS-repository
     - Maak `adr/` directory aan
     - Kopieer ADR-008 (Deno runtime), ADR-010 (Brightspace packaging), ADR-011 (property-based testing), ADR-014 (onderhoud branches) naar `adr/`
     - _Requirements: 14.1, 14.2_
