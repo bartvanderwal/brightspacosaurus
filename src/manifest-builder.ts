@@ -53,6 +53,7 @@ function buildOrganizationItems(entries: ManifestEntry[]): string {
       continue;
     }
 
+    // Quizzen (QTI) en HTML-lessen worden beide per week gegroepeerd
     const weekLabel = getWeekLabel(entry.href);
     if (!weekLabel) {
       ungroupedEntries.push(entry);
@@ -118,9 +119,9 @@ ${docentenEntries.map((entry) => `        <item identifier="item_${escapeXml(ent
  * @returns Volledige XML-string van het manifest
  */
 export function buildManifest(courseTitle: string, entries: ManifestEntry[]): string {
-  // QTI assessments horen niet als organization-items (content modules) in Brightspace.
-  // Ze worden alleen als resource opgenomen; Brightspace importeert ze in de Quizzes-tool.
-  const contentEntries = entries.filter((e) => e.type === "webcontent");
+  // Alle entries komen in de navigatiestructuur: HTML-lessen én QTI-quizzen per week.
+  // Brightspace importeert QTI-items als assessments én als content-items in het menu.
+  const contentEntries = entries;
 
   const resourcesXml = entries.map((entry) => {
     const fileElements = [`      <file href="${escapeXml(entry.href)}"/>`];
