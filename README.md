@@ -1,14 +1,127 @@
 # Brightspacosaurus
 
-CLI-tool die Markdown-cursusmateriaal uit de OWE-1-monorepo omzet naar een Brightspace Common Cartridge (`.imscc`)-pakket.
+CLI-tool die Markdown-cursusmateriaal omzet naar een Brightspace Common Cartridge (`.imscc`)-pakket.
 
 ## Vereisten
 
-- [Deno](https://deno.com/) ≥ 2.0 — zie [ADR 008](../../adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) voor de motivatie van deze keuze
+- [Deno](https://deno.com/) ≥ 2.0 — zie [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) voor de motivatie
+- [pandoc](https://pandoc.org/) (optioneel) — vereist voor reader-PDF-generatie en docentenhandleiding
 
-## Commando's uitvoeren
+## Installatie
 
-Alle commando's worden uitgevoerd vanuit deze map (`scripts/brightspacosaurus/`).
+### Via JSR (toekomstig)
+
+```sh
+deno add @han-ict/brightspacosaurus
+```
+
+### Lokaal
+
+```sh
+git clone <repository-url>
+cd brightspacosaurus
+deno task prepare
+```
+
+## Quickstart
+
+1. Maak een `brightspacosaurus.config.json` in de root van je cursusproject:
+
+```json
+{
+  "courseName": "Mijn Cursus",
+  "version": "1.0.0",
+  "sourcesDir": "bronmateriaal/lessen/"
+}
+```
+
+2. Genereer HTML en QTI uit je Markdown-bronbestanden:
+
+```sh
+deno run --allow-read --allow-write --allow-run --allow-env src/main.ts prepare
+```
+
+3. Verpak de build-output tot een `.imscc`-archief:
+
+```sh
+deno run --allow-read --allow-write --allow-env src/main.ts pack
+```
+
+Het resultaat is een bestand zoals `build/brightspace/mijn-cursus.v1.0.0.imscc` dat je kunt importeren in Brightspace.
+
+## Configuratie
+
+Alle projectspecifieke instellingen worden beheerd via `brightspacosaurus.config.json`. CLI-argumenten prevaleren boven waarden uit het configuratiebestand.
+
+### Verplichte velden
+
+| Veld | Type | Beschrijving |
+|------|------|-------------|
+| `courseName` | `string` | Cursusnaam zoals weergegeven in het manifest |
+| `version` | `string` | Versienummer (semver), gebruikt in .imscc-bestandsnaam en HTML-badge |
+| `sourcesDir` | `string` | Bronmap voor lespagina's en quizzen (relatief aan werkdirectory) |
+
+### Optionele velden
+
+| Veld | Type | Standaard | Beschrijving |
+|------|------|-----------|-------------|
+| `name` | `string` | afgeleid van `courseName` | Projectnaam voor het .imscc-bestand |
+| `readersDir` | `string` | `null` (overslaan) | Bronmap voor reader-Markdown (PDF-conversie via pandoc) |
+| `assetsDir` | `string` | `null` (geen extra assets) | Map met statische assets (banners, logo's) |
+| `outputDir` | `string` | `"build/brightspace"` | Build-uitvoermap |
+| `customCss` | `string` | `null` (alleen standaard-CSS) | Pad naar een custom CSS-bestand |
+| `docentenHandleiding` | `object` | `null` (overslaan) | Configuratie voor docentenhandleiding-PDF |
+
+### DocentenHandleiding-object
+
+| Veld | Type | Standaard | Beschrijving |
+|------|------|-----------|-------------|
+| `inputFiles` | `string[]` | (verplicht) | Lijst van Markdown-bronbestanden (relatief aan werkdirectory) |
+| `outputName` | `string` | `"docentenhandleiding.pdf"` | Bestandsnaam voor de output-PDF |
+| `outputDir` | `string` | `<outputDir>/docenten/` | Output-directory voor de PDF |
+
+### Volledig voorbeeld
+
+```json
+{
+  "courseName": "Software Engineering",
+  "version": "2.1.0",
+  "name": "SE",
+  "sourcesDir": "studentenmateriaal/lessen/",
+  "readersDir": "studentenmateriaal/readers/",
+  "assetsDir": "images/",
+  "outputDir": "build/brightspace",
+  "customCss": "assets/custom.css",
+  "docentenHandleiding": {
+    "inputFiles": [
+      "docentenhandleiding/hoofdstuk-1.md",
+      "docentenhandleiding/hoofdstuk-2.md"
+    ],
+    "outputName": "docentenhandleiding-se.pdf",
+    "outputDir": "build/brightspace/docenten"
+  }
+}
+```
+
+## CLI-opties
+
+```
+Gebruik: brightspacosaurus <commando> [opties]
+
+Commando's:
+  prepare   Zet Markdown-bronbestanden om naar HTML en quiz-Markdown naar QTI
+  pack      Verpak build-map tot een .imscc-archief
+
+Opties:
+  --config <pad>     Pad naar configuratiebestand (standaard: brightspacosaurus.config.json in cwd)
+  --sources <map>    Bronmap voor les- en quiz-Markdown (override van config.sourcesDir)
+  --output <pad>     Uitvoerpad (override van config.outputDir)
+  --readers-only     Genereer alleen reader- en docenten-PDF's
+```
+
+CLI-argumenten prevaleren altijd boven waarden uit het configuratiebestand.
+
+## Commando's
 
 ### Tests draaien
 
@@ -16,15 +129,20 @@ Alle commando's worden uitgevoerd vanuit deze map (`scripts/brightspacosaurus/`)
 deno task test
 ```
 
-Dit voert alle unit- en property-based tests uit met de benodigde permissies.
+Voert alle unit- en property-based tests uit.
 
-### Prepare (Markdown → HTML)
+### Prepare (Markdown → HTML + QTI)
 
 ```sh
 deno task prepare
 ```
 
-Scant de standaard bronmappen (`6.3.Studentenmateriaal/` en `scripts/brightspace/`) en zet Markdown om naar HTML in `build/brightspace/content/`.
+Scant de geconfigureerde bronmap en:
+- Zet les-Markdown om naar standalone HTML
+- Zet quiz-Markdown (prefix `quiz-`) om naar QTI 1.2 XML
+- Zet reader-Markdown (prefix `reader-`) om naar PDF via pandoc (indien geconfigureerd)
+- Genereert de docentenhandleiding-PDF (indien geconfigureerd)
+- Kopieert gerefereerde afbeeldingen naar de build-map
 
 ### Pack (HTML + QTI → .imscc)
 
@@ -32,43 +150,20 @@ Scant de standaard bronmappen (`6.3.Studentenmateriaal/` en `scripts/brightspace
 deno task pack
 ```
 
-Verpakt de inhoud van `build/brightspace/` tot `build/brightspace/owe-1.imscc`.
-
-### Marp-export (docentenslides → Marp Markdown)
-
-```sh
-deno task marp
-```
-
-Scant `6.2.Onderwijsmateriaal-voor-docenten/6.2.4.Instructiemateriaal/` op `slides-les-*.md` en schrijft Marp-compatible Markdown naar `build/marp-slides/` met dezelfde relatieve mappenstructuur. De bronbestanden blijven leidend; de uitvoer in `build/` is afgeleid materiaal.
-
-De export voegt Marp-frontmatter toe, zet `## Slide N - ...` om naar Marp-slidekoppen en neemt spreeknotities op als HTML-comments, zodat Marp ze als presenter notes kan verwerken. Marp gebruikt `---` als slide-scheiding en kan Markdown exporteren naar HTML, PDF en PowerPoint (Marp, z.d.; Marpit, z.d.).
-
-Voor een latere PPTX-export kun je Marp CLI gebruiken, bijvoorbeeld:
-
-```sh
-npx @marp-team/marp-cli build/marp-slides/week-2/les-1/slides-les-2.1.md --pptx
-```
-
-Marp CLI staat nu niet als npm dependency in deze repository. De huidige taak genereert alleen Marp-compatible Markdown; PowerPoint-export is een optionele vervolgstap. Als PPTX-export onderdeel wordt van CI of van een vaste docentworkflow, leg dan `@marp-team/marp-cli` vast als devDependency en vervang het losse `npx`-voorbeeld door een npm-script.
+Verpakt de inhoud van de build-map tot een `.imscc`-archief inclusief `imsmanifest.xml`.
 
 ## Importeren in Brightspace
 
-Na het genereren van `owe-1.imscc` importeer je het als volgt in Brightspace:
+Na het genereren van het `.imscc`-bestand importeer je het als volgt in Brightspace:
 
 1. Ga naar de cursus waarin je wilt importeren.
 2. Open **Cursus tools** → **Componenten importeren/exporteren/kopiëren**.
 3. Scroll naar het onderdeel **Onderdelen importeren** en selecteer de radiobutton.
 4. Kies **van een cursuspakket** (niet "uit opslagplaats voor cursusobjecten").
 5. Klik **Starten**.
-6. Sleep het bestand `build/brightspace/owe-1.imscc` naar het uploadblok (of klik om te bladeren).
+6. Sleep het `.imscc`-bestand (bijv. `cursus.v1.0.0.imscc`) naar het uploadblok (of klik om te bladeren).
 7. Kies **Alle onderdelen importeren**.
 8. Wacht tot de import is voltooid (dit kan enkele minuten duren; de voortgang wordt getoond met groene vinkjes).
-
-De bijbehorende schermen:
-
-![Stap 1: Componenten importeren/exporteren/kopiëren](assets/brightspace-1.png)
-![Stap 2: Cursuspakket uploaden](assets/brightspace-2.png)
 
 ## Beperkingen van Brightspace-import
 
@@ -86,21 +181,19 @@ Dit betekent:
 ### Aanbevolen werkwijze
 
 - **Itereren/testen**: importeer in een schone cursus (maak een nieuwe sandbox aan of reset de bestaande).
-- **Productie**: importeer eenmalig in de doelcursus. Bij wijzigingen: gebruik "Geselecteerde onderdelen importeren" om alleen gewijzigde weken toe te voegen, en verwijder handmatig wat vervangen is.
-- **Alternatief**: genereer per-week pakketten in plaats van één cursuspakket, zodat je selectief kunt importeren met beperkte schade bij duplicaten.
+- **Productie**: importeer eenmalig in de doelcursus. Bij wijzigingen: gebruik "Geselecteerde onderdelen importeren" om alleen gewijzigde modules toe te voegen, en verwijder handmatig wat vervangen is.
+- **Alternatief**: genereer per-module pakketten in plaats van één cursuspakket, zodat je selectief kunt importeren met beperkte schade bij duplicaten.
 
 ### Opruimen vóór herimport
 
-Omdat import additief is voor modules en quizzen, moet je oude items handmatig verwijderen voordat je opnieuw importeert. Hieronder de stappen per type.
+Omdat import additief is voor modules en quizzen, moet je oude items handmatig verwijderen voordat je opnieuw importeert.
 
 #### Content (lesmateriaal)
 
 1. Ga naar **Content** in de cursus.
-2. Navigeer naar de module(s) die je opnieuw wilt importeren (bijv. "Week 3").
+2. Navigeer naar de module(s) die je opnieuw wilt importeren.
 3. Klik op het dropdown-menu (⋮) bij de module → **Module verwijderen**.
 4. Bevestig. Dit verwijdert de module inclusief alle topics erin.
-
-Je kunt ook individuele topics verwijderen als je slechts een deel wilt vervangen.
 
 #### Quizzen
 
@@ -122,52 +215,53 @@ De source of truth blijft Git. Brightspace is het distributiekanaal, niet de bew
 ## Projectstructuur
 
 ```text
-scripts/brightspacosaurus/
-├── deno.json                  # taken en imports
+brightspacosaurus/
+├── deno.json                  # taken, imports en JSR-publicatie config
 ├── README.md                  # dit bestand
 ├── SKILL.md                   # agent-instructies voor Kiro
 ├── src/
 │   ├── types.ts               # TypeScript-interfaces
+│   ├── config-loader.ts       # configuratie laden, valideren, mergen
 │   ├── source-scanner.ts      # bronmappen scannen
 │   ├── markdown-converter.ts  # Markdown → HTML (unified/remark)
 │   ├── manifest-builder.ts    # imsmanifest.xml genereren
 │   ├── quiz-converter.ts      # quiz-Markdown → QTI XML
+│   ├── reader-pdf-converter.ts # reader-Markdown → PDF (pandoc)
 │   ├── packer.ts              # HTML + QTI → .imscc
 │   └── main.ts                # CLI-entry point
-└── tests/
-    ├── source-scanner.test.ts
-    ├── markdown-converter.test.ts
-    ├── manifest-builder.test.ts
-    ├── quiz-converter.test.ts
-    ├── packer.test.ts
-    └── cli.test.ts
+├── assets/
+│   ├── brightspacosaurus.css  # standaard-stylesheet (HAN-huisstijl)
+│   ├── reader-header.tex      # pandoc LaTeX-header voor readers
+│   └── include-filter.lua     # pandoc Lua-filter
+├── tests/
+│   ├── config-loader.test.ts
+│   ├── config-loader.property.test.ts
+│   ├── source-scanner.test.ts
+│   ├── markdown-converter.test.ts
+│   ├── manifest-builder.test.ts
+│   ├── quiz-converter.test.ts
+│   ├── packer.test.ts
+│   └── cli.test.ts
+├── utils/
+│   └── verwijder-brightspace-paginas.js  # experimentele opschoningsutility
+├── adr/                       # Architecture Decision Records
+├── docs/
+│   └── brightspacosaurus-handleiding.md
+└── examples/
+    └── *.config.json          # voorbeeldconfiguraties
 ```
 
 ## Ontwerpbeslissingen
 
-- Deno als runtime i.p.v. Node.js — zie [ADR 008](../../adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
-- unified (remark/rehype) voor Markdown→HTML i.p.v. marked — zie [ADR 010](../../adr/adr010-brightspacosaurus-unified-pipeline-markdown-conversie.md)
-- Convention over configuration — geen YAML-configuratiebestand nodig
+- **Deno als runtime** i.p.v. Node.js — zie [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
+- **unified (remark/rehype)** voor Markdown → HTML — zie [ADR 010](adr/adr010-brightspacosaurus-unified-pipeline-markdown-conversie.md)
+- **Property-based testing** met fast-check — zie [ADR 011](adr/adr011-brightspacosaurus-rijke-inhoud-quizvragen.md)
+- **Reader-PDF-conversie via pandoc** — zie [ADR 014](adr/adr014-reader-pdf-conversie-via-brightspacosaurus.md)
+- **JSR als primair distributiekanaal** — zie [ADR 015](adr/adr015-brightspacosaurus-publicatie-via-jsr.md)
+- **Config-driven met sensible defaults** — projectspecifieke instellingen via `brightspacosaurus.config.json`, CLI-argumenten prevaleren boven config
 - Alle uitvoer in `build/`, nooit naast bronbestanden
-
-## Week- en niveauconventie
-
-Brightspacosaurus en de Docusaurus-preview gebruiken dezelfde mapconventie voor weken en niveaus. Daardoor blijven lokale preview en Brightspace-export inhoudelijk gelijk.
-
-| Mapnaam | Niveau | Label |
-|---------|--------|-------|
-| `week-1` | 1 | Week 1 — Niveau 1 |
-| `week-2` t/m `week-4` | 2 | Week N — Niveau 2 |
-| `week-5` t/m `week-7` | 3 | Week N — Niveau 3 |
-| `week-8` | 4 | Week 8 — Niveau 4 |
-
-Docusaurus gebruikt deze conventie voor `_category_.json`, generated index pages en niveau-banners. Brightspacosaurus gebruikt dezelfde labels in het `imsmanifest.xml`, zodat Brightspace dezelfde weekgroepering krijgt.
-
-## Bronnen
-
-- Marp. (z.d.). *Markdown Presentation Ecosystem*. Geraadpleegd op 14 mei 2026, van https://marp.app/
-- Marpit. (z.d.). *Directives*. Geraadpleegd op 14 mei 2026, van https://marpit.marp.app/directives
+- Deterministische bestandsvolgorde voor reproduceerbare archieven
 
 ## Spec
 
-De volledige feature-spec (requirements, ontwerp, taken) staat in [`.kiro/specs/brightspacosaurus/`](../../.kiro/specs/brightspacosaurus/).
+De volledige feature-spec (requirements, ontwerp, taken) staat in [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus-generiek/).
