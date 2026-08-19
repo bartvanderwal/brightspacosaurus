@@ -1,0 +1,7 @@
+{
+  "courseName": "OOSE-DT: Software Analysis & Design",
+  "version": "1.0.0",
+  "name": "OOSE-DT-SAD",
+  "sourcesDir": "sad/",
+  "outputDir": "build/brightspace"
+}

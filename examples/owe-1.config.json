@@ -1,0 +1,19 @@
+{
+  "courseName": "OWE 1 - Full Stack Engineering",
+  "version": "2.1.0",
+  "name": "FUSTEN",
+  "sourcesDir": "6.3.Studentenmateriaal/6.3.1.Studentenhandleiding/Lesbeschrijvingen/",
+  "readersDir": "6.3.Studentenmateriaal/6.3.2.Readers/",
+  "outputDir": "build/brightspace",
+  "docentenHandleiding": {
+    "inputFiles": [
+      "6.1.Docentenhandleiding/docentenhandleiding.md",
+      "6.1.Docentenhandleiding/6.1.1.OWE beschrijving voor in OS-OER/owebeschrijving.md",
+      "6.1.Docentenhandleiding/6.1.2.Overzicht van de OWE/beroepstaak.md",
+      "6.1.Docentenhandleiding/6.1.3.Cursusopbouw/cursusopbouw.md",
+      "6.1.Docentenhandleiding/6.1.3.Cursusopbouw/componenten-overzicht.md",
+      "6.1.Docentenhandleiding/adr014-onderhoud-branches-opdrachtrepos.md"
+    ],
+    "outputName": "docentenhandleiding-fusten.pdf"
+  }
+}
