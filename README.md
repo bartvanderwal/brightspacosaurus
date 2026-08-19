@@ -4,11 +4,11 @@
 
 # Brightspacosaurus
 
-<p align="center">
-  <img src="docs/images/brightspacosaurus-big.png" alt="Brightspacosaurus hero" width="600">
-</p>
+*Remark/TODO*: Documentation will be rewritten to English at some point now that this is (more) generic and open sourced. Voor nu Nederlands; weer eens wat anders. Have your browser or favorourite LLM translate it for now.
 
-CLI-tool die Markdown-cursusmateriaal omzet naar een Brightspace Common Cartridge (`.imscc`)-pakket.
+Brightspacosaurus is een CLI-tool die Markdown-cursusmateriaal omzet naar een Brightspace Common Cartridge (`.imscc`)-pakket. Gerealiseerd door Bart van der Wal, docent Software Engineering aan de HAN University of Applied Science, Academie IT en Media Design. 
+
+📖 Zie de [uitgebreide handleiding](docs/brightspacosaurus-handleiding.md) voor een diepgaande uitleg over het datamodel, de werkwijze en het Brightspace-importproces.
 
 ## Vereisten
 
@@ -272,4 +272,13 @@ brightspacosaurus/
 
 ## Spec
 
-De volledige feature-spec (requirements, ontwerp, taken) staat in [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus-generiek/).
+BSOsaurus is opgezet met AWS' Kiro, een Spec-Driven-Development tool (AI tool). 
+
+De volledige feature-spec (requirements, ontwerp, taken) staat in Kiro specs in deze repo:
+- [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus/), originele opstart
+- [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus-generiek/), latere stap naar een aparte generiekere tool en JSR module
+- Wellicht later meer...
+
+<p align="center">
+  <img src="docs/images/brightspacosaurus-big.png" alt="Brightspacosaurus hero" width="600">
+</p>
