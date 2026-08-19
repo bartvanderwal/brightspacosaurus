@@ -129,3 +129,79 @@ Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => 
   // Mag GEEN OWE-1-specifieke niveaulabels bevatten
   assertEquals(xml.includes("Niveau"), false, "Mag geen OWE-1-specifieke niveaulabels bevatten");
 });
+
+// ---------------------------------------------------------------------------
+// Test: geen dubbele HTML-entity-encoding in manifest-titels (GitHub issue #1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Simuleert de decodeHtmlEntities-functie uit main.ts zodat we de
+ * volledige keten kunnen testen: HTML-titel → decode → buildManifest → XML.
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'");
+}
+
+Deno.test("Manifest-titels worden single-escaped: geen dubbele entity-encoding (issue #1)", () => {
+  // Simuleer een H1 geëxtraheerd uit door rehype gegenereerde HTML.
+  // rehype escapet '&' correct naar '&amp;' in de HTML.
+  const htmlTitle = "Ontwerp &amp; Implementatie";
+
+  // Na decodeHtmlEntities (zoals in main.ts) krijgen we plain text:
+  const decodedTitle = decodeHtmlEntities(htmlTitle);
+  assertEquals(decodedTitle, "Ontwerp & Implementatie");
+
+  // buildManifest escapet de titel opnieuw naar geldige XML:
+  const xml = buildManifest("Testcursus", [
+    {
+      id: "res_content_week_1_ontwerp_html",
+      title: decodedTitle,
+      href: "content/week-1/ontwerp.html",
+      type: "webcontent",
+    },
+  ]);
+
+  // De titel in het manifest moet single-escaped '&amp;' bevatten, NIET '&amp;amp;'
+  assertEquals(
+    xml.includes("<title>Ontwerp &amp; Implementatie</title>"),
+    true,
+    "Manifest moet single-escaped '&amp;' bevatten",
+  );
+  assertEquals(
+    xml.includes("&amp;amp;"),
+    false,
+    "Manifest mag GEEN dubbel-geëscapete '&amp;amp;' bevatten",
+  );
+});
+
+Deno.test("Manifest-titels met meerdere HTML-entities worden correct gedecodeerd", () => {
+  // H1 met meerdere entities (zoals uit rehype HTML)
+  const htmlTitle = "C++ &amp; Java &lt;8&gt; &quot;basics&quot;";
+  const decodedTitle = decodeHtmlEntities(htmlTitle);
+  assertEquals(decodedTitle, 'C++ & Java <8> "basics"');
+
+  const xml = buildManifest("Testcursus", [
+    {
+      id: "res_content_week_2_languages_html",
+      title: decodedTitle,
+      href: "content/week-2/languages.html",
+      type: "webcontent",
+    },
+  ]);
+
+  // Alle speciale tekens moeten correct single-escaped zijn in de XML
+  assertEquals(xml.includes("&amp;amp;"), false, "Geen dubbele ampersand-escaping");
+  assertEquals(xml.includes("&amp;lt;"), false, "Geen dubbele lt-escaping");
+  assertEquals(xml.includes("&amp;gt;"), false, "Geen dubbele gt-escaping");
+
+  // Wel correcte XML-escaping:
+  assertEquals(xml.includes("C++ &amp; Java"), true, "Ampersand correct single-escaped");
+  assertEquals(xml.includes("&lt;8&gt;"), true, "Angle brackets correct single-escaped");
+  assertEquals(xml.includes("&quot;basics&quot;"), true, "Quotes correct single-escaped");
+});

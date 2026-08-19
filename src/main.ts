@@ -20,6 +20,22 @@ import {
   EXAMPLE_CONFIG,
 } from "./config-loader.ts";
 
+/**
+ * Decodeert HTML-entities terug naar platte tekst.
+ * Nodig omdat titels uit gegenereerde HTML worden geëxtraheerd (waar rehype al
+ * correct heeft geëscapet). Zonder decodering zou escapeXml() in de ManifestBuilder
+ * de entities dubbel escapen (bijv. &amp; → &amp;amp;).
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'");
+}
+
 const USAGE = `Gebruik: brightspacosaurus <commando> [opties]
 
 Commando's:
@@ -349,9 +365,11 @@ async function runPack(config: ResolvedConfig): Promise<void> {
         // Zoek afbeeldingsreferenties in de HTML voor manifest-dependencies
         const html = await Deno.readTextFile(fullPath);
 
-        // Gebruik H1 uit de HTML als titel (valt terug op bestandsnaam)
+        // Gebruik H1 uit de HTML als titel (valt terug op bestandsnaam).
+        // decodeHtmlEntities voorkomt dubbele encoding: rehype escapet al naar &amp; etc.,
+        // en escapeXml() in buildManifest doet dat opnieuw als we niet eerst decoderen.
         const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-        const title = h1Match ? h1Match[1].trim() : basename(fullPath, extname(fullPath));
+        const title = h1Match ? decodeHtmlEntities(h1Match[1].trim()) : basename(fullPath, extname(fullPath));
 
         const imgRegex = /src="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp))"/gi;
         const dependencies: string[] = [];
