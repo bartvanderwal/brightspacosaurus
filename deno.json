@@ -1,9 +1,10 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",
+    "./cli": "./src/main.ts",
     "./config": "./src/config-loader.ts",
     "./scanner": "./src/source-scanner.ts",
     "./markdown": "./src/markdown-converter.ts",
