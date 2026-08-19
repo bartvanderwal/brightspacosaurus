@@ -27,15 +27,15 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - Update `USAGE`-tekst met de nieuwe optie
     - _Requirements: 1.2_
 
-- [ ] 2. Refactor main.ts om ResolvedConfig te gebruiken
-  - [ ] 2.1 Refactor `main()` entry point in `src/main.ts`
+- [x] 2. Refactor main.ts om ResolvedConfig te gebruiken
+  - [x] 2.1 Refactor `main()` entry point in `src/main.ts`
     - Vervang directe parameter-passing door config-loading flow: `findConfigFile` → `loadConfig` → `resolveConfig`
     - Fallback naar `resolveFromCliOnly()` als er geen configbestand is maar wel `--sources`
     - Toon foutmelding + voorbeeldconfig als beide ontbreken
     - Verwijder `DEFAULT_SOURCES` en `DEFAULT_READERS` constanten
     - _Requirements: 1.1, 1.4, 1.5, 5.1, 5.7_
 
-  - [ ] 2.2 Refactor `runPrepare()` in `src/main.ts`
+  - [x] 2.2 Refactor `runPrepare()` in `src/main.ts`
     - Wijzig signatuur naar `runPrepare(config: ResolvedConfig, readersOnly: boolean)`
     - Gebruik `config.sourcesDir` in plaats van hardcoded bronpad
     - Gebruik `config.readersDir` (null-check → overslaan zonder melding)
@@ -44,35 +44,35 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - Verwijder hardcoded `6.3.Studentenmateriaal/`, `6.1.Docentenhandleiding/` paden
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.6, 11.1, 11.2_
 
-  - [ ] 2.3 Refactor `runPack()` in `src/main.ts`
+  - [x] 2.3 Refactor `runPack()` in `src/main.ts`
     - Wijzig signatuur naar `runPack(config: ResolvedConfig)`
     - Gebruik `config.version` en `config.name` in plaats van `package.json`-afhankelijkheid
     - Gebruik `config.courseName` als parameter voor `buildManifest()`
     - Gebruik `config.outputDir` voor het bepalen van het .imscc-pad
     - _Requirements: 5.5, 5.6, 6.1_
 
-- [ ] 3. Checkpoint - Basisrefactoring valideren
+- [x] 3. Checkpoint - Basisrefactoring valideren
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Verwijder OWE-1-specifieke logica uit modules
-  - [ ] 4.1 Maak manifest-builder generiek (`src/manifest-builder.ts`)
+- [x] 4. Verwijder OWE-1-specifieke logica uit modules
+  - [x] 4.1 Maak manifest-builder generiek (`src/manifest-builder.ts`)
     - Verwijder `getNiveau()` functie (OWE-1-specifieke week→niveau mapping)
     - Vervang `getWeekLabel()` door generieke groepering op basis van eerste submap-naam (bijv. `week-1/`, `module-a/`)
     - De `buildManifest(courseTitle, entries)` signatuur blijft gelijk — `courseTitle` komt nu vanuit config
     - _Requirements: 5.5, 9.6_
 
-  - [ ] 4.2 Verwijder `package.json`-afhankelijkheid uit packer-flow
+  - [x] 4.2 Verwijder `package.json`-afhankelijkheid uit packer-flow
     - In `runPack()`: gebruik `config.version` en `config.name` direct
     - Verwijder de `packageJsonPath`-lezing en `.brightspacosaurus.json`-fallback
     - _Requirements: 6.1, 6.3_
 
-  - [ ] 4.3 Breid `src/markdown-converter.ts` uit met config-parameters
+  - [x] 4.3 Breid `src/markdown-converter.ts` uit met config-parameters
     - Voeg `version?: string` en `customCssPath?: string` toe aan `ConvertOptions` interface in `src/types.ts`
     - Pas `convertMarkdown()` aan om `version` uit options te gebruiken (in plaats van package.json)
     - Voeg ondersteuning toe voor custom CSS naast de standaard-stylesheet
     - _Requirements: 8.2, 8.4_
 
-- [ ] 5. Checkpoint - Modules gerefactored
+- [x] 5. Checkpoint - Modules gerefactored
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Property-based tests voor config-loader
@@ -164,7 +164,7 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - Gebruik generieke voorbeeldnamen ("Cursus X", "Module A")
     - _Requirements: 4.1, 4.2, 4.3_
 
-  - [ ] 12.3 Update `README.md` met installatie en quickstart
+  - [x] 12.3 Update `README.md` met installatie en quickstart
     - Installatie-instructies (Deno, JSR)
     - Quickstart: minimaal configuratiebestand + eerste build
     - Configuratievoorbeeld met alle opties
