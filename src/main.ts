@@ -11,24 +11,25 @@ import { convertQuiz } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { buildManifest } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
-import { ManifestEntry } from "./types.ts";
-
-const DEFAULT_SOURCES = "6.3.Studentenmateriaal/6.3.1.Studentenhandleiding/Lesbeschrijvingen/";
-const DEFAULT_READERS = "6.3.Studentenmateriaal/6.3.2.Readers/";
+import { ManifestEntry, ResolvedConfig } from "./types.ts";
+import {
+  findConfigFile,
+  loadConfig,
+  resolveConfig,
+  resolveFromCliOnly,
+  EXAMPLE_CONFIG,
+} from "./config-loader.ts";
 
 const USAGE = `Gebruik: brightspacosaurus <commando> [opties]
 
 Commando's:
-  prepare   Zet Markdown-bronbestanden om naar HTML en quiz-Markdown naar QTI in build/brightspace/
-  pack      Verpak build/brightspace/ tot een .imscc-archief
+  prepare   Zet Markdown-bronbestanden om naar HTML en quiz-Markdown naar QTI
+  pack      Verpak build-map tot een .imscc-archief
 
 Opties:
   --config <pad>     Pad naar configuratiebestand (standaard: brightspacosaurus.config.json in cwd)
-  --sources <map>    Bronmap voor les- en quiz-Markdown (standaard: ${DEFAULT_SOURCES})
-  --output <pad>     Uitvoerpad of naam voor .imscc; bepaalt ook de tussentijdse build-map
-                     (standaard: uit .brightspacosaurus.json of package.json name)
-                     Pad-voorbeeld: oose-dt/build/OOSE-DT-SAD → .imscc in oose-dt/build/,
-                     tussentijdse HTML in oose-dt/build/brightspace/
+  --sources <map>    Bronmap voor les- en quiz-Markdown (override van config.sourcesDir)
+  --output <pad>     Uitvoerpad of naam voor .imscc (override van config.outputDir/name)
   --readers-only     Genereer alleen reader- en docenten-PDF's (skip HTML/QTI-conversie)
 `;
 
@@ -42,7 +43,7 @@ function parseArgs(args: string[]): { command: string; sources: string; readersO
   const command = args[0];
   if (command !== "prepare" && command !== "pack") return null;
 
-  let sources = DEFAULT_SOURCES;
+  let sources = "";
   let readersOnly = false;
   let output = "";
   let config = "";
@@ -64,59 +65,42 @@ function parseArgs(args: string[]): { command: string; sources: string; readersO
   return { command, sources, readersOnly, output, config };
 }
 
-/**
- * Leidt de tussentijdse build-map af van het --output pad.
- * Conventie:
- * - output bevat een slash (pad): buildDir = parent(output)/brightspace
- * - output is een bare naam of leeg: buildDir = <repoRoot>/build/brightspace
- *
- * Voorbeelden:
- *   "oose-dt/build/OOSE-DT-SAD" → <repoRoot>/oose-dt/build/brightspace
- *   "OOSE-DT-SAD"               → <repoRoot>/build/brightspace
- *   ""                          → <repoRoot>/build/brightspace
- */
-function resolveBuildDir(repoRoot: string, output: string): string {
-  const withoutExt = output.endsWith(".imscc") ? output.slice(0, -6) : output;
-  // Pad-detectie: bevat slash of is absoluut
-  if (withoutExt && (withoutExt.includes("/") || withoutExt.startsWith("/"))) {
-    const absOutput = withoutExt.startsWith("/") ? withoutExt : join(repoRoot, withoutExt);
-    return join(dirname(absOutput), "brightspace");
-  }
-  return join(repoRoot, "build", "brightspace");
-}
 
-async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = false, output = ""): Promise<void> {
-  const buildDir = resolveBuildDir(repoRoot, output);
-  const outputDir = join(buildDir, "content");
+
+async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise<void> {
+  const repoRoot = config.repoRoot;
+  const buildDir = config.outputDir;
+  const contentOutputDir = join(buildDir, "content");
   const quizOutputDir = join(buildDir, "quiz");
   const readersOutputDir = join(buildDir, "readers");
 
   if (!readersOnly) {
-    await Deno.remove(outputDir, { recursive: true }).catch(() => undefined);
+    await Deno.remove(contentOutputDir, { recursive: true }).catch(() => undefined);
     await Deno.remove(quizOutputDir, { recursive: true }).catch(() => undefined);
     await Deno.remove(join(buildDir, "imsmanifest.xml")).catch(() => undefined);
   }
   await Deno.remove(readersOutputDir, { recursive: true }).catch(() => undefined);
 
-  console.log(`Scannen van bronmap: ${sourcesDir}`);
+  console.log(`Scannen van bronmap: ${relative(repoRoot, config.sourcesDir) || config.sourcesDir}`);
   const scanResult = await scanSources({
-    sourcesDir: resolve(repoRoot, sourcesDir),
+    sourcesDir: config.sourcesDir,
     repoRoot,
   });
 
-  // Aparte scan voor readers in 6.3.2.Readers/
-  const readersSourceDir = resolve(repoRoot, DEFAULT_READERS);
+  // Reader-scan vanuit config.readersDir (null → overslaan zonder melding)
   let readerFiles: string[] = [];
-  try {
-    await Deno.stat(readersSourceDir);
-    console.log(`Scannen van readers-map: ${DEFAULT_READERS}`);
-    const readersScan = await scanSources({
-      sourcesDir: readersSourceDir,
-      repoRoot,
-    });
-    readerFiles = readersScan.readerFiles;
-  } catch {
-    // Readers-map bestaat niet — geen readers
+  if (config.readersDir) {
+    try {
+      await Deno.stat(config.readersDir);
+      console.log(`Scannen van readers-map: ${relative(repoRoot, config.readersDir)}`);
+      const readersScan = await scanSources({
+        sourcesDir: config.readersDir,
+        repoRoot,
+      });
+      readerFiles = readersScan.readerFiles;
+    } catch {
+      // Readers-map bestaat niet — geen readers
+    }
   }
 
   console.log(`Gevonden: ${scanResult.markdownFiles.length} les-bestanden, ${scanResult.quizFiles.length} quiz-bestanden, ${readerFiles.length} reader-bestanden`);
@@ -126,29 +110,30 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
     for (const mdFile of scanResult.markdownFiles) {
       const result = await convertMarkdown({
         sourcePath: mdFile,
-        outputDir,
+        outputDir: contentOutputDir,
         repoRoot,
       });
-      const relPath = relative(outputDir, result.outputPath);
+      const relPath = relative(contentOutputDir, result.outputPath);
       console.log(`  ✓ ${relPath}`);
     }
 
-    // Fase 1b: Converteer Studentenhandleiding README naar HTML en plaats onder week-1
-    // zodat de manifest-builder hem automatisch onder Week 1 groepeert.
-    const readmePath = resolve(repoRoot, "6.3.Studentenmateriaal/6.3.1.Studentenhandleiding/README.md");
+    // Fase 1b: Converteer README.md uit sourcesDir-parent naar HTML
+    // (als het bestaat, plaats het onder de eerste weekmap voor manifest-groepering)
+    const sourcesParent = dirname(config.sourcesDir);
+    const readmePath = join(sourcesParent, "README.md");
     try {
       await Deno.stat(readmePath);
-      const week1OutputDir = join(outputDir, "week-1");
+      const week1OutputDir = join(contentOutputDir, "week-1");
       await Deno.mkdir(week1OutputDir, { recursive: true });
       const readmeResult = await convertMarkdown({
         sourcePath: readmePath,
         outputDir: week1OutputDir,
         repoRoot,
       });
-      const relReadmePath = relative(outputDir, readmeResult.outputPath);
+      const relReadmePath = relative(contentOutputDir, readmeResult.outputPath);
       console.log(`  ✓ ${relReadmePath} (Studentenhandleiding)`);
     } catch {
-      console.warn("⚠ Studentenhandleiding README.md niet gevonden — overgeslagen.");
+      // README niet gevonden — overslaan
     }
 
     // Fase 2: Converteer quiz-Markdown naar QTI XML
@@ -157,7 +142,7 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
         sourcePath: quizFile,
         outputDir: quizOutputDir,
         repoRoot,
-        sourcesDir: resolve(repoRoot, sourcesDir),
+        sourcesDir: config.sourcesDir,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
@@ -208,23 +193,15 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
     }
   }
 
-  // Fase 4: Genereer docentenhandleiding als samengestelde PDF
-  const docentenOutputDir = join(buildDir, "docenten");
-  await Deno.remove(docentenOutputDir, { recursive: true }).catch(() => undefined);
-  if (pandocAvailable()) {
-    const handleidingDir = resolve(repoRoot, "6.1.Docentenhandleiding");
-    const inputFiles = [
-      join(handleidingDir, "docentenhandleiding.md"),
-      join(handleidingDir, "6.1.1.OWE beschrijving voor in OS-OER", "owebeschrijving.md"),
-      join(handleidingDir, "6.1.2.Overzicht van de OWE", "beroepstaak.md"),
-      join(handleidingDir, "6.1.3.Cursusopbouw", "cursusopbouw.md"),
-      join(handleidingDir, "6.1.3.Cursusopbouw", "componenten-overzicht.md"),
-      join(handleidingDir, "adr014-onderhoud-branches-opdrachtrepos.md"),
-    ];
+  // Fase 4: Genereer docentenhandleiding als samengestelde PDF (null → overslaan zonder melding)
+  if (config.docentenHandleiding && pandocAvailable()) {
+    const dhConfig = config.docentenHandleiding;
+    const docentenOutputDir = dhConfig.outputDir;
+    await Deno.remove(docentenOutputDir, { recursive: true }).catch(() => undefined);
 
     // Controleer of alle bronbestanden bestaan
     const existingFiles: string[] = [];
-    for (const f of inputFiles) {
+    for (const f of dhConfig.inputFiles) {
       try {
         await Deno.stat(f);
         existingFiles.push(f);
@@ -235,23 +212,28 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
 
     if (existingFiles.length > 0) {
       await Deno.mkdir(docentenOutputDir, { recursive: true });
-      const outputFile = join(docentenOutputDir, "docentenhandleiding-fusten.pdf");
+      const outputFile = join(docentenOutputDir, dhConfig.outputName);
       const today = new Date().toISOString().slice(0, 10);
+      // Resource-path: directory van het eerste bronbestand
+      const resourcePath = dirname(existingFiles[0]);
 
       console.log(`Genereer docentenhandleiding PDF (${existingFiles.length} bronbestanden)...`);
-      const headerPath = resolve(repoRoot, "scripts/brightspacosaurus/assets/reader-header.tex");
-      const includeFilterPath = resolve(repoRoot, "scripts/brightspacosaurus/assets/include-filter.lua");
+      // Resolve BSS asset paden locatie-onafhankelijk
+      const bssScriptDir = import.meta.dirname ?? dirname(new URL(import.meta.url).pathname);
+      const bssAssetsDir = resolve(bssScriptDir, "..", "assets");
+      const headerPath = resolve(bssAssetsDir, "reader-header.tex");
+      const includeFilterPath = resolve(bssAssetsDir, "include-filter.lua");
+
       const cmd = new Deno.Command("pandoc", {
         args: [
           ...existingFiles,
           "-o", outputFile,
-          `--resource-path=${handleidingDir}`,
+          `--resource-path=${resourcePath}`,
           "--pdf-engine=xelatex",
           `-V`, "geometry:margin=2.5cm",
           "-V", "lang=nl",
           "-V", "documentclass=report",
-          `-V`, `title=Docentenhandleiding OWE-1: Full Stack Engineering`,
-          "-V", `subtitle=Projectgroep Software \\& Robotics`,
+          `-V`, `title=Docentenhandleiding ${config.courseName}`,
           "-V", `date=${today}`,
           `--include-in-header=${headerPath}`,
           `--lua-filter=${includeFilterPath}`,
@@ -263,36 +245,38 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
         stderr: "piped",
       });
 
-      const output = await cmd.output();
-      if (output.success) {
-        console.log(`  ✓ docenten/docentenhandleiding-fusten.pdf`);
+      const pandocOutput = await cmd.output();
+      if (pandocOutput.success) {
+        console.log(`  ✓ ${relative(buildDir, outputFile)}`);
       } else {
-        const stderr = new TextDecoder().decode(output.stderr);
+        const stderr = new TextDecoder().decode(pandocOutput.stderr);
         console.warn(`  ⚠ Docentenhandleiding-PDF mislukt (niet-blokkerend): ${stderr.slice(0, 200)}`);
         // Niet-blokkerend: docentenhandleiding is optioneel
         await Deno.remove(outputFile).catch(() => undefined);
       }
     }
+  }
 
-    // Fase 4b: Brightspacosaurus-handleiding als aparte PDF
-    {
-      // Paden relatief aan de locatie van main.ts zelf (locatie-onafhankelijk)
-      const bssScriptDir = import.meta.dirname ?? dirname(new URL(import.meta.url).pathname);
-      const bssDocsDir = resolve(bssScriptDir, "..", "docs");
-      const bssAssetsDir = resolve(bssScriptDir, "..", "assets");
-      const bssSource = resolve(bssDocsDir, "brightspacosaurus-handleiding.md");
-      // Zorg dat docs/images/ bestaat (kopieer assets als nodig)
-      const bssImagesDir = join(bssDocsDir, "images");
-      try { await Deno.stat(bssImagesDir); } catch {
-        await Deno.mkdir(bssImagesDir, { recursive: true });
-        for await (const entry of Deno.readDir(bssAssetsDir)) {
-          if (entry.isFile && entry.name.endsWith(".png")) {
-            await Deno.copyFile(join(bssAssetsDir, entry.name), join(bssImagesDir, entry.name));
-          }
+  // Fase 4b: Brightspacosaurus-handleiding als aparte PDF
+  if (pandocAvailable()) {
+    const docentenOutputDir = config.docentenHandleiding?.outputDir ?? join(buildDir, "docenten");
+    const bssScriptDir = import.meta.dirname ?? dirname(new URL(import.meta.url).pathname);
+    const bssDocsDir = resolve(bssScriptDir, "..", "docs");
+    const bssAssetsDir = resolve(bssScriptDir, "..", "assets");
+    const bssSource = resolve(bssDocsDir, "brightspacosaurus-handleiding.md");
+    // Zorg dat docs/images/ bestaat (kopieer assets als nodig)
+    const bssImagesDir = join(bssDocsDir, "images");
+    try { await Deno.stat(bssImagesDir); } catch {
+      await Deno.mkdir(bssImagesDir, { recursive: true });
+      for await (const entry of Deno.readDir(bssAssetsDir)) {
+        if (entry.isFile && entry.name.endsWith(".png")) {
+          await Deno.copyFile(join(bssAssetsDir, entry.name), join(bssImagesDir, entry.name));
         }
       }
+    }
     try {
       await Deno.stat(bssSource);
+      await Deno.mkdir(docentenOutputDir, { recursive: true });
       const bssOutput = join(docentenOutputDir, "brightspacosaurus-handleiding.pdf");
       console.log("Genereer Brightspacosaurus-handleiding PDF...");
       const includeFilterPath = resolve(bssAssetsDir, "include-filter.lua");
@@ -316,7 +300,7 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
       });
       const bssResult = await bssCmd.output();
       if (bssResult.success) {
-        console.log(`  ✓ docenten/brightspacosaurus-handleiding.pdf`);
+        console.log(`  ✓ ${relative(buildDir, bssOutput)}`);
       } else {
         const bssStderr = new TextDecoder().decode(bssResult.stderr);
         console.warn(`  ⚠ BSS-handleiding-PDF mislukt (niet-blokkerend):`);
@@ -326,64 +310,22 @@ async function runPrepare(repoRoot: string, sourcesDir: string, readersOnly = fa
     } catch {
       // BSS-handleiding niet gevonden — overslaan
     }
-    } // einde if (!readersOnly) voor BSS-handleiding
-  } else {
-    console.warn("⚠ pandoc niet gevonden — docentenhandleiding-PDF overgeslagen.");
   }
 
   console.log(`Prepare voltooid.`);
 }
 
-async function runPack(repoRoot: string, sourcesDir: string, output: string = ""): Promise<void> {
-  const buildDir = resolveBuildDir(repoRoot, output);
+async function runPack(config: ResolvedConfig): Promise<void> {
+  const repoRoot = config.repoRoot;
+  const buildDir = config.outputDir;
+  const outputPath = join(dirname(buildDir), `${config.name}.v${config.version}.imscc`);
 
-  // Lees versienummer en naam uit package.json (of deno.json als package.json ontbreekt)
-  let version = "0.0.0";
-  let projectNameFromConfig = "";
-  try {
-    const packageJsonPath = join(repoRoot, "package.json");
-    const packageJson = JSON.parse(await Deno.readTextFile(packageJsonPath));
-    version = packageJson.version || "0.0.0";
-    projectNameFromConfig = packageJson.name || "";
-  } catch {
-    // Geen package.json — probeer deno.json in repoRoot
-    try {
-      const denoJsonPath = join(repoRoot, "deno.json");
-      const denoJson = JSON.parse(await Deno.readTextFile(denoJsonPath));
-      version = denoJson.version || "0.0.0";
-    } catch { /* geen versie beschikbaar */ }
-  }
-
-  // Bepaal output-pad: --output wint, anders rc-bestand, anders package.json name
-  let outputPath: string;
-  if (output) {
-    // output kan een volledig relatief pad zijn (bijv. "oose-dt/build/OOSE-DT-SAD")
-    // of alleen een naam (bijv. "OOSE-DT-SAD")
-    if (output.endsWith(".imscc")) {
-      // Expliciet .imscc pad: absoluut of relatief t.o.v. repoRoot
-      outputPath = output.startsWith("/") ? output : join(repoRoot, output);
-    } else {
-      // Gebruik buildDir-parent als output-map, output-basename als naam
-      const outputName = basename(output);
-      outputPath = join(dirname(buildDir), `${outputName}.v${version}.imscc`);
-    }
-  } else {
-    // Lees naam uit .brightspacosaurus.json of valt terug op package.json name
-    let projectName = packageJson.name || basename(repoRoot);
-    try {
-      const rcPath = join(repoRoot, ".brightspacosaurus.json");
-      const rc = JSON.parse(await Deno.readTextFile(rcPath));
-      if (rc.name) projectName = rc.name;
-    } catch { /* geen rc-bestand */ }
-    outputPath = join(dirname(buildDir), `${projectName}.v${version}.imscc`);
-  }
-
-  // Eerst prepare uitvoeren als build/brightspace/content/ niet bestaat
+  // Eerst prepare uitvoeren als build/content/ niet bestaat
   try {
     await Deno.stat(join(buildDir, "content"));
   } catch {
     console.log("build/brightspace/content/ niet gevonden, voer eerst prepare uit...");
-    await runPrepare(repoRoot, sourcesDir, false, output);
+    await runPrepare(config, false);
   }
 
   // Genereer imsmanifest.xml
@@ -475,7 +417,7 @@ async function runPack(repoRoot: string, sourcesDir: string, output: string = ""
     return a.href.localeCompare(b.href);
   });
 
-  const manifestXml = buildManifest("OWE 1 - Full Stack Engineering", entries);
+  const manifestXml = buildManifest(config.courseName, entries);
   await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
   console.log("  ✓ imsmanifest.xml");
 
@@ -500,11 +442,60 @@ async function main(): Promise<void> {
   // Dit maakt brightspacosaurus locatie-onafhankelijk: de tool kan overal staan.
   const repoRoot = Deno.cwd();
 
+  // Configuratie laden via de config-loading flow:
+  // findConfigFile → loadConfig → resolveConfig
+  // Met fallback naar CLI-only als er geen configbestand is maar wel --sources.
+  let resolvedConfig: ResolvedConfig;
+
+  try {
+    const configPath = await findConfigFile(
+      repoRoot,
+      parsed.config || undefined,
+    );
+
+    if (configPath) {
+      // Config-bestand gevonden: laad, valideer en merge met CLI-overrides
+      const config = await loadConfig(configPath);
+      resolvedConfig = resolveConfig(
+        config,
+        {
+          sources: parsed.sources || undefined,
+          output: parsed.output || undefined,
+          readersOnly: parsed.readersOnly,
+          config: parsed.config || undefined,
+        },
+        repoRoot,
+      );
+    } else if (parsed.sources) {
+      // Geen config-bestand, maar wel --sources: fallback naar CLI-only
+      resolvedConfig = resolveFromCliOnly(
+        {
+          sources: parsed.sources,
+          output: parsed.output || undefined,
+          readersOnly: parsed.readersOnly,
+        },
+        repoRoot,
+      );
+    } else {
+      // Geen config-bestand en geen --sources: toon foutmelding + voorbeeld
+      console.error(
+        "Fout: geen brightspacosaurus.config.json gevonden en geen --sources argument.",
+      );
+      console.error("Maak een configuratiebestand aan. Voorbeeld:\n");
+      console.error(EXAMPLE_CONFIG);
+      Deno.exit(1);
+    }
+  } catch (e) {
+    const error = e as Error & { exitCode?: number };
+    console.error(`Fout: ${error.message}`);
+    Deno.exit(error.exitCode ?? 1);
+  }
+
   try {
     if (parsed.command === "prepare") {
-      await runPrepare(repoRoot, parsed.sources, parsed.readersOnly, parsed.output);
+      await runPrepare(resolvedConfig, parsed.readersOnly);
     } else if (parsed.command === "pack") {
-      await runPack(repoRoot, parsed.sources, parsed.output);
+      await runPack(resolvedConfig);
     }
   } catch (e) {
     const error = e as Error & { exitCode?: number };
