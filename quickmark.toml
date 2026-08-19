@@ -1,0 +1,32 @@
+# QuickMark configuration for OWE-1
+# Gebaseerend op pragmatische instellingen voor documentatie in plaats van 'code' projecten.
+
+[linters.severity]
+# Alle regels staan standaard op 'err' (error)
+# Hier schakelen we specifieke regels uit die voor documentatie-projecten annotaties zijn
+
+# Lijnlengte: often impractical in Markdown doc projects (links, code examples)
+line-length = "off"
+# Inline HTML: nodig voor bepaalde opmaak in lesmateriaal en docentenhandleiding
+no-inline-html = "off"
+# Bare URLs: moet kunnen voor referenties en externe links
+no-bare-urls = "off"
+no-duplicate-heading = "off"
+# Shared partials beginnen bewust zonder H1, omdat de includerende pagina de kop levert
+first-line-heading = "off"
+
+# Configured rule settings
+[linters.settings.heading-style]
+style = "consistent"
+[linters.settings.ul-style]
+style = "consistent"
+[linters.settings.ol-prefix]
+style = "one_or_ordered"
+[linters.settings.code-block-style]
+style = "consistent"
+[linters.settings.code-fence-style]
+style = "consistent"
+[linters.settings.emphasis-style]
+style = "consistent"
+[linters.settings.strong-style]
+style = "consistent"
