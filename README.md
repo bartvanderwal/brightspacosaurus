@@ -1,4 +1,12 @@
+<p align="center">
+  <img src="docs/images/bsosaurus-logo.png" alt="Brightspacosaurus logo" width="200">
+</p>
+
 # Brightspacosaurus
+
+<p align="center">
+  <img src="docs/images/brightspacosaurus-big.png" alt="Brightspacosaurus hero" width="600">
+</p>
 
 CLI-tool die Markdown-cursusmateriaal omzet naar een Brightspace Common Cartridge (`.imscc`)-pakket.
 
