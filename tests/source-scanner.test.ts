@@ -373,3 +373,36 @@ Deno.test("Reader-classificatie: volledige mapstructuur met readers, lessen en u
     await removeDir(tempRoot);
   }
 });
+
+// ---------------------------------------------------------------------------
+// PDF-classificatie unit tests
+// Valideert: Requirements 6.1
+// ---------------------------------------------------------------------------
+
+Deno.test("PDF-classificatie: vooraf gegenereerde PDF's op top-niveau komen in pdfFiles", async () => {
+  const tempRoot = await makeTempDir();
+  const sourcesDir = join(tempRoot, "Lesbeschrijvingen");
+  try {
+    // Top-niveau: vooraf gegenereerde PDF en bijbehorende reader-Markdown
+    await writeFile(join(sourcesDir, "reader-git.pdf"), "%PDF-1.4\n");
+    await writeFile(join(sourcesDir, "reader-git.md"), "# Git\n");
+    // PDF in submap mag NIET in pdfFiles komen (alleen top-niveau)
+    await writeFile(join(sourcesDir, "week-1", "something.pdf"), "%PDF-1.4\n");
+
+    const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
+
+    // De top-niveau PDF moet in pdfFiles staan
+    const topLevelPdfPresent = result.pdfFiles.some((f) => f === resolve(join(sourcesDir, "reader-git.pdf")));
+    assertEquals(topLevelPdfPresent, true, "reader-git.pdf op top-niveau moet in pdfFiles staan");
+
+    // De PDF in de submap mag NIET in pdfFiles staan
+    const subDirPdfPresent = result.pdfFiles.some((f) => f.includes("something.pdf"));
+    assertEquals(subDirPdfPresent, false, "PDF in submap mag niet in pdfFiles staan");
+
+    // De reader-Markdown moet nog steeds in readerFiles staan
+    const readerPresent = result.readerFiles.some((f) => f === resolve(join(sourcesDir, "reader-git.md")));
+    assertEquals(readerPresent, true, "reader-git.md moet in readerFiles staan");
+  } finally {
+    await removeDir(tempRoot);
+  }
+});

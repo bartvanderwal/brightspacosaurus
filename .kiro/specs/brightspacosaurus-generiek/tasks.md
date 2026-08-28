@@ -128,14 +128,14 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - `courseName`, `version`, `sourcesDir`, `readersDir`, `docentenHandleiding` per project
     - _Requirements: 2.1, 2.2, 7.4, 7.5_
 
-  - [ ] 9.2 Verwijder cursusspecifieke content uit assets
+  - [x] 9.2 Verwijder cursusspecifieke content uit assets
     - Verwijder alle cursusspecifieke visuele assets uit `assets/`
     - Verwijder cursusspecifieke selectors uit `assets/brightspacosaurus.css`
     - Behoud de generieke HAN-huisstijl basis-CSS
     - _Requirements: 2.1, 2.2, 8.1, 8.3_
 
-- [ ] 10. JSR-publicatie voorbereiding
-  - [ ] 10.1 Update `deno.json` voor JSR-publicatie
+- [x] 10. JSR-publicatie voorbereiding
+  - [x] 10.1 Update `deno.json` voor JSR-publicatie
     - Voeg `name: "@han-ict/brightspacosaurus"` toe (of passende scope)
     - Voeg `version` veld toe
     - Voeg `exports` veld toe met entry points voor individuele modules
@@ -144,12 +144,12 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - Verwijder OWE-1-specifieke paden uit task-definities
     - _Requirements: 6.1, 6.2, 6.5, 6.6_
 
-  - [ ] 10.2 Valideer dat BSS geen externe imports heeft
+  - [x] 10.2 Valideer dat BSS geen externe imports heeft
     - Controleer dat geen imports verwijzen naar bestanden buiten de BSS directory-structuur
     - Verwijder eventuele relatieve imports naar parent-directories (`../../`)
     - _Requirements: 6.3_
 
-- [ ] 11. Checkpoint - Publicatie-gereedheid
+- [x] 11. Checkpoint - Publicatie-gereedheid
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 12. ADR-migratie en documentatie
