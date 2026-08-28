@@ -105,6 +105,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
 
   // Reader-scan vanuit config.readersDir (null → overslaan zonder melding)
   let readerFiles: string[] = [];
+  let pdfFiles: string[] = [];
   if (config.readersDir) {
     try {
       await Deno.stat(config.readersDir);
@@ -114,6 +115,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         repoRoot,
       });
       readerFiles = readersScan.readerFiles;
+      pdfFiles = readersScan.pdfFiles;
     } catch {
       // Readers-map bestaat niet — geen readers
     }
@@ -128,6 +130,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         sourcePath: mdFile,
         outputDir: contentOutputDir,
         repoRoot,
+        baseDir: config.sourcesDir,
         version: config.version,
         customCssPath: config.customCss ?? undefined,
       });
@@ -135,25 +138,29 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       console.log(`  ✓ ${relPath}`);
     }
 
-    // Fase 1b: Converteer README.md uit sourcesDir-parent naar HTML
+    // Fase 1b: Converteer README.md en andere losse HTML-pagina's uit sourcesDir-parent naar HTML
     // (als het bestaat, plaats het onder de eerste weekmap voor manifest-groepering)
     const sourcesParent = dirname(config.sourcesDir);
-    const readmePath = join(sourcesParent, "README.md");
-    try {
-      await Deno.stat(readmePath);
-      const week1OutputDir = join(contentOutputDir, "week-1");
-      await Deno.mkdir(week1OutputDir, { recursive: true });
-      const readmeResult = await convertMarkdown({
-        sourcePath: readmePath,
-        outputDir: week1OutputDir,
-        repoRoot,
-        version: config.version,
-        customCssPath: config.customCss ?? undefined,
-      });
-      const relReadmePath = relative(contentOutputDir, readmeResult.outputPath);
-      console.log(`  ✓ ${relReadmePath} (Studentenhandleiding)`);
-    } catch {
-      // README niet gevonden — overslaan
+    const parentHtmlFiles = ["README.md", "voor-docenten.md"];
+    for (const parentFile of parentHtmlFiles) {
+      const parentFilePath = join(sourcesParent, parentFile);
+      try {
+        await Deno.stat(parentFilePath);
+        const week1OutputDir = join(contentOutputDir, "week-1");
+        await Deno.mkdir(week1OutputDir, { recursive: true });
+        const result = await convertMarkdown({
+          sourcePath: parentFilePath,
+          outputDir: week1OutputDir,
+          repoRoot,
+          baseDir: dirname(parentFilePath),
+          version: config.version,
+          customCssPath: config.customCss ?? undefined,
+        });
+        const relPath = relative(contentOutputDir, result.outputPath);
+        console.log(`  ✓ ${relPath} (${parentFile})`);
+      } catch {
+        // Bestand niet gevonden — overslaan
+      }
     }
 
     // Fase 2: Converteer quiz-Markdown naar QTI XML
@@ -210,6 +217,17 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         error.exitCode = 3;
         throw error;
       }
+    }
+  }
+
+  // Fase 3b: Kopieer vooraf gegenereerde PDF's direct (geen pandoc nodig)
+  if (pdfFiles.length > 0) {
+    await Deno.mkdir(readersOutputDir, { recursive: true });
+    for (const pdfFile of pdfFiles) {
+      const filename = basename(pdfFile);
+      const destPath = join(readersOutputDir, filename);
+      await Deno.copyFile(pdfFile, destPath);
+      console.log(`  ✓ readers/${filename} (pre-built)`);
     }
   }
 

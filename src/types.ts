@@ -21,6 +21,8 @@ export interface ScanResult {
   quizFiles: string[];
   /** Absolute paden naar reader-Markdown bestanden (prefix "reader-" of "plantuml-essentials.md"), gesorteerd. */
   readerFiles: string[];
+  /** Absolute paden naar vooraf gegenereerde PDF-bestanden in de readersDir. */
+  pdfFiles: string[];
 }
 
 // --- MarkdownConverter ---
@@ -37,6 +39,8 @@ export interface ConvertOptions {
   version?: string;
   /** Absoluut pad naar een custom CSS-bestand. Wordt naast de standaard-CSS opgenomen. */
   customCssPath?: string;
+  /** Basismap waartegen het output-pad relatief wordt bepaald. Standaard: repoRoot. Gebruik sourcesDir om diepe repo-structuren af te vlakken. */
+  baseDir?: string;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */

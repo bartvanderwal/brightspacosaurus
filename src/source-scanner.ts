@@ -37,16 +37,20 @@ function isReaderFile(fileName: string): boolean {
  * Bestanden direct in de top-level map die aan reader-criteria voldoen komen in readerFiles.
  * Bestanden in submappen worden geclassificeerd als markdownFiles of quizFiles.
  */
-async function scanDir(dir: string): Promise<{ markdownFiles: string[]; quizFiles: string[]; readerFiles: string[] }> {
+async function scanDir(dir: string): Promise<{ markdownFiles: string[]; quizFiles: string[]; readerFiles: string[]; pdfFiles: string[] }> {
   const markdownFiles: string[] = [];
   const quizFiles: string[] = [];
   const readerFiles: string[] = [];
+  const pdfFiles: string[] = [];
 
   async function walk(currentDir: string, isTopLevel: boolean): Promise<void> {
     for await (const entry of Deno.readDir(currentDir)) {
       const fullPath = join(currentDir, entry.name);
       if (entry.isDirectory) {
         await walk(fullPath, false);
+      } else if (entry.isFile && entry.name.endsWith(".pdf") && isTopLevel) {
+        // Vooraf gegenereerde PDF-bestanden op top-niveau
+        pdfFiles.push(fullPath);
       } else if (entry.isFile && entry.name.endsWith(".md")) {
         // Bestanden op top-niveau: classificeer als reader indien van toepassing
         if (isTopLevel && isReaderFile(entry.name)) {
@@ -66,7 +70,8 @@ async function scanDir(dir: string): Promise<{ markdownFiles: string[]; quizFile
   markdownFiles.sort();
   quizFiles.sort();
   readerFiles.sort();
-  return { markdownFiles, quizFiles, readerFiles };
+  pdfFiles.sort();
+  return { markdownFiles, quizFiles, readerFiles, pdfFiles };
 }
 
 /**

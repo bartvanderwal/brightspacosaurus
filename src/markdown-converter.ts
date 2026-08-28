@@ -186,6 +186,7 @@ export async function convertMarkdown(options: ConvertOptions): Promise<ConvertR
   const repoRoot = resolve(options.repoRoot);
   const sourcePath = resolve(options.sourcePath);
   const outputDir = resolve(options.outputDir);
+  const baseDir = options.baseDir ? resolve(options.baseDir) : repoRoot;
 
   assertWithinRoot(sourcePath, repoRoot);
 
@@ -204,9 +205,9 @@ export async function convertMarkdown(options: ConvertOptions): Promise<ConvertR
   const convertedMarkdown = convertReaderLinks(cleanedMarkdown);
   const relativeImages = findRelativeImages(convertedMarkdown);
 
-  const relFromRoot = relative(repoRoot, sourcePath);
+  const relFromBase = relative(baseDir, sourcePath);
   const htmlFileName = basename(sourcePath, extname(sourcePath)) + ".html";
-  const relDir = dirname(relFromRoot);
+  const relDir = dirname(relFromBase);
   const outputSubDir = join(outputDir, relDir);
   const outputPath = join(outputSubDir, htmlFileName);
 
@@ -216,7 +217,7 @@ export async function convertMarkdown(options: ConvertOptions): Promise<ConvertR
 
   for (const imgRelPath of relativeImages) {
     const imgAbsSource = resolve(sourceDir, imgRelPath);
-    const imgOutputPath = join(outputDir, dirname(relFromRoot), imgRelPath);
+    const imgOutputPath = join(outputDir, dirname(relFromBase), imgRelPath);
 
     await Deno.mkdir(dirname(imgOutputPath), { recursive: true });
 
