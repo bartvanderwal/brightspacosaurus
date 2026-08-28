@@ -28,12 +28,16 @@ import {
  */
 function decodeHtmlEntities(text: string): string {
   return text
-    .replace(/&amp;/g, "&")
+    // Numerieke entities eerst: hex (&#x26;) en decimaal (&#38;)
+    .replace(/&#x([0-9a-f]+);/gi, (_m, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    // Named entities daarna. &amp; als laatste zodat we geen dubbele decode krijgen
+    // (bijv. &amp;lt; → &lt; en niet → <).
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#39;/g, "'");
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
 }
 
 const USAGE = `Gebruik: brightspacosaurus <commando> [opties]

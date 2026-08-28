@@ -140,12 +140,16 @@ Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => 
  */
 function decodeHtmlEntities(text: string): string {
   return text
-    .replace(/&amp;/g, "&")
+    // Numerieke entities eerst: hex (&#x26;) en decimaal (&#38;)
+    .replace(/&#x([0-9a-f]+);/gi, (_m, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    // Named entities daarna. &amp; als laatste zodat we geen dubbele decode krijgen
+    // (bijv. &amp;lt; → &lt; en niet → <).
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#39;/g, "'");
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
 }
 
 Deno.test("Manifest-titels worden single-escaped: geen dubbele entity-encoding (issue #1)", () => {
@@ -178,6 +182,46 @@ Deno.test("Manifest-titels worden single-escaped: geen dubbele entity-encoding (
     false,
     "Manifest mag GEEN dubbel-geëscapete '&amp;amp;' bevatten",
   );
+});
+
+Deno.test("Manifest-titels met numerieke hex-entity (&#x26;) worden single-escaped (issue #1)", () => {
+  // rehype produceert in de praktijk een hex-entity voor '&' i.p.v. de named entity.
+  const htmlTitle = "Ontwerp &#x26; Implementatie";
+
+  // Na decodeHtmlEntities krijgen we plain text:
+  const decodedTitle = decodeHtmlEntities(htmlTitle);
+  assertEquals(decodedTitle, "Ontwerp & Implementatie");
+
+  const xml = buildManifest("Testcursus", [
+    {
+      id: "res_content_week_1_ontwerp_html",
+      title: decodedTitle,
+      href: "content/week-1/ontwerp.html",
+      type: "webcontent",
+    },
+  ]);
+
+  // De titel moet single-escaped '&amp;' bevatten, NIET '&#x26;' of '&amp;amp;'
+  assertEquals(
+    xml.includes("<title>Ontwerp &amp; Implementatie</title>"),
+    true,
+    "Manifest moet single-escaped '&amp;' bevatten",
+  );
+  assertEquals(
+    xml.includes("&#x26;"),
+    false,
+    "Manifest mag GEEN onverwerkte hex-entity '&#x26;' bevatten",
+  );
+  assertEquals(
+    xml.includes("&amp;amp;"),
+    false,
+    "Manifest mag GEEN dubbel-geëscapete '&amp;amp;' bevatten",
+  );
+});
+
+Deno.test("Manifest-titels met numerieke decimaal-entity (&#38;) worden single-escaped", () => {
+  const decodedTitle = decodeHtmlEntities("Ontwerp &#38; Implementatie");
+  assertEquals(decodedTitle, "Ontwerp & Implementatie");
 });
 
 Deno.test("Manifest-titels met meerdere HTML-entities worden correct gedecodeerd", () => {
