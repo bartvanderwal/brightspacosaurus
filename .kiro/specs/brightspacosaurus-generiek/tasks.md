@@ -183,7 +183,7 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - Beschrijf hoe de opschoningsutility als workaround kan worden gebruikt
     - _Requirements: 13.3_
 
-- [ ] 14. Final checkpoint - Alle tests en integratie
+- [x] 14. Final checkpoint - Alle tests en integratie
   - Ensure all tests pass, ask the user if questions arise.
   - Valideer met OWE-1 config: `deno task prepare` en `deno task pack` produceren werkend IMSCC
   - Valideer met OOSE-DT config: `prepare --sources sad --output build/OOSE-DT-SAD` produceert werkend IMSCC
