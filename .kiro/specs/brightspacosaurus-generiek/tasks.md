@@ -152,13 +152,13 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
 - [x] 11. Checkpoint - Publicatie-gereedheid
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 12. ADR-migratie en documentatie
+- [x] 12. ADR-migratie en documentatie
   - [x] 12.1 Migreer relevante ADR's naar BSS-repository
     - Maak `adr/` directory aan
     - Kopieer ADR-008 (Deno runtime), ADR-010 (Brightspace packaging), ADR-011 (property-based testing), ADR-014 (onderhoud branches) naar `adr/`
     - _Requirements: 14.1, 14.2_
 
-  - [ ] 12.2 Maak generieke handleiding
+  - [x] 12.2 Maak generieke handleiding
     - Herschrijf `docs/brightspacosaurus-handleiding.md` zonder cursusspecifieke verwijzingen
     - Beschrijf: installatie, configuratie, `prepare`-commando, `pack`-commando, quiz-conversie, reader-PDF-conversie, IMSCC-formaat, Brightspace-importprocedure
     - Gebruik generieke voorbeeldnamen ("Cursus X", "Module A")
@@ -170,15 +170,15 @@ Refactor Brightspacosaurus van een cursusspecifieke build-tool naar een generiek
     - Configuratievoorbeeld met alle opties
     - _Requirements: 6.4_
 
-- [ ] 13. Optionele utilities separatie
-  - [ ] 13.1 Verplaats Brightspace-opschoningsscript naar `utils/`
+- [x] 13. Optionele utilities separatie
+  - [x] 13.1 Verplaats Brightspace-opschoningsscript naar `utils/`
     - Maak `utils/` directory aan
     - Verplaats `verwijder-brightspace-paginas.js` naar `utils/`
     - Zorg dat het script onafhankelijk functioneert (geen gedeelde imports)
     - Markeer als experimenteel in een commentaar-header
     - _Requirements: 12.3, 13.1, 13.2, 13.4_
 
-  - [ ] 13.2 Documenteer de opschoningsutility in de handleiding
+  - [x] 13.2 Documenteer de opschoningsutility in de handleiding
     - Beschrijf dat Brightspace-import additief is
     - Beschrijf hoe de opschoningsutility als workaround kan worden gebruikt
     - _Requirements: 13.3_

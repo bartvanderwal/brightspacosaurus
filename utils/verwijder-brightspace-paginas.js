@@ -1,4 +1,17 @@
 /**
+ * ⚠️ EXPERIMENTEEL — Brightspace-opschoningsutility
+ *
+ * Browser-consolescript voor het bulk-verwijderen van content in Brightspace.
+ * Werkt via DOM-manipulatie en is afhankelijk van Brightspace's interne HTML-structuur.
+ * Kan breken bij een Brightspace-update.
+ *
+ * Gebruik: kopieer de inhoud van dit bestand naar de Browser Developer Console (F12)
+ * terwijl je in een Brightspace-module navigeert.
+ *
+ * Dit script is onafhankelijk van de BSS-kern (geen gedeelde imports of configuratie).
+ */
+
+/**
  * Brightspace: verwijder pagina's vanaf de huidige selectie naar beneden.
  *
  * Gebruik:
