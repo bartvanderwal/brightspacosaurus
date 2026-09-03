@@ -4,11 +4,12 @@
  * Requirements: 6.2, 6.4, 6.5
  */
 
-import { resolve, join, basename, extname, relative, dirname } from "@std/path";
+import { resolve, join, basename, extname, relative, dirname, fromFileUrl } from "@std/path";
 import { scanSources } from "./source-scanner.ts";
 import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
+import { materializeAsset } from "./assets.ts";
 import { buildManifest } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
 import { ManifestEntry, ResolvedConfig } from "./types.ts";
@@ -260,11 +261,9 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       const resourcePath = dirname(existingFiles[0]);
 
       console.log(`Genereer docentenhandleiding PDF (${existingFiles.length} bronbestanden)...`);
-      // Resolve BSS asset paden locatie-onafhankelijk
-      const bssScriptDir = import.meta.dirname ?? dirname(new URL(import.meta.url).pathname);
-      const bssAssetsDir = resolve(bssScriptDir, "..", "assets");
-      const headerPath = resolve(bssAssetsDir, "reader-header.tex");
-      const includeFilterPath = resolve(bssAssetsDir, "include-filter.lua");
+      // Materialiseer BSS assets naar tijdelijke bestanden (werkt lokaal én vanuit JSR)
+      const headerPath = await materializeAsset("reader-header.tex");
+      const includeFilterPath = await materializeAsset("include-filter.lua");
 
       const cmd = new Deno.Command("pandoc", {
         args: [
@@ -299,58 +298,86 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
     }
   }
 
-  // Fase 4b: Brightspacosaurus-handleiding als aparte PDF
+  // Fase 4b: Brightspacosaurus-handleiding als aparte PDF.
+  // Deze sectie leest de handleiding-bron uit docs/ (niet gepubliceerd naar JSR)
+  // en is daarom alleen zinvol bij draaien vanuit lokale broncode. Als de
+  // handleiding-bron niet als lokaal bestand te vinden is (bijv. vanuit JSR-cache),
+  // slaan we deze fase stilzwijgend over.
   if (pandocAvailable()) {
     const docentenOutputDir = config.docentenHandleiding?.outputDir ?? join(buildDir, "docenten");
-    const bssScriptDir = import.meta.dirname ?? dirname(new URL(import.meta.url).pathname);
-    const bssDocsDir = resolve(bssScriptDir, "..", "docs");
-    const bssAssetsDir = resolve(bssScriptDir, "..", "assets");
-    const bssSource = resolve(bssDocsDir, "brightspacosaurus-handleiding.md");
-    // Zorg dat docs/images/ bestaat (kopieer assets als nodig)
-    const bssImagesDir = join(bssDocsDir, "images");
-    try { await Deno.stat(bssImagesDir); } catch {
-      await Deno.mkdir(bssImagesDir, { recursive: true });
-      for await (const entry of Deno.readDir(bssAssetsDir)) {
-        if (entry.isFile && entry.name.endsWith(".png")) {
-          await Deno.copyFile(join(bssAssetsDir, entry.name), join(bssImagesDir, entry.name));
-        }
-      }
-    }
+
+    // Resolve de docs-map lokaal; vanuit JSR is er geen lokaal docs/-pad → overslaan.
+    let bssDocsDir: string | undefined;
+    let bssSource: string | undefined;
     try {
-      await Deno.stat(bssSource);
-      await Deno.mkdir(docentenOutputDir, { recursive: true });
-      const bssOutput = join(docentenOutputDir, "brightspacosaurus-handleiding.pdf");
-      console.log("Genereer Brightspacosaurus-handleiding PDF...");
-      const includeFilterPath = resolve(bssAssetsDir, "include-filter.lua");
-      const bssCmd = new Deno.Command("pandoc", {
-        args: [
-          bssSource,
-          "-o", bssOutput,
-          `--resource-path=${bssDocsDir}`,
-          "--pdf-engine=xelatex",
-          "-V", "geometry:margin=2.5cm",
-          "-V", "lang=nl",
-          `--include-in-header=${resolve(bssAssetsDir, "reader-header.tex")}`,
-          `--lua-filter=${includeFilterPath}`,
-          "--syntax-highlighting=tango",
-          "--toc",
-          "--toc-depth=2",
-          `-V`, `date=${new Date().toISOString().slice(0, 10)}`,
-        ],
-        stdout: "piped",
-        stderr: "piped",
-      });
-      const bssResult = await bssCmd.output();
-      if (bssResult.success) {
-        console.log(`  ✓ ${relative(buildDir, bssOutput)}`);
-      } else {
-        const bssStderr = new TextDecoder().decode(bssResult.stderr);
-        console.warn(`  ⚠ BSS-handleiding-PDF mislukt (niet-blokkerend):`);
-        console.warn(`    ${bssStderr.trim()}`);
-        await Deno.remove(bssOutput).catch(() => undefined);
+      const docsUrl = import.meta.resolve("../docs/brightspacosaurus-handleiding.md");
+      if (!docsUrl.startsWith("file:")) {
+        throw new Error("docs niet lokaal beschikbaar (JSR)");
       }
+      bssSource = fromFileUrl(docsUrl);
+      bssDocsDir = dirname(bssSource);
+      // Bevestig dat de bron daadwerkelijk bestaat
+      await Deno.stat(bssSource);
     } catch {
-      // BSS-handleiding niet gevonden — overslaan
+      bssDocsDir = undefined;
+      bssSource = undefined;
+    }
+
+    if (bssDocsDir && bssSource) {
+      try {
+        // Zorg dat docs/images/ bestaat (kopieer PNG-assets als nodig)
+        const bssImagesDir = join(bssDocsDir, "images");
+        try { await Deno.stat(bssImagesDir); } catch {
+          await Deno.mkdir(bssImagesDir, { recursive: true });
+          // PNG-assets liggen naast de docs-map onder assets/; materialiseren is niet
+          // mogelijk voor binaire bestanden, dus we kopiëren alleen wat lokaal bestaat.
+          const bssAssetsDir = resolve(bssDocsDir, "..", "assets");
+          try {
+            for await (const entry of Deno.readDir(bssAssetsDir)) {
+              if (entry.isFile && entry.name.endsWith(".png")) {
+                await Deno.copyFile(join(bssAssetsDir, entry.name), join(bssImagesDir, entry.name));
+              }
+            }
+          } catch {
+            // assets-map niet lokaal beschikbaar — doorgaan zonder afbeeldingen
+          }
+        }
+
+        await Deno.mkdir(docentenOutputDir, { recursive: true });
+        const bssOutput = join(docentenOutputDir, "brightspacosaurus-handleiding.pdf");
+        console.log("Genereer Brightspacosaurus-handleiding PDF...");
+        const headerPath = await materializeAsset("reader-header.tex");
+        const includeFilterPath = await materializeAsset("include-filter.lua");
+        const bssCmd = new Deno.Command("pandoc", {
+          args: [
+            bssSource,
+            "-o", bssOutput,
+            `--resource-path=${bssDocsDir}`,
+            "--pdf-engine=xelatex",
+            "-V", "geometry:margin=2.5cm",
+            "-V", "lang=nl",
+            `--include-in-header=${headerPath}`,
+            `--lua-filter=${includeFilterPath}`,
+            "--syntax-highlighting=tango",
+            "--toc",
+            "--toc-depth=2",
+            `-V`, `date=${new Date().toISOString().slice(0, 10)}`,
+          ],
+          stdout: "piped",
+          stderr: "piped",
+        });
+        const bssResult = await bssCmd.output();
+        if (bssResult.success) {
+          console.log(`  ✓ ${relative(buildDir, bssOutput)}`);
+        } else {
+          const bssStderr = new TextDecoder().decode(bssResult.stderr);
+          console.warn(`  ⚠ BSS-handleiding-PDF mislukt (niet-blokkerend):`);
+          console.warn(`    ${bssStderr.trim()}`);
+          await Deno.remove(bssOutput).catch(() => undefined);
+        }
+      } catch {
+        // BSS-handleiding niet gevonden of fout — overslaan
+      }
     }
   }
 

@@ -4,6 +4,7 @@
  */
 
 import { ConvertOptions, ConvertResult } from "./types.ts";
+import { loadAssetText } from "./assets.ts";
 import { resolve, relative, join, dirname, basename, extname } from "@std/path";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
@@ -100,20 +101,11 @@ export function convertReaderLinks(markdown: string): string {
   });
 }
 
-/** Pad naar het gedeelde CSS-bestand (relatief aan deze module). */
-const CONTENT_CSS_PATH = new URL("../assets/brightspacosaurus.css", import.meta.url);
-
-/** Cache voor het ingelezen CSS (eenmalig per proces). */
-let _contentCssCache: string | null = null;
-
 /**
- * Leest het gedeelde content-CSS in (gecached).
+ * Leest het gedeelde content-CSS in (gecached via loadAssetText).
  */
 async function getContentCss(): Promise<string> {
-  if (_contentCssCache === null) {
-    _contentCssCache = await Deno.readTextFile(CONTENT_CSS_PATH);
-  }
-  return _contentCssCache;
+  return await loadAssetText("brightspacosaurus.css");
 }
 
 /**

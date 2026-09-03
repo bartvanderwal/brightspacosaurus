@@ -4,6 +4,7 @@
  */
 
 import { ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
+import { materializeAsset } from "./assets.ts";
 import { basename, dirname, join } from "@std/path";
 
 /**
@@ -52,11 +53,11 @@ export async function convertReaderToPdf(
   // Bepaal resource-path (directory van het bronbestand) voor afbeeldingsresolutie
   const resourcePath = dirname(sourcePath);
 
-  // Bepaal pad naar LaTeX header-include
-  const scriptDir = import.meta.dirname ?? dirname(new URL(import.meta.url).pathname);
-  const headerPath = join(scriptDir, "..", "assets", "reader-header.tex");
-  const includeFilterPath = join(scriptDir, "..", "assets", "include-filter.lua");
-  const diagramFilterPath = join(scriptDir, "..", "assets", "diagram-filter.lua");
+  // Materialiseer de bundled assets naar tijdelijke bestanden zodat pandoc
+  // ze kan lezen (werkt zowel lokaal als vanuit de JSR-cache).
+  const headerPath = await materializeAsset("reader-header.tex");
+  const includeFilterPath = await materializeAsset("include-filter.lua");
+  const diagramFilterPath = await materializeAsset("diagram-filter.lua");
 
   // Roep pandoc aan
   const command = new Deno.Command("pandoc", {
