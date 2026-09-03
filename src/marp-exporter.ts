@@ -1,6 +1,6 @@
 /**
- * MarpExporter: zet docentenslides om naar Marp-compatible Markdown.
- * De bronbestanden blijven leidend; de uitvoer is afgeleid materiaal in build/.
+ * MarpExporter: converts instructor slides to Marp-compatible Markdown.
+ * The source files remain authoritative; the output is derived material in build/.
  */
 
 import { basename, dirname, join, relative, resolve } from "@std/path";
@@ -22,7 +22,7 @@ const DEFAULT_OUTPUT_DIR = "build/marp-slides";
 function assertWithinRoot(absPath: string, repoRoot: string): void {
   const rel = relative(repoRoot, absPath);
   if (rel.startsWith("..") || rel.startsWith("/")) {
-    const err = new Error(`Pad buiten repository-root geweigerd: ${absPath} (root: ${repoRoot})`);
+    const err = new Error(`Path outside repository root rejected: ${absPath} (root: ${repoRoot})`);
     (err as Error & { exitCode: number }).exitCode = 3;
     throw err;
   }
@@ -177,7 +177,7 @@ function argValue(args: string[], name: string, fallback: string): string {
   if (index === -1) return fallback;
   const value = args[index + 1];
   if (!value || value.startsWith("--")) {
-    const err = new Error(`Ontbrekende waarde voor ${name}`);
+    const err = new Error(`Missing value for ${name}`);
     (err as Error & { exitCode: number }).exitCode = 1;
     throw err;
   }
@@ -190,7 +190,7 @@ if (import.meta.main) {
     const sourceDir = argValue(Deno.args, "--sources", join(repoRoot, DEFAULT_SOURCE_DIR));
     const outputDir = argValue(Deno.args, "--output", join(repoRoot, DEFAULT_OUTPUT_DIR));
     const result = await exportMarpSlides({ sourceDir, outputDir, repoRoot });
-    console.log(`Marp-export voltooid: ${result.exportedFiles.length} bestand(en) naar ${outputDir}`);
+    console.log(`Marp export complete: ${result.exportedFiles.length} file(s) to ${outputDir}`);
   } catch (error) {
     const err = error as Error & { exitCode?: number };
     console.error(err.message);

@@ -1,6 +1,6 @@
 /**
- * Config Loader voor Brightspacosaurus.
- * Laadt, valideert en resolvet het configuratiebestand (brightspacosaurus.config.json).
+ * Config Loader for Brightspacosaurus.
+ * Loads, validates and resolves the configuration file (brightspacosaurus.config.json).
  * Requirements: 1.1, 1.2, 1.4, 1.5, 1.6, 5.7
  */
 
@@ -12,9 +12,9 @@ import type {
   ResolvedDocentenConfig,
 } from "./types.ts";
 
-/** Voorbeeldconfiguratie voor foutmeldingen en documentatie. */
+/** Example configuration for error messages and documentation. */
 export const EXAMPLE_CONFIG = `{
-  "courseName": "Mijn Cursus",
+  "courseName": "My Course",
   "version": "1.0.0",
   "sourcesDir": "bronmateriaal/lessen/",
   "readersDir": "bronmateriaal/readers/",
@@ -25,12 +25,12 @@ export const EXAMPLE_CONFIG = `{
   }
 }`;
 
-/** Standaard naam voor het configuratiebestand. */
+/** Default name for the configuration file. */
 const CONFIG_FILENAME = "brightspacosaurus.config.json";
 
 /**
- * Zoekt het configuratiebestand in de standaardlocatie of het opgegeven pad.
- * Retourneert het absolute pad of null als niet gevonden.
+ * Looks for the configuration file at the default location or the given path.
+ * Returns the absolute path or null if not found.
  */
 export async function findConfigFile(
   repoRoot: string,
@@ -45,12 +45,12 @@ export async function findConfigFile(
       return absPath;
     } catch {
       throw new Error(
-        `Configuratiebestand niet gevonden op opgegeven pad: ${explicitPath}`,
+        `Configuration file not found at the given path: ${explicitPath}`,
       );
     }
   }
 
-  // Zoek in de standaardlocatie (repoRoot)
+  // Look at the default location (repoRoot)
   const defaultPath = join(repoRoot, CONFIG_FILENAME);
   try {
     await Deno.stat(defaultPath);
@@ -61,8 +61,8 @@ export async function findConfigFile(
 }
 
 /**
- * Laadt en parst het configuratiebestand.
- * @throws Error als het bestand niet gelezen of geparseerd kan worden
+ * Loads and parses the configuration file.
+ * @throws Error if the file cannot be read or parsed
  */
 export async function loadConfig(configPath: string): Promise<BssConfig> {
   let content: string;
@@ -70,7 +70,7 @@ export async function loadConfig(configPath: string): Promise<BssConfig> {
     content = await Deno.readTextFile(configPath);
   } catch {
     throw new Error(
-      `Kan configuratiebestand niet lezen: ${configPath}`,
+      `Cannot read configuration file: ${configPath}`,
     );
   }
 
@@ -79,42 +79,42 @@ export async function loadConfig(configPath: string): Promise<BssConfig> {
     parsed = JSON.parse(content);
   } catch (e) {
     throw new Error(
-      `Ongeldige JSON in configuratiebestand ${configPath}: ${(e as Error).message}`,
+      `Invalid JSON in configuration file ${configPath}: ${(e as Error).message}`,
     );
   }
 
   if (!validateConfig(parsed)) {
-    // validateConfig throws — dit punt wordt niet bereikt
-    throw new Error("Ongeldige configuratie");
+    // validateConfig throws — this point is not reached
+    throw new Error("Invalid configuration");
   }
 
   return parsed;
 }
 
 /**
- * Valideert het configuratieobject tegen het verwachte schema.
- * @throws Error als verplichte velden ontbreken of ongeldig zijn
+ * Validates the configuration object against the expected schema.
+ * @throws Error if required fields are missing or invalid
  */
 export function validateConfig(config: unknown): config is BssConfig {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
     throw new Error(
-      "Configuratie moet een JSON-object zijn.",
+      "Configuration must be a JSON object.",
     );
   }
 
   const obj = config as Record<string, unknown>;
 
-  // Verplichte velden
+  // Required fields
   const requiredFields = ["courseName", "version", "sourcesDir"] as const;
   for (const field of requiredFields) {
     if (typeof obj[field] !== "string" || (obj[field] as string).trim() === "") {
       throw new Error(
-        `Verplicht veld '${field}' ontbreekt of is leeg in het configuratiebestand.`,
+        `Required field '${field}' is missing or empty in the configuration file.`,
       );
     }
   }
 
-  // Optionele string-velden valideren
+  // Validate optional string fields
   const optionalStringFields = [
     "readersDir",
     "assetsDir",
@@ -125,12 +125,12 @@ export function validateConfig(config: unknown): config is BssConfig {
   for (const field of optionalStringFields) {
     if (obj[field] !== undefined && typeof obj[field] !== "string") {
       throw new Error(
-        `Optioneel veld '${field}' moet een string zijn als het is opgegeven.`,
+        `Optional field '${field}' must be a string if it is provided.`,
       );
     }
   }
 
-  // docentenHandleiding valideren als het aanwezig is
+  // Validate docentenHandleiding if it is present
   if (obj.docentenHandleiding !== undefined) {
     if (
       typeof obj.docentenHandleiding !== "object" ||
@@ -138,31 +138,31 @@ export function validateConfig(config: unknown): config is BssConfig {
       Array.isArray(obj.docentenHandleiding)
     ) {
       throw new Error(
-        "Veld 'docentenHandleiding' moet een object zijn.",
+        "Field 'docentenHandleiding' must be an object.",
       );
     }
 
     const dh = obj.docentenHandleiding as Record<string, unknown>;
     if (!Array.isArray(dh.inputFiles) || dh.inputFiles.length === 0) {
       throw new Error(
-        "Veld 'docentenHandleiding.inputFiles' moet een niet-lege array van strings zijn.",
+        "Field 'docentenHandleiding.inputFiles' must be a non-empty array of strings.",
       );
     }
     for (const file of dh.inputFiles) {
       if (typeof file !== "string") {
         throw new Error(
-          "Alle items in 'docentenHandleiding.inputFiles' moeten strings zijn.",
+          "All items in 'docentenHandleiding.inputFiles' must be strings.",
         );
       }
     }
     if (dh.outputName !== undefined && typeof dh.outputName !== "string") {
       throw new Error(
-        "Veld 'docentenHandleiding.outputName' moet een string zijn als het is opgegeven.",
+        "Field 'docentenHandleiding.outputName' must be a string if it is provided.",
       );
     }
     if (dh.outputDir !== undefined && typeof dh.outputDir !== "string") {
       throw new Error(
-        "Veld 'docentenHandleiding.outputDir' moet een string zijn als het is opgegeven.",
+        "Field 'docentenHandleiding.outputDir' must be a string if it is provided.",
       );
     }
   }
@@ -171,8 +171,8 @@ export function validateConfig(config: unknown): config is BssConfig {
 }
 
 /**
- * Genereert een slug uit een cursusnaam voor gebruik als bestandsnaam.
- * Bijv. "OWE 1 - Full Stack Engineering" → "owe-1-full-stack-engineering"
+ * Generates a slug from a course name for use as a file name.
+ * E.g. "OWE 1 - Full Stack Engineering" → "owe-1-full-stack-engineering"
  */
 function slugify(name: string): string {
   return name
@@ -182,46 +182,46 @@ function slugify(name: string): string {
 }
 
 /**
- * Merget CLI-overrides met het configuratiebestand en resolvet paden.
- * Merge-strategie: CLI-argument > Config_File > Standaardwaarde.
- * Alle relatieve paden worden geresolveerd naar absolute paden op basis van repoRoot.
+ * Merges CLI overrides with the configuration file and resolves paths.
+ * Merge strategy: CLI argument > Config_File > Default value.
+ * All relative paths are resolved to absolute paths based on repoRoot.
  */
 export function resolveConfig(
   config: BssConfig,
   cliOverrides: CliOverrides,
   repoRoot: string,
 ): ResolvedConfig {
-  // sourcesDir: CLI wint van config (config is verplicht, dus altijd aanwezig)
+  // sourcesDir: CLI wins over config (config is required, so always present)
   const sourcesDir = resolve(
     repoRoot,
     cliOverrides.sources ?? config.sourcesDir,
   );
 
-  // outputDir: CLI wint van config, standaard = "build/brightspace"
+  // outputDir: CLI wins over config, default = "build/brightspace"
   const outputDir = resolve(
     repoRoot,
     cliOverrides.output ?? config.outputDir ?? "build/brightspace",
   );
 
-  // readersDir: alleen uit config, null als niet opgegeven
+  // readersDir: from config only, null if not provided
   const readersDir = config.readersDir
     ? resolve(repoRoot, config.readersDir)
     : null;
 
-  // assetsDir: alleen uit config, null als niet opgegeven
+  // assetsDir: from config only, null if not provided
   const assetsDir = config.assetsDir
     ? resolve(repoRoot, config.assetsDir)
     : null;
 
-  // customCss: alleen uit config, null als niet opgegeven
+  // customCss: from config only, null if not provided
   const customCss = config.customCss
     ? resolve(repoRoot, config.customCss)
     : null;
 
-  // name: uit config of afgeleid van courseName
+  // name: from config or derived from courseName
   const name = config.name ?? slugify(config.courseName);
 
-  // docentenHandleiding: resolvet naar absolute paden als aanwezig
+  // docentenHandleiding: resolves to absolute paths if present
   let docentenHandleiding: ResolvedDocentenConfig | null = null;
   if (config.docentenHandleiding) {
     const dh = config.docentenHandleiding;
@@ -250,9 +250,9 @@ export function resolveConfig(
 }
 
 /**
- * Fallback-resolutie wanneer geen configuratiebestand beschikbaar is,
- * maar wel een --sources CLI-argument is meegegeven.
- * Produceert een minimale ResolvedConfig met standaardwaarden.
+ * Fallback resolution when no configuration file is available,
+ * but a --sources CLI argument is provided.
+ * Produces a minimal ResolvedConfig with default values.
  */
 export function resolveFromCliOnly(
   cli: CliOverrides,
@@ -260,7 +260,7 @@ export function resolveFromCliOnly(
 ): ResolvedConfig {
   if (!cli.sources) {
     throw new Error(
-      "Geen configuratiebestand gevonden en geen --sources argument opgegeven.",
+      "No configuration file found and no --sources argument provided.",
     );
   }
 
@@ -272,10 +272,10 @@ export function resolveFromCliOnly(
     readersDir: null,
     assetsDir: null,
     outputDir,
-    courseName: "Cursus",
+    courseName: "Course",
     version: "0.0.0",
     customCss: null,
-    name: "cursus",
+    name: "course",
     docentenHandleiding: null,
     repoRoot,
   };

@@ -1,6 +1,6 @@
 /**
  * Brightspacosaurus CLI — entry point.
- * Subcommando's: prepare, pack
+ * Subcommands: prepare, pack
  * Requirements: 6.2, 6.4, 6.5
  */
 
@@ -22,18 +22,18 @@ import {
 } from "./config-loader.ts";
 
 /**
- * Decodeert HTML-entities terug naar platte tekst.
- * Nodig omdat titels uit gegenereerde HTML worden geëxtraheerd (waar rehype al
- * correct heeft geëscapet). Zonder decodering zou escapeXml() in de ManifestBuilder
- * de entities dubbel escapen (bijv. &amp; → &amp;amp;).
+ * Decodes HTML entities back to plain text.
+ * Needed because titles are extracted from generated HTML (where rehype has
+ * already escaped correctly). Without decoding, escapeXml() in the ManifestBuilder
+ * would double-escape the entities (e.g. &amp; → &amp;amp;).
  */
 function decodeHtmlEntities(text: string): string {
   return text
-    // Numerieke entities eerst: hex (&#x26;) en decimaal (&#38;)
+    // Numeric entities first: hex (&#x26;) and decimal (&#38;)
     .replace(/&#x([0-9a-f]+);/gi, (_m, hex) => String.fromCodePoint(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
-    // Named entities daarna. &amp; als laatste zodat we geen dubbele decode krijgen
-    // (bijv. &amp;lt; → &lt; en niet → <).
+    // Named entities next. &amp; last so we don't get a double decode
+    // (e.g. &amp;lt; → &lt; and not → <).
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
@@ -41,17 +41,17 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&amp;/g, "&");
 }
 
-const USAGE = `Gebruik: brightspacosaurus <commando> [opties]
+const USAGE = `Usage: brightspacosaurus <command> [options]
 
-Commando's:
-  prepare   Zet Markdown-bronbestanden om naar HTML en quiz-Markdown naar QTI
-  pack      Verpak build-map tot een .imscc-archief
+Commands:
+  prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
+  pack      Package the build directory into a .imscc archive
 
-Opties:
-  --config <pad>     Pad naar configuratiebestand (standaard: brightspacosaurus.config.json in cwd)
-  --sources <map>    Bronmap voor les- en quiz-Markdown (override van config.sourcesDir)
-  --output <pad>     Uitvoerpad of naam voor .imscc (override van config.outputDir/name)
-  --readers-only     Genereer alleen reader- en docenten-PDF's (skip HTML/QTI-conversie)
+Options:
+  --config <path>    Path to the configuration file (default: brightspacosaurus.config.json in cwd)
+  --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
+  --output <path>    Output path or name for .imscc (overrides config.outputDir/name)
+  --readers-only     Generate reader and instructor PDFs only (skip HTML/QTI conversion)
 `;
 
 function printUsage(): void {
@@ -102,19 +102,19 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
   }
   await Deno.remove(readersOutputDir, { recursive: true }).catch(() => undefined);
 
-  console.log(`Scannen van bronmap: ${relative(repoRoot, config.sourcesDir) || config.sourcesDir}`);
+  console.log(`Scanning source directory: ${relative(repoRoot, config.sourcesDir) || config.sourcesDir}`);
   const scanResult = await scanSources({
     sourcesDir: config.sourcesDir,
     repoRoot,
   });
 
-  // Reader-scan vanuit config.readersDir (null → overslaan zonder melding)
+  // Reader scan from config.readersDir (null → skip without notice)
   let readerFiles: string[] = [];
   let pdfFiles: string[] = [];
   if (config.readersDir) {
     try {
       await Deno.stat(config.readersDir);
-      console.log(`Scannen van readers-map: ${relative(repoRoot, config.readersDir)}`);
+      console.log(`Scanning readers directory: ${relative(repoRoot, config.readersDir)}`);
       const readersScan = await scanSources({
         sourcesDir: config.readersDir,
         repoRoot,
@@ -122,14 +122,14 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       readerFiles = readersScan.readerFiles;
       pdfFiles = readersScan.pdfFiles;
     } catch {
-      // Readers-map bestaat niet — geen readers
+      // Readers directory does not exist — no readers
     }
   }
 
-  console.log(`Gevonden: ${scanResult.markdownFiles.length} les-bestanden, ${scanResult.quizFiles.length} quiz-bestanden, ${readerFiles.length} reader-bestanden`);
+  console.log(`Found: ${scanResult.markdownFiles.length} lesson files, ${scanResult.quizFiles.length} quiz files, ${readerFiles.length} reader files`);
 
   if (!readersOnly) {
-    // Fase 1: Converteer les-Markdown naar HTML
+    // Phase 1: Convert lesson Markdown to HTML
     for (const mdFile of scanResult.markdownFiles) {
       const result = await convertMarkdown({
         sourcePath: mdFile,
@@ -143,8 +143,8 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       console.log(`  ✓ ${relPath}`);
     }
 
-    // Fase 1b: Converteer README.md en andere losse HTML-pagina's uit sourcesDir-parent naar HTML
-    // (als het bestaat, plaats het onder de eerste weekmap voor manifest-groepering)
+    // Phase 1b: Convert README.md and other standalone HTML pages from the sourcesDir parent to HTML
+    // (if it exists, place it under the first week directory for manifest grouping)
     const sourcesParent = dirname(config.sourcesDir);
     const parentHtmlFiles = ["README.md", "voor-docenten.md"];
     for (const parentFile of parentHtmlFiles) {
@@ -164,11 +164,11 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         const relPath = relative(contentOutputDir, result.outputPath);
         console.log(`  ✓ ${relPath} (${parentFile})`);
       } catch {
-        // Bestand niet gevonden — overslaan
+        // File not found — skip
       }
     }
 
-    // Fase 2: Converteer quiz-Markdown naar QTI XML
+    // Phase 2: Convert quiz Markdown to QTI XML
     for (const quizFile of scanResult.quizFiles) {
       const result = await convertQuiz({
         sourcePath: quizFile,
@@ -181,14 +181,14 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
     }
   }
 
-  // Fase 3: Converteer reader-Markdown naar PDF via pandoc
+  // Phase 3: Convert reader Markdown to PDF via pandoc
   if (readerFiles.length > 0) {
     if (!pandocAvailable()) {
       console.warn(
-        "⚠ pandoc niet gevonden — reader-PDF-conversie overgeslagen. Installeer pandoc: https://pandoc.org/installing.html",
+        "⚠ pandoc not found — reader PDF conversion skipped. Install pandoc: https://pandoc.org/installing.html",
       );
     } else {
-      console.log(`Converteer ${readerFiles.length} reader(s) naar PDF...`);
+      console.log(`Converting ${readerFiles.length} reader(s) to PDF...`);
       let succeeded = 0;
       let failed = 0;
       const failedFiles: string[] = [];
@@ -210,14 +210,14 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         }
       }
 
-      // Samenvatting
+      // Summary
       console.log(
-        `Readers: ${succeeded} van ${readerFiles.length} geconverteerd${failed > 0 ? `, ${failed} mislukt` : ""}`,
+        `Readers: ${succeeded} of ${readerFiles.length} converted${failed > 0 ? `, ${failed} failed` : ""}`,
       );
 
       if (failed > 0) {
         const error = new Error(
-          `Reader-PDF-conversie mislukt voor: ${failedFiles.join(", ")}`,
+          `Reader PDF conversion failed for: ${failedFiles.join(", ")}`,
         ) as Error & { exitCode?: number };
         error.exitCode = 3;
         throw error;
@@ -225,7 +225,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
     }
   }
 
-  // Fase 3b: Kopieer vooraf gegenereerde PDF's direct (geen pandoc nodig)
+  // Phase 3b: Copy pre-generated PDFs directly (no pandoc needed)
   if (pdfFiles.length > 0) {
     await Deno.mkdir(readersOutputDir, { recursive: true });
     for (const pdfFile of pdfFiles) {
@@ -236,20 +236,20 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
     }
   }
 
-  // Fase 4: Genereer docentenhandleiding als samengestelde PDF (null → overslaan zonder melding)
+  // Phase 4: Generate instructor manual as a combined PDF (null → skip without notice)
   if (config.docentenHandleiding && pandocAvailable()) {
     const dhConfig = config.docentenHandleiding;
     const docentenOutputDir = dhConfig.outputDir;
     await Deno.remove(docentenOutputDir, { recursive: true }).catch(() => undefined);
 
-    // Controleer of alle bronbestanden bestaan
+    // Check that all source files exist
     const existingFiles: string[] = [];
     for (const f of dhConfig.inputFiles) {
       try {
         await Deno.stat(f);
         existingFiles.push(f);
       } catch {
-        console.warn(`  ⚠ Docentenbestand niet gevonden: ${relative(repoRoot, f)}`);
+        console.warn(`  ⚠ Instructor file not found: ${relative(repoRoot, f)}`);
       }
     }
 
@@ -257,11 +257,11 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       await Deno.mkdir(docentenOutputDir, { recursive: true });
       const outputFile = join(docentenOutputDir, dhConfig.outputName);
       const today = new Date().toISOString().slice(0, 10);
-      // Resource-path: directory van het eerste bronbestand
+      // Resource path: directory of the first source file
       const resourcePath = dirname(existingFiles[0]);
 
-      console.log(`Genereer docentenhandleiding PDF (${existingFiles.length} bronbestanden)...`);
-      // Materialiseer BSS assets naar tijdelijke bestanden (werkt lokaal én vanuit JSR)
+      console.log(`Generating instructor manual PDF (${existingFiles.length} source files)...`);
+      // Materialize BSS assets to temporary files (works locally and from JSR)
       const headerPath = await materializeAsset("reader-header.tex");
       const includeFilterPath = await materializeAsset("include-filter.lua");
 
@@ -291,32 +291,32 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         console.log(`  ✓ ${relative(buildDir, outputFile)}`);
       } else {
         const stderr = new TextDecoder().decode(pandocOutput.stderr);
-        console.warn(`  ⚠ Docentenhandleiding-PDF mislukt (niet-blokkerend): ${stderr.slice(0, 200)}`);
-        // Niet-blokkerend: docentenhandleiding is optioneel
+        console.warn(`  ⚠ Instructor manual PDF failed (non-blocking): ${stderr.slice(0, 200)}`);
+        // Non-blocking: the instructor manual is optional
         await Deno.remove(outputFile).catch(() => undefined);
       }
     }
   }
 
-  // Fase 4b: Brightspacosaurus-handleiding als aparte PDF.
-  // Deze sectie leest de handleiding-bron uit docs/ (niet gepubliceerd naar JSR)
-  // en is daarom alleen zinvol bij draaien vanuit lokale broncode. Als de
-  // handleiding-bron niet als lokaal bestand te vinden is (bijv. vanuit JSR-cache),
-  // slaan we deze fase stilzwijgend over.
+  // Phase 4b: Brightspacosaurus user manual as a separate PDF.
+  // This section reads the user manual source from docs/ (not published to JSR)
+  // and is therefore only meaningful when running from local source. If the
+  // user manual source cannot be found as a local file (e.g. from the JSR cache),
+  // we silently skip this phase.
   if (pandocAvailable()) {
     const docentenOutputDir = config.docentenHandleiding?.outputDir ?? join(buildDir, "docenten");
 
-    // Resolve de docs-map lokaal; vanuit JSR is er geen lokaal docs/-pad → overslaan.
+    // Resolve the docs directory locally; from JSR there is no local docs/ path → skip.
     let bssDocsDir: string | undefined;
     let bssSource: string | undefined;
     try {
-      const docsUrl = import.meta.resolve("../docs/brightspacosaurus-handleiding.md");
+      const docsUrl = import.meta.resolve("../docs/user-manual.md");
       if (!docsUrl.startsWith("file:")) {
-        throw new Error("docs niet lokaal beschikbaar (JSR)");
+        throw new Error("docs not available locally (JSR)");
       }
       bssSource = fromFileUrl(docsUrl);
       bssDocsDir = dirname(bssSource);
-      // Bevestig dat de bron daadwerkelijk bestaat
+      // Confirm that the source actually exists
       await Deno.stat(bssSource);
     } catch {
       bssDocsDir = undefined;
@@ -325,12 +325,12 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
 
     if (bssDocsDir && bssSource) {
       try {
-        // Zorg dat docs/images/ bestaat (kopieer PNG-assets als nodig)
+        // Make sure docs/images/ exists (copy PNG assets if needed)
         const bssImagesDir = join(bssDocsDir, "images");
         try { await Deno.stat(bssImagesDir); } catch {
           await Deno.mkdir(bssImagesDir, { recursive: true });
-          // PNG-assets liggen naast de docs-map onder assets/; materialiseren is niet
-          // mogelijk voor binaire bestanden, dus we kopiëren alleen wat lokaal bestaat.
+          // PNG assets live next to the docs directory under assets/; materializing is not
+          // possible for binary files, so we only copy what exists locally.
           const bssAssetsDir = resolve(bssDocsDir, "..", "assets");
           try {
             for await (const entry of Deno.readDir(bssAssetsDir)) {
@@ -339,13 +339,13 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
               }
             }
           } catch {
-            // assets-map niet lokaal beschikbaar — doorgaan zonder afbeeldingen
+            // assets directory not available locally — continue without images
           }
         }
 
         await Deno.mkdir(docentenOutputDir, { recursive: true });
-        const bssOutput = join(docentenOutputDir, "brightspacosaurus-handleiding.pdf");
-        console.log("Genereer Brightspacosaurus-handleiding PDF...");
+        const bssOutput = join(docentenOutputDir, "user-manual.pdf");
+        console.log("Generating Brightspacosaurus user manual PDF...");
         const headerPath = await materializeAsset("reader-header.tex");
         const includeFilterPath = await materializeAsset("include-filter.lua");
         const bssCmd = new Deno.Command("pandoc", {
@@ -371,17 +371,17 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
           console.log(`  ✓ ${relative(buildDir, bssOutput)}`);
         } else {
           const bssStderr = new TextDecoder().decode(bssResult.stderr);
-          console.warn(`  ⚠ BSS-handleiding-PDF mislukt (niet-blokkerend):`);
+          console.warn(`  ⚠ Brightspacosaurus user manual PDF failed (non-blocking):`);
           console.warn(`    ${bssStderr.trim()}`);
           await Deno.remove(bssOutput).catch(() => undefined);
         }
       } catch {
-        // BSS-handleiding niet gevonden of fout — overslaan
+        // Brightspacosaurus user manual not found or error — skip
       }
     }
   }
 
-  console.log(`Prepare voltooid.`);
+  console.log(`Prepare complete.`);
 }
 
 async function runPack(config: ResolvedConfig): Promise<void> {
@@ -389,16 +389,16 @@ async function runPack(config: ResolvedConfig): Promise<void> {
   const buildDir = config.outputDir;
   const outputPath = join(dirname(buildDir), `${config.name}.v${config.version}.imscc`);
 
-  // Eerst prepare uitvoeren als build/content/ niet bestaat
+  // Run prepare first if build/content/ does not exist
   try {
     await Deno.stat(join(buildDir, "content"));
   } catch {
-    console.log("build/brightspace/content/ niet gevonden, voer eerst prepare uit...");
+    console.log("build/brightspace/content/ not found, running prepare first...");
     await runPrepare(config, false);
   }
 
-  // Genereer imsmanifest.xml
-  console.log("Genereren van imsmanifest.xml...");
+  // Generate imsmanifest.xml
+  console.log("Generating imsmanifest.xml...");
   const entries: ManifestEntry[] = [];
   const contentDir = join(buildDir, "content");
 
@@ -411,12 +411,12 @@ async function runPack(config: ResolvedConfig): Promise<void> {
         const relPath = "content/" + relative(contentDir, fullPath);
         const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
 
-        // Zoek afbeeldingsreferenties in de HTML voor manifest-dependencies
+        // Look for image references in the HTML for manifest dependencies
         const html = await Deno.readTextFile(fullPath);
 
-        // Gebruik H1 uit de HTML als titel (valt terug op bestandsnaam).
-        // decodeHtmlEntities voorkomt dubbele encoding: rehype escapet al naar &amp; etc.,
-        // en escapeXml() in buildManifest doet dat opnieuw als we niet eerst decoderen.
+        // Use the H1 from the HTML as title (falls back to the file name).
+        // decodeHtmlEntities prevents double encoding: rehype already escapes to &amp; etc.,
+        // and escapeXml() in buildManifest does that again if we don't decode first.
         const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
         const title = h1Match ? decodeHtmlEntities(h1Match[1].trim()) : basename(fullPath, extname(fullPath));
 
@@ -426,7 +426,7 @@ async function runPack(config: ResolvedConfig): Promise<void> {
         while ((imgMatch = imgRegex.exec(html)) !== null) {
           const imgSrc = imgMatch[1];
           if (!imgSrc.startsWith("http://") && !imgSrc.startsWith("https://")) {
-            // Resolve relatief pad ten opzichte van het HTML-bestand
+            // Resolve relative path with respect to the HTML file
             const htmlDir = dirname(fullPath);
             const imgAbs = resolve(htmlDir, imgSrc);
             const imgRel = "content/" + relative(contentDir, imgAbs);
@@ -440,7 +440,7 @@ async function runPack(config: ResolvedConfig): Promise<void> {
   }
   await scanHtml(contentDir);
 
-  // Scan QTI/quiz-bestanden in build
+  // Scan QTI/quiz files in build
   const quizDir = join(buildDir, "quiz");
   try {
     await Deno.stat(quizDir);
@@ -459,10 +459,10 @@ async function runPack(config: ResolvedConfig): Promise<void> {
     }
     await scanQuiz(quizDir);
   } catch {
-    // Geen quizmap
+    // No quiz directory
   }
 
-  // Scan PDF-readers in build/brightspace/readers/
+  // Scan PDF readers in build/brightspace/readers/
   const readersDir = join(buildDir, "readers");
   try {
     await Deno.stat(readersDir);
@@ -475,14 +475,14 @@ async function runPack(config: ResolvedConfig): Promise<void> {
       }
     }
   } catch {
-    // Geen readers-map — PDF-conversie is optioneel
+    // No readers directory — PDF conversion is optional
   }
 
-  // Docenten-PDF's worden NIET in de .imscc opgenomen (veiligheidsrisico: antwoorden zichtbaar voor studenten).
-  // Ze staan wél als losse bestanden in build/brightspace/docenten/ voor intern gebruik.
-  // Er is geen docenten-landingspagina: GitLab is de source of truth voor docentenmateriaal.
+  // Instructor PDFs are NOT included in the .imscc (security risk: answers visible to students).
+  // They do remain as standalone files in build/brightspace/docenten/ for internal use.
+  // There is no instructor landing page: GitLab is the source of truth for instructor material.
 
-  // Sorteer: HTML eerst, dan quiz
+  // Sort: HTML first, then quiz
   entries.sort((a, b) => {
     if (a.type !== b.type) return a.type === "webcontent" ? -1 : 1;
     return a.href.localeCompare(b.href);
@@ -493,10 +493,10 @@ async function runPack(config: ResolvedConfig): Promise<void> {
   console.log("  ✓ imsmanifest.xml");
 
   // Pack
-  console.log("Verpakken tot .imscc...");
+  console.log("Packaging into .imscc...");
   await pack({ sourceDir: buildDir, outputPath });
   console.log(`  ✓ ${relative(repoRoot, outputPath)}`);
-  console.log("Pack voltooid.");
+  console.log("Pack complete.");
 }
 
 // --- Main ---
@@ -509,13 +509,13 @@ async function main(): Promise<void> {
     Deno.exit(1);
   }
 
-  // repoRoot = de map van waaruit deno run wordt aangeroepen (werkmap)
-  // Dit maakt brightspacosaurus locatie-onafhankelijk: de tool kan overal staan.
+  // repoRoot = the directory from which deno run is invoked (working directory)
+  // This makes brightspacosaurus location-independent: the tool can live anywhere.
   const repoRoot = Deno.cwd();
 
-  // Configuratie laden via de config-loading flow:
+  // Load configuration via the config-loading flow:
   // findConfigFile → loadConfig → resolveConfig
-  // Met fallback naar CLI-only als er geen configbestand is maar wel --sources.
+  // With a fallback to CLI-only when there is no config file but --sources is given.
   let resolvedConfig: ResolvedConfig;
 
   try {
@@ -525,7 +525,7 @@ async function main(): Promise<void> {
     );
 
     if (configPath) {
-      // Config-bestand gevonden: laad, valideer en merge met CLI-overrides
+      // Config file found: load, validate and merge with CLI overrides
       const config = await loadConfig(configPath);
       resolvedConfig = resolveConfig(
         config,
@@ -538,7 +538,7 @@ async function main(): Promise<void> {
         repoRoot,
       );
     } else if (parsed.sources) {
-      // Geen config-bestand, maar wel --sources: fallback naar CLI-only
+      // No config file, but --sources is given: fall back to CLI-only
       resolvedConfig = resolveFromCliOnly(
         {
           sources: parsed.sources,
@@ -548,17 +548,17 @@ async function main(): Promise<void> {
         repoRoot,
       );
     } else {
-      // Geen config-bestand en geen --sources: toon foutmelding + voorbeeld
+      // No config file and no --sources: show error message + example
       console.error(
-        "Fout: geen brightspacosaurus.config.json gevonden en geen --sources argument.",
+        "Error: no brightspacosaurus.config.json found and no --sources argument.",
       );
-      console.error("Maak een configuratiebestand aan. Voorbeeld:\n");
+      console.error("Create a configuration file. Example:\n");
       console.error(EXAMPLE_CONFIG);
       Deno.exit(1);
     }
   } catch (e) {
     const error = e as Error & { exitCode?: number };
-    console.error(`Fout: ${error.message}`);
+    console.error(`Error: ${error.message}`);
     Deno.exit(error.exitCode ?? 1);
   }
 
@@ -570,7 +570,7 @@ async function main(): Promise<void> {
     }
   } catch (e) {
     const error = e as Error & { exitCode?: number };
-    console.error(`Fout: ${error.message}`);
+    console.error(`Error: ${error.message}`);
     Deno.exit(error.exitCode ?? 1);
   }
 }

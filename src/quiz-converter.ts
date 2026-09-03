@@ -1,46 +1,46 @@
 /**
- * QuizConverter: zet quiz-Markdown bestanden om naar QTI 1.2 XML.
- * Quiz-bestanden worden herkend aan het prefix "quiz-" in de bestandsnaam.
- * Het verwachte formaat: `# Titel`, `## Vraag N`, 4 opties (A–D), `Correct antwoord: **X**`
+ * QuizConverter: converts quiz Markdown files to QTI 1.2 XML.
+ * Quiz files are recognized by the "quiz-" prefix in the file name.
+ * The expected format: `# Titel`, `## Vraag N`, 4 options (A–D), `Correct antwoord: **X**`
  * Requirements: 2.3
  */
 
 import { basename, dirname, join, relative, resolve } from "@std/path";
 
-/** Een geparseerde quizvraag. */
+/** A parsed quiz question. */
 export interface QuizQuestion {
   number: number;
   text: string;
   options: { label: string; text: string }[];
-  correctAnswer: string; // "A", "B", "C" of "D"
+  correctAnswer: string; // "A", "B", "C" or "D"
 }
 
-/** Een geparseerde quiz. */
+/** A parsed quiz. */
 export interface ParsedQuiz {
   title: string;
   questions: QuizQuestion[];
 }
 
-/** Opties voor het converteren van een quiz-Markdown bestand. */
+/** Options for converting a quiz Markdown file. */
 export interface QuizConvertOptions {
-  /** Absoluut pad naar het quiz-Markdown bronbestand. */
+  /** Absolute path to the quiz Markdown source file. */
   sourcePath: string;
-  /** Absoluut pad naar de quiz-uitvoermap (build/brightspace/quiz/). */
+  /** Absolute path to the quiz output directory (build/brightspace/quiz/). */
   outputDir: string;
-  /** Repository-root voor padberekening. */
+  /** Repository root for path calculation. */
   repoRoot: string;
-  /** Bronmap voor relatieve padberekening. */
+  /** Source directory for relative path calculation. */
   sourcesDir: string;
 }
 
-/** Resultaat van de quiz-conversie. */
+/** Result of the quiz conversion. */
 export interface QuizConvertResult {
-  /** Absoluut pad naar het gegenereerde QTI XML-bestand. */
+  /** Absolute path to the generated QTI XML file. */
   outputPath: string;
 }
 
 /**
- * Parseer een quiz-Markdown bestand naar een gestructureerd object.
+ * Parses a quiz Markdown file into a structured object.
  */
 export function parseQuizMarkdown(content: string): ParsedQuiz {
   const lines = content.split("\n");
@@ -51,13 +51,13 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Titel: # Quiz X.Y - Onderwerp
+    // Title: # Quiz X.Y - Topic
     if (line.startsWith("# ") && !line.startsWith("## ")) {
       title = line.slice(2).trim();
       continue;
     }
 
-    // Nieuwe vraag: ## Vraag N
+    // New question: ## Vraag N
     const questionMatch = line.match(/^## Vraag (\d+)/);
     if (questionMatch) {
       if (currentQuestion && currentQuestion.number !== undefined) {
@@ -74,7 +74,7 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
 
     if (!currentQuestion) continue;
 
-    // Antwoordoptie: - A. tekst of - B. tekst etc.
+    // Answer option: - A. text or - B. text etc.
     const optionMatch = line.match(/^- ([A-D])\.\s+(.+)/);
     if (optionMatch) {
       currentQuestion.options = currentQuestion.options || [];
@@ -85,14 +85,14 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       continue;
     }
 
-    // Correct antwoord: **X**
+    // Correct answer: **X**
     const correctMatch = line.match(/^Correct antwoord:\s*\*\*([A-D])\*\*/);
     if (correctMatch) {
       currentQuestion.correctAnswer = correctMatch[1];
       continue;
     }
 
-    // Vraagtekst: niet-lege regels na ## Vraag N, voor de opties
+    // Question text: non-empty lines after ## Vraag N, before the options
     if (
       currentQuestion.number !== undefined &&
       (!currentQuestion.options || currentQuestion.options.length === 0) &&
@@ -106,7 +106,7 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
     }
   }
 
-  // Voeg de laatste vraag toe
+  // Add the last question
   if (currentQuestion && currentQuestion.number !== undefined) {
     questions.push(currentQuestion as QuizQuestion);
   }
@@ -115,7 +115,7 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
 }
 
 /**
- * Escape XML-speciale tekens.
+ * Escapes XML special characters.
  */
 function escapeXml(text: string): string {
   return text
@@ -127,22 +127,22 @@ function escapeXml(text: string): string {
 }
 
 /**
- * Genereer een quiz-ident op basis van de bestandsnaam.
- * Bijv. "quiz-2.2-di-vragen-en-antwoorden.md" → "quiz-les-2-2-di"
+ * Generates a quiz ident based on the file name.
+ * E.g. "quiz-2.2-di-vragen-en-antwoorden.md" → "quiz-les-2-2-di"
  */
 export function deriveQuizIdent(filename: string): string {
-  // Verwijder extensie en "vragen-en-antwoorden" suffix
+  // Remove the extension and the "vragen-en-antwoorden" suffix
   let name = filename.replace(/\.md$/, "");
   name = name.replace(/-vragen-en-antwoorden$/, "");
-  // Vervang punten door streepjes voor de ident
+  // Replace dots with dashes for the ident
   name = name.replace(/\./g, "-");
-  // Voeg "les-" toe na "quiz-"
+  // Add "les-" after "quiz-"
   name = name.replace(/^quiz-/, "quiz-les-");
   return name;
 }
 
 /**
- * Genereer QTI 1.2 XML uit een geparseerde quiz.
+ * Generates QTI 1.2 XML from a parsed quiz.
  */
 export function generateQtiXml(quiz: ParsedQuiz, ident: string): string {
   const sectionIdent = `sectie-${ident.replace(/^quiz-/, "")}`;
@@ -213,36 +213,36 @@ export function generateQtiXml(quiz: ParsedQuiz, ident: string): string {
 }
 
 /**
- * Converteer een quiz-Markdown bestand naar QTI 1.2 XML.
- * Schrijft het resultaat naar build/brightspace/quiz/ met de bronmapstructuur.
+ * Converts a quiz Markdown file to QTI 1.2 XML.
+ * Writes the result to build/brightspace/quiz/ preserving the source directory structure.
  */
 export async function convertQuiz(options: QuizConvertOptions): Promise<QuizConvertResult> {
   const { sourcePath, outputDir, repoRoot: _repoRoot, sourcesDir } = options;
 
-  // Lees het bronbestand
+  // Read the source file
   const content = await Deno.readTextFile(sourcePath);
 
-  // Parseer de quiz
+  // Parse the quiz
   const quiz = parseQuizMarkdown(content);
 
   if (quiz.questions.length === 0) {
-    const err = new Error(`Geen vragen gevonden in quiz-bestand: ${sourcePath}`);
+    const err = new Error(`No questions found in quiz file: ${sourcePath}`);
     (err as Error & { exitCode: number }).exitCode = 3;
     throw err;
   }
 
-  // Bepaal de ident en uitvoerbestandsnaam
+  // Determine the ident and output file name
   const filename = basename(sourcePath);
   const ident = deriveQuizIdent(filename);
 
-  // Bepaal het relatieve pad vanuit de bronmap voor de uitvoerstructuur
+  // Determine the relative path from the source directory for the output structure
   const resolvedSourcesDir = resolve(sourcesDir);
   const relFromSource = relative(resolvedSourcesDir, dirname(sourcePath));
 
-  // Genereer QTI XML
+  // Generate QTI XML
   const qtiXml = generateQtiXml(quiz, ident);
 
-  // Schrijf naar uitvoermap
+  // Write to output directory
   const outputSubDir = join(outputDir, relFromSource);
   await Deno.mkdir(outputSubDir, { recursive: true });
 

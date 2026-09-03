@@ -1,5 +1,5 @@
 /**
- * ReaderPdfConverter: zet reader-Markdown-bestanden om naar PDF via pandoc.
+ * ReaderPdfConverter: converts reader Markdown files to PDF via pandoc.
  * Requirements: 6.1, 6.2, 6.4, 6.5, 6.6
  */
 
@@ -8,14 +8,14 @@ import { materializeAsset } from "./assets.ts";
 import { basename, dirname, join } from "@std/path";
 
 /**
- * Controleert of pandoc beschikbaar is op het systeem.
+ * Checks whether pandoc is available on the system.
  *
- * Roept `pandoc --version` aan en retourneert `true` als het commando
- * succesvol afsluit (exitcode 0). Wordt gebruikt voor:
- * - Graceful degradation: waarschuwing tonen als pandoc ontbreekt
- * - Tests overslaan die pandoc vereisen in omgevingen zonder pandoc
+ * Calls `pandoc --version` and returns `true` if the command
+ * exits successfully (exit code 0). Used for:
+ * - Graceful degradation: show a warning if pandoc is missing
+ * - Skipping tests that require pandoc in environments without pandoc
  *
- * @returns `true` als pandoc beschikbaar is, anders `false`
+ * @returns `true` if pandoc is available, otherwise `false`
  */
 export function pandocAvailable(): boolean {
   try {
@@ -28,38 +28,38 @@ export function pandocAvailable(): boolean {
 }
 
 /**
- * Converteert een reader-Markdown-bestand naar PDF via pandoc.
+ * Converts a reader Markdown file to PDF via pandoc.
  *
- * Pandoc wordt aangeroepen als extern binair via `Deno.Command` met opties
- * voor leesbare typografie, Nederlandse taalsetting en inhoudsopgave.
+ * Pandoc is invoked as an external binary via `Deno.Command` with options
+ * for readable typography, Dutch language setting and a table of contents.
  *
- * @param options - Conversieopties (bronpad, uitvoermap, repository-root)
- * @returns Pad naar het gegenereerde PDF-bestand en de bestandsnaam
- * @throws Error met bestandspad en stderr-output als pandoc faalt
+ * @param options - Conversion options (source path, output directory, repository root)
+ * @returns Path to the generated PDF file and the file name
+ * @throws Error with file path and stderr output if pandoc fails
  */
 export async function convertReaderToPdf(
   options: ReaderConvertOptions,
 ): Promise<ReaderConvertResult> {
   const { sourcePath, outputDir } = options;
 
-  // Bepaal uitvoerbestandsnaam: .md → .pdf
+  // Determine output file name: .md → .pdf
   const sourceFilename = basename(sourcePath);
   const pdfFilename = sourceFilename.replace(/\.md$/, ".pdf");
   const outputPath = join(outputDir, pdfFilename);
 
-  // Maak uitvoermap aan
+  // Create output directory
   await Deno.mkdir(outputDir, { recursive: true });
 
-  // Bepaal resource-path (directory van het bronbestand) voor afbeeldingsresolutie
+  // Determine resource path (directory of the source file) for image resolution
   const resourcePath = dirname(sourcePath);
 
-  // Materialiseer de bundled assets naar tijdelijke bestanden zodat pandoc
-  // ze kan lezen (werkt zowel lokaal als vanuit de JSR-cache).
+  // Materialize the bundled assets to temporary files so pandoc
+  // can read them (works both locally and from the JSR cache).
   const headerPath = await materializeAsset("reader-header.tex");
   const includeFilterPath = await materializeAsset("include-filter.lua");
   const diagramFilterPath = await materializeAsset("diagram-filter.lua");
 
-  // Roep pandoc aan
+  // Invoke pandoc
   const command = new Deno.Command("pandoc", {
     args: [
       sourcePath,
@@ -84,16 +84,16 @@ export async function convertReaderToPdf(
   const process = await command.output();
 
   if (!process.success) {
-    // Verwijder gedeeltelijk PDF-bestand als dat bestaat
+    // Remove the partial PDF file if it exists
     try {
       await Deno.remove(outputPath);
     } catch {
-      // Bestand bestond niet of kon niet verwijderd worden — geen probleem
+      // File did not exist or could not be removed — no problem
     }
 
     const stderr = new TextDecoder().decode(process.stderr);
     throw new Error(
-      `Pandoc-conversie mislukt voor ${sourcePath}: ${stderr}`,
+      `Pandoc conversion failed for ${sourcePath}: ${stderr}`,
     );
   }
 

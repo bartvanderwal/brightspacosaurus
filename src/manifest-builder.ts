@@ -1,12 +1,12 @@
 /**
- * ManifestBuilder: genereert een geldig imsmanifest.xml voor Common Cartridge 1.3.
+ * ManifestBuilder: generates a valid imsmanifest.xml for Common Cartridge 1.3.
  * Requirements: 2.1, 2.3
  */
 
 import { ManifestEntry } from "./types.ts";
 
 /**
- * Escapet XML-speciale tekens in een string.
+ * Escapes XML special characters in a string.
  */
 function escapeXml(text: string): string {
   return text
@@ -18,16 +18,16 @@ function escapeXml(text: string): string {
 }
 
 /**
- * Extraheert een groepslabel op basis van de eerste submap in het href-pad.
- * Bijv. "content/week-1/les.html" → "week-1", "content/module-a/intro.html" → "module-a".
- * Bestanden zonder submap (bijv. "content/index.html") retourneren null.
+ * Extracts a group label based on the first subdirectory in the href path.
+ * E.g. "content/week-1/les.html" → "week-1", "content/module-a/intro.html" → "module-a".
+ * Files without a subdirectory (e.g. "content/index.html") return null.
  *
- * De groepering is generiek: er wordt geen cursusspecifieke mapping (zoals week→niveau) toegepast.
+ * The grouping is generic: no course-specific mapping (such as week→level) is applied.
  */
 function getGroupLabel(href: string): string | null {
-  // Strip het eerste "content/" of "quiz/" prefix indien aanwezig
+  // Strip the leading "content/" or "quiz/" prefix if present
   const stripped = href.replace(/^(?:content|quiz)\//, "");
-  // Zoek de eerste submap (alles vóór de eerste '/' in het gestripte pad)
+  // Find the first subdirectory (everything before the first '/' in the stripped path)
   const slashIdx = stripped.indexOf("/");
   if (slashIdx <= 0) return null;
   return stripped.substring(0, slashIdx);
@@ -40,19 +40,19 @@ function buildOrganizationItems(entries: ManifestEntry[]): string {
   const docentenEntries: ManifestEntry[] = [];
 
   for (const entry of entries) {
-    // Docenten-items komen in een aparte verborgen module
+    // Instructor items go into a separate hidden module
     if (entry.href.startsWith("content/docenten/") || entry.href.startsWith("docenten/")) {
       docentenEntries.push(entry);
       continue;
     }
 
-    // Reader-PDF's komen onder één "Readers"-module
+    // Reader PDFs go under a single "Readers" module
     if (entry.href.startsWith("readers/")) {
       readerEntries.push(entry);
       continue;
     }
 
-    // Groepeer op basis van de eerste submap (bijv. "week-1", "module-a", "sad")
+    // Group by the first subdirectory (e.g. "week-1", "module-a", "sad")
     const groupLabel = getGroupLabel(entry.href);
     if (!groupLabel) {
       ungroupedEntries.push(entry);
@@ -84,7 +84,7 @@ ${childItems}
       </item>`;
   });
 
-  // Readers-module: alle reader-PDF's onder één kopje
+  // Readers module: all reader PDFs under a single heading
   const readersModule = readerEntries.length > 0
     ? [`      <item identifier="module_readers">
         <title>Readers</title>
@@ -94,10 +94,10 @@ ${readerEntries.map((entry) => `        <item identifier="item_${escapeXml(entry
       </item>`]
     : [];
 
-  // Docenten-module: na import in Brightspace op "Niet weergeven" zetten
+  // Instructor module: set to "Do not display" after import in Brightspace
   const docentenItems = docentenEntries.length > 0
     ? [`      <item identifier="module_docentenmateriaal">
-        <title>Docentenmateriaal (verberg na import)</title>
+        <title>Instructor material (hide after import)</title>
 ${docentenEntries.map((entry) => `        <item identifier="item_${escapeXml(entry.id)}" identifierref="${escapeXml(entry.id)}">
           <title>${escapeXml(entry.title)}</title>
         </item>`).join("\n")}
@@ -108,18 +108,18 @@ ${docentenEntries.map((entry) => `        <item identifier="item_${escapeXml(ent
 }
 
 /**
- * Genereert een geldig imsmanifest.xml op basis van de cursustitel en resource-entries.
+ * Generates a valid imsmanifest.xml based on the course title and resource entries.
  *
- * Deterministische volgorde: entries worden opgenomen in de volgorde waarin ze worden aangeleverd.
- * De aanroeper sorteert: HTML-bestanden op pad, QTI-bestanden daarna.
+ * Deterministic order: entries are included in the order in which they are supplied.
+ * The caller sorts: HTML files by path, QTI files after them.
  *
- * @param courseTitle - Mensleesbare cursustitel
- * @param entries - Resource-entries (HTML webcontent + QTI assessments)
- * @returns Volledige XML-string van het manifest
+ * @param courseTitle - Human-readable course title
+ * @param entries - Resource entries (HTML web content + QTI assessments)
+ * @returns Complete XML string of the manifest
  */
 export function buildManifest(courseTitle: string, entries: ManifestEntry[]): string {
-  // Alle entries komen in de navigatiestructuur: HTML-lessen én QTI-quizzen per week.
-  // Brightspace importeert QTI-items als assessments én als content-items in het menu.
+  // All entries go into the navigation structure: HTML lessons and QTI quizzes per week.
+  // Brightspace imports QTI items both as assessments and as content items in the menu.
   const contentEntries = entries;
 
   const resourcesXml = entries.map((entry) => {

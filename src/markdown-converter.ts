@@ -1,5 +1,5 @@
 /**
- * MarkdownConverter: zet Markdown-bestanden om naar zelfstandige HTML-bestanden.
+ * MarkdownConverter: converts Markdown files to standalone HTML files.
  * Requirements: 1.1, 1.2, 1.5, 3.5, 6.1
  */
 
@@ -14,38 +14,38 @@ import remarkRehype from "remark-rehype";
 import rehypeExternalLinks from "rehype-external-links";
 import rehypeStringify from "rehype-stringify";
 
-/** Regex voor het herkennen van QTI-gemarkeerde secties in Markdown. */
+/** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
 
-/** Regex voor het vinden van afbeeldingsreferenties in Markdown. */
+/** Regex for finding image references in Markdown. */
 const MD_IMAGE_REGEX = /!\[([^\]]*)\]\(([^\s)]+)(?:\s+"[^"]*")?\)/g;
 
-/** Regex voor het vinden van links naar reader-bestanden. */
+/** Regex for finding links to reader files. */
 const READER_LINK_REGEX = /\[([^\]]*)\]\(([^)]*(?:reader-[^)]+|plantuml-essentials)\.md)\)/g;
 
 /**
- * Controleert of een pad binnen de repository-root valt.
+ * Checks whether a path is within the repository root.
  */
 function assertWithinRoot(absPath: string, repoRoot: string): void {
   const rel = relative(repoRoot, absPath);
   if (rel.startsWith("..") || rel.startsWith("/")) {
-    const err = new Error(`Pad buiten repository-root geweigerd: ${absPath} (root: ${repoRoot})`);
+    const err = new Error(`Path outside repository root rejected: ${absPath} (root: ${repoRoot})`);
     (err as Error & { exitCode: number }).exitCode = 3;
     throw err;
   }
 }
 
 /**
- * Verwijdert QTI-gemarkeerde secties uit Markdown-tekst.
+ * Removes QTI-marked sections from Markdown text.
  */
 function stripQtiSections(markdown: string): string {
   return markdown.replace(QTI_SECTION_REGEX, "");
 }
 
 /**
- * Vervangt {@include: pad}-directives door de inhoud van het gerefereerde bestand.
- * Pad is relatief ten opzichte van het bronbestand. Cyclische includes worden niet
- * gedetecteerd maar diepte is begrensd op 10 niveaus.
+ * Replaces {@include: path} directives with the content of the referenced file.
+ * The path is relative to the source file. Cyclic includes are not
+ * detected but depth is bounded at 10 levels.
  *
  * Requirements: 1.5
  */
@@ -62,7 +62,7 @@ async function resolveIncludes(markdown: string, sourceDir: string, depth = 0): 
         const nested = await resolveIncludes(content, dirname(includePath), depth + 1);
         resolved.push(nested);
       } catch {
-        console.warn(`resolveIncludes: bestand niet gevonden: ${includePath}`);
+        console.warn(`resolveIncludes: file not found: ${includePath}`);
         resolved.push(line);
       }
     } else {
@@ -73,7 +73,7 @@ async function resolveIncludes(markdown: string, sourceDir: string, depth = 0): 
 }
 
 /**
- * Vindt alle relatieve afbeeldingspaden in Markdown-tekst.
+ * Finds all relative image paths in Markdown text.
  */
 function findRelativeImages(markdown: string): string[] {
   const images: string[] = [];
@@ -89,9 +89,9 @@ function findRelativeImages(markdown: string): string[] {
 }
 
 /**
- * Converteert links naar reader-Markdown-bestanden naar PDF-links in de readers/-map.
- * Herkent links naar bestanden met prefix `reader-` of naam `plantuml-essentials.md`.
- * Vervangt de extensie `.md` door `.pdf` en normaliseert het pad naar `../readers/`.
+ * Converts links to reader Markdown files into PDF links in the readers/ directory.
+ * Recognizes links to files with the prefix `reader-` or the name `plantuml-essentials.md`.
+ * Replaces the `.md` extension with `.pdf` and normalizes the path to `../readers/`.
  *
  * Requirements: 8.5
  */
@@ -103,16 +103,16 @@ export function convertReaderLinks(markdown: string): string {
 }
 
 /**
- * Leest het gedeelde content-CSS in (gecached via loadAssetText).
+ * Reads the shared content CSS (cached via loadAssetText).
  */
 async function getContentCss(): Promise<string> {
   return await loadAssetText("brightspacosaurus.css");
 }
 
 /**
- * Wikkelt HTML-body in een volledig HTML-document met lang="nl", UTF-8,
- * HAN-huisstijl CSS en Google Fonts link.
- * Optioneel wordt een custom CSS-bestand ingelined naast de standaard-CSS.
+ * Wraps the HTML body in a full HTML document with lang="nl", UTF-8,
+ * HAN house-style CSS and a Google Fonts link.
+ * Optionally a custom CSS file is inlined alongside the default CSS.
  */
 async function wrapHtml(body: string, title: string, version: string, customCssPath?: string): Promise<string> {
   const css = await getContentCss();
@@ -122,7 +122,7 @@ async function wrapHtml(body: string, title: string, version: string, customCssP
       const customCss = await Deno.readTextFile(customCssPath);
       customCssBlock = `\n/* Custom CSS */\n${customCss}`;
     } catch {
-      // Custom CSS-bestand niet gevonden — doorgaan zonder
+      // Custom CSS file not found — continue without it
     }
   }
   return `<!DOCTYPE html>
@@ -160,7 +160,7 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** unified-processor voor Markdown → HTML (remark → rehype), met GFM-ondersteuning voor tabellen, strikethrough en taaklijsten. */
+/** unified processor for Markdown → HTML (remark → rehype), with GFM support for tables, strikethrough and task lists. */
 const processor = unified()
   .use(remarkParse)
   .use(remarkFrontmatter, ['yaml'])
@@ -169,17 +169,17 @@ const processor = unified()
   .use(rehypeExternalLinks, {
     target: "_blank",
     rel: ["noopener", "noreferrer"],
-    // Alleen echte externe links (http/https); relatieve/interne links ongemoeid
+    // Only real external links (http/https); relative/internal links left untouched
     protocols: ["http", "https"],
   })
   .use(rehypeStringify);
 
 /**
- * Converteert een Markdown-bestand naar een zelfstandig HTML-bestand.
+ * Converts a Markdown file to a standalone HTML file.
  *
- * @param options - Conversieopties
- * @returns Pad naar het gegenereerde HTML-bestand en gekopieerde afbeeldingen
- * @throws Fout met exitCode 3 als het bronbestand buiten de repository-root valt
+ * @param options - Conversion options
+ * @returns Path to the generated HTML file and copied images
+ * @throws Error with exitCode 3 if the source file is outside the repository root
  */
 export async function convertMarkdown(options: ConvertOptions): Promise<ConvertResult> {
   const repoRoot = resolve(options.repoRoot);
@@ -193,7 +193,7 @@ export async function convertMarkdown(options: ConvertOptions): Promise<ConvertR
   try {
     markdown = await Deno.readTextFile(sourcePath);
   } catch {
-    const err = new Error(`Bronbestand niet gevonden: ${sourcePath}`);
+    const err = new Error(`Source file not found: ${sourcePath}`);
     (err as Error & { exitCode: number }).exitCode = 3;
     throw err;
   }
@@ -224,7 +224,7 @@ export async function convertMarkdown(options: ConvertOptions): Promise<ConvertR
       await Deno.copyFile(imgAbsSource, imgOutputPath);
       copiedImages.push(imgOutputPath);
     } catch {
-      // Afbeelding niet gevonden — laat de referentie intact maar kopieer niet
+      // Image not found — leave the reference intact but do not copy
     }
   }
 
