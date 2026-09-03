@@ -1,6 +1,7 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.5.2",
+  "version": "0.5.3",
+  "description": "CLI build tool that converts Markdown course material into an IMS Common Cartridge (.imscc) package for import into Brightspace (D2L).",
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",

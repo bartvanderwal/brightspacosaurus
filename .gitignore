@@ -1,0 +1,9 @@
+# npm tarballs produced by `deno pack`
+*.tgz
+
+# Build output
+build/
+
+# Deno / editor
+.DS_Store
+node_modules/

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/bsosaurus-logo.png" alt="Brightspacosaurus logo" width="200">
+  <img src="https://raw.githubusercontent.com/bartvanderwal/brightspacosaurus/main/docs/images/brightspacosaurus.png" alt="Brightspacosaurus logo" width="120">
 </p>
 
 # Brightspacosaurus
@@ -7,6 +7,8 @@
 Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. Created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design.
 
 📖 See the [user manual](docs/brightspacosaurus-handleiding.md) for the data model and Brightspace import process, and the [Software Guidebook](docs/software-guidebook.md) for the architecture and design decisions.
+
+> **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for why.
 
 ## Requirements
 
@@ -26,6 +28,17 @@ You can also run the CLI directly without installing:
 ```sh
 deno x jsr:@bartvanderwal/brightspacosaurus/cli prepare
 ```
+
+### Via npm
+
+The package is also available on npm for discoverability. Note that it still requires the Deno runtime:
+
+```sh
+npx jsr add @bartvanderwal/brightspacosaurus   # sets up the @jsr scope, then:
+npm install @bartvanderwal/brightspacosaurus
+```
+
+Because Brightspacosaurus depends on the Deno runtime and JSR dependencies, pure Node.js usage is not supported. Prefer the JSR installation above when working in Deno.
 
 ### Locally
 
@@ -287,5 +300,5 @@ The full feature spec (requirements, design, tasks) lives in the Kiro specs in t
 - Possibly more later...
 
 <p align="center">
-  <img src="docs/images/brightspacosaurus-big.png" alt="Brightspacosaurus hero" width="600">
+  <img src="https://raw.githubusercontent.com/bartvanderwal/brightspacosaurus/main/docs/images/brightspacosaurus-big.png" alt="Brightspacosaurus hero" width="600">
 </p>
