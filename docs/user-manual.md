@@ -1,139 +1,139 @@
 ---
 author:
   - Bart van der Wal
-subtitle: "Publicatiepijplijn voor cursusmateriaal vanuit Git naar Brightspace"
+subtitle: "Publication pipeline for course material from Git to Brightspace"
 date: \today
-lang: nl
+lang: en
 ---
 
 \begin{titlepage}
 \centering
 \vspace*{3cm}
 \includegraphics[width=0.4\textwidth]{images/bsosaurus-logo.png}\\[2em]
-{\Huge\bfseries Handleiding Brightspacosaurus\par}
+{\Huge\bfseries Brightspacosaurus User Manual\par}
 \vspace{1em}
-{\Large Publicatiepijplijn voor cursusmateriaal\\vanuit Git naar Brightspace\par}
+{\Large Publication pipeline for course material\\from Git to Brightspace\par}
 \vfill
 {\large Bart van der Wal\\[0.5em]\today\par}
 \end{titlepage}
 
-# Handleiding Brightspacosaurus
+# Brightspacosaurus User Manual
 
-*Auteur(s)*: Bart van der Wal
-*Versie*: 1.0
+*Author(s)*: Bart van der Wal
+*Version*: 1.0
 
-## 1. Introductie
+## 1. Introduction
 
-Brightspacosaurus (BSS) is een build-tool die Markdown-cursusmateriaal omzet naar een IMS Common Cartridge-pakket (`.imscc`) dat je direct in Brightspace kunt importeren. Optioneel converteert BSS reader-Markdown naar PDF via pandoc.
+Brightspacosaurus (BSS) is a build tool that converts Markdown course material into an IMS Common Cartridge package (`.imscc`) that you can import directly into Brightspace. Optionally, BSS converts reader Markdown to PDF via pandoc.
 
-Als ICT-docent kijk je waarschijnlijk iets anders naar een Learning Management System (LMS) dan andere docenten. Waar een docent denkt in "ik upload een bestand en maak een quiz", denk jij in datamodellen, versiebeheer en automatisering. Dat is de bril die deze handleiding hanteert: je cursusmateriaal staat als Markdown in Git en BSS publiceert het naar Brightspace.
+As an IT lecturer you probably look at a Learning Management System (LMS) a little differently than other lecturers. Where a lecturer thinks in terms of "I upload a file and create a quiz", you think in terms of data models, version control and automation. That is the lens this manual takes: your course material lives as Markdown in Git and BSS publishes it to Brightspace.
 
-Deze handleiding beschrijft:
+This manual describes:
 
-- Hoe Brightspace cursusmateriaal onder de motorkap organiseert (datamodel, import/export)
-- Hoe je BSS installeert en configureert
-- Hoe je lesmateriaal publiceert vanuit Markdown-bronbestanden (`prepare` en `pack`)
-- Hoe quizzen worden omgezet naar QTI en readers naar PDF
-- De importprocedure in Brightspace en het additieve importgedrag
+- How Brightspace organizes course material under the hood (data model, import/export)
+- How you install and configure BSS
+- How you publish course material from Markdown source files (`prepare` and `pack`)
+- How quizzes are converted to QTI and readers to PDF
+- The import procedure in Brightspace and the additive import behavior
 
-### 1.1 Veelgestelde vragen
+### 1.1 Frequently asked questions
 
-#### 1.1.1 Hoe moet content eruitzien voor een efficiënte Brightspace-export?
+#### 1.1.1 What should content look like for an efficient Brightspace export?
 
-Lesmateriaal schrijf je in Markdown. BSS converteert dit naar IMS Common Cartridge (`.imscc`) die Brightspace direct importeert (zie Figuur 1). Per les één bestand, met H1 als lestitel en H2+ als secties. Afbeeldingen link je relatief met `images/afbeelding.png`. Bestanden met prefix `quiz-` worden automatisch omgezet naar QTI.
+You write course material in Markdown. BSS converts this to IMS Common Cartridge (`.imscc`) that Brightspace imports directly (see Figure 1). One file per lesson, with H1 as the lesson title and H2+ as sections. You link images relatively with `images/afbeelding.png`. Files with the `quiz-` prefix are automatically converted to QTI.
 
-#### 1.1.2 Hoe organiseer ik vragen zodat ze naar meerdere systemen kunnen?
+#### 1.1.2 How do I organize questions so they can go to multiple systems?
 
-De Markdown-bronbestanden zijn de single source of truth. BSS genereert momenteel QTI 1.2 voor Brightspace (de Quizzes-tool ondersteunt alleen 1.2; Course Import accepteert ook 2.x/3.x met beperkte feature-support). Andere toetssystemen zoals ANS ondersteunen QTI 3.0 als importformaat.
+The Markdown source files are the single source of truth. BSS currently generates QTI 1.2 for Brightspace (the Quizzes tool only supports 1.2; Course Import also accepts 2.x/3.x with limited feature support). Other assessment systems such as ANS support QTI 3.0 as an import format.
 
-#### 1.1.3 Hoe scheid ik docent- en studentmateriaal?
+#### 1.1.3 How do I separate teacher and student material?
 
-Houd docent- en studentmateriaal in gescheiden bronmappen. BSS scant uitsluitend de geconfigureerde bronmap (`sourcesDir`) voor studentzichtbare content. Docentmateriaal (antwoordmodellen, didactische toelichting) hoort niet in die map. Bestanden met het suffix `-antwoorden-docent` sluit BSS bovendien expliciet uit van conversie.
+Keep teacher and student material in separate source directories. BSS only scans the configured source directory (`sourcesDir`) for student-visible content. Teacher material (answer keys, didactic explanation) does not belong in that directory. In addition, BSS explicitly excludes files with the suffix `-antwoorden-docent` from conversion.
 
-![Voorbeeld van de inhoud van een Common Cartridge-pakket na uitpakken](images/common-cartridge-inhoud-voorbeeld.png)
+![Example of the contents of a Common Cartridge package after unpacking](images/common-cartridge-inhoud-voorbeeld.png)
 
-*Figuur 1*: Inhoud van een uitgepakt Common Cartridge-pakket.
+*Figure 1*: Contents of an unpacked Common Cartridge package.
 
-BSS genereert dit pakketformaat automatisch vanuit Markdown-bronbestanden en afbeeldingen. Het archief bevat een `imsmanifest.xml`, content-mappen met HTML-bestanden en afbeeldingen. Na import in Brightspace verschijnen de lespagina's als modules en topics.
+BSS generates this package format automatically from Markdown source files and images. The archive contains an `imsmanifest.xml`, content directories with HTML files and images. After import into Brightspace, the lesson pages appear as modules and topics.
 
-![Brightspace Bestanden beheren met reader-PDF's](images/brightspace-readers-bestanden-beheren.png)
+![Brightspace Manage Files with reader PDFs](images/brightspace-readers-bestanden-beheren.png)
 
-*Figuur 2*: Brightspace Bestanden beheren met reader-PDF's.
+*Figure 2*: Brightspace Manage Files with reader PDFs.
 
-Readers worden als losse PDF's gegenereerd via pandoc en apart geüpload naar Brightspace. Studenten downloaden ze als naslagmateriaal.
-
----
-
-## 2. Context: Git, Brightspacosaurus en Brightspace
-
-BSS positioneert materiaal in Git als de single source of truth (SST) voor onderwijsmateriaal. Git als kern/SST wringt met Brightspace, omdat Brightspace is gemaakt met het idee dat het LMS zelf de beheerplek voor cursusinhoud is.
-
-Het BSS-proces draait dat om: Markdown in Git is leidend; Brightspace is een publicatiekanaal.
-
-Voordelen van Git boven direct beheer in Brightspace:
-
-- Je hebt echt versiebeheer.
-- Je gebruikt een snelle teksteditor in plaats van een WYSIWYG-editor op een webpagina.
-- Je kunt samenwerken aan onderwijsmateriaal; tekstbestanden in Git lenen zich goed voor reviews en merge requests.
-
-De termen **import** en **export** zijn daardoor verwarrend:
-
-- Vanuit Git en BSS is het een **export**: we exporteren bronmateriaal naar een `.imscc`-pakket.
-- Vanuit Brightspace is het een **import**: Brightspace importeert dat `.imscc`-pakket in een cursus.
-- In deze handleiding gebruiken we daarom: **BSS-export** voor het maken van het pakket en **Brightspace-import** voor het binnenhalen in Brightspace.
-
-Idealiter krijgt de pipeline later Brightspace API-toegang. Dan kan BSS niet alleen het `.imscc`-bestand maken, maar ook bestaande modules/topics verwijderen of het pakket automatisch importeren. Zolang die API-route ontbreekt, blijft de import deels handmatig. Als tijdelijke workaround voor het additieve importgedrag levert BSS een optioneel opschoningsscript mee (zie §11).
-
-Docentmateriaal vraagt een aparte keuze. Brightspace kan content verbergen of de beschikbaarheid beperken, maar BSS exporteert bewust alleen de studentzichtbare bronmap. Een echte docentenpublicatie kan op drie manieren:
-
-1. Een aparte Brightspace-cursus of sandbox voor docentenmateriaal.
-2. Een aparte, verborgen module in dezelfde cursus, na import handmatig beperkt tot docenten.
-3. Geen Brightspace-publicatie: docentenhandleidingen blijven in Git of als PDF buiten de studentcursus.
-
-Voor de meeste situaties is optie 3 het minst risicovol: docentmateriaal bevat antwoorden en interne keuzes die niet per ongeluk studentzichtbaar mogen worden.
+Readers are generated as separate PDFs via pandoc and uploaded to Brightspace separately. Students download them as reference material.
 
 ---
 
-## 3. Brightspace datamodel
+## 2. Context: Git, Brightspacosaurus and Brightspace
 
-Brightspace (D2L) organiseert cursusmateriaal primair via een course offering met Content-modules en topics. D2L beschrijft dat docenten in Content modules, submodules en topics kunnen maken; topics kunnen onder andere bestanden, tekst en HTML bevatten (D2L, z.d.-a).
+BSS positions material in Git as the single source of truth (SST) for educational material. Git as the core/SST clashes with Brightspace, because Brightspace was built around the idea that the LMS itself is the place to manage course content.
 
-| Entiteit | Brightspace-term | Analogie |
+The BSS process reverses that: Markdown in Git is authoritative; Brightspace is a publication channel.
+
+Advantages of Git over managing directly in Brightspace:
+
+- You have real version control.
+- You use a fast text editor instead of a WYSIWYG editor on a web page.
+- You can collaborate on educational material; text files in Git lend themselves well to reviews and merge requests.
+
+The terms **import** and **export** are therefore confusing:
+
+- From the perspective of Git and BSS it is an **export**: we export source material to an `.imscc` package.
+- From the perspective of Brightspace it is an **import**: Brightspace imports that `.imscc` package into a course.
+- In this manual we therefore use: **BSS export** for creating the package and **Brightspace import** for bringing it into Brightspace.
+
+Ideally the pipeline will later gain Brightspace API access. Then BSS could not only create the `.imscc` file, but also delete existing modules/topics or import the package automatically. As long as that API route is missing, the import remains partly manual. As a temporary workaround for the additive import behavior, BSS ships an optional cleanup script (see §11).
+
+Teacher material requires a separate choice. Brightspace can hide content or restrict its availability, but BSS deliberately exports only the student-visible source directory. A real teacher publication can be done in three ways:
+
+1. A separate Brightspace course or sandbox for teacher material.
+2. A separate, hidden module in the same course, manually restricted to teachers after import.
+3. No Brightspace publication: teacher manuals stay in Git or as a PDF outside the student course.
+
+For most situations, option 3 is the least risky: teacher material contains answers and internal choices that must not accidentally become student-visible.
+
+---
+
+## 3. Brightspace data model
+
+Brightspace (D2L) organizes course material primarily through a course offering with Content modules and topics. D2L describes that lecturers can create modules, submodules and topics in Content; topics can contain files, text and HTML, among other things (D2L, n.d.-a).
+
+| Entity | Brightspace term | Analogy |
 |----------|-----------------|----------|
-| Course | Course Offering / Org Unit | Een repository |
-| Module | Content Module | Een map/package |
-| Page | Page | Een HTML-pagina in Brightspace |
-| Topic | Content Topic | Een gekoppeld item in een module, zoals een pagina, bestand, link of activiteit |
-| Quiz | Quiz Activity | Een assessment-object met items |
-| Assignment | Dropbox Folder | Een inleverlocatie |
+| Course | Course Offering / Org Unit | A repository |
+| Module | Content Module | A folder/package |
+| Page | Page | An HTML page in Brightspace |
+| Topic | Content Topic | A linked item in a module, such as a page, file, link or activity |
+| Quiz | Quiz Activity | An assessment object with items |
+| Assignment | Dropbox Folder | A submission location |
 
-![Brightspace link naar test of quiz vanuit lesmateriaal](images/brightspace-link-naar-test-of-quiz-vanuit-lesmateriaal.png)
+![Brightspace link to a test or quiz from course material](images/brightspace-link-naar-test-of-quiz-vanuit-lesmateriaal.png)
 
-*Figuur 3*: Brightspace link naar test of quiz vanuit lesmateriaal.
+*Figure 3*: Brightspace link to a test or quiz from course material.
 
-Een **module** bevat **topics**. Een topic kan een Brightspace Page zijn, maar ook een toegevoegd bestand of een bestaande activiteit. D2L noemt bij het maken van course content expliciet de route `Create New > Page` binnen een module (D2L, z.d.-b).
+A **module** contains **topics**. A topic can be a Brightspace Page, but also an added file or an existing activity. When creating course content, D2L explicitly mentions the route `Create New > Page` within a module (D2L, n.d.-b).
 
-Een **quiz** is geen gewone contentpagina. D2L beschrijft dat een quiz vanuit Content of direct vanuit de Quizzes-tool kan worden aangemaakt en dat studenten quizzen ook via de Quizzes-tool kunnen openen (D2L, z.d.-c; D2L, z.d.-d). Vanuit lesmateriaal kun je ook een link opnemen naar een quiz (zie Figuur 3).
+A **quiz** is not an ordinary content page. D2L describes that a quiz can be created from Content or directly from the Quizzes tool, and that students can also open quizzes via the Quizzes tool (D2L, n.d.-c; D2L, n.d.-d). From course material you can also include a link to a quiz (see Figure 3).
 
-Een **assignment** kan vanuit Content als nieuwe assignment worden gemaakt, maar blijft functioneel onderdeel van de Assignments-tool (D2L, z.d.-e).
+An **assignment** can be created as a new assignment from Content, but functionally remains part of the Assignments tool (D2L, n.d.-e).
 
-Afbeeldingen en HTML-bestanden die als content gebruikt worden, komen in Brightspace terecht als course files / Manage Files-content. D2L beschrijft dat een bestand als Content topic kan worden aangewezen vanuit Manage Files en waarschuwt dat het verplaatsen van zo'n bestand links kan breken (D2L, z.d.-f).
+Images and HTML files used as content end up in Brightspace as course files / Manage Files content. D2L describes that a file can be designated as a Content topic from Manage Files and warns that moving such a file can break links (D2L, n.d.-f).
 
 ---
 
-## 4. Installatie en configuratie
+## 4. Installation and configuration
 
-### 4.1 Vereisten
+### 4.1 Requirements
 
-- **Deno** ≥ 1.40: runtime voor Brightspacosaurus
-- **Pandoc** (getest met 3.9): voor reader-PDF-conversie via xelatex. Compatibiliteit met andere versies is niet gegarandeerd (Pandoc volgt geen semver maar een eigen `EPOCH.MAJOR.MINOR.PATCH`-schema (Pandoc, z.d.)). Alleen nodig als je readers of een docentenhandleiding-PDF genereert.
-- **TeX Live** met `xelatex` — PDF-engine (op macOS: `brew install --cask mactex` of `brew install basictex`)
+- **Deno** ≥ 1.40: runtime for Brightspacosaurus
+- **Pandoc** (tested with 3.9): for reader PDF conversion via xelatex. Compatibility with other versions is not guaranteed (Pandoc does not follow semver but its own `EPOCH.MAJOR.MINOR.PATCH` scheme (Pandoc, n.d.)). Only needed if you generate readers or a teacher manual PDF.
+- **TeX Live** with `xelatex` — PDF engine (on macOS: `brew install --cask mactex` or `brew install basictex`)
 
-### 4.2 Configuratie
+### 4.2 Configuration
 
-Alle projectspecifieke instellingen worden beheerd via een `brightspacosaurus.config.json` in de root van je cursusproject. BSS zoekt dit bestand standaard in de werkdirectory (`Deno.cwd()`); met `--config <pad>` kun je een ander pad opgeven. CLI-argumenten prevaleren altijd boven waarden uit het configuratiebestand.
+All project-specific settings are managed via a `brightspacosaurus.config.json` in the root of your course project. By default BSS looks for this file in the working directory (`Deno.cwd()`); with `--config <path>` you can specify a different path. CLI arguments always take precedence over values from the configuration file.
 
-Een minimaal configuratiebestand:
+A minimal configuration file:
 
 ```json
 {
@@ -143,26 +143,26 @@ Een minimaal configuratiebestand:
 }
 ```
 
-De belangrijkste velden:
+The most important fields:
 
-| Veld | Verplicht | Beschrijving |
+| Field | Required | Description |
 |------|-----------|--------------|
-| `courseName` | ja | Cursusnaam zoals weergegeven in het manifest |
-| `version` | ja | Versienummer (semver), gebruikt in de `.imscc`-bestandsnaam en HTML-badge |
-| `sourcesDir` | ja | Bronmap voor lespagina's en quizzen |
-| `readersDir` | nee | Bronmap voor reader-Markdown (PDF-conversie via pandoc) |
-| `assetsDir` | nee | Map met statische assets (banners, logo's) |
-| `outputDir` | nee | Build-uitvoermap (standaard `build/brightspace`) |
+| `courseName` | yes | Course name as shown in the manifest |
+| `version` | yes | Version number (semver), used in the `.imscc` filename and HTML badge |
+| `sourcesDir` | yes | Source directory for lesson pages and quizzes |
+| `readersDir` | no | Source directory for reader Markdown (PDF conversion via pandoc) |
+| `assetsDir` | no | Directory with static assets (banners, logos) |
+| `outputDir` | no | Build output directory (default `build/brightspace`) |
 
-> **Volledige configuratiereferentie:** zie de [README.md](../README.md) voor alle configureerbare velden, standaardwaarden, CLI-vlaggen en een uitgebreid voorbeeld. Een kant-en-klaar voorbeeld staat in `brightspacosaurus.config.example.json` en in de `examples/`-map.
+> **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
 
-Ontbrekende optionele configuratie wordt stilzwijgend overgeslagen: zonder `readersDir` slaat BSS de reader-PDF-conversie over, zonder `docentenHandleiding` slaat het de docentenhandleiding-generatie over.
+Missing optional configuration is silently skipped: without `readersDir` BSS skips the reader PDF conversion, without `docentenHandleiding` it skips the teacher manual generation.
 
 ---
 
-## 5. Werkwijze: van Markdown naar Brightspace
+## 5. Workflow: from Markdown to Brightspace
 
-BSS converteert quizzen naar QTI-formaat (Question and Test Interoperability). QTI is een open standaard van 1EdTech (voorheen IMS Global) voor het uitwisselen van toetsvragen en assessments tussen systemen (1EdTech, z.d.). Brightspace importeert QTI-bestanden als assessments in de Tests/Quizzes-tool, zodat vragen niet handmatig hoeven te worden overgetypt.
+BSS converts quizzes to the QTI format (Question and Test Interoperability). QTI is an open standard from 1EdTech (formerly IMS Global) for exchanging test questions and assessments between systems (1EdTech, n.d.). Brightspace imports QTI files as assessments in the Tests/Quizzes tool, so questions do not have to be retyped by hand.
 
 ```plantuml
 @startuml
@@ -187,225 +187,225 @@ stop
 @enduml
 ```
 
-De bronbestanden blijven leidend:
+The source files remain authoritative:
 
-- Lespagina's en studentmateriaal staan in de geconfigureerde bronmap (`sourcesDir`).
-- Quizbestanden met prefix `quiz-` zet BSS om naar QTI.
-- Docentenantwoordmodellen met suffix `-antwoorden-docent` importeert BSS niet als studentpagina.
-- Afgeleide uitvoer staat in de build-map (`outputDir`) en hoort niet handmatig aangepast te worden.
+- Lesson pages and student material live in the configured source directory (`sourcesDir`).
+- BSS converts quiz files with the `quiz-` prefix to QTI.
+- BSS does not import teacher answer keys with the suffix `-antwoorden-docent` as a student page.
+- Derived output lives in the build directory (`outputDir`) and should not be edited by hand.
 
-### 5.1 De twee commando's
+### 5.1 The two commands
 
-Voer de export uit vanuit de root van je cursusproject:
+Run the export from the root of your course project:
 
 ```sh
 deno task prepare
 deno task pack
 ```
 
-`prepare` scant de bronmappen, converteert Markdown naar HTML, converteert quiz-Markdown naar QTI en schrijft de tussenuitvoer naar de build-map. `pack` verpakt die map tot een `.imscc`-archief (bijvoorbeeld `cursus.imscc`, waarbij de naam wordt afgeleid van `name`/`courseName` uit de config).
+`prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive (for example `cursus.imscc`, where the name is derived from `name`/`courseName` in the config).
 
-Met `--readers-only` genereer je alleen de reader- en docenten-PDF's zonder de rest van de build.
+With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build.
 
-### 5.2 Importgedrag: additief met overschrijfoptie
+### 5.2 Import behavior: additive with overwrite option
 
-Brightspace-import is standaard additief voor content-modules en quizzen: een nieuwe import voegt items toe maar verwijdert of overschrijft bestaande modules of quizzen niet automatisch. Dubbele imports leiden tot dubbele items.
+Brightspace import is additive by default for content modules and quizzes: a new import adds items but does not automatically delete or overwrite existing modules or quizzes. Duplicate imports lead to duplicate items.
 
-De importwizard biedt wel de optie **"Bestaande bestanden overschrijven"**. Deze optie geldt voor bestanden in Manage Files (afbeeldingen, PDF's, HTML-bestanden) — niet voor content-modules of quizzen als geheel. Concreet:
+The import wizard does offer the option **"Overwrite existing files"**. This option applies to files in Manage Files (images, PDFs, HTML files) — not to content modules or quizzes as a whole. Specifically:
 
-- **Lespagina's (content topics)**: worden bij herimport als nieuw item toegevoegd, niet overschreven. Handmatig verwijderen vóór herimport is nodig.
-- **Bestanden (afbeeldingen, PDF's)**: worden wél overschreven als de optie is aangevinkt en het pad overeenkomt.
-- **Quizzen**: worden als nieuw assessment toegevoegd, niet overschreven.
+- **Lesson pages (content topics)**: are added as a new item on re-import, not overwritten. Manual deletion before re-import is required.
+- **Files (images, PDFs)**: are overwritten if the option is checked and the path matches.
+- **Quizzes**: are added as a new assessment, not overwritten.
 
-![Brightspace: pagina handmatig verwijderen uit een module](images/brightspace-pagina-handmatig-verwijderen.png)
+![Brightspace: manually removing a page from a module](images/brightspace-pagina-handmatig-verwijderen.png)
 
-*Figuur 4*: Handmatig verwijderen van een pagina in Brightspace.
+*Figure 4*: Manually removing a page in Brightspace.
 
-Figuur 4 laat zien hoe je een pagina handmatig verwijdert.
+Figure 4 shows how you manually remove a page.
 
-- Stap 0: Navigeer naar de module in Content.
-- Stap 1: Klik op de ellipses (⋮) naast het topic.
-- Stap 2: Kies **Remove**.
-- Stap 3: Bevestig met **Yes, remove also contents** als je ook de onderliggende bestanden wilt verwijderen.
-- Stap 4: Bevestig met **Remove**.
+- Step 0: Navigate to the module in Content.
+- Step 1: Click the ellipsis (⋮) next to the topic.
+- Step 2: Choose **Remove**.
+- Step 3: Confirm with **Yes, remove also contents** if you also want to remove the underlying files.
+- Step 4: Confirm with **Remove**.
 
-Aanbevolen werkwijze: vink "Bestaande bestanden overschrijven" aan, maar verwijder oude content-modules handmatig vóór herimport als de structuur is gewijzigd. Voor bulkverwijdering zie §11.
+Recommended workflow: check "Overwrite existing files", but manually remove old content modules before re-import if the structure has changed. For bulk deletion see §11.
 
-![Brightspace importscherm voor het selecteren van componenten](images/brightspace-import-componenten-selecteren.png)
+![Brightspace import screen for selecting components](images/brightspace-import-componenten-selecteren.png)
 
-*Figuur 5*: Brightspace import — componenten selecteren.
+*Figure 5*: Brightspace import — selecting components.
 
-![Brightspace importscherm met de optie om bestaande bestanden te overschrijven](images/brightspace-import-bestanden-overschrijven.png)
+![Brightspace import screen with the option to overwrite existing files](images/brightspace-import-bestanden-overschrijven.png)
 
-*Figuur 6*: Optie — bestaande bestanden overschrijven.
+*Figure 6*: Option — overwrite existing files.
 
-Controleer na import minimaal:
+After import, check at minimum:
 
-1. Verschijnen de content topics in de verwachte volgorde?
-2. Tonen lespagina's koppen, lijsten, tabellen, codeblokken en afbeeldingen correct?
-3. Staan quizzen in de Tests/Quizzes-tool en openen ze zonder foutmelding?
-4. Ontbreken docentenantwoordmodellen in de studentzichtbare content?
-5. Zijn dubbele modules of oude versies handmatig verwijderd voordat je opnieuw importeert?
+1. Do the content topics appear in the expected order?
+2. Do lesson pages show headings, lists, tables, code blocks and images correctly?
+3. Are quizzes in the Tests/Quizzes tool and do they open without an error?
+4. Are teacher answer keys absent from the student-visible content?
+5. Have duplicate modules or old versions been manually removed before you import again?
 
-### 5.3 Importopties in Brightspace
+### 5.3 Import options in Brightspace
 
-Bij het importeren van een cursuspakket toont Brightspace twee optionele vinkjes:
+When importing a course package, Brightspace shows two optional checkboxes:
 
-#### 5.3.1 Metadata importeren — Ja, aanvinken
+#### 5.3.1 Import metadata — Yes, check it
 
-Metadata beschrijven cursusobjecten (modules, topics) op een gestructureerde manier — denk aan taal, trefwoorden en catalogusinformatie. BSS genereert metadata in het manifest (titel, taal `nl-NL`). Deze meenemen zorgt dat Brightspace de titels en structuur correct overneemt (D2L, z.d.-g).
+Metadata describe course objects (modules, topics) in a structured way — think of language, keywords and catalog information. BSS generates metadata in the manifest (title, language `nl-NL`). Including these ensures that Brightspace correctly adopts the titles and structure (D2L, n.d.-g).
 
-#### 5.3.2 Gedeelde startpagina's en navigatiebalken — Nee, niet aanvinken
+#### 5.3.2 Shared home pages and navigation bars — No, do not check it
 
-Deze optie koppelt een gedeelde homepage of navigatiebalk die elders is gedefinieerd. Het BSS-pakket bevat geen verwijzingen naar gedeelde homepages of navbars — het gebruikt de standaard cursusnavigatie. Dit vinkje uitzetten voorkomt dat Brightspace per ongeluk een verkeerde navbar activeert.
+This option links a shared home page or navigation bar defined elsewhere. The BSS package contains no references to shared home pages or navbars — it uses the default course navigation. Leaving this box unchecked prevents Brightspace from accidentally activating the wrong navbar.
 
-### 5.4 Aanbevolen importprocedure
+### 5.4 Recommended import procedure
 
-1. Ga naar **Cursus tools** → **Componenten importeren/exporteren/kopiëren**.
-2. Kies **Onderdelen importeren** → **van een cursuspakket**.
-3. Upload het `.imscc`-pakket.
-4. Vink **Metadata** aan ✓.
-5. Laat **Gedeelde startpagina's en navigatiebalken** uit ✗.
-6. Klik **Importeren**.
-7. Wacht tot de import is voltooid (kan enkele minuten duren bij grote pakketten).
+1. Go to **Course tools** → **Import/Export/Copy Components**.
+2. Choose **Import Components** → **from a course package**.
+3. Upload the `.imscc` package.
+4. Check **Metadata** ✓.
+5. Leave **Shared home pages and navigation bars** unchecked ✗.
+6. Click **Import**.
+7. Wait until the import is complete (may take several minutes for large packages).
 
-Kies bij voorkeur een schone sandboxcursus voor tests.
+Preferably choose a clean sandbox course for tests.
 
 ---
 
 ## 6. Import/export: IMS Common Cartridge
 
-Brightspace kan cursuscomponenten importeren en exporteren via Common Cartridge. D2L beschrijft Common Cartridge als een open standaard voor content, assessments en digitale content, en noemt import vanuit een course package als ondersteunde route (D2L, z.d.-g).
+Brightspace can import and export course components via Common Cartridge. D2L describes Common Cartridge as an open standard for content, assessments and digital content, and mentions import from a course package as a supported route (D2L, n.d.-g).
 
-![Inhoud van een Common Cartridge-pakket: imsmanifest.xml en content-mappen](images/common-cartridge-inhoud-voorbeeld.png)
+![Contents of a Common Cartridge package: imsmanifest.xml and content directories](images/common-cartridge-inhoud-voorbeeld.png)
 
-*Figuur 7*: Inhoud van een uitgepakt `.imscc`-pakket.
+*Figure 7*: Contents of an unpacked `.imscc` package.
 
-Het manifest beschrijft de resources; de content-mappen bevatten de HTML-bestanden en afbeeldingen die Brightspace importeert.
+The manifest describes the resources; the content directories contain the HTML files and images that Brightspace imports.
 
-BSS genereert een `.imscc`-pakket conform IMS Common Cartridge 1.3 vanuit Markdown-bronbestanden. Brightspace ondersteunt meerdere Common Cartridge-versies; bij versie 1.1 noemt D2L expliciet de `.imscc`-extensie als herkenbare package-extensie (D2L, z.d.-h).
-
----
-
-## 7. Quizzen en QTI
-
-De Source Scanner classificeert bestanden met het prefix `quiz-` als quizbestanden. BSS parseert een quiz-Markdown bestand op basis van dit formaat:
-
-- **H1** als quiztitel
-- **H2** als vraagnummer
-- Opties als `- A. tekst` tot en met `- D. tekst`
-- `Correct antwoord: **X**` als aanduiding van het juiste antwoord
-
-Per quiz-Markdown bestand genereert BSS één geldig QTI 1.2 XML-bestand conform het IMS CC QTI-profiel (`cc.exam.v0p1`). De QTI-bestanden verschijnen in Brightspace zowel in de Quizzes-tool als in de content-navigatie.
-
-### 7.1 Afbeeldingen in quizzen
-
-Een quiz kan een **header-afbeelding** krijgen via de quiz-instellingen in Brightspace (handmatig). In het QTI-formaat dat BSS genereert, kun je afbeeldingen embedden in vraagteksten via HTML-img-tags. Een quiz-banner als geheel is een Brightspace UI-instelling, niet onderdeel van QTI.
-
-### 7.2 Docent- en studentvarianten
-
-Praktische afspraak voor bestandsnamen:
-
-- Lespagina's worden geïmporteerd als content topics.
-- Bestanden met prefix `quiz-` worden geconverteerd naar QTI en geïmporteerd als assessment.
-- Bestanden met suffix `-antwoorden-docent` worden niet als studentpagina of assessment geïmporteerd.
-
-Brightspace heeft zelf al een aparte tool/navigatie voor tests en quizzen. BSS converteert quiz-Markdown daarom naar QTI-assessments en bouwt geen extra contentmodule voor tests.
+BSS generates an `.imscc` package conforming to IMS Common Cartridge 1.3 from Markdown source files. Brightspace supports multiple Common Cartridge versions; for version 1.1 D2L explicitly mentions the `.imscc` extension as a recognizable package extension (D2L, n.d.-h).
 
 ---
 
-## 8. Readers: naslagmateriaal als PDF
+## 7. Quizzes and QTI
 
-Readers (bijvoorbeeld geheugenmodellen, klassendiagrammen, PlantUML- of Git-uitleg) zijn naslagmateriaal dat vanuit meerdere lessen wordt gerefereerd. Ze staan in de geconfigureerde readers-bronmap (`readersDir`).
+The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSS parses a quiz Markdown file based on this format:
 
-De Source Scanner classificeert bestanden met prefix `reader-` als readerbestanden. BSS zet ze om naar PDF via pandoc met xelatex of lualatex als PDF-engine. Enkele eigenschappen:
+- **H1** as the quiz title
+- **H2** as the question number
+- Options as `- A. text` through `- D. text`
+- `Correct antwoord: **X**` as the indicator of the correct answer
 
-- Als pandoc niet beschikbaar is, logt BSS een waarschuwing en slaat het de reader-PDF-conversie over zonder de build af te breken.
-- De `--resource-path` van pandoc wordt op de directory van het bronbestand gezet, zodat relatieve afbeeldingsreferenties correct worden geresolveerd.
-- Mislukt een reader-conversie, dan rapporteert BSS het bestand en gaat door met de overige readers, maar retourneert na afloop een niet-nul exitcode.
+For each quiz Markdown file, BSS generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
 
-BSS neemt reader-PDF's op in het IMSCC-pakket als webcontent-resource onder een "Readers"-module in het manifest.
+### 7.1 Images in quizzes
 
-### 8.1 Mapping naar Brightspace
+A quiz can be given a **header image** via the quiz settings in Brightspace (manually). In the QTI format that BSS generates, you can embed images in question texts via HTML img tags. A quiz banner as a whole is a Brightspace UI setting, not part of QTI.
 
-In Brightspace kun je de reader-PDF's als volgt aanbieden:
+### 7.2 Teacher and student variants
 
-1. Upload de reader-PDF's naar **Bestanden beheren** (Manage Files) in de cursus.
-2. Link vanuit relevante lespagina's naar de PDF via een relatieve URL.
-3. Optioneel: maak een top-level module "Naslagmateriaal" met links naar de PDF's.
+Practical convention for filenames:
 
-![Brightspace Bestanden beheren met reader-PDF's in de readers-map](images/brightspace-readers-bestanden-beheren.png)
+- Lesson pages are imported as content topics.
+- Files with the `quiz-` prefix are converted to QTI and imported as an assessment.
+- Files with the suffix `-antwoorden-docent` are not imported as a student page or assessment.
 
-*Figuur 8*: Brightspace Bestanden beheren — reader-PDF's worden vanuit lespagina's gelinkt.
-
----
-
-## 9. Afbeeldingen in de export
-
-BSS neemt afbeeldingen uit lespagina's (Markdown `![alt](pad)`) automatisch mee in het `.imscc`-pakket. Voorwaarden:
-
-1. Het pad is relatief ten opzichte van het Markdown-bronbestand.
-2. Het bestand bestaat op dat pad.
-3. De afbeelding staat in een map die BSS scant.
-
-BSS converteert Markdown-afbeeldingsreferenties naar HTML-img-tags en kopieert de afbeeldingsbestanden mee in het `.imscc`-archief. Als een gerefereerde afbeelding niet bestaat, logt BSS een waarschuwing met het bronbestand en het ontbrekende pad.
-
-Naast de afbeeldingen die vanuit Markdown worden gerefereerd, kun je via het `assetsDir`-configuratieveld extra statische assets (banners, logo's) aanleveren die BSS meekopieert naar de build.
+Brightspace itself already has a separate tool/navigation for tests and quizzes. BSS therefore converts quiz Markdown to QTI assessments and does not build an extra content module for tests.
 
 ---
 
-## 10. Eigen styling
+## 8. Readers: reference material as PDF
 
-BSS levert een standaard CSS-stylesheet (`brightspacosaurus.css`) mee, gebaseerd op de HAN-huisstijl. Deze stylesheet is generiek en bevat geen cursusspecifieke kleuren of selectors.
+Readers (for example memory models, class diagrams, PlantUML or Git explanations) are reference material that is referenced from multiple lessons. They live in the configured readers source directory (`readersDir`).
 
-Wil je eigen styling toevoegen, dan configureer je een `customCss`-pad in het configuratiebestand. BSS voegt die stylesheet dan toe naast de standaard-stylesheet. Zonder `customCss` gebruikt BSS uitsluitend de standaard-stylesheet.
+The Source Scanner classifies files with the `reader-` prefix as reader files. BSS converts them to PDF via pandoc with xelatex or lualatex as the PDF engine. Some properties:
+
+- If pandoc is not available, BSS logs a warning and skips the reader PDF conversion without aborting the build.
+- Pandoc's `--resource-path` is set to the directory of the source file, so that relative image references are resolved correctly.
+- If a reader conversion fails, BSS reports the file and continues with the remaining readers, but returns a non-zero exit code afterwards.
+
+BSS includes reader PDFs in the IMSCC package as a webcontent resource under a "Readers" module in the manifest.
+
+### 8.1 Mapping to Brightspace
+
+In Brightspace you can offer the reader PDFs as follows:
+
+1. Upload the reader PDFs to **Manage Files** in the course.
+2. Link to the PDF from relevant lesson pages via a relative URL.
+3. Optionally: create a top-level module "Reference material" with links to the PDFs.
+
+![Brightspace Manage Files with reader PDFs in the readers directory](images/brightspace-readers-bestanden-beheren.png)
+
+*Figure 8*: Brightspace Manage Files — reader PDFs are linked from lesson pages.
 
 ---
 
-## 11. Bulk-verwijderen van content via browser-console
+## 9. Images in the export
 
-Omdat Brightspace-import additief is (zie §5.2), moet je bij herimport eerst bestaande content verwijderen. Handmatig kost dat vier kliks per item — bij tientallen pagina's is dat onwerkbaar. Het meegeleverde script `utils/verwijder-brightspace-paginas.js` automatiseert dit deels. Dit is een bewust hacky workaround voor het ontbreken van API-toegang tot Brightspace: je plakt het script integraal in de JavaScript-console van je browser (F12/Developer Tools → tabblad **Console**) en drukt Enter.
+BSS automatically includes images from lesson pages (Markdown `![alt](path)`) in the `.imscc` package. Conditions:
 
-Het script is experimenteel en afhankelijk van Brightspace's interne HTML-structuur. Het functioneert onafhankelijk van de BSS-kern (geen gedeelde imports of configuratie).
+1. The path is relative to the Markdown source file.
+2. The file exists at that path.
+3. The image is in a directory that BSS scans.
 
-### 11.1 Gebruik
+BSS converts Markdown image references to HTML img tags and copies the image files into the `.imscc` archive. If a referenced image does not exist, BSS logs a warning with the source file and the missing path.
 
-1. Open de cursus in Brightspace → **Inhoud** (Content).
-2. Navigeer naar de module waarvan je items wilt verwijderen.
-3. Selecteer het eerste item waar je wilt beginnen.
+In addition to the images referenced from Markdown, you can supply extra static assets (banners, logos) via the `assetsDir` configuration field, which BSS copies into the build.
+
+---
+
+## 10. Custom styling
+
+BSS ships a default CSS stylesheet (`brightspacosaurus.css`), based on the HAN house style. This stylesheet is generic and contains no course-specific colors or selectors.
+
+If you want to add your own styling, you configure a `customCss` path in the configuration file. BSS then adds that stylesheet alongside the default stylesheet. Without `customCss`, BSS uses only the default stylesheet.
+
+---
+
+## 11. Bulk-deleting content via the browser console
+
+Because Brightspace import is additive (see §5.2), on re-import you first have to delete existing content. Manually this costs four clicks per item — with dozens of pages that is unworkable. The bundled script `utils/verwijder-brightspace-paginas.js` partly automates this. This is a deliberately hacky workaround for the lack of API access to Brightspace: you paste the script in full into your browser's JavaScript console (F12/Developer Tools → **Console** tab) and press Enter.
+
+The script is experimental and depends on Brightspace's internal HTML structure. It functions independently of the BSS core (no shared imports or configuration).
+
+### 11.1 Usage
+
+1. Open the course in Brightspace → **Content**.
+2. Navigate to the module whose items you want to delete.
+3. Select the first item where you want to start.
 4. Open DevTools (F12) → **Console**.
-5. Kopieer de inhoud van `utils/verwijder-brightspace-paginas.js` en plak in de console.
-6. Druk Enter. Het script vraagt hoeveel items je wilt verwijderen.
+5. Copy the contents of `utils/verwijder-brightspace-paginas.js` and paste into the console.
+6. Press Enter. The script asks how many items you want to delete.
 
-### 11.2 Werking
+### 11.2 How it works
 
-Het script:
+The script:
 
-- Pollt snel (50 ms) op UI-reacties in plaats van vaste wachttijden.
-- Wacht tot de bevestigingsdialoog **dicht** is voordat het aan het volgende item begint — dit voorkomt een stapel open dialogen.
-- Klikt de radio "ook onderliggende bestanden verwijderen" als die aanwezig is.
-- Slaat items zonder verwijderoptie (quizzen, assignments) over en gaat door met het volgende.
-- Sluit succes-toasts direct weg.
-- Houdt een set bij van mislukte objectId's zodat het niet eindeloos dezelfde items probeert.
+- Polls quickly (50 ms) for UI reactions instead of using fixed wait times.
+- Waits until the confirmation dialog is **closed** before starting on the next item — this prevents a stack of open dialogs.
+- Clicks the "also delete underlying files" radio if it is present.
+- Skips items without a delete option (quizzes, assignments) and continues with the next.
+- Dismisses success toasts immediately.
+- Keeps a set of failed object IDs so it does not endlessly retry the same items.
 
-### 11.3 Beperkingen
+### 11.3 Limitations
 
-- Het script werkt via DOM-manipulatie en is afhankelijk van Brightspace's interne HTML-structuur. Bij een Brightspace-update kan het breken.
-- Quizzen en assignments die als link in een module staan, hebben een ander verwijdermechanisme en worden overgeslagen.
-- Bij grote aantallen (100+) kan het helpen om tussendoor F5 te drukken en het script opnieuw te draaien — Brightspace's interne state raakt soms corrupt na veel DOM-manipulatie in één sessie.
-- Het script is bedoeld als tijdelijke workaround totdat Brightspace API-toegang beschikbaar is.
+- The script works via DOM manipulation and depends on Brightspace's internal HTML structure. A Brightspace update can break it.
+- Quizzes and assignments that appear as a link in a module have a different delete mechanism and are skipped.
+- With large numbers (100+) it can help to press F5 in between and run the script again — Brightspace's internal state sometimes becomes corrupt after a lot of DOM manipulation in one session.
+- The script is intended as a temporary workaround until Brightspace API access is available.
 
 ---
 
-## Bronnen
+## References
 
-- 1EdTech. (z.d.). *Question and Test Interoperability (QTI)*. Geraadpleegd op 3 juni 2026, van https://www.1edtech.org/standards/qti
-- D2L. (z.d.-a). *Add and organize learning materials in the Classic Content experience*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/2750-add-and-organize-learning-materials-in-the-classic-content-experience
-- D2L. (z.d.-b). *Add and organize course content*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/4983-add-and-organize-course-content
-- D2L. (z.d.-c). *Create and configure a quiz*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/3413-create-and-configure-a-quiz
-- D2L. (z.d.-d). *Using the Quizzes tool*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/18174-using-the-quizzes-tool
-- D2L. (z.d.-e). *Create an assignment*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/2776-create-an-assignment
-- D2L. (z.d.-f). *Create a Content topic in Manage Files*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/3670-create-a-content-topic-in-manage-files
-- D2L. (z.d.-g). *About Import/Export/Copy Components*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/16786-about-import-export-copy-components
-- D2L. (z.d.-h). *Import, export, or copy course components*. Brightspace Community. Geraadpleegd op 14 mei 2026, van https://community.d2l.com/brightspace/kb/articles/16788-import-export-or-copy-course-components
-- Pandoc. (z.d.). *Releases*. Geraadpleegd op 21 mei 2026, van https://pandoc.org/releases.html
+- 1EdTech. (n.d.). *Question and Test Interoperability (QTI)*. Retrieved June 3, 2026, from https://www.1edtech.org/standards/qti
+- D2L. (n.d.-a). *Add and organize learning materials in the Classic Content experience*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/2750-add-and-organize-learning-materials-in-the-classic-content-experience
+- D2L. (n.d.-b). *Add and organize course content*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/4983-add-and-organize-course-content
+- D2L. (n.d.-c). *Create and configure a quiz*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/3413-create-and-configure-a-quiz
+- D2L. (n.d.-d). *Using the Quizzes tool*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/18174-using-the-quizzes-tool
+- D2L. (n.d.-e). *Create an assignment*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/2776-create-an-assignment
+- D2L. (n.d.-f). *Create a Content topic in Manage Files*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/3670-create-a-content-topic-in-manage-files
+- D2L. (n.d.-g). *About Import/Export/Copy Components*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/16786-about-import-export-copy-components
+- D2L. (n.d.-h). *Import, export, or copy course components*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/16788-import-export-or-copy-course-components
+- Pandoc. (n.d.). *Releases*. Retrieved May 21, 2026, from https://pandoc.org/releases.html
