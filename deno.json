@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",
@@ -26,6 +26,7 @@
     "remark-frontmatter": "npm:remark-frontmatter@^5.0.0",
     "remark-gfm": "npm:remark-gfm@^4.0.0",
     "remark-rehype": "npm:remark-rehype@^11.0.0",
+    "rehype-external-links": "npm:rehype-external-links@^3.0.0",
     "rehype-stringify": "npm:rehype-stringify@^10.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",
     "@std/assert": "jsr:@std/assert@^1.0.0"

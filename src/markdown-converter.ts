@@ -11,6 +11,7 @@ import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
+import rehypeExternalLinks from "rehype-external-links";
 import rehypeStringify from "rehype-stringify";
 
 /** Regex voor het herkennen van QTI-gemarkeerde secties in Markdown. */
@@ -165,6 +166,12 @@ const processor = unified()
   .use(remarkFrontmatter, ['yaml'])
   .use(remarkGfm)
   .use(remarkRehype)
+  .use(rehypeExternalLinks, {
+    target: "_blank",
+    rel: ["noopener", "noreferrer"],
+    // Alleen echte externe links (http/https); relatieve/interne links ongemoeid
+    protocols: ["http", "https"],
+  })
   .use(rehypeStringify);
 
 /**

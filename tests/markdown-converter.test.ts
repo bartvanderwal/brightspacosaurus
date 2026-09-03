@@ -318,3 +318,75 @@ Deno.test("convertReaderLinks: mix van reader-links en niet-reader-links", () =>
 
   assertEquals(result, expected);
 });
+
+// ===========================================================================
+// Externe links openen in nieuw tabblad (issue #4)
+// Feature: brightspacosaurus
+// Externe http(s)-links krijgen target="_blank" en rel="noopener noreferrer";
+// relatieve/interne links blijven ongemoeid.
+// ===========================================================================
+
+Deno.test("Externe link krijgt target=_blank en rel=noopener noreferrer", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    const sourcePath = join(sourceDir, "externe-link.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Video\n\n[\u25b6 Watch on YouTube](https://www.youtube.com/watch?v=abc)\n",
+    );
+
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir,
+      repoRoot: tempRoot,
+    });
+
+    const html = await Deno.readTextFile(result.outputPath);
+
+    // De externe link moet in een <a>-tag met target="_blank" resulteren
+    assertEquals(
+      html.includes('target="_blank"'),
+      true,
+      'Externe link moet target="_blank" bevatten',
+    );
+    // rel moet zowel noopener als noreferrer bevatten
+    assertEquals(html.includes("noopener"), true, 'rel moet "noopener" bevatten');
+    assertEquals(html.includes("noreferrer"), true, 'rel moet "noreferrer" bevatten');
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+Deno.test("Relatieve/interne link krijgt geen target=_blank", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src", "week-1");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    const sourcePath = join(sourceDir, "interne-link.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Les 1\n\n[andere les](../week-2/les.html)\n",
+    );
+
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir,
+      repoRoot: tempRoot,
+    });
+
+    const html = await Deno.readTextFile(result.outputPath);
+
+    // De relatieve link mag geen target="_blank" krijgen
+    assertEquals(
+      html.includes('target="_blank"'),
+      false,
+      'Relatieve/interne link mag geen target="_blank" bevatten',
+    );
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
