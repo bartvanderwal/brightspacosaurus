@@ -9,7 +9,7 @@ import { scanSources } from "./source-scanner.ts";
 import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
-import { materializeAsset } from "./assets.ts";
+import { materializeAsset, loadPackageVersion } from "./assets.ts";
 import { buildManifest } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
 import { ManifestEntry, ResolvedConfig } from "./types.ts";
@@ -41,7 +41,7 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&amp;/g, "&");
 }
 
-const USAGE = `Usage: brightspacosaurus <command> [options]
+const USAGE_BODY = `Usage: brightspacosaurus <command> [options]
 
 Commands:
   prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
@@ -52,10 +52,25 @@ Options:
   --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
   --output <path>    Output path or name for .imscc (overrides config.outputDir/name)
   --readers-only     Generate reader and instructor PDFs only (skip HTML/QTI conversion)
+  --version, -v      Show version number
+  --help, -h         Show this help
 `;
 
-function printUsage(): void {
-  console.error(USAGE);
+/** Builds the full usage text with a version header line. */
+function buildUsage(version: string): string {
+  const header =
+    `Brightspacosaurus v${version} — Markdown course material → Brightspace Common Cartridge (.imscc)\n\n`;
+  return header + USAGE_BODY;
+}
+
+/** Prints usage to the given channel ("stdout" for help, "stderr" for errors). */
+function printUsage(version: string, channel: "stdout" | "stderr" = "stderr"): void {
+  const text = buildUsage(version);
+  if (channel === "stdout") {
+    console.log(text);
+  } else {
+    console.error(text);
+  }
 }
 
 function parseArgs(args: string[]): { command: string; sources: string; readersOnly: boolean; output: string; config: string } | null {
@@ -502,10 +517,26 @@ async function runPack(config: ResolvedConfig): Promise<void> {
 // --- Main ---
 
 async function main(): Promise<void> {
-  const parsed = parseArgs(Deno.args);
+  const args = Deno.args;
+  const version = await loadPackageVersion();
+
+  // Version and help intents are handled before command parsing.
+  // --version / -v → version to stdout, exit 0.
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(`brightspacosaurus v${version}`);
+    Deno.exit(0);
+  }
+  // --help / -h → usage to stdout, exit 0.
+  if (args.includes("--help") || args.includes("-h")) {
+    printUsage(version, "stdout");
+    Deno.exit(0);
+  }
+
+  const parsed = parseArgs(args);
 
   if (!parsed) {
-    printUsage();
+    // No arguments or an invalid command → usage to stderr, exit 1.
+    printUsage(version, "stderr");
     Deno.exit(1);
   }
 

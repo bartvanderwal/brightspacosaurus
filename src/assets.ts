@@ -45,3 +45,24 @@ export async function materializeAsset(assetName: string): Promise<string> {
   await Deno.writeTextFile(tmpPath, text);
   return tmpPath;
 }
+
+/**
+ * Reads the package version from deno.json (works locally and from the JSR cache).
+ *
+ * Uses the same import.meta.resolve() + fetch() approach as loadAssetText, so it
+ * works with file://, https:// and jsr: URLs. deno.json is included in
+ * publish.include, so it is available from the JSR cache.
+ *
+ * @returns The version string, or "unknown" if it cannot be determined.
+ */
+export async function loadPackageVersion(): Promise<string> {
+  try {
+    const url = import.meta.resolve("../deno.json");
+    const response = await fetch(url);
+    if (!response.ok) return "unknown";
+    const json = await response.json();
+    return typeof json.version === "string" ? json.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+}

@@ -46,6 +46,32 @@ Deno.test("Eigenschap 6: ongeldig commando geeft usage naar stderr en exitcode 1
   assertEquals(result.stderr.includes("Usage:"), true, "stderr moet usage bevatten");
 });
 
+Deno.test("--version geeft versienummer naar stdout en exitcode 0", async () => {
+  // Issue #9: toon versienummer via --version / -v
+  const result = await runCli(["--version"]);
+  assertEquals(result.code, 0, "Exitcode moet 0 zijn bij --version");
+  assertEquals(
+    /^brightspacosaurus v\d+\.\d+\.\d+/.test(result.stdout.trim()),
+    true,
+    "stdout moet 'brightspacosaurus v<version>' bevatten",
+  );
+});
+
+Deno.test("-v geeft versienummer naar stdout en exitcode 0", async () => {
+  // Issue #9: korte vorm -v
+  const result = await runCli(["-v"]);
+  assertEquals(result.code, 0, "Exitcode moet 0 zijn bij -v");
+  assertEquals(result.stdout.includes("brightspacosaurus v"), true, "stdout moet versie bevatten");
+});
+
+Deno.test("--help geeft usage met versie-header naar stdout en exitcode 0", async () => {
+  // Issue #9: --help / -h toont usage met versie-header
+  const result = await runCli(["--help"]);
+  assertEquals(result.code, 0, "Exitcode moet 0 zijn bij --help");
+  assertEquals(result.stdout.includes("Brightspacosaurus v"), true, "stdout moet versie-header bevatten");
+  assertEquals(result.stdout.includes("Usage:"), true, "stdout moet usage bevatten");
+});
+
 Deno.test("Eigenschap 6: prepare met niet-bestaande bronmap geeft fout naar stderr en exitcode ongelijk aan nul", async () => {
   // Feature: brightspacosaurus, Eigenschap 6: Foutuitvoer volgt het juiste kanaal en exitcode
   const result = await runCli(["prepare", "--sources", "/niet/bestaand/pad"]);
