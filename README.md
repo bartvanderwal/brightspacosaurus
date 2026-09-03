@@ -4,9 +4,12 @@
 
 # Brightspacosaurus
 
+<p align="center"><em>Out with the BS, in with the Markdown.</em><br>
+If you don't like BS but love MD. 🦕</p>
+
 Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. Created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design.
 
-📖 See the [user manual](docs/brightspacosaurus-handleiding.md) for the data model and Brightspace import process, and the [Software Guidebook](docs/software-guidebook.md) for the architecture and design decisions.
+📖 See the [user manual](docs/user-manual.md) for the data model and Brightspace import process, and the [Software Guidebook](docs/software-guidebook.md) for the architecture and design decisions.
 
 > **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for why.
 
@@ -17,36 +20,23 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 
 ## Installation
 
-### Via JSR
+Install once to get the `bso` command:
 
 ```sh
-deno add jsr:@bartvanderwal/brightspacosaurus
+deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 
-You can also run the CLI directly without installing:
+The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc --allow-env` (see [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the security rationale).
+
+Prefer not to install? Run it on demand:
 
 ```sh
-deno x jsr:@bartvanderwal/brightspacosaurus/cli prepare
+deno run -A jsr:@bartvanderwal/brightspacosaurus/cli prepare
 ```
 
-### Via npm
+### Also on npm
 
-The package is also available on npm for discoverability. Note that it still requires the Deno runtime:
-
-```sh
-npx jsr add @bartvanderwal/brightspacosaurus   # sets up the @jsr scope, then:
-npm install @bartvanderwal/brightspacosaurus
-```
-
-Because Brightspacosaurus depends on the Deno runtime and JSR dependencies, pure Node.js usage is not supported. Prefer the JSR installation above when working in Deno.
-
-### Locally
-
-```sh
-git clone <repository-url>
-cd brightspacosaurus
-deno task prepare
-```
+The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) too, mainly for discoverability. It still requires the Deno runtime — pure Node.js usage is not supported. Prefer the JSR installation above.
 
 ## Quickstart
 
@@ -60,16 +50,11 @@ deno task prepare
 }
 ```
 
-2. Generate HTML and QTI from your Markdown source files:
+2. Generate HTML and QTI from your Markdown, then package into a `.imscc`:
 
 ```sh
-deno run --allow-read --allow-write --allow-run --allow-env src/main.ts prepare
-```
-
-3. Package the build output into a `.imscc` archive:
-
-```sh
-deno run --allow-read --allow-write --allow-env src/main.ts pack
+bso prepare
+bso pack
 ```
 
 The result is a file such as `build/brightspace/my-course.v1.0.0.imscc` that you can import into Brightspace.
@@ -148,6 +133,8 @@ CLI arguments always take precedence over values from the configuration file.
 
 ## Commands
 
+When working from the source repo, you can also use `deno task prepare` / `deno task pack` instead of the installed `bso` command.
+
 ### Running tests
 
 ```sh
@@ -159,7 +146,7 @@ Runs all unit and property-based tests.
 ### Prepare (Markdown → HTML + QTI)
 
 ```sh
-deno task prepare
+bso prepare
 ```
 
 Scans the configured source directory and:
@@ -172,7 +159,7 @@ Scans the configured source directory and:
 ### Pack (HTML + QTI → .imscc)
 
 ```sh
-deno task pack
+bso pack
 ```
 
 Packages the contents of the build directory into a `.imscc` archive including `imsmanifest.xml`.
@@ -271,7 +258,7 @@ brightspacosaurus/
 │   └── verwijder-brightspace-paginas.js  # experimental cleanup utility
 ├── adr/                       # Architecture Decision Records
 ├── docs/
-│   ├── brightspacosaurus-handleiding.md
+│   ├── user-manual.md
 │   └── software-guidebook.md
 └── examples/
     └── *.config.json          # example configurations
@@ -295,7 +282,7 @@ For the full rationale behind these choices, see the Design Decisions chapter in
 BSOsaurus was set up with AWS' Kiro, a Spec-Driven Development tool (AI tool).
 
 The full feature spec (requirements, design, tasks) lives in the Kiro specs in this repo:
-- [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus/), the original bootstrap
+- [`.kiro/specs/brightspacosaurus/`](.kiro/specs/brightspacosaurus/), the original bootstrap
 - [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus-generiek/), the later step toward a separate, more generic tool and JSR module
 - Possibly more later...
 
