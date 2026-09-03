@@ -120,6 +120,8 @@ export interface BssConfig {
   customCss?: string;
   /** Projectnaam voor het .imscc-bestand (standaard: afgeleid van courseName). */
   name?: string;
+  /** Path to the Docusaurus directory for `bso preview` (relative to Repo_Root). Optional. */
+  docusaurusDir?: string;
   /** Configuratie voor docentenhandleiding-generatie. Optioneel. */
   docentenHandleiding?: DocentenHandleidingConfig;
 }
@@ -155,6 +157,8 @@ export interface ResolvedConfig {
   customCss: string | null;
   /** Projectnaam voor het .imscc-bestand. */
   name: string;
+  /** Absolute path to the Docusaurus directory. null = preview not configured. */
+  docusaurusDir: string | null;
   /** Docentenhandleiding-configuratie met absolute paden. null = overslaan. */
   docentenHandleiding: ResolvedDocentenConfig | null;
   /** Absoluut pad naar Repo_Root. */

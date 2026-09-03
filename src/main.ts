@@ -46,6 +46,7 @@ const USAGE_BODY = `Usage: brightspacosaurus <command> [options]
 Commands:
   prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
   pack      Package the build directory into a .imscc archive
+  preview   Start the Docusaurus dev server (requires docusaurusDir in config)
 
 Options:
   --config <path>    Path to the configuration file (default: brightspacosaurus.config.json in cwd)
@@ -77,7 +78,7 @@ function parseArgs(args: string[]): { command: string; sources: string; readersO
   if (args.length === 0) return null;
 
   const command = args[0];
-  if (command !== "prepare" && command !== "pack") return null;
+  if (command !== "prepare" && command !== "pack" && command !== "preview") return null;
 
   let sources = "";
   let readersOnly = false;
@@ -514,6 +515,53 @@ async function runPack(config: ResolvedConfig): Promise<void> {
   console.log("Pack complete.");
 }
 
+async function runPreview(config: ResolvedConfig): Promise<void> {
+  const repoRoot = config.repoRoot;
+
+  if (!config.docusaurusDir) {
+    const err = new Error(
+      "preview requires a 'docusaurusDir' in brightspacosaurus.config.json. " +
+        "Add a \"docusaurusDir\" field pointing to your Docusaurus directory (relative to Repo_Root).",
+    ) as Error & { exitCode?: number };
+    err.exitCode = 1;
+    throw err;
+  }
+
+  try {
+    const stat = await Deno.stat(config.docusaurusDir);
+    if (!stat.isDirectory) {
+      throw new Error("not a directory");
+    }
+  } catch {
+    const err = new Error(
+      `Docusaurus directory not found: ${config.docusaurusDir}`,
+    ) as Error & { exitCode?: number };
+    err.exitCode = 1;
+    throw err;
+  }
+
+  console.log(
+    `Starting Docusaurus dev server in ${relative(repoRoot, config.docusaurusDir)}...`,
+  );
+
+  const cmd = new Deno.Command("npm", {
+    args: ["start"],
+    cwd: config.docusaurusDir,
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "inherit",
+  });
+  const child = cmd.spawn();
+  const status = await child.status;
+  if (!status.success) {
+    const err = new Error(
+      `Docusaurus dev server exited with code ${status.code}`,
+    ) as Error & { exitCode?: number };
+    err.exitCode = status.code || 1;
+    throw err;
+  }
+}
+
 // --- Main ---
 
 async function main(): Promise<void> {
@@ -598,6 +646,8 @@ async function main(): Promise<void> {
       await runPrepare(resolvedConfig, parsed.readersOnly);
     } else if (parsed.command === "pack") {
       await runPack(resolvedConfig);
+    } else if (parsed.command === "preview") {
+      await runPreview(resolvedConfig);
     }
   } catch (e) {
     const error = e as Error & { exitCode?: number };

@@ -80,6 +80,7 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
 | `assetsDir` | `string` | `null` (no extra assets) | Directory with static assets (banners, logos) |
 | `outputDir` | `string` | `"build/brightspace"` | Build output directory |
 | `customCss` | `string` | `null` (default CSS only) | Path to a custom CSS file |
+| `docusaurusDir` | `string` | `null` (no preview) | Path to the Docusaurus directory for `bso preview` |
 | `docentenHandleiding` | `object` | `null` (skip) | Configuration for the instructor manual PDF |
 
 ### docentenHandleiding object
@@ -102,6 +103,7 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
   "assetsDir": "images/",
   "outputDir": "build/brightspace",
   "customCss": "assets/custom.css",
+  "docusaurusDir": "scripts/docusaurus",
   "docentenHandleiding": {
     "inputFiles": [
       "instructor-manual/chapter-1.md",
@@ -121,6 +123,7 @@ Usage: brightspacosaurus <command> [options]
 Commands:
   prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
   pack      Package the build directory into a .imscc archive
+  preview   Start the Docusaurus dev server (requires docusaurusDir in config)
 
 Options:
   --config <path>    Path to the configuration file (default: brightspacosaurus.config.json in cwd)
@@ -163,6 +166,17 @@ bso pack
 ```
 
 Packages the contents of the build directory into a `.imscc` archive including `imsmanifest.xml`.
+
+### Preview (Docusaurus dev server)
+
+```sh
+bso preview
+```
+
+Starts the Docusaurus dev server by running `npm start` in the configured `docusaurusDir`. This requires:
+
+- A `docusaurusDir` field in `brightspacosaurus.config.json` pointing to your Docusaurus directory (relative to the working directory).
+- The `--allow-run=npm` permission. If you installed `bso` with `deno install -A ...` this is already covered; otherwise add `--allow-run=npm` to the run permissions.
 
 ## Importing into Brightspace
 

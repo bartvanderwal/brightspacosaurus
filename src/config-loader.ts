@@ -19,6 +19,7 @@ export const EXAMPLE_CONFIG = `{
   "sourcesDir": "bronmateriaal/lessen/",
   "readersDir": "bronmateriaal/readers/",
   "outputDir": "build/brightspace",
+  "docusaurusDir": "scripts/docusaurus",
   "docentenHandleiding": {
     "inputFiles": ["docs/handleiding.md"],
     "outputName": "docentenhandleiding.pdf"
@@ -121,6 +122,7 @@ export function validateConfig(config: unknown): config is BssConfig {
     "outputDir",
     "customCss",
     "name",
+    "docusaurusDir",
   ] as const;
   for (const field of optionalStringFields) {
     if (obj[field] !== undefined && typeof obj[field] !== "string") {
@@ -221,6 +223,11 @@ export function resolveConfig(
   // name: from config or derived from courseName
   const name = config.name ?? slugify(config.courseName);
 
+  // docusaurusDir: from config only, null if not provided
+  const docusaurusDir = config.docusaurusDir
+    ? resolve(repoRoot, config.docusaurusDir)
+    : null;
+
   // docentenHandleiding: resolves to absolute paths if present
   let docentenHandleiding: ResolvedDocentenConfig | null = null;
   if (config.docentenHandleiding) {
@@ -244,6 +251,7 @@ export function resolveConfig(
     version: config.version,
     customCss,
     name,
+    docusaurusDir,
     docentenHandleiding,
     repoRoot,
   };
@@ -276,6 +284,7 @@ export function resolveFromCliOnly(
     version: "0.0.0",
     customCss: null,
     name: "course",
+    docusaurusDir: null,
     docentenHandleiding: null,
     repoRoot,
   };

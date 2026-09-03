@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "CLI build tool that converts Markdown course material into an IMS Common Cartridge (.imscc) package for import into Brightspace (D2L).",
   "license": "MIT",
   "exports": {
@@ -40,6 +40,8 @@
       "assets/reader-header.tex",
       "assets/include-filter.lua",
       "assets/diagram-filter.lua",
+      "docs/user-manual.md",
+      "docs/software-guidebook.md",
       "README.md",
       "deno.json"
     ]

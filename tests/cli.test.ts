@@ -78,3 +78,66 @@ Deno.test("Eigenschap 6: prepare met niet-bestaande bronmap geeft fout naar stde
   assertEquals(result.code !== 0, true, "Exitcode moet ongelijk aan nul zijn");
   assertEquals(result.stderr.includes("Error:"), true, "stderr moet een foutmelding bevatten");
 });
+
+// ---------------------------------------------------------------------------
+// Issue #10: `bso preview` start de Docusaurus dev-server
+// ---------------------------------------------------------------------------
+
+Deno.test("Issue #10: preview wordt als geldig commando geaccepteerd (niet als ongeldig afgewezen)", async () => {
+  // preview zonder config en zonder --sources: mag NIET de 'invalid command' usage tonen.
+  // Draai in een tijdelijke lege map zodat er geen config wordt gevonden.
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    const cmd = new Deno.Command("deno", {
+      args: ["run", "--allow-read", "--allow-write", "--allow-run", MAIN_PATH, "preview"],
+      cwd: tmpDir,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const output = await cmd.output();
+    const stderr = new TextDecoder().decode(output.stderr);
+
+    assertEquals(output.code !== 0, true, "Exitcode moet ongelijk aan nul zijn zonder config");
+    // Zonder config en zonder --sources belandt preview in de 'no config' foutpad.
+    // Het commando mag niet zijn afgewezen als ongeldig (dan zou alleen 'Usage:' verschijnen).
+    assertEquals(
+      stderr.includes("brightspacosaurus.config.json") || stderr.includes("docusaurusDir"),
+      true,
+      "stderr moet verwijzen naar config of docusaurusDir",
+    );
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("Issue #10: preview met config zonder docusaurusDir geeft duidelijke fout en exitcode 1", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    const configPath = join(tmpDir, "brightspacosaurus.config.json");
+    await Deno.writeTextFile(
+      configPath,
+      JSON.stringify({
+        courseName: "Test Course",
+        version: "1.0.0",
+        sourcesDir: "lessen/",
+      }),
+    );
+    const cmd = new Deno.Command("deno", {
+      args: ["run", "--allow-read", "--allow-write", "--allow-run", MAIN_PATH, "preview"],
+      cwd: tmpDir,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const output = await cmd.output();
+    const stderr = new TextDecoder().decode(output.stderr);
+
+    assertEquals(output.code, 1, "Exitcode moet 1 zijn zonder docusaurusDir");
+    assertEquals(
+      stderr.includes("docusaurusDir"),
+      true,
+      "stderr moet 'docusaurusDir' vermelden",
+    );
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
