@@ -70,6 +70,15 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 - Bump the version in the same change as the corresponding feature/fix, so the JSR publication is correct.
 - Publishing to JSR (`deno publish`) is done by the user, unless agreed otherwise (auth prompt).
 - After a fix that affects JSR behavior: verify locally first, then publish, and only then test the JSR variant (chicken-and-egg: the JSR version can only be tested after publishing).
+- **Publishing to JSR:** `deno publish` (done by the user).
+- **Publishing to npm — important:** do NOT publish directly from the `.tgz` tarball (`npm publish ./file.tgz`). Due to a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)), publishing from a tarball leaves the per-version `readme` field empty, so the npm website shows "This package does not have a README". Instead, publish from the extracted package directory so npm picks up the README:
+  ```sh
+  deno pack --ignore='tests/' --ignore='**/*_test.ts' --ignore='**/*.test.ts' --ignore='src/marp-exporter.ts'
+  tar -xzf bartvanderwal-brightspacosaurus-<version>.tgz
+  cd package && npm publish --access public && cd ..
+  rm -rf package
+  ```
+- The first publish of the scoped package needs `--access public`; npm remembers it afterwards.
 
 ## Spec workflow
 
