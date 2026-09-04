@@ -41,7 +41,7 @@ export async function materializeAsset(assetName: string): Promise<string> {
   const text = await loadAssetText(assetName);
   // Keep the extension so pandoc/tex recognizes the file type
   const ext = assetName.includes(".") ? assetName.slice(assetName.lastIndexOf(".")) : "";
-  const tmpPath = await Deno.makeTempFile({ prefix: "bss-asset-", suffix: ext });
+  const tmpPath = await Deno.makeTempFile({ prefix: "bso-asset-", suffix: ext });
   await Deno.writeTextFile(tmpPath, text);
   return tmpPath;
 }

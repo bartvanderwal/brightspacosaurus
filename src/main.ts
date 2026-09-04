@@ -277,7 +277,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       const resourcePath = dirname(existingFiles[0]);
 
       console.log(`Generating instructor manual PDF (${existingFiles.length} source files)...`);
-      // Materialize BSS assets to temporary files (works locally and from JSR)
+      // Materialize BSO assets to temporary files (works locally and from JSR)
       const headerPath = await materializeAsset("reader-header.tex");
       const includeFilterPath = await materializeAsset("include-filter.lua");
 

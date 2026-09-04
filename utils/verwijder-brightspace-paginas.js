@@ -8,7 +8,7 @@
  * Gebruik: kopieer de inhoud van dit bestand naar de Browser Developer Console (F12)
  * terwijl je in een Brightspace-module navigeert.
  *
- * Dit script is onafhankelijk van de BSS-kern (geen gedeelde imports of configuratie).
+ * Dit script is onafhankelijk van de BSO-kern (geen gedeelde imports of configuratie).
  */
 
 /**

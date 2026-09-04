@@ -1,6 +1,6 @@
 # Brightspacosaurus — Software Guidebook
 
-Brightspacosaurus (BSS) is a CLI build tool that converts Markdown course material in Git into an IMS Common Cartridge (`.imscc`) package for import into Brightspace.
+Brightspacosaurus (BSO) is a CLI build tool that converts Markdown course material in Git into an IMS Common Cartridge (`.imscc`) package for import into Brightspace.
 
 This guidebook follows the structure of Simon Brown's [Software Guidebook](https://leanpub.com/software-architecture-for-developers) (the C4 model author). It is developer- and architect-facing documentation. For user-facing details (installation, configuration fields, the Brightspace import walkthrough), see the [README](../README.md) and the [user manual](user-manual.md) rather than duplicating them here.
 
@@ -12,7 +12,7 @@ This guidebook follows the structure of Simon Brown's [Software Guidebook](https
 
 Course authors want a single source of truth for their material. Keeping content as Markdown in Git gives them version control, review workflows, diffs, and reuse. Brightspace (the target LMS) offers none of that: its authoring surface is a WYSIWYG editor where content is re-typed by hand. Re-authoring material directly in Brightspace is error-prone, not reviewable, and drifts away from the source over time.
 
-BSS bridges that gap. It takes the Markdown that already lives in Git and produces a Common Cartridge package that Brightspace can import — so the author edits in one place (Git) and publishes to another (Brightspace) with a repeatable build step.
+BSO bridges that gap. It takes the Markdown that already lives in Git and produces a Common Cartridge package that Brightspace can import — so the author edits in one place (Git) and publishes to another (Brightspace) with a repeatable build step.
 
 ### Actors and external systems
 
@@ -21,7 +21,7 @@ BSS bridges that gap. It takes the Markdown that already lives in Git and produc
 | Course author | Runs the CLI (`prepare`, `pack`); edits Markdown in Git. |
 | Git / GitLab | Source of truth for all course material. |
 | Brightspace / D2L | Target LMS; the import destination for the generated `.imscc`. |
-| JSR | Distribution registry for the BSS tool itself (`@bartvanderwal/brightspacosaurus`). |
+| JSR | Distribution registry for the BSO tool itself (`@bartvanderwal/brightspacosaurus`). |
 | pandoc | External tool used for PDF generation (readers, instructor manual). Optional. |
 
 ### System context
@@ -30,35 +30,35 @@ BSS bridges that gap. It takes the Markdown that already lives in Git and produc
 flowchart LR
     Author([Course author])
     Git[(Git / GitLab<br/>Markdown source)]
-    BSS[Brightspacosaurus CLI]
+    BSO[Brightspacosaurus CLI]
     IMSCC[[.imscc package]]
     BS[Brightspace / D2L LMS]
     JSR[(JSR registry)]
     Pandoc[pandoc + xelatex]
 
     Author -->|edits| Git
-    Author -->|runs prepare + pack| BSS
-    Git -->|reads Markdown| BSS
-    BSS -.->|PDF generation| Pandoc
-    BSS -->|produces| IMSCC
+    Author -->|runs prepare + pack| BSO
+    Git -->|reads Markdown| BSO
+    BSO -.->|PDF generation| Pandoc
+    BSO -->|produces| IMSCC
     IMSCC -->|manual import| BS
-    JSR -.->|distributes the tool| BSS
+    JSR -.->|distributes the tool| BSO
 ```
 
 ### A note on "import" vs "export"
 
 The terminology can be confusing because it depends on the vantage point:
 
-- From the **Git / BSS** perspective, producing the `.imscc` is an **export** of the source material into a portable package.
+- From the **Git / BSO** perspective, producing the `.imscc` is an **export** of the source material into a portable package.
 - From the **Brightspace** perspective, the same file is **imported** into a course.
 
-Throughout this guidebook: *export* refers to BSS writing the package, *import* refers to loading it into Brightspace. BSS never imports; it only exports.
+Throughout this guidebook: *export* refers to BSO writing the package, *import* refers to loading it into Brightspace. BSO never imports; it only exports.
 
 ---
 
 ## 2. Functional Overview
 
-BSS exposes two commands (see the [README](../README.md) for full CLI usage).
+BSO exposes two commands (see the [README](../README.md) for full CLI usage).
 
 ### `prepare` — Markdown to build artifacts
 
@@ -103,11 +103,11 @@ Commands are idempotent: running `prepare`/`pack` repeatedly on the same input p
 
 ### Security by design
 
-BSS runs on Deno, which requires explicit permission grants (`--allow-read`, `--allow-write`, `--allow-run=pandoc`, `--allow-env`). There are no automatic postinstall scripts, which removes a common supply-chain attack vector. Publishing via JSR keeps the distribution surface small. See [ADR 008](../adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md).
+BSO runs on Deno, which requires explicit permission grants (`--allow-read`, `--allow-write`, `--allow-run=pandoc`, `--allow-env`). There are no automatic postinstall scripts, which removes a common supply-chain attack vector. Publishing via JSR keeps the distribution surface small. See [ADR 008](../adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md).
 
 ### Portability
 
-The tool is location-independent: it uses `Deno.cwd()` as the repository root, so it works regardless of where the BSS code itself lives. It runs identically from local source (`file://`) or from the JSR cache (`https://`), and is npm-compatible through Deno's compatibility layer.
+The tool is location-independent: it uses `Deno.cwd()` as the repository root, so it works regardless of where the BSO code itself lives. It runs identically from local source (`file://`) or from the JSR cache (`https://`), and is npm-compatible through Deno's compatibility layer.
 
 ### Maintainability
 
@@ -123,7 +123,7 @@ The core is a set of small, single-responsibility modules under `src/`, each doi
 | Quiz format | QTI **1.2** — the Brightspace Quizzes tool only supports 1.2. |
 | Package format | IMS Common Cartridge **1.3**. |
 | PDF toolchain | pandoc + xelatex/lualatex, required **only** for PDF generation (readers, instructor manual). Gracefully skipped when absent. |
-| Brightspace import is additive | Import adds modules and quizzes but never removes or deduplicates them. This is a platform constraint, not a BSS design choice. Re-importing produces duplicates; cleanup is manual. |
+| Brightspace import is additive | Import adds modules and quizzes but never removes or deduplicates them. This is a platform constraint, not a BSO design choice. Re-importing produces duplicates; cleanup is manual. |
 | No Brightspace API | There is no programmatic API access (yet). The import step is partly manual. |
 
 ---
@@ -308,7 +308,7 @@ deno install --allow-read --allow-write --allow-run=pandoc --allow-env \
   -n brightspacosaurus jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 
-BSS is also usable from Node.js projects through Deno's npm-compatibility layer.
+BSO is also usable from Node.js projects through Deno's npm-compatibility layer.
 
 ### CI pipeline usage
 

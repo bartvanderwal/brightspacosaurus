@@ -24,14 +24,14 @@ lang: en
 
 ## 1. Introduction
 
-Brightspacosaurus (BSS) is a build tool that converts Markdown course material into an IMS Common Cartridge package (`.imscc`) that you can import directly into Brightspace. Optionally, BSS converts reader Markdown to PDF via pandoc.
+Brightspacosaurus (BSO) is a build tool that converts Markdown course material into an IMS Common Cartridge package (`.imscc`) that you can import directly into Brightspace. Optionally, BSO converts reader Markdown to PDF via pandoc.
 
-As an IT lecturer you probably look at a Learning Management System (LMS) a little differently than other lecturers. Where a lecturer thinks in terms of "I upload a file and create a quiz", you think in terms of data models, version control and automation. That is the lens this manual takes: your course material lives as Markdown in Git and BSS publishes it to Brightspace.
+As an IT lecturer you probably look at a Learning Management System (LMS) a little differently than other lecturers. Where a lecturer thinks in terms of "I upload a file and create a quiz", you think in terms of data models, version control and automation. That is the lens this manual takes: your course material lives as Markdown in Git and BSO publishes it to Brightspace.
 
 This manual describes:
 
 - How Brightspace organizes course material under the hood (data model, import/export)
-- How you install and configure BSS
+- How you install and configure BSO
 - How you publish course material from Markdown source files (`prepare` and `pack`)
 - How quizzes are converted to QTI and readers to PDF
 - The import procedure in Brightspace and the additive import behavior
@@ -40,21 +40,21 @@ This manual describes:
 
 #### 1.1.1 What should content look like for an efficient Brightspace export?
 
-You write course material in Markdown. BSS converts this to IMS Common Cartridge (`.imscc`) that Brightspace imports directly (see Figure 1). One file per lesson, with H1 as the lesson title and H2+ as sections. You link images relatively with `images/afbeelding.png`. Files with the `quiz-` prefix are automatically converted to QTI.
+You write course material in Markdown. BSO converts this to IMS Common Cartridge (`.imscc`) that Brightspace imports directly (see Figure 1). One file per lesson, with H1 as the lesson title and H2+ as sections. You link images relatively with `images/afbeelding.png`. Files with the `quiz-` prefix are automatically converted to QTI.
 
 #### 1.1.2 How do I organize questions so they can go to multiple systems?
 
-The Markdown source files are the single source of truth. BSS currently generates QTI 1.2 for Brightspace (the Quizzes tool only supports 1.2; Course Import also accepts 2.x/3.x with limited feature support). Other assessment systems such as ANS support QTI 3.0 as an import format.
+The Markdown source files are the single source of truth. BSO currently generates QTI 1.2 for Brightspace (the Quizzes tool only supports 1.2; Course Import also accepts 2.x/3.x with limited feature support). Other assessment systems such as ANS support QTI 3.0 as an import format.
 
 #### 1.1.3 How do I separate teacher and student material?
 
-Keep teacher and student material in separate source directories. BSS only scans the configured source directory (`sourcesDir`) for student-visible content. Teacher material (answer keys, didactic explanation) does not belong in that directory. In addition, BSS explicitly excludes files with the suffix `-antwoorden-docent` from conversion.
+Keep teacher and student material in separate source directories. BSO only scans the configured source directory (`sourcesDir`) for student-visible content. Teacher material (answer keys, didactic explanation) does not belong in that directory. In addition, BSO explicitly excludes files with the suffix `-antwoorden-docent` from conversion.
 
 ![Example of the contents of a Common Cartridge package after unpacking](images/common-cartridge-inhoud-voorbeeld.png)
 
 *Figure 1*: Contents of an unpacked Common Cartridge package.
 
-BSS generates this package format automatically from Markdown source files and images. The archive contains an `imsmanifest.xml`, content directories with HTML files and images. After import into Brightspace, the lesson pages appear as modules and topics.
+BSO generates this package format automatically from Markdown source files and images. The archive contains an `imsmanifest.xml`, content directories with HTML files and images. After import into Brightspace, the lesson pages appear as modules and topics.
 
 ![Brightspace Manage Files with reader PDFs](images/brightspace-readers-bestanden-beheren.png)
 
@@ -66,9 +66,9 @@ Readers are generated as separate PDFs via pandoc and uploaded to Brightspace se
 
 ## 2. Context: Git, Brightspacosaurus and Brightspace
 
-BSS positions material in Git as the single source of truth (SST) for educational material. Git as the core/SST clashes with Brightspace, because Brightspace was built around the idea that the LMS itself is the place to manage course content.
+BSO positions material in Git as the single source of truth (SST) for educational material. Git as the core/SST clashes with Brightspace, because Brightspace was built around the idea that the LMS itself is the place to manage course content.
 
-The BSS process reverses that: Markdown in Git is authoritative; Brightspace is a publication channel.
+The BSO process reverses that: Markdown in Git is authoritative; Brightspace is a publication channel.
 
 Advantages of Git over managing directly in Brightspace:
 
@@ -78,13 +78,13 @@ Advantages of Git over managing directly in Brightspace:
 
 The terms **import** and **export** are therefore confusing:
 
-- From the perspective of Git and BSS it is an **export**: we export source material to an `.imscc` package.
+- From the perspective of Git and BSO it is an **export**: we export source material to an `.imscc` package.
 - From the perspective of Brightspace it is an **import**: Brightspace imports that `.imscc` package into a course.
-- In this manual we therefore use: **BSS export** for creating the package and **Brightspace import** for bringing it into Brightspace.
+- In this manual we therefore use: **BSO export** for creating the package and **Brightspace import** for bringing it into Brightspace.
 
-Ideally the pipeline will later gain Brightspace API access. Then BSS could not only create the `.imscc` file, but also delete existing modules/topics or import the package automatically. As long as that API route is missing, the import remains partly manual. As a temporary workaround for the additive import behavior, BSS ships an optional cleanup script (see §11).
+Ideally the pipeline will later gain Brightspace API access. Then BSO could not only create the `.imscc` file, but also delete existing modules/topics or import the package automatically. As long as that API route is missing, the import remains partly manual. As a temporary workaround for the additive import behavior, BSO ships an optional cleanup script (see §11).
 
-Teacher material requires a separate choice. Brightspace can hide content or restrict its availability, but BSS deliberately exports only the student-visible source directory. A real teacher publication can be done in three ways:
+Teacher material requires a separate choice. Brightspace can hide content or restrict its availability, but BSO deliberately exports only the student-visible source directory. A real teacher publication can be done in three ways:
 
 1. A separate Brightspace course or sandbox for teacher material.
 2. A separate, hidden module in the same course, manually restricted to teachers after import.
@@ -131,7 +131,7 @@ Images and HTML files used as content end up in Brightspace as course files / Ma
 
 ### 4.2 Configuration
 
-All project-specific settings are managed via a `brightspacosaurus.config.json` in the root of your course project. By default BSS looks for this file in the working directory (`Deno.cwd()`); with `--config <path>` you can specify a different path. CLI arguments always take precedence over values from the configuration file.
+All project-specific settings are managed via a `brightspacosaurus.config.json` in the root of your course project. By default BSO looks for this file in the working directory (`Deno.cwd()`); with `--config <path>` you can specify a different path. CLI arguments always take precedence over values from the configuration file.
 
 A minimal configuration file:
 
@@ -156,13 +156,13 @@ The most important fields:
 
 > **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
 
-Missing optional configuration is silently skipped: without `readersDir` BSS skips the reader PDF conversion, without `docentenHandleiding` it skips the teacher manual generation.
+Missing optional configuration is silently skipped: without `readersDir` BSO skips the reader PDF conversion, without `docentenHandleiding` it skips the teacher manual generation.
 
 ---
 
 ## 5. Workflow: from Markdown to Brightspace
 
-BSS converts quizzes to the QTI format (Question and Test Interoperability). QTI is an open standard from 1EdTech (formerly IMS Global) for exchanging test questions and assessments between systems (1EdTech, n.d.). Brightspace imports QTI files as assessments in the Tests/Quizzes tool, so questions do not have to be retyped by hand.
+BSO converts quizzes to the QTI format (Question and Test Interoperability). QTI is an open standard from 1EdTech (formerly IMS Global) for exchanging test questions and assessments between systems (1EdTech, n.d.). Brightspace imports QTI files as assessments in the Tests/Quizzes tool, so questions do not have to be retyped by hand.
 
 ```plantuml
 @startuml
@@ -190,8 +190,8 @@ stop
 The source files remain authoritative:
 
 - Lesson pages and student material live in the configured source directory (`sourcesDir`).
-- BSS converts quiz files with the `quiz-` prefix to QTI.
-- BSS does not import teacher answer keys with the suffix `-antwoorden-docent` as a student page.
+- BSO converts quiz files with the `quiz-` prefix to QTI.
+- BSO does not import teacher answer keys with the suffix `-antwoorden-docent` as a student page.
 - Derived output lives in the build directory (`outputDir`) and should not be edited by hand.
 
 ### 5.1 The two commands
@@ -253,11 +253,11 @@ When importing a course package, Brightspace shows two optional checkboxes:
 
 #### 5.3.1 Import metadata — Yes, check it
 
-Metadata describe course objects (modules, topics) in a structured way — think of language, keywords and catalog information. BSS generates metadata in the manifest (title, language `nl-NL`). Including these ensures that Brightspace correctly adopts the titles and structure (D2L, n.d.-g).
+Metadata describe course objects (modules, topics) in a structured way — think of language, keywords and catalog information. BSO generates metadata in the manifest (title, language `nl-NL`). Including these ensures that Brightspace correctly adopts the titles and structure (D2L, n.d.-g).
 
 #### 5.3.2 Shared home pages and navigation bars — No, do not check it
 
-This option links a shared home page or navigation bar defined elsewhere. The BSS package contains no references to shared home pages or navbars — it uses the default course navigation. Leaving this box unchecked prevents Brightspace from accidentally activating the wrong navbar.
+This option links a shared home page or navigation bar defined elsewhere. The BSO package contains no references to shared home pages or navbars — it uses the default course navigation. Leaving this box unchecked prevents Brightspace from accidentally activating the wrong navbar.
 
 ### 5.4 Recommended import procedure
 
@@ -283,24 +283,24 @@ Brightspace can import and export course components via Common Cartridge. D2L de
 
 The manifest describes the resources; the content directories contain the HTML files and images that Brightspace imports.
 
-BSS generates an `.imscc` package conforming to IMS Common Cartridge 1.3 from Markdown source files. Brightspace supports multiple Common Cartridge versions; for version 1.1 D2L explicitly mentions the `.imscc` extension as a recognizable package extension (D2L, n.d.-h).
+BSO generates an `.imscc` package conforming to IMS Common Cartridge 1.3 from Markdown source files. Brightspace supports multiple Common Cartridge versions; for version 1.1 D2L explicitly mentions the `.imscc` extension as a recognizable package extension (D2L, n.d.-h).
 
 ---
 
 ## 7. Quizzes and QTI
 
-The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSS parses a quiz Markdown file based on this format:
+The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO parses a quiz Markdown file based on this format:
 
 - **H1** as the quiz title
 - **H2** as the question number
 - Options as `- A. text` through `- D. text`
 - `Correct antwoord: **X**` as the indicator of the correct answer
 
-For each quiz Markdown file, BSS generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
+For each quiz Markdown file, BSO generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
 
 ### 7.1 Images in quizzes
 
-A quiz can be given a **header image** via the quiz settings in Brightspace (manually). In the QTI format that BSS generates, you can embed images in question texts via HTML img tags. A quiz banner as a whole is a Brightspace UI setting, not part of QTI.
+A quiz can be given a **header image** via the quiz settings in Brightspace (manually). In the QTI format that BSO generates, you can embed images in question texts via HTML img tags. A quiz banner as a whole is a Brightspace UI setting, not part of QTI.
 
 ### 7.2 Teacher and student variants
 
@@ -310,7 +310,7 @@ Practical convention for filenames:
 - Files with the `quiz-` prefix are converted to QTI and imported as an assessment.
 - Files with the suffix `-antwoorden-docent` are not imported as a student page or assessment.
 
-Brightspace itself already has a separate tool/navigation for tests and quizzes. BSS therefore converts quiz Markdown to QTI assessments and does not build an extra content module for tests.
+Brightspace itself already has a separate tool/navigation for tests and quizzes. BSO therefore converts quiz Markdown to QTI assessments and does not build an extra content module for tests.
 
 ---
 
@@ -318,13 +318,13 @@ Brightspace itself already has a separate tool/navigation for tests and quizzes.
 
 Readers (for example memory models, class diagrams, PlantUML or Git explanations) are reference material that is referenced from multiple lessons. They live in the configured readers source directory (`readersDir`).
 
-The Source Scanner classifies files with the `reader-` prefix as reader files. BSS converts them to PDF via pandoc with xelatex or lualatex as the PDF engine. Some properties:
+The Source Scanner classifies files with the `reader-` prefix as reader files. BSO converts them to PDF via pandoc with xelatex or lualatex as the PDF engine. Some properties:
 
-- If pandoc is not available, BSS logs a warning and skips the reader PDF conversion without aborting the build.
+- If pandoc is not available, BSO logs a warning and skips the reader PDF conversion without aborting the build.
 - Pandoc's `--resource-path` is set to the directory of the source file, so that relative image references are resolved correctly.
-- If a reader conversion fails, BSS reports the file and continues with the remaining readers, but returns a non-zero exit code afterwards.
+- If a reader conversion fails, BSO reports the file and continues with the remaining readers, but returns a non-zero exit code afterwards.
 
-BSS includes reader PDFs in the IMSCC package as a webcontent resource under a "Readers" module in the manifest.
+BSO includes reader PDFs in the IMSCC package as a webcontent resource under a "Readers" module in the manifest.
 
 ### 8.1 Mapping to Brightspace
 
@@ -342,23 +342,23 @@ In Brightspace you can offer the reader PDFs as follows:
 
 ## 9. Images in the export
 
-BSS automatically includes images from lesson pages (Markdown `![alt](path)`) in the `.imscc` package. Conditions:
+BSO automatically includes images from lesson pages (Markdown `![alt](path)`) in the `.imscc` package. Conditions:
 
 1. The path is relative to the Markdown source file.
 2. The file exists at that path.
-3. The image is in a directory that BSS scans.
+3. The image is in a directory that BSO scans.
 
-BSS converts Markdown image references to HTML img tags and copies the image files into the `.imscc` archive. If a referenced image does not exist, BSS logs a warning with the source file and the missing path.
+BSO converts Markdown image references to HTML img tags and copies the image files into the `.imscc` archive. If a referenced image does not exist, BSO logs a warning with the source file and the missing path.
 
-In addition to the images referenced from Markdown, you can supply extra static assets (banners, logos) via the `assetsDir` configuration field, which BSS copies into the build.
+In addition to the images referenced from Markdown, you can supply extra static assets (banners, logos) via the `assetsDir` configuration field, which BSO copies into the build.
 
 ---
 
 ## 10. Custom styling
 
-BSS ships a default CSS stylesheet (`brightspacosaurus.css`), based on the HAN house style. This stylesheet is generic and contains no course-specific colors or selectors.
+BSO ships a default CSS stylesheet (`brightspacosaurus.css`), based on the HAN house style. This stylesheet is generic and contains no course-specific colors or selectors.
 
-If you want to add your own styling, you configure a `customCss` path in the configuration file. BSS then adds that stylesheet alongside the default stylesheet. Without `customCss`, BSS uses only the default stylesheet.
+If you want to add your own styling, you configure a `customCss` path in the configuration file. BSO then adds that stylesheet alongside the default stylesheet. Without `customCss`, BSO uses only the default stylesheet.
 
 ---
 
@@ -366,7 +366,7 @@ If you want to add your own styling, you configure a `customCss` path in the con
 
 Because Brightspace import is additive (see §5.2), on re-import you first have to delete existing content. Manually this costs four clicks per item — with dozens of pages that is unworkable. The bundled script `utils/verwijder-brightspace-paginas.js` partly automates this. This is a deliberately hacky workaround for the lack of API access to Brightspace: you paste the script in full into your browser's JavaScript console (F12/Developer Tools → **Console** tab) and press Enter.
 
-The script is experimental and depends on Brightspace's internal HTML structure. It functions independently of the BSS core (no shared imports or configuration).
+The script is experimental and depends on Brightspace's internal HTML structure. It functions independently of the BSO core (no shared imports or configuration).
 
 ### 11.1 Usage
 

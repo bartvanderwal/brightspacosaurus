@@ -134,7 +134,7 @@ async function wrapHtml(body: string, title: string, version: string, customCssP
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 ${css}${customCssBlock}
-.bss-version-badge {
+.bso-version-badge {
   position: absolute;
   top: 6px;
   right: 12px;
@@ -148,7 +148,7 @@ ${css}${customCssBlock}
 </style>
 </head>
 <body>
-<div class="bss-version-badge">v${escapeHtml(version)}</div>
+<div class="bso-version-badge">v${escapeHtml(version)}</div>
 <div class="brightspace-content">
 ${body}
 </div>
