@@ -11,6 +11,8 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 
 📖 See the [user manual](docs/user-manual.md) for the data model and Brightspace import process, and the [Software Guidebook](docs/software-guidebook.md) for the architecture and design decisions.
 
+> 🤖 Brightspacosaurus was built with substantial help from AI coding assistants. See [About: building this with AI](#about-building-this-with-ai) for the full story.
+
 > **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for why.
 
 ## Requirements
@@ -299,6 +301,22 @@ The full feature spec (requirements, design, tasks) lives in the Kiro specs in t
 - [`.kiro/specs/brightspacosaurus/`](.kiro/specs/brightspacosaurus/), the original bootstrap
 - [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus-generiek/), the later step toward a separate, more generic tool and JSR module
 - Possibly more later...
+
+## About: building this with AI
+
+Brightspacosaurus was built with substantial help from AI coding assistants. Honestly, it would not exist alongside a full-time teaching job without them. Building it was also a deliberate learning exercise in working with the tools of the AI-enhanced era: GitHub Copilot, Claude Code, and — above all — AWS Kiro and its spec-driven development workflow.
+
+That said, the goal throughout was to apply solid software engineering, not to let the tools run unchecked. The code is self-testing in the spirit of Martin Fowler: unit tests and integration tests, complemented by Kiro's mutation testing. Converting Markdown to `.imscc` is not rocket science — though it turns out to be a bit more involved than that phrase suggests.
+
+A few honest reflections:
+
+- I tried to keep the human in the loop, and even in the lead. In practice the human quickly becomes the bottleneck.
+- Writing the tests entirely by hand did not happen — the AI wrote most of them, under review.
+- The result is a real, working tool, shaped by human decisions and engineering judgement rather than generated wholesale.
+
+Contributions are welcome: bug reports, bug fixes, feature enhancements, and feature requests all help.
+
+And while this started at HAN University of Applied Sciences, it should be useful to any school or university that uses Brightspace and authors course material in Markdown — lesson content, software documentation, UML diagrams, inline code, and the like.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/bartvanderwal/brightspacosaurus/main/docs/images/brightspacosaurus-big.png" alt="Brightspacosaurus hero" width="600">
