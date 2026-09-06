@@ -5,7 +5,7 @@
 # Brightspacosaurus
 
 <p align="center"><em>Out with the BS, in with the Markdown.</em><br>
-If you don't like BS but love MD. 🦕</p>
+If you prefer MD over BS ;) 🦕</p>
 
 Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. Created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design.
 
