@@ -1,0 +1,8 @@
+{
+  "courseName": "Demo Course",
+  "version": "1.0.0",
+  "name": "demo-course",
+  "sourcesDir": "lessons/",
+  "readersDir": "readers/",
+  "outputDir": "build/brightspace"
+}

@@ -9,15 +9,15 @@ If you prefer MD over BS ;) 🦕</p>
 
 Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. It was created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design. He and other colleagues were using a markdown-based approach and publishing through Docusaurus for course materials. This dropped WYSIWYG, but allowed including code previews with syntax highlighting, adding UML diagrams with diagrams-as-code tools like PlantUML and Mermaid, and even programmable parts like quizzes, using React/MD. They also preferred Git versionable, diffable files, and also having the modern option of AI-enhancement in the editor. This is of course impossible in Brightspace itself where the presence of direct student information makes access of LLM's unwanted/unacceptable.
 
-📖 See the [user manual](docs/user-manual.md) for the data model and Brightspace import process, and the [Software Guidebook](docs/software-guidebook.md) for the architecture and design decisions.
+📖 See the user manual (`docs/user-manual.md`) for the data model and Brightspace import process, and the Software Guidebook (`docs/software-guidebook.md`) for the architecture and design decisions.
 
 > 🤖 Brightspacosaurus was built with substantial help from AI coding assistants. See [About: building this with AI](#about-building-this-with-ai) for the full story.
 
-> **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for why.
+> **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for why.
 
 ## Requirements
 
-- [Deno](https://deno.com/) ≥ 2.0 — see [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the rationale
+- [Deno](https://deno.com/) ≥ 2.0 — see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for the rationale
 - [pandoc](https://pandoc.org/) (optional) — required for reader-PDF generation and the instructor manual
 
 ## Installation
@@ -28,7 +28,7 @@ Install once to get the `bso` command:
 deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 
-The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc --allow-env` (see [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the security rationale).
+The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc --allow-env` (see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for the security rationale).
 
 Prefer not to install? Run it on demand:
 
@@ -42,24 +42,51 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
 
 ## Quickstart
 
-1. Create a `brightspacosaurus.config.json` in the root of your course project:
+1. **Create a `brightspacosaurus.config.json`** in the root of your course project:
 
-```json
-{
-  "courseName": "My Course",
-  "version": "1.0.0",
-  "sourcesDir": "source-material/lessons/"
-}
-```
+   ```json
+   {
+     "courseName": "My Course",
+     "version": "1.0.0",
+     "sourcesDir": "source-material/lessons/"
+   }
+   ```
 
-2. Generate HTML and QTI from your Markdown, then package into a `.imscc`:
+2. **Author your course material as Markdown** in the configured `sourcesDir`. Brightspacosaurus classifies files by name:
 
-```sh
-bso prepare
-bso pack
-```
+   - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks with syntax highlighting are all supported.
+   - **Quizzes** — files with the `quiz-` prefix are converted to QTI 1.2 and imported into the Brightspace Quizzes tool.
+   - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
+   - **Diagrams** — PlantUML and Mermaid are supported as diagrams-as-code in reader PDFs. Rendering them in the Brightspace HTML output is planned (see [issue #14](https://github.com/bartvanderwal/brightspacosaurus/issues/14)); for now such blocks appear as code in lesson pages.
+   - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
 
-The result is a file such as `build/brightspace/my-course.v1.0.0.imscc` that you can import into Brightspace.
+   See the user manual (`docs/user-manual.md`) for the exact file conventions and the quiz format. (A `bso lint` command to check your material against a house style is planned — see the roadmap.)
+
+3. **Preview locally (optional)** with Docusaurus, so you can review content, links, code blocks and diagrams before importing into Brightspace:
+
+   ```sh
+   bso preview
+   ```
+
+   This starts the Docusaurus dev server (requires a `docusaurusDir` in your config — see [Preview](#preview-docusaurus-dev-server)).
+
+4. **Build the package** — convert your Markdown to HTML + QTI and package it into a `.imscc`:
+
+   ```sh
+   bso prepare
+   bso pack
+   ```
+
+   The result is a file such as `build/brightspace/my-course.v1.0.0.imscc` that you can import into Brightspace (see [Importing into Brightspace](#importing-into-brightspace)).
+
+5. **Import into Brightspace** — upload the generated `.imscc` (see [Importing into Brightspace](#importing-into-brightspace)).
+
+6. **Iterate.** Editing course material is a repeating cycle: adjust your Markdown, re-run `bso prepare && bso pack`, and re-import. A few things to keep in mind:
+
+   - **Preview first.** Use `bso preview` to check your changes locally before every import — it is faster than the import round-trip and catches most issues early.
+   - **Brightspace import is additive.** Re-importing does not overwrite existing modules or quizzes; it adds duplicates. Remove the old content in Brightspace before re-importing (you can delete an entire week/module at once via the module's ⋮ menu → Delete Module).
+   - **Bulk cleanup helper.** For larger courses, manually deleting items is tedious. An experimental browser-console script (`utils/verwijder-brightspace-paginas.js`) can bulk-delete content within a module. See [Cleaning up before re-import](#cleaning-up-before-re-import).
+   - **Advanced / partial imports.** For selectively importing or overwriting only changed parts, see the user manual (`docs/user-manual.md`) for the advanced import scenarios.
 
 ## Configuration
 
@@ -282,24 +309,24 @@ brightspacosaurus/
 
 ## Design decisions
 
-- **Deno as runtime** instead of Node.js — see [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
-- **unified (remark/rehype)** for Markdown → HTML — see [ADR 010](adr/adr010-brightspacosaurus-unified-pipeline-markdown-conversie.md)
-- **Property-based testing** with fast-check — see [ADR 011](adr/adr011-brightspacosaurus-rijke-inhoud-quizvragen.md)
-- **Reader-PDF conversion via pandoc** — see [ADR 014](adr/adr014-reader-pdf-conversie-via-brightspacosaurus.md)
-- **JSR as the primary distribution channel** — see [ADR 015](adr/adr015-brightspacosaurus-publicatie-via-jsr.md)
+- **Deno as runtime** instead of Node.js — see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`)
+- **unified (remark/rehype)** for Markdown → HTML — see ADR 010 (`adr/adr010-brightspacosaurus-unified-pipeline-markdown-conversie.md`)
+- **Property-based testing** with fast-check — see ADR 011 (`adr/adr011-brightspacosaurus-rijke-inhoud-quizvragen.md`)
+- **Reader-PDF conversion via pandoc** — see ADR 014 (`adr/adr014-reader-pdf-conversie-via-brightspacosaurus.md`)
+- **JSR as the primary distribution channel** — see ADR 015 (`adr/adr015-brightspacosaurus-publicatie-via-jsr.md`)
 - **Config-driven with sensible defaults** — project-specific settings via `brightspacosaurus.config.json`, CLI arguments take precedence over config
 - All output in `build/`, never next to source files
 - Deterministic file ordering for reproducible archives
 
-For the full rationale behind these choices, see the Design Decisions chapter in the [Software Guidebook](docs/software-guidebook.md).
+For the full rationale behind these choices, see the Design Decisions chapter in the Software Guidebook (`docs/software-guidebook.md`).
 
 ## Spec
 
 BSOsaurus was set up with AWS' Kiro, a Spec-Driven Development tool (AI tool).
 
 The full feature spec (requirements, design, tasks) lives in the Kiro specs in this repo:
-- [`.kiro/specs/brightspacosaurus/`](.kiro/specs/brightspacosaurus/), the original bootstrap
-- [`.kiro/specs/brightspacosaurus-generiek/`](.kiro/specs/brightspacosaurus-generiek/), the later step toward a separate, more generic tool and JSR module
+- `.kiro/specs/brightspacosaurus/`, the original bootstrap
+- `.kiro/specs/brightspacosaurus-generiek/`, the later step toward a separate, more generic tool and JSR module
 - Possibly more later...
 
 ## About: building this with AI
