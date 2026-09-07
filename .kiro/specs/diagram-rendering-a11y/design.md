@@ -32,7 +32,7 @@ graph TD
     DR --> KROKI["Kroki_Endpoint<br/>(https://kroki.io of self-hosted)"]
     KROKI --> DR
     DR --> RR["remark-rehype"]
-    RR --> ADAPT["Brightspace no-JS adaptatielaag<br/>(strip JS-tab wiring, borg ARIA)"]
+    RR --> ADAPT["Brightspace no-JS laag<br/>(juiste plugin-integratiepunt, borg ARIA)"]
     ADAPT --> REL["rehype-external-links"]
     REL --> RS["rehype-stringify"]
     RS --> HTML["Brightspace HTML (no-JS)"]
@@ -64,7 +64,7 @@ Verantwoordelijk voor het samenstellen van de diagram-pipeline en het aanbieden 
 ```typescript
 import type { Plugin } from "unified";
 
-/** Opgeloste diagram-instellingen (afgeleid van ResolvedConfig.diagrams). */
+/** Definitieve diagram-instellingen (afgeleid van ResolvedConfig.diagrams). */
 export interface ResolvedDiagramConfig {
   /** Kroki_Endpoint. Standaard: "https://kroki.io". */
   krokiUrl: string;
@@ -107,12 +107,12 @@ De toegankelijke labelteksten komen dus uit de plugin-opties (`summaryText`/`a11
 
 ### Diagram_Adapter (`src/diagram-adapter.ts`)
 
-De dunne no-JS-adaptatielaag. De plugin produceert voor Docusaurus een JS-tabs-interface (client module `diagramTabs.js` + CSS) bovenop native `<details>`. Voor Brightspace verwijdert/vermijdt de adapter die JS-tab-wiring, zodat de output degradeert naar de native `<details>`, en borgt de ARIA-relaties.
+De dunne no-JS-laag. Het doel is NIET om de React/JS-tab-HTML te strippen, maar om het juiste `remark-kroki-a11y`-integratiepunt te vinden dat de gewenste output rechtstreeks levert. De plugin genereert al een native `<details>`/`<summary>`-blok met de broncode en (via de a11y-kern) de natuurlijketaal-beschrijving; die HTML is direct herbruikbaar. Voorkeursroute: configureer de plugin naar de non-tab/native `<details>`-variant (bijv. `showDiagramModeToggle: false`), zodat de output al no-JS is. Alleen als geen plugin-punt de no-JS-vorm rechtstreeks geeft, past deze laag een MINIMALE naverwerking toe die de JS-tab-bekabeling weglaat en het bestaande `<details>`/`<summary>`-blok hergebruikt. In beide gevallen borgt de laag de ARIA-relaties.
 
 ```typescript
 /**
  * Past de plugin-output aan voor Brightspace (no-JS):
- * - verwijdert/vermijdt de JS-tab-wiring en verwijst niet naar client scripts;
+ * - hergebruikt het native <details>/<summary>-blok van de plugin; verwijst niet naar client scripts;
  * - borgt role="img" op de SVG;
  * - legt aria-labelledby (naar <title>/<summary>) en aria-describedby (naar de beschrijving);
  * - kent deterministische, stabiele id's toe voor de ARIA-relaties.
@@ -134,7 +134,7 @@ export interface DiagramAdaptContext {
 
 ### Diagram_Validation (`src/diagram-validation.ts`)
 
-De validatie-/detectielogica, gefactoreerd zodat een toekomstige `bso lint` deze kan aanroepen zónder te renderen (Requirement 13). `bso lint` zelf valt buiten scope ([#11](https://github.com/bartvanderwal/brightspacosaurus/issues/11)).
+De validatie-/detectielogica, zo opgezet dat een toekomstige `bso lint` deze kan aanroepen zónder te renderen (Requirement 13). `bso lint` zelf valt buiten scope ([#11](https://github.com/bartvanderwal/brightspacosaurus/issues/11)).
 
 ```typescript
 /** Soort diagramprobleem dat los van rendering detecteerbaar is. */
@@ -193,7 +193,7 @@ export interface DiagramsConfig {
 // ResolvedConfig — toevoeging
 export interface ResolvedConfig {
   // ...bestaande velden...
-  /** Opgeloste diagram-instellingen (altijd ingevuld met defaults). */
+  /** Definitieve diagram-instellingen (altijd ingevuld met defaults). */
   diagrams: ResolvedDiagramConfig;
 }
 ```
@@ -230,7 +230,7 @@ BSO orkestreert een Node-stapje (bijv. via `Deno.Command("node", ...)`) dat deze
 - Nadeel: introduceert een Node-afhankelijkheid naast Deno (installatie + CI-kost), plus proces-orkestratie en (de)serialisatie. Botst met de "Deno-only"-eenvoud uit ADR-008.
 
 **Optie C — Alleen de plugin-OUTPUT hergebruiken via een dunne adaptatielaag.**
-De plugin (via A of B) produceert de rendering + beschrijving + disclosure; BSO's adapter reduceert die output tot de Brightspace no-JS-vorm.
+De plugin (via A of B) produceert de rendering + beschrijving + disclosure; BSO hergebruikt die output (bij voorkeur via het juiste plugin-integratiepunt) voor de Brightspace no-JS-vorm.
 
 - Dit is geen alternatief voor A/B maar een noodzakelijke aanvulling: ongeacht hóe de plugin draait, is een adaptatielaag nodig om de JS-tab-wiring weg te nemen en ARIA te borgen (Requirement 11.4). Optie C staat expliciet toe dat BSO géén render-/beschrijvingslogica dupliceert.
 
@@ -242,6 +242,8 @@ Rationale:
 - Optie B blijft achter de hand als A onder Deno niet betrouwbaar blijkt; het levert de sterkste pariteit maar tegen CI-kosten.
 
 **Spike vereist.** Of Optie A werkt, hangt af van hoe goed Deno's npm-compat de CJS-plugin + `remark-kroki-plugin` + `fs` afhandelt. Dit is niet met zekerheid te stellen zonder prototype. Voorstel: een korte spike die een minimale fixture (één PlantUML + één Mermaid) door `npm:remark-kroki-a11y` in een Deno-pipeline haalt en verifieert dat SVG + `<details>` + beschrijving verschijnen. Slaagt de spike → Optie A. Faalt hij → Optie B (Node-subproces). De adaptatielaag (C) is in beide gevallen gelijk.
+
+> **Upstream-refactor verlaagt het spike-risico.** De kans dat Optie A slaagt hangt sterk af van de interne Kroki-backend van `remark-kroki-a11y`, die nu het *gearchiveerde* `remark-kroki-plugin` gebruikt (oud `remark@13`, CJS, `node-fetch`). Er is een geplande refactor ([remark-kroki-a11y#17](https://github.com/bartvanderwal/remark-kroki-a11y/issues/17)) om dit te vervangen door het actief onderhouden, ESM-first [`show-docs/remark-kroki`](https://github.com/show-docs/remark-kroki) (o.a. `unist-util-visit@5`, `target: "mdx3"`, `output: "inline-svg"`). Landt die refactor éérst, dan wordt de hele keten ESM + modern en stijgt de kans op GO/Optie A aanzienlijk. De a11y-kernfunctie (natuurlijketaal-beschrijving) blijft ongewijzigd in `remark-kroki-a11y`; alleen de rendering-backend wisselt. Zie taak 0 in de tasks.
 
 ### Beslissing 2: Deterministische ARIA-id's
 
@@ -368,7 +370,7 @@ De eigenlijke Kroki-rendering (netwerk/externe service) wordt NIET met property-
 
 ### Property 6: Config-resolutie en mapping
 
-*Voor elk* geldig `BsoConfig`-object geldt dat `resolveConfig` bij een ontbrekend `diagrams.krokiUrl` de standaardwaarde `"https://kroki.io"` invult, en bij een aanwezige geldige URL exact die URL vastlegt in `diagrams.krokiUrl`; de mapping naar plugin-opties zet `kroki.krokiBase` gelijk aan die opgeloste `krokiUrl`.
+*Voor elk* geldig `BsoConfig`-object geldt dat `resolveConfig` bij een ontbrekend `diagrams.krokiUrl` de standaardwaarde `"https://kroki.io"` invult, en bij een aanwezige geldige URL exact die URL vastlegt in `diagrams.krokiUrl`; de omzetting naar plugin-opties zet `kroki.krokiBase` gelijk aan die definitieve `krokiUrl`.
 
 **Validates: Requirements 2.2, 2.3**
 
@@ -404,7 +406,7 @@ Mapping op Requirement 12 (en 2/5):
 Belangrijke eisen:
 - Auteurfouten worden als zodanig gerapporteerd, onafhankelijk van Kroki-bereikbaarheid, en onderscheiden van de transiente conditie (Requirement 12.5).
 - Een gerapporteerde fout is een echte, zichtbare buildfout (standaard), niet slechts een `stderr`-regel terwijl de build ongewijzigd doorloopt (Requirement 12.6). Dit sluit aan op de bestaande fail-fast-conventie in BSO (niet-nul exitcode).
-- Consistent met het throw-on-invalid-gedrag van de plugin zelf: de plugin gooit hard bij ongeldige invoer; BSO vangt die en mapt naar `invalid-source`/`invalid-parameter`.
+- Consistent met het throw-on-invalid-gedrag van de plugin zelf: de plugin gooit hard bij ongeldige invoer; BSO vangt die en zet die om naar `invalid-source`/`invalid-parameter`.
 
 ## Testing Strategy
 

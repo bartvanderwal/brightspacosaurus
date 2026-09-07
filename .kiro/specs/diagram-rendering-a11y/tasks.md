@@ -6,19 +6,31 @@ Deze feature voegt diagramrendering en toegankelijkheid toe aan de HTML/Brightsp
 
 De volgorde is bewust spike-gedreven: de eerste taak is een informatieve spike die bepaalt of de plugin in-process onder Deno werkt (Beslissing 1, Optie A) of dat een Node-subproces nodig is (Optie B). Die uitkomst poort de render-integratie. Config- en validatiemodules kunnen grotendeels parallel voortgaan. De adaptatielaag (Optie C) is in beide gevallen nodig. Alle taken zijn test-first waar mogelijk; tests draaien via `deno task test` (deno test + fast-check, ≥100 iteraties per property).
 
+**Upstream-afhankelijkheid (belangrijk voor Beslissing 1).** `remark-kroki-a11y` gebruikt intern nu `remark-kroki-plugin` (auteur atooni), dat in 2024 is *gearchiveerd*, op oud `remark@13` draait en CJS/`node-fetch` gebruikt. Dat is precies de soort afhankelijkheid die de Deno-npm-compat-spike (taak 1) riskant maakt. In de `remark-kroki-a11y`-repo staat een geplande refactor ([remark-kroki-a11y#17](https://github.com/bartvanderwal/remark-kroki-a11y/issues/17)) om die interne dependency te vervangen door het actief onderhouden, ESM-first [`show-docs/remark-kroki`](https://github.com/show-docs/remark-kroki) (laatste release okt 2025, `unist-util-visit@5`, `target: 'mdx3'`, `output: 'inline-svg'`). Als die refactor éérst landt, wordt de hele keten ESM + modern en stijgt de kans dat **Optie A (in-process onder Deno)** werkt aanzienlijk. De a11y-kernfunctie (natuurlijketaal-beschrijving genereren) blijft in `remark-kroki-a11y`; alleen de diagram-rendering-backend wisselt. Taak 0 legt deze volgorde vast.
+
 Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-converter.ts` + `diagram-filter.lua`) blijft ongemoeid (Requirement 10). Een `bso lint`-implementatie valt buiten scope; de validatielogica wordt alleen herbruikbaar gemaakt (Requirement 13, [#11](https://github.com/bartvanderwal/brightspacosaurus/issues/11)).
 
 ## Tasks
+
+- [ ] 0. Upstream-voorwaarde: stabiliseer `remark-kroki-a11y` vóór de spike (extern, `remark-kroki-a11y`-repo)
+  - [ ] 0.1 Bevestig de status van de upstream Kroki-backend-refactor en de gewenste volgorde
+    - Deze taak wordt NIET in de BSO-repo uitgevoerd; hij legt de afhankelijkheid vast die taak 1 (de spike) beïnvloedt.
+    - Refactor in `remark-kroki-a11y`: vervang de gearchiveerde interne `remark-kroki-plugin` door `show-docs/remark-kroki` (ESM, actief onderhouden, `inline-svg`/`mdx3`), en behoud de a11y-kern (natuurlijketaal-beschrijving) stabiel. Zie [remark-kroki-a11y#17](https://github.com/bartvanderwal/remark-kroki-a11y/issues/17).
+    - Optioneel: TypeScript type-defs aan `remark-kroki-a11y` toevoegen; dat maakt Optie A en de BSO-integratie makkelijker (typecheck, betere Deno-interop).
+    - Houd het bestaande gedrag stabiel over de refactor heen (de bestaande tests/BDD van `remark-kroki-a11y` als vangnet), zodat BSO een voorspelbare basis heeft.
+    - **Beslismoment:** landt de upstream-refactor eerst → taak 1 draait tegen de vernieuwde, ESM-first plugin (grotere kans op GO/Optie A). Landt hij niet op tijd → taak 1 draait tegen de huidige versie, met verhoogd risico op NO-GO/Optie B; documenteer dat expliciet.
+    - _Requirements: 11.1, 6.1_
 
 - [ ] 1. SPIKE — Valideer hergebruik van `remark-kroki-a11y` onder Deno (Beslissing 1)
   - [ ] 1.1 Prototype de plugin in een minimale Deno-pipeline en neem de GO/NO-GO-beslissing
     - Dit is een gerichte, informatieve spike (prototype), GEEN wegwerp-experiment: de uitkomst legt de integratieroute vast voor alle rendertaken.
     - Bouw een minimale Deno unified-pipeline die `npm:remark-kroki-a11y` laadt via de npm-compat-specifier en `.use()`t op een `unified()`-processor.
     - Voer één PlantUML- en één Mermaid-fixture door de pipeline; Kroki mag gemockt worden of een lokaal/`kroki.io`-endpoint raken.
-    - Verifieer dat de output het gerenderde SVG, een native `<details>`-broncode-disclosure en een natuurlijketaal-beschrijving bevat.
+    - Verifieer dat de output het gerenderde SVG, een native `<details>`/`<summary>`-broncode-disclosure en een natuurlijketaal-beschrijving bevat.
     - Controleer expliciet de CJS-/npm-compat-risico's: `require`, `remark-kroki-plugin` en `fs`-gebruik voor lokale `src=`.
     - **GO/NO-GO-beslissing:** GO → Optie A (plugin in-process in de BSO-pipeline) voor taak 4; NO-GO → Optie B (Node-subproces georkestreerd door `bso prepare`) voor taak 4. Leg de beslissing en de bevindingen vast (kort notitiebestand of ADR-notitie) zodat taak 4 erop kan bouwen.
     - Noteer dat de no-JS-adaptatielaag (Optie C, taak 5) hoe dan ook nodig is, ongeacht de uitkomst.
+    - Draai de spike bij voorkeur tegen de vernieuwde `remark-kroki-a11y` (na taak 0); configureer de Kroki-backend op `output: 'inline-svg'` zodat de SVG inline in de HTML komt (nodig voor de a11y-wrapper in Brightspace).
     - _Requirements: 11.1, 6.1_
 
 - [ ] 2. Config-uitbreiding: `diagrams`-object in types en config-loader
@@ -40,7 +52,7 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - **Validates: Requirements 2.2, 2.3**
 
   - [ ]* 2.4 Schrijf unit tests voor `diagrams`-validatie
-    - Test: geldige `diagrams`-config wordt geaccepteerd en geresolveerd; ontbrekende velden krijgen defaults.
+    - Test: geldige `diagrams`-config wordt geaccepteerd en geresolved; ontbrekende velden krijgen defaults.
     - Test: niet-object `diagrams`, niet-parseerbare `krokiUrl`, niet-boolean `failOnError` geven een duidelijke fout.
     - _Requirements: 2.1, 2.2, 2.3_
 
@@ -74,16 +86,18 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 5`.
     - **Validates: Requirements 1.4**
 
-- [ ] 5. No-JS Brightspace-adaptatielaag (`src/diagram-adapter.ts`)
-  - [ ] 5.1 Implementeer `adaptForBrightspace(tree, ctx)`
-    - Reduceer de plugin-JS-tab-output tot native `<details>`/`<summary>`; verwijs niet naar client-side scripts.
+- [ ] 5. No-JS Brightspace-output via het juiste `remark-kroki-a11y`-integratiepunt (`src/diagram-adapter.ts`)
+  - [ ] 5.1 Zoek het juiste `remark-kroki-a11y`-integratiepunt en hergebruik de bestaande `<details>`/`<summary>`-HTML
+    - Zoek eerst uit welk plugin-punt de gewenste output levert ZONDER de React/JS-tab-HTML te hoeven strippen: de plugin genereert al een native `<details>`/`<summary>`-blok met de broncode en (via de a11y-kern) de natuurlijketaal-beschrijving. Voorkeur: die HTML direct hergebruiken.
+    - Voorkeursroute: configureer de plugin zo (bijv. `showDiagramModeToggle: false` en de non-tab/native `<details>`-variant) dat de output al no-JS is; dan is er geen naverwerking nodig. Als er tóch een plugin-optie/functie is die alleen de natuurlijketaal-beschrijving teruggeeft, gebruik die als schoon integratiepunt.
+    - Alleen als geen enkel plugin-punt de no-JS-vorm rechtstreeks geeft: pas een MINIMALE naverwerking toe die de JS-tab-bekabeling weglaat, en hergebruik het bestaande `<details>`/`<summary>`-blok in plaats van het opnieuw op te bouwen. Documenteer welke route gekozen is (afhankelijk van de spike, taak 1).
     - Borg `role="img"` op de SVG, `aria-labelledby` naar het `<title>`-element en `aria-describedby` naar het beschrijvingselement.
-    - Emit de target-HTML-structuur uit het design (`<figure class="bso-diagram">` met SVG-`<title>`, beschrijving-`<details>` en broncode-`<details>`).
-    - Ken deterministische, stabiele id's toe (content-hash of bronbestand+diagramindex) via `ctx.makeId` (Beslissing 2); dit is adaptatie, geen herimplementatie van beschrijvings-/labellogica.
+    - Zorg dat de output de target-HTML-structuur uit het design benadert (`<figure class="bso-diagram">` met SVG-`<title>`, een beschrijving-`<details>`/`<summary>` en een broncode-`<details>`/`<summary>`).
+    - Ken deterministische, stabiele id's toe (content-hash of bronbestand+diagramindex) via `ctx.makeId` (Beslissing 2). Dit blijft hergebruik van de plugin-output, geen herimplementatie van de beschrijvings-/labellogica.
     - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5, 8.3, 11.3, 11.4, 1.6, 9.6_
 
   - [ ]* 5.2 Schrijf property test voor no-JS output
-    - **Property 1: No-JS output** — Voor elk gerenderd diagram bevat de HTML geen `<script>` dat nodig is om diagram of disclosure te laten werken; disclosures zijn native `<details>`. Kroki gemockt.
+    - **Property 1: No-JS output** — Voor elk gerenderd diagram bevat de HTML geen `<script>` dat nodig is om diagram of disclosure te laten werken; disclosures zijn native `<details>`/`<summary>`. Kroki gemockt.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 1`.
     - **Validates: Requirements 1.3, 4.3, 5.4, 9.5**
 
@@ -98,7 +112,7 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 8.3**
 
   - [ ]* 5.5 Schrijf property test voor de disclosure-structuur
-    - **Property 4: Disclosure-structuur** — Voor elk gerenderd diagram bevat de output een broncode-`<details>` gelijk aan de originele broncode, (indien beschrijving) een beschrijving-`<details>` met tekstuele inhoud (geen `<img>`), en heeft elke `<details>` een niet-lege `<summary>`.
+    - **Property 4: Disclosure-structuur** — Voor elk gerenderd diagram bevat de output een broncode-`<details>` gelijk aan de originele broncode, (indien beschrijving) een beschrijving-`<details>`/`<summary>` met tekstuele inhoud (geen `<img>`), en heeft elke `<details>` een niet-lege `<summary>`.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 4`.
     - **Validates: Requirements 4.1, 4.2, 4.4, 5.2**
 
@@ -109,7 +123,7 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
   - [ ] 7.1 Implementeer `detectDiagramIssues(markdown, sourceFile)`
     - Detecteer statisch (zonder Kroki-aanroep): niet-ondersteunde talen, onbekende fence-opties, ongeldige/niet-lokale `src=`, lege diagramblokken en afgewezen optiewaarden.
     - Retourneer getypeerde `DiagramIssue[]` (met `kind`, `sourceFile`, `position?`, `diagramTitle?`, `message`).
-    - Factoreer de functie zo dat ze onafhankelijk van de render-stap aanroepbaar is, zodat een toekomstige `bso lint` (#11) haar kan hergebruiken. Implementeer `bso lint` NIET.
+    - Zet de functie zo op dat ze onafhankelijk van de render-stap aanroepbaar is, zodat een toekomstige `bso lint` (#11) haar kan hergebruiken. Implementeer `bso lint` NIET.
     - _Requirements: 13.1, 13.2, 13.3, 12.2_
 
   - [ ]* 7.2 Schrijf property test voor statische parameterdetectie
@@ -138,7 +152,7 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
 
 - [ ] 9. Optionele a11y-styling asset (indien nodig)
   - [ ] 9.1 Voeg `assets/diagram-a11y.css` toe en injecteer via `wrapHtml()`
-    - Als extra no-JS-styling voor de `<details>`-disclosures nodig blijkt: maak `assets/diagram-a11y.css`.
+    - Als extra no-JS-styling voor de `<details>`/`<summary>`-disclosures nodig blijkt: maak `assets/diagram-a11y.css`.
     - Laad de asset via `loadAssetText("diagram-a11y.css")` in `src/assets.ts` — nooit via `import.meta.url` + `Deno.readTextFile()`.
     - Voeg de inhoud toe aan het bestaande `<style>`-blok in `wrapHtml()` van `src/markdown-converter.ts`.
     - Voeg `assets/diagram-a11y.css` toe aan `publish.include` in `deno.json` (JSR-asset-regel).
