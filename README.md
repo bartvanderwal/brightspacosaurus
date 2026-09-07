@@ -325,6 +325,7 @@ For the full rationale behind these choices, see the Design Decisions chapter in
 BSOsaurus was set up with AWS' Kiro, a Spec-Driven Development tool (AI tool).
 
 The full feature spec (requirements, design, tasks) lives in the Kiro specs in this repo:
+
 - `.kiro/specs/brightspacosaurus/`, the original bootstrap
 - `.kiro/specs/brightspacosaurus-generiek/`, the later step toward a separate, more generic tool and JSR module
 - Possibly more later...
@@ -340,6 +341,18 @@ A few honest reflections:
 - I tried to keep the human in the loop, and even in the lead. In practice the human quickly becomes the bottleneck.
 - Writing the tests entirely by hand did not happen — the AI wrote most of them, under review.
 - The result is a real, working tool, shaped by human decisions and engineering judgement rather than generated wholesale.
+
+### The general problem
+
+There is a real irony here, best captured by [xkcd 974, "The General Problem"](https://xkcd.com/974/):
+
+<p align="center">
+  <img src="https://imgs.xkcd.com/comics/the_general_problem.png" alt="xkcd 974 'The General Problem': one person asks another to pass the salt; the other replies they are building a system to pass arbitrary condiments because 'it'll save time in the long run', while 20 minutes pass." width="380">
+</p>
+
+<p align="center"><em>Figure: xkcd 974, "The General Problem" by Randall Munroe (<a href="https://xkcd.com/974/">xkcd.com/974</a>, <a href="https://creativecommons.org/licenses/by-nc/2.5/">CC BY-NC 2.5</a>). Title text: "I find that when someone's taking time to do something right in the present, they're a perfectionist with no ability to prioritize, whereas when someone took time to do something right in the past, they're a master artisan of great foresight."</em></p>
+
+Brightspacosaurus falls a little under that banner. I would have been done much faster if I had simply written the course material and placed it in Brightspace by hand — and, crucially, I would have read and validated that material far more thoroughly in the process. That last point is the real catch with AI-generated content: even when it is produced from elaborate prompts, specs, spec-driven development, and existing source material, the question remains whether a lesson survives being read meticulously by a critical student who gets rattled by contradictions or vagueness. Producing plausible-but-slightly-inconsistent text is exactly what AI is good at. The generic tool was fun and educational to build; whether it saved time "in the long run" is, honestly, still an open question.
 
 Contributions are welcome: bug reports, bug fixes, feature enhancements, and feature requests all help.
 
