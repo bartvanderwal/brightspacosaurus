@@ -8,6 +8,8 @@ De kern van de wijziging is een nieuw concern — de **Diagram_Renderer** — da
 
 Het overkoepelende principe is **single source of truth**: de plugin `remark-kroki-a11y` (door @bartvanderwal) is de enige bron voor (a) de diagramrendering (via Kroki), (b) de broncode-disclosure, (c) de natuurlijketaal-beschrijving én (d) de toegankelijke titel-/labelteksten (via de parametriseerbare opties `summaryText`/`a11ySummaryText` met `{type}`/`{title}`-placeholders). BSO **hergebruikt** deze plugin en dupliceert de logica NIET (Requirement 11). Waar Brightspace afwijkt (no-JS iframe), past BSO een dunne **adaptatielaag** toe op de plugin-output, zonder de beschrijvings- of labellogica te herbouwen.
 
+> **Bron van de ontwerpbeslissingen:** de backend-spike [remark-kroki-a11y#26](https://github.com/bartvanderwal/remark-kroki-a11y/issues/26) is afgerond en geresolved. De uitkomsten daarvan — backend nu `show-docs/remark-kroki` (ESM), in-process + async pipeline, geen apart proces puur voor Kroki, en `img-html-base64` als standaard outputmodus — zijn de grondwaarheid voor dit ontwerp. Zie **Key Design Decisions → Beslissing 1**.
+
 ### Ontwerpprincipes
 
 1. **Hergebruik boven duplicatie** — Rendering, beschrijving, disclosure en labelteksten komen uit `remark-kroki-a11y`; BSO herimplementeert die niet (Requirement 11)
@@ -92,30 +94,41 @@ export function withDiagramRendering(
 ): Processor;
 ```
 
-De optie-set `KrokiA11yOptions` weerspiegelt de bestaande plugin-opties (niet door BSO uitgebreid): `showSource`, `showA11yDescription`, `defaultExpanded`, `summaryText`, `a11ySummaryText`, `tabSourceLabel`, `tabA11yLabel`, `cssClass`, `languages`, `locale`, `showDiagramModeToggle`, `showDiagramLegend`, en een `kroki`-subobject `{ krokiBase, lang, imgRefDir, imgDir }`. BSO configureert deze; het herimplementeert ze niet (Requirement 11.1, 11.2).
+De optie-set `KrokiA11yOptions` weerspiegelt de bestaande plugin-opties (niet door BSO uitgebreid): `showSource`, `showA11yDescription`, `defaultExpanded`, `summaryText`, `a11ySummaryText`, `tabSourceLabel`, `tabA11yLabel`, `cssClass`, `languages`, `locale`, `showDiagramModeToggle`, `showDiagramLegend`. De onderliggende Kroki-render-opties worden nu doorgegeven aan de `show-docs/remark-kroki`-backend: `server`, `output`, `target`, `headers` en `alias` (valt terug op `languages`). BSO configureert deze; het herimplementeert ze niet (Requirement 11.1, 11.2).
 
-### Mapping BSO-config → plugin-opties
+### Mapping BSO-config → plugin-/remark-kroki-opties
 
-| BSO `diagrams`-veld | Plugin-optie | Opmerking |
-|---|---|---|
-| `krokiUrl` | `kroki.krokiBase` | Ook honoreerbaar via env `KROKI_BASE_URL` |
-| `failOnError` | (BSO-adaptatielaag) | Bepaalt throw vs. warning+fallback rond de plugin |
-| `locale` (afgeleid) | `locale`, `summaryText`, `a11ySummaryText` | Gelokaliseerde templates met `{type}`/`{title}` |
-| — | `showDiagramModeToggle: false` | Voor Brightspace: geen JS-toggle (no-JS) |
+De onderstaande tabel gebruikt de echte `show-docs/remark-kroki`-optienamen (na de backend-refactor, [remark-kroki-a11y#26](https://github.com/bartvanderwal/remark-kroki-a11y/issues/26)).
+
+| BSO `diagrams`-veld | remark-kroki-optie | Status | Opmerking |
+|---|---|---|---|
+| `krokiUrl` | `server` | actief | Kroki_Endpoint; ook honoreerbaar via env `KROKI_BASE_URL` |
+| `output` | `output` | actief | `img-html-base64` (standaard) \| `inline-svg` \| `img-base64` \| `object-base64` |
+| (afgeleid) | `target` | actief | Doel-flavour (bijv. `mdx3`) |
+| (afgeleid) | `headers` | actief | Optionele HTTP-headers naar het Kroki_Endpoint |
+| `languages` | `alias` | actief | Taal-aliassen; `alias` valt terug op `languages` |
+| `failOnError` | (BSO-adaptatielaag) | actief | Bepaalt throw vs. warning+fallback rond de plugin |
+| `locale` (afgeleid) | `locale`, `summaryText`, `a11ySummaryText` | actief | Gelokaliseerde templates met `{type}`/`{title}` |
+| — | `showDiagramModeToggle: false` | actief | Voor Brightspace: geen JS-toggle (no-JS) |
+| `lang` | — | legacy/ongebruikt | Rendering gebruikt codeblok-taal + meta-type; legacy geaccepteerd |
+| `imgRefDir` / `imgDir` | — | legacy/ongebruikt | Waren voor het naar schijf schrijven van SVG's; niet gebruikt bij base64-embedding |
 
 De toegankelijke labelteksten komen dus uit de plugin-opties (`summaryText`/`a11ySummaryText`), niet uit door BSO zelf samengestelde labellogica (Requirement 3.1, 5.5, 11.2). BSO levert alleen de gelokaliseerde template-strings aan.
 
 ### Diagram_Adapter (`src/diagram-adapter.ts`)
 
-De dunne no-JS-laag. Het doel is NIET om de React/JS-tab-HTML te strippen, maar om het juiste `remark-kroki-a11y`-integratiepunt te vinden dat de gewenste output rechtstreeks levert. De plugin genereert al een native `<details>`/`<summary>`-blok met de broncode en (via de a11y-kern) de natuurlijketaal-beschrijving; die HTML is direct herbruikbaar. Voorkeursroute: configureer de plugin naar de non-tab/native `<details>`-variant (bijv. `showDiagramModeToggle: false`), zodat de output al no-JS is. Alleen als geen plugin-punt de no-JS-vorm rechtstreeks geeft, past deze laag een MINIMALE naverwerking toe die de JS-tab-bekabeling weglaat en het bestaande `<details>`/`<summary>`-blok hergebruikt. In beide gevallen borgt de laag de ARIA-relaties.
+De dunne no-JS-laag. Het doel is NIET om de React/JS-tab-HTML te strippen, maar om het juiste `remark-kroki-a11y`-integratiepunt te vinden dat de gewenste output rechtstreeks levert. In de standaard outputmodus (`img-html-base64`) is het diagram een base64 `<img>`; de toegankelijke inhoud leeft dan in de OMRINGENDE HTML (de `<img alt=...>`, de `aria-describedby`-koppeling naar de beschrijving, en de `<details>`/`<summary>`-blokken), niet binnen de SVG. De plugin genereert al een native `<details>`/`<summary>`-blok met de broncode en (via de a11y-kern) de natuurlijketaal-beschrijving; die HTML is direct herbruikbaar. Voorkeursroute: configureer de plugin naar de non-tab/native `<details>`-variant (bijv. `showDiagramModeToggle: false`), zodat de output al no-JS is. Alleen als geen plugin-punt de no-JS-vorm rechtstreeks geeft, past deze laag een MINIMALE naverwerking toe die de JS-tab-bekabeling weglaat en het bestaande `<details>`/`<summary>`-blok hergebruikt. In beide gevallen borgt de laag de ARIA-relaties. De pipeline is async (Kroki is een netwerkaanroep); de adaptatie draait dus op de geawaite plugin-output.
 
 ```typescript
 /**
  * Past de plugin-output aan voor Brightspace (no-JS):
  * - hergebruikt het native <details>/<summary>-blok van de plugin; verwijst niet naar client scripts;
- * - borgt role="img" op de SVG;
- * - legt aria-labelledby (naar <title>/<summary>) en aria-describedby (naar de beschrijving);
+ * - standaardmodus (img-html-base64): borgt een niet-lege alt op de base64 <img> en
+ *   een aria-describedby naar het beschrijvingselement (a11y in de omringende HTML);
+ * - inline-svg-modus: borgt role="img" op de SVG en legt aria-labelledby (naar <title>);
+ * - legt aria-describedby (naar de beschrijving) in beide modi;
  * - kent deterministische, stabiele id's toe voor de ARIA-relaties.
+ * De pipeline is async; deze adaptatie draait op de geawaite plugin-output.
  * Dit is een adaptatie van de plugin-output, GEEN herimplementatie van de
  * beschrijvings- of labellogica (Requirement 11.4).
  */
@@ -184,8 +197,10 @@ export interface BsoConfig {
 
 /** Configuratie voor diagramrendering (Requirement 2). */
 export interface DiagramsConfig {
-  /** Kroki_Endpoint. Standaard: "https://kroki.io". */
+  /** Kroki_Endpoint (gemapt naar remark-kroki `server`). Standaard: "https://kroki.io". */
   krokiUrl?: string;
+  /** Outputmodus (gemapt naar remark-kroki `output`). Standaard: "img-html-base64". */
+  output?: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64";
   /** Build laten falen bij fout. Standaard: true. */
   failOnError?: boolean;
 }
@@ -198,7 +213,7 @@ export interface ResolvedConfig {
 }
 ```
 
-`validateConfig` krijgt een blok dat het optionele `diagrams`-object controleert: als het aanwezig is, moet het een object zijn; `krokiUrl` (indien aanwezig) een string die als URL parseerbaar is; `failOnError` (indien aanwezig) een boolean. `resolveConfig` vult defaults in: `krokiUrl` → `"https://kroki.io"`, `failOnError` → `true`, `locale` → `"nl"`.
+`validateConfig` krijgt een blok dat het optionele `diagrams`-object controleert: als het aanwezig is, moet het een object zijn; `krokiUrl` (indien aanwezig) een string die als URL parseerbaar is; `output` (indien aanwezig) een van `img-html-base64` | `inline-svg` | `img-base64` | `object-base64`; `failOnError` (indien aanwezig) een boolean. `resolveConfig` vult defaults in: `krokiUrl` → `"https://kroki.io"`, `output` → `"img-html-base64"`, `failOnError` → `true`, `locale` → `"nl"`.
 
 > Naamgeving: dit ontwerp gebruikt de doelnaam `BsoConfig`. In de huidige code heet het type nog `BssConfig` (in `src/types.ts`); de rename `BssConfig` → `BsoConfig` (inclusief regressietests) wordt apart uitgevoerd, na deze feature.
 
@@ -212,38 +227,45 @@ Voor de no-JS-styling van de `<details>`-disclosure kan Brightspace-specifieke C
 
 ## Key Design Decisions
 
-### Beslissing 1: Hoe hergebruikt een Deno-tool een Node/CJS remark-plugin?
+### Beslissing 1: Hoe hergebruikt een Deno-tool de (nu ESM-backed) remark-plugin?
 
-Dit is de centrale beslissing. `remark-kroki-a11y` is CommonJS, gebruikt `require`, `fs` en `remark-kroki-plugin`. Er zijn drie opties.
+Dit is de centrale beslissing. De backend-spike ([remark-kroki-a11y#26](https://github.com/bartvanderwal/remark-kroki-a11y/issues/26)) is inmiddels **afgerond** en is de bron van de onderstaande conclusies.
+
+**Uitkomst van de spike (grondwaarheid):**
+- De backend-swap is geslaagd: `remark-kroki-a11y` gebruikt intern nu `show-docs/remark-kroki` (ESM-first) in plaats van het gearchiveerde `remark-kroki-plugin`. PlantUML werkt en de tests daarvoor zijn groen.
+- De pipeline is **in-process en async**: er is GEEN apart Node-proces nodig puur voor de Kroki-rendering. De Kroki-render is een asynchrone netwerkaanroep naar de Kroki-server; de adapter geeft die Promise door aan unified/remark, dus consumers MOETEN de remark-pipeline asynchroon aanroepen/awaiten.
+- De standaard outputmodus is `img-html-base64` (base64 `<img>`), niet `inline-svg`. `inline-svg` blijft een configureerbaar alternatief.
+- De a11y-kernfunctie (natuurlijketaal-beschrijving) is ongewijzigd; alleen de rendering-backend is gewisseld.
+- Resterende Deno-nuance: de a11y-wrapper zelf is nog CommonJS (`require`, `module.exports`, gebruikt Node `fs`/`path`) en importeert `remark-kroki` dynamisch via `import('remark-kroki')`. Puur voor Kroki is dus geen apart proces nodig, maar Deno-compatibiliteit hangt nog af van hoe BSO Node/CJS/npm-compat afhandelt — dat blijft de kern van spike-taak 1.
+
+Op basis hiervan blijft de opzet **Optie A (in-process onder Deno's npm-compat) als primaire route**, met **Optie C (adaptatielaag) als verplichte aanvulling** en **Optie B (Node-subproces) als pure terugvaloptie**.
 
 **Optie A — Plugin direct in de BSO unified-pipeline via Deno's Node-compat (`npm:`-specifier).**
-BSO importeert `npm:remark-kroki-a11y` en `.use()`t de plugin in de bestaande `processor`.
+BSO importeert `npm:remark-kroki-a11y` en `.use()`t de plugin in de bestaande `processor`; de pipeline wordt asynchroon geawait.
 
-- Voordeel: maximale hergebruik, één pipeline, geen extra proces; sluit naadloos aan op de huidige `unified()`-opzet.
-- Risico: de plugin is CJS en trekt `remark-kroki-plugin` + `unist-util-visit` mee; Deno's npm-compat dekt veel, maar `fs`- en `require`-gebruik en transitively CJS-only dependencies kunnen haperen. De Docusaurus-tabs-output (JS client module) is voor Brightspace niet nodig en moet weggenomen worden door de adapter.
-- Onzekerheid: of de plugin volledig laadt en rendert onder Deno is niet gegarandeerd zonder test.
+- Voordeel: maximale hergebruik, één pipeline, geen extra proces; sluit naadloos aan op de huidige `unified()`-opzet. De backend is nu ESM-first, wat de kans op werkende npm-compat vergroot.
+- Resterend risico: de a11y-wrapper is nog CJS (`require`, `fs`/`path`, dynamische `import('remark-kroki')`); of Deno's npm-compat dit volledig afhandelt, wordt door spike-taak 1 specifiek voor BSO geverifieerd.
 
 **Optie B — Plugin in een klein Node-subproces tijdens `bso prepare`.**
 BSO orkestreert een Node-stapje (bijv. via `Deno.Command("node", ...)`) dat dezelfde plugin draait en HTML/markdown teruggeeft.
 
-- Voordeel: **exacte pariteit** — Docusaurus én BSO draaien letterlijk dezelfde plugin in dezelfde Node-runtime waarvoor de plugin gemaakt is (sterk voor Requirement 6/11). Laagste kans op runtime-incompatibiliteit.
-- Nadeel: introduceert een Node-afhankelijkheid naast Deno (installatie + CI-kost), plus proces-orkestratie en (de)serialisatie. Botst met de "Deno-only"-eenvoud uit ADR-008.
+- Dit is nu een **pure terugvaloptie**, alleen relevant als Deno's npm-compat op de CJS-wrapper faalt. Nadeel: introduceert een Node-afhankelijkheid naast Deno (installatie + CI-kost) en botst met de "Deno-only"-eenvoud uit ADR-008.
 
 **Optie C — Alleen de plugin-OUTPUT hergebruiken via een dunne adaptatielaag.**
 De plugin (via A of B) produceert de rendering + beschrijving + disclosure; BSO hergebruikt die output (bij voorkeur via het juiste plugin-integratiepunt) voor de Brightspace no-JS-vorm.
 
 - Dit is geen alternatief voor A/B maar een noodzakelijke aanvulling: ongeacht hóe de plugin draait, is een adaptatielaag nodig om de JS-tab-wiring weg te nemen en ARIA te borgen (Requirement 11.4). Optie C staat expliciet toe dat BSO géén render-/beschrijvingslogica dupliceert.
 
-**Aanbeveling: Optie A als primaire route, met Optie C als verplichte adaptatielaag, en Optie B als gevalideerde terugvaloptie.**
+**Aanbeveling: Optie A als primaire route (bevestigd door de spike), met Optie C als verplichte adaptatielaag, en Optie B als pure terugvaloptie.**
 
 Rationale:
-- Optie A maximaliseert hergebruik in één pipeline en respecteert de Deno-only-conventie (ADR-008), wat Requirement 11 het beste dient.
+- Optie A maximaliseert hergebruik in één pipeline en respecteert de Deno-only-conventie (ADR-008), wat Requirement 11 het beste dient. De backend is nu ESM en async, waardoor A de voorkeursroute is.
 - Optie C (de adapter) is hoe dan ook nodig voor de no-JS-transformatie; die scheidt "adaptatie" netjes van "herimplementatie" (Requirement 11.3/11.4).
-- Optie B blijft achter de hand als A onder Deno niet betrouwbaar blijkt; het levert de sterkste pariteit maar tegen CI-kosten.
+- Optie B blijft achter de hand als de CJS-wrapper onder Deno's npm-compat niet betrouwbaar blijkt.
 
-**Spike vereist.** Of Optie A werkt, hangt af van hoe goed Deno's npm-compat de CJS-plugin + `remark-kroki-plugin` + `fs` afhandelt. Dit is niet met zekerheid te stellen zonder prototype. Voorstel: een korte spike die een minimale fixture (één PlantUML + één Mermaid) door `npm:remark-kroki-a11y` in een Deno-pipeline haalt en verifieert dat SVG + `<details>` + beschrijving verschijnen. Slaagt de spike → Optie A. Faalt hij → Optie B (Node-subproces). De adaptatielaag (C) is in beide gevallen gelijk.
+**Resterende verificatie (spike-taak 1).** De backend-spike is afgerond, maar de Deno-compatibiliteit van de CJS-wrapper (`require`/`fs`/`import()`) specifiek in BSO's npm-compat blijft te verifiëren. Spike-taak 1 haalt daarom een minimale fixture (één PlantUML + één Mermaid) door `npm:remark-kroki-a11y` in een Deno-pipeline, awaiten de async pipeline, en verifieert dat de base64 `<img>`-output verschijnt. Slaagt dit → Optie A blijft de route; faalt de npm-compat op de CJS-wrapper → Optie B (Node-subproces). De adaptatielaag (C) is in beide gevallen gelijk.
 
-> **Upstream-refactor verlaagt het spike-risico.** De kans dat Optie A slaagt hangt sterk af van de interne Kroki-backend van `remark-kroki-a11y`, die nu het *gearchiveerde* `remark-kroki-plugin` gebruikt (oud `remark@13`, CJS, `node-fetch`). Er is een geplande refactor ([remark-kroki-a11y#17](https://github.com/bartvanderwal/remark-kroki-a11y/issues/17)) om dit te vervangen door het actief onderhouden, ESM-first [`show-docs/remark-kroki`](https://github.com/show-docs/remark-kroki) (o.a. `unist-util-visit@5`, `target: "mdx3"`, `output: "inline-svg"`). Landt die refactor éérst, dan wordt de hele keten ESM + modern en stijgt de kans op GO/Optie A aanzienlijk. De a11y-kernfunctie (natuurlijketaal-beschrijving) blijft ongewijzigd in `remark-kroki-a11y`; alleen de rendering-backend wisselt. Zie taak 0 in de tasks.
+> **De backend-refactor is inmiddels geland.** `remark-kroki-a11y` gebruikte eerder het *gearchiveerde* `remark-kroki-plugin` (oud `remark@13`, CJS, `node-fetch`). De refactor ([remark-kroki-a11y#26](https://github.com/bartvanderwal/remark-kroki-a11y/issues/26); vervolg op [#17](https://github.com/bartvanderwal/remark-kroki-a11y/issues/17)) heeft dit vervangen door het actief onderhouden, ESM-first [`show-docs/remark-kroki`](https://github.com/show-docs/remark-kroki) (o.a. `unist-util-visit@5`, `target: "mdx3"`, en `output`-modi waaronder `img-html-base64` en `inline-svg`). De hele keten is nu ESM + modern; de a11y-kernfunctie (natuurlijketaal-beschrijving) is ongewijzigd. Zie taak 0 in de tasks.
 
 ### Beslissing 2: Deterministische ARIA-id's
 
@@ -264,6 +286,7 @@ Requirement 2 (Kroki onbereikbaar) en Requirement 12 (ongeldige bron/parameter) 
   "sourcesDir": "bronmateriaal/lessen/",
   "diagrams": {
     "krokiUrl": "https://kroki.io",
+    "output": "img-html-base64",
     "failOnError": true
   }
 }
@@ -272,17 +295,18 @@ Requirement 2 (Kroki onbereikbaar) en Requirement 12 (ongeldige bron/parameter) 
 | Veld | Type | Standaard | Beschrijving |
 |---|---|---|---|
 | `diagrams` | `object` | afwezig → defaults | Diagramrendering-configuratie |
-| `diagrams.krokiUrl` | `string` (URL) | `"https://kroki.io"` | Kroki_Endpoint |
+| `diagrams.krokiUrl` | `string` (URL) | `"https://kroki.io"` | Kroki_Endpoint (gemapt naar remark-kroki `server`) |
+| `diagrams.output` | `"img-html-base64"` \| `"inline-svg"` \| `"img-base64"` \| `"object-base64"` | `"img-html-base64"` | Outputmodus (gemapt naar remark-kroki `output`) |
 | `diagrams.failOnError` | `boolean` | `true` | Build laten falen bij fout |
 
-Zelf-gehoste Kroki (CI/offline): draai Kroki via Docker en zet `krokiUrl` op de lokale instantie, of gebruik env `KROKI_BASE_URL`. De documentatie beschrijft dit en waarom het CI-vriendelijk is (Requirement 2.6).
+`krokiUrl` blijft het gebruikersgerichte veld en mapt naar de `server`-optie van `show-docs/remark-kroki`. Zelf-gehoste Kroki (CI/offline): draai Kroki via Docker en zet `krokiUrl` op de lokale instantie, of gebruik env `KROKI_BASE_URL`. Voor Mermaid op een lokale Docker-Kroki is de companion-container `yuzutech/kroki-mermaid` vereist; met de publieke `https://kroki.io` werkt Mermaid zonder companion. De documentatie beschrijft dit en waarom het CI-vriendelijk is (Requirement 2.8, 2.9).
 
 ### Foutmodel
 
 ```typescript
 /** Categorie bepaalt melding en build-gedrag (transient vs. auteurfout). */
 export type DiagramErrorCategory =
-  | "kroki-unreachable"   // transiente conditie (Requirement 2.4)
+  | "kroki-unreachable"   // transiente conditie (Requirement 2.6)
   | "invalid-source"      // auteurfout: Kroki wijst de diagrambron af (Requirement 12.1)
   | "invalid-parameter";  // auteurfout: ongeldige/onbekende parameter/optie (Requirement 12.2)
 
@@ -307,14 +331,16 @@ Het gedrag is een functie van `category` en `failOnError`:
 
 ### Target-HTML-structuur (Brightspace, no-JS)
 
-Concreet voorbeeld van wat BSO per diagram emit (na adaptatie). Geen `<script>` vereist:
+Concreet voorbeeld van wat BSO per diagram emit (na adaptatie) in de **standaard outputmodus (`img-html-base64`)**. De a11y leeft in de omringende HTML: een base64 `<img>` met een betekenisvolle `alt` en een `aria-describedby` naar de beschrijving. Geen `<script>` vereist:
 
 ```html
-<figure class="bso-diagram" role="group" aria-labelledby="diag-1-title">
-  <svg role="img" aria-labelledby="diag-1-title" aria-describedby="diag-1-desc" viewBox="...">
-    <title id="diag-1-title">Klassediagram: Bestellingdomein</title>
-    <!-- door Kroki gerenderde SVG-inhoud -->
-  </svg>
+<figure class="bso-diagram">
+  <img
+    class="bso-diagram-img"
+    data-type="plantuml"
+    alt="Klassediagram: Bestellingdomein"
+    aria-describedby="diag-1-desc"
+    src="data:image/svg+xml;base64,PHN2Zy...">
   <details class="bso-diagram-desc">
     <summary>Beschrijving</summary>
     <div id="diag-1-desc">
@@ -328,8 +354,28 @@ Concreet voorbeeld van wat BSO per diagram emit (na adaptatie). Geen `<script>` 
 </figure>
 ```
 
-- De `<title>`-tekst en de `<summary>`-labels komen uit de plugin-opties (`summaryText`/`a11ySummaryText`), niet uit BSO-eigen labellogica (Requirement 3.1, 4.4, 5.5).
-- `role="img"` + `aria-labelledby` + `aria-describedby` leggen de ARIA-relaties (Requirement 3.1–3.3, 8.3).
+Als alternatief levert de **`inline-svg`-modus** (configureerbaar via `diagrams.output`) de a11y binnen de SVG zelf, via `role="img"` + `<title>` + `aria-labelledby`:
+
+```html
+<figure class="bso-diagram">
+  <svg role="img" aria-labelledby="diag-1-title" aria-describedby="diag-1-desc" viewBox="...">
+    <title id="diag-1-title">Klassediagram: Bestellingdomein</title>
+    <!-- door Kroki gerenderde SVG-inhoud -->
+  </svg>
+  <details class="bso-diagram-desc">
+    <summary>Beschrijving</summary>
+    <div id="diag-1-desc"><!-- natuurlijketaal-beschrijving --></div>
+  </details>
+  <details class="bso-diagram-src">
+    <summary>Broncode</summary>
+    <pre><code class="language-plantuml"><!-- originele diagram-broncode --></code></pre>
+  </details>
+</figure>
+```
+
+- De `alt`-/`<title>`-tekst en de `<summary>`-labels komen uit de plugin-opties (`summaryText`/`a11ySummaryText`), niet uit BSO-eigen labellogica (Requirement 3.1, 4.4, 5.5).
+- Standaardmodus: de `<img alt=...>` levert de toegankelijke naam, `aria-describedby` koppelt naar de beschrijving (Requirement 3.1, 3.2). Inline-svg-modus: `role="img"` + `aria-labelledby` + `aria-describedby` leggen de ARIA-relaties binnen de SVG (Requirement 3.3, 8.3).
+- De pipeline is async (Kroki is een netwerkaanroep) en wordt geawait voordat de HTML wordt gestringificeerd.
 - De id's (`diag-1-*`) zijn deterministisch (Beslissing 2).
 
 ## Correctness Properties
@@ -350,9 +396,9 @@ De eigenlijke Kroki-rendering (netwerk/externe service) wordt NIET met property-
 
 **Validates: Requirements 1.6, 9.6**
 
-### Property 3: ARIA-relaties op de SVG
+### Property 3: ARIA-relaties (outputmodus-afhankelijk)
 
-*Voor elk* gerenderd diagram geldt dat het `<svg>`-element `role="img"` heeft, een `aria-labelledby` dat verwijst naar een `<title>`-element met dezelfde `id`, en — wanneer een beschrijving beschikbaar is — een `aria-describedby` dat verwijst naar het `id` van het beschrijvingselement.
+*Voor elk* gerenderd diagram geldt, afhankelijk van de geconfigureerde outputmodus: in de standaardmodus (`img-html-base64`) heeft het `<img>`-element een niet-lege `alt`-attribuutwaarde en — wanneer een beschrijving beschikbaar is — een `aria-describedby` dat verwijst naar het `id` van het beschrijvingselement; in de `inline-svg`-modus heeft het `<svg>`-element `role="img"`, een `aria-labelledby` dat verwijst naar een `<title>`-element met dezelfde `id`, en — wanneer een beschrijving beschikbaar is — een `aria-describedby` naar het `id` van het beschrijvingselement.
 
 **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 8.3**
 
@@ -370,9 +416,9 @@ De eigenlijke Kroki-rendering (netwerk/externe service) wordt NIET met property-
 
 ### Property 6: Config-resolutie en mapping
 
-*Voor elk* geldig `BsoConfig`-object geldt dat `resolveConfig` bij een ontbrekend `diagrams.krokiUrl` de standaardwaarde `"https://kroki.io"` invult, en bij een aanwezige geldige URL exact die URL vastlegt in `diagrams.krokiUrl`; de omzetting naar plugin-opties zet `kroki.krokiBase` gelijk aan die definitieve `krokiUrl`.
+*Voor elk* geldig `BsoConfig`-object geldt dat `resolveConfig` bij een ontbrekend `diagrams.krokiUrl` de standaardwaarde `"https://kroki.io"` invult en bij een ontbrekend `diagrams.output` de standaardwaarde `"img-html-base64"`, en bij een aanwezige geldige URL exact die URL vastlegt in `diagrams.krokiUrl`; de omzetting naar remark-kroki-opties zet `server` gelijk aan die definitieve `krokiUrl` en `output` gelijk aan de opgeloste `output`.
 
-**Validates: Requirements 2.2, 2.3**
+**Validates: Requirements 2.2, 2.3, 2.5**
 
 ### Property 7: Statische parameterdetectie
 
@@ -398,7 +444,7 @@ Mapping op Requirement 12 (en 2/5):
 
 | Situatie | Categorie | Standaard (`failOnError: true`) | `failOnError: false` | Req |
 |---|---|---|---|---|
-| Kroki onbereikbaar | `kroki-unreachable` | Build faalt, melding met bron + diagram | Waarschuwing + fallback | 2.4, 2.5 |
+| Kroki onbereikbaar | `kroki-unreachable` | Build faalt, melding met bron + diagram | Waarschuwing + fallback | 2.6, 2.7 |
 | Ongeldige PlantUML/Mermaid (Kroki wijst af) | `invalid-source` | Build faalt, actiegerichte melding (bestand + diagram + reden) | Waarschuwing + fallback | 12.1, 12.3, 12.4 |
 | Onbekende fence-optie / ongeldige `src=` / afgewezen optie | `invalid-parameter` | Build faalt, melding (bestand + parameter) | Waarschuwing + fallback | 12.2, 12.3, 12.4 |
 | Geen beschrijving genereerbaar | (waarschuwing, geen fout) | Diagram alsnog gerenderd met naam + broncode-disclosure, warning naar `stderr` | idem | 5.3 |
@@ -412,7 +458,7 @@ Belangrijke eisen:
 
 ### Overzicht
 
-Drie niveaus: property-based tests (fast-check, ≥100 iteraties), unit tests (specifieke voorbeelden/edge cases/foutpaden) en integratietests (end-to-end conversie van fixtures). Waar de test Kroki nodig heeft, wordt een zelf-gehoste/gemockte Kroki gebruikt zodat CI offline kan draaien (Requirement 2.6).
+Drie niveaus: property-based tests (fast-check, ≥100 iteraties), unit tests (specifieke voorbeelden/edge cases/foutpaden) en integratietests (end-to-end conversie van fixtures). Voor unit- en property-tests wordt Kroki gemockt zodat CI offline en goedkoop kan draaien. Integratietests die een echte Kroki raken, gebruiken de publieke `https://kroki.io` OF een lokale Docker-Kroki; bij een lokale Docker-Kroki is voor Mermaid de companion-container `yuzutech/kroki-mermaid` vereist (Requirement 2.8, 2.9). De remark-pipeline is async (Kroki is een netwerkaanroep); alle tests die de pipeline draaien MOETEN die asynchroon awaiten.
 
 ### Fixtures (Requirement 9)
 
@@ -422,8 +468,8 @@ Drie niveaus: property-based tests (fast-check, ≥100 iteraties), unit tests (s
 ### Verificaties op de HTML-output
 
 Per fixture (unit/integratie):
-- HTML bevat een `<svg>`- (of `<img>`-)element voor het diagram (Requirement 9.3).
-- HTML bevat de a11y-wrapper: toegankelijke naam op de SVG (`<title>` + `aria-labelledby`), een broncode-disclosure en een beschrijving-disclosure (Requirement 9.4).
+- HTML bevat een base64 `<img>`-element (standaardmodus) of een `<svg>`-element (inline-svg-modus) voor het diagram (Requirement 9.3).
+- HTML bevat de a11y-wrapper: een toegankelijke naam (standaardmodus: `<img alt=...>` + `aria-describedby`; inline-svg-modus: `<title>` + `aria-labelledby`), een broncode-disclosure en een beschrijving-disclosure (Requirement 9.4).
 - Brightspace-HTML bevat GEEN `<script>` dat nodig is om diagram of disclosure te laten werken (Requirement 9.5).
 - Twee runs op dezelfde fixture leveren identieke HTML op (Requirement 9.6).
 
@@ -463,7 +509,7 @@ deno task test
 |---|---|
 | 1 (rendering PlantUML/Mermaid, deterministisch, no-JS) | Architecture (pipeline-integratie), Diagram_Renderer, Beslissing 2 (determinisme), Properties 1/2/5 |
 | 2 (configureerbaar Kroki-endpoint) | Config-uitbreiding, Data Models (`diagrams`), Error Handling (transient), self-hosted Kroki-notitie |
-| 3 (toegankelijke SVG naam/beschrijving) | Diagram_Adapter, Target-HTML-structuur, mapping naar `summaryText`/`a11ySummaryText` |
+| 3 (toegankelijke naam/beschrijving via wrapper; inline-svg-alternatief) | Diagram_Adapter, Target-HTML-structuur (base64 `<img alt>`/`aria-describedby` default, SVG-`<title>` bij inline-svg), mapping naar `summaryText`/`a11ySummaryText` |
 | 4 (no-JS disclosure-widgets) | Diagram_Adapter, Target-HTML-structuur (native `<details>`/`<summary>`) |
 | 5 (natuurlijketaal-beschrijving via plugin) | Diagram_Renderer (hergebruik plugin-output), Error Handling (5.3), labelteksten uit plugin-opties |
 | 6 (dev/prod-pariteit) | `buildKrokiA11yOptions` gedeeld, Beslissing 1, Docusaurus-configuratie |

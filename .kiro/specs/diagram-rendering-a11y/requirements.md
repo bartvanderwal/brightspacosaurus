@@ -16,7 +16,10 @@ De toegankelijkheidscomplexiteit zit in de pariteit tussen twee omgevingen. In d
 
 - **BSO**: Brightspacosaurus — de build-tool die Markdown cursusmateriaal omzet naar een `.imscc`-pakket voor Brightspace
 - **Kroki**: Een renderservice (extern via https://kroki.io of zelf-gehost via Docker) die diagram-tekst zoals PlantUML, Mermaid, C4 en GraphViz omzet naar SVG. Rendering vindt server-side / build-time plaats, zonder client-side JavaScript
-- **remark-kroki-a11y**: Een npm-plugin (door @bartvanderwal) voor de unified/remark-pipeline die diagrammen via Kroki rendert, een natuurlijketaal-beschrijving genereert, de broncode in een `<details>`-disclosure toont, en de toegankelijke titel-/labelteksten samenstelt via parametriseerbare opties. In Docusaurus wordt dit als tabs (JS) weergegeven; zonder JS degradeert het naar native `<details>`. Deze plugin is binnen deze feature de enige bron (single source of truth) voor rendering, beschrijving en toegankelijke labels; BSO hergebruikt de plugin en dupliceert die logica niet
+- **remark-kroki-a11y**: Een npm-plugin (door @bartvanderwal) voor de unified/remark-pipeline die diagrammen via Kroki rendert, een natuurlijketaal-beschrijving genereert, de broncode in een `<details>`-disclosure toont, en de toegankelijke titel-/labelteksten samenstelt via parametriseerbare opties. Gebruikt intern nu `show-docs/remark-kroki` als rendering-backend (ESM-first), in plaats van het gearchiveerde `remark-kroki-plugin`. In Docusaurus wordt dit als tabs (JS) weergegeven; zonder JS degradeert het naar native `<details>`. Deze plugin is binnen deze feature de enige bron (single source of truth) voor rendering, beschrijving en toegankelijke labels; BSO hergebruikt de plugin en dupliceert die logica niet
+- **show-docs/remark-kroki**: De actief onderhouden, ESM-first remark-plugin die `remark-kroki-a11y` nu intern als rendering-backend gebruikt. Ondersteunt een `output`-optie (`inline-svg` | `img-base64` | `img-html-base64` | `object-base64`) en opties zoals `server`, `target`, `headers` en `alias`
+- **img-html-base64**: De standaard outputmodus van `show-docs/remark-kroki`: een plain `<img>`-element met `alt`, `className`, `data-type` en een base64 data-URL als `src`. Stabiel in Docusaurus (MDX3/rehype-raw) en de standaardkeuze voor BSO; `inline-svg` blijft een configureerbaar alternatief voor wie SVG-interne titel/ARIA wil
+- **yuzutech/kroki-mermaid**: Een aanvullende companion-container die vereist is om Mermaid-diagrammen te renderen op een zelf-gehoste (lokale Docker) Kroki-instantie. Met de publieke instantie `https://kroki.io` werkt Mermaid zonder deze companion
 - **summaryText / a11ySummaryText**: Parametriseerbare template-opties van `remark-kroki-a11y` (met de placeholders `{type}` en `{title}`) waarmee de toegankelijke summary-/labelteksten worden gegenereerd; BSO gebruikt deze opties als standaardmechanisme voor toegankelijke namen/labels in plaats van eigen labelteksten samen te stellen
 - **SVG**: Scalable Vector Graphics — vectorafbeeldingsformaat dat Kroki produceert en dat inline of via `<img>` in HTML kan worden opgenomen
 - **ARIA**: Accessible Rich Internet Applications — set HTML-attributen (bijv. `aria-labelledby`, `aria-describedby`, `role`) die schermlezers gebruiken om inhoud toegankelijk te maken
@@ -50,22 +53,25 @@ De toegankelijkheidscomplexiteit zit in de pariteit tussen twee omgevingen. In d
 
 #### Acceptance Criteria
 
-1. THE Config_File SHALL een optioneel `diagrams`-object ondersteunen met een `krokiUrl`-veld waarmee het Kroki_Endpoint wordt ingesteld
+1. THE Config_File SHALL een optioneel `diagrams`-object ondersteunen met een `krokiUrl`-veld dat door de Diagram_Renderer wordt gemapt naar de `server`-optie van `show-docs/remark-kroki` waarmee het Kroki_Endpoint wordt ingesteld
 2. WHEN het `diagrams.krokiUrl`-veld ontbreekt in het Config_File, THE Diagram_Renderer SHALL een gedocumenteerde standaardwaarde gebruiken (de publieke instantie `https://kroki.io`)
 3. WHEN het `diagrams.krokiUrl`-veld een geldige URL bevat, THE Diagram_Renderer SHALL die URL gebruiken als Kroki_Endpoint voor alle diagramrendering
-4. IF het Kroki_Endpoint onbereikbaar is tijdens de build, THEN THE Diagram_Renderer SHALL dit als een transiente conditie behandelen en een duidelijke foutmelding naar `stderr` schrijven die het bronbestand en het betreffende diagram vermeldt (te onderscheiden van auteurfouten in de diagrambron of -parameters; zie Requirement 12)
-5. WHERE de configuratie `diagrams.failOnError` op `false` staat, THE Diagram_Renderer SHALL bij een onbereikbaar Kroki_Endpoint het oorspronkelijke codeblok als fallback in de HTML behouden en de build voortzetten
-6. THE BSO documentatie SHALL beschrijven hoe een zelf-gehoste Kroki-instantie (via Docker) kan worden geconfigureerd en waarom dit CI-vriendelijk is
+4. THE Config_File SHALL een optioneel `diagrams.output`-veld ondersteunen met een van de waarden `img-html-base64` (standaard), `inline-svg`, `img-base64` of `object-base64`, dat door de Diagram_Renderer wordt gemapt naar de `output`-optie van `show-docs/remark-kroki`
+5. WHEN het `diagrams.output`-veld ontbreekt in het Config_File, THE Diagram_Renderer SHALL de outputmodus `img-html-base64` gebruiken (een `<img>` met een base64 data-URL als `src`)
+6. IF het Kroki_Endpoint onbereikbaar is tijdens de build, THEN THE Diagram_Renderer SHALL dit als een transiente conditie behandelen en een duidelijke foutmelding naar `stderr` schrijven die het bronbestand en het betreffende diagram vermeldt (te onderscheiden van auteurfouten in de diagrambron of -parameters; zie Requirement 12)
+7. WHERE de configuratie `diagrams.failOnError` op `false` staat, THE Diagram_Renderer SHALL bij een onbereikbaar Kroki_Endpoint het oorspronkelijke codeblok als fallback in de HTML behouden en de build voortzetten
+8. THE BSO documentatie SHALL beschrijven hoe een zelf-gehoste Kroki-instantie (via Docker) kan worden geconfigureerd en waarom dit CI-vriendelijk is
+9. WHERE een zelf-gehoste Kroki-instantie (lokale Docker) wordt gebruikt voor Mermaid-diagrammen, THE BSO documentatie SHALL vermelden dat een aanvullende companion-container `yuzutech/kroki-mermaid` vereist is; met de publieke instantie `https://kroki.io` werkt Mermaid zonder die companion
 
-### Requirement 3: Toegankelijke SVG met naam en beschrijving
+### Requirement 3: Toegankelijke naam en beschrijving via de omringende HTML-wrapper
 
 **User Story:** Als slechtziende student wil ik dat elk diagram een toegankelijke naam en beschrijving heeft, zodat mijn schermlezer het diagram kan aankondigen en duiden.
 
 #### Acceptance Criteria
 
-1. WHEN een diagram wordt gerenderd naar SVG, THE Diagram_Renderer SHALL het SVG-element voorzien van een toegankelijke naam via een `<title>`-element en een `aria-labelledby`-verwijzing daarnaar, waarbij de labelTEKST afkomstig is uit de parametriseerbare opties van `remark-kroki-a11y` (`summaryText`/`a11ySummaryText` met `{type}`/`{title}`) en niet door BSO zelf wordt samengesteld
-2. WHEN een natuurlijketaal-beschrijving beschikbaar is voor een diagram, THE Diagram_Renderer SHALL het SVG-element voorzien van een `aria-describedby`-verwijzing naar die beschrijving
-3. THE Diagram_Renderer SHALL elk SVG-element een `role="img"` toekennen zodat schermlezers het als afbeelding aankondigen
+1. WHEN een diagram wordt gerenderd in de standaard outputmodus (`img-html-base64`), THE Diagram_Renderer SHALL het diagram opnemen als een base64 `<img>`-element met een niet-lege `alt`-attribuutwaarde als toegankelijke naam, waarbij de alt-/labelTEKST afkomstig is uit de parametriseerbare opties van `remark-kroki-a11y` (`summaryText`/`a11ySummaryText` met `{type}`/`{title}`) en niet door BSO zelf wordt samengesteld
+2. WHEN een natuurlijketaal-beschrijving beschikbaar is voor een diagram in de standaard outputmodus, THE Diagram_Renderer SHALL het base64 `<img>`-element voorzien van een `aria-describedby`-verwijzing naar het element dat de beschrijving bevat
+3. WHERE de geconfigureerde outputmodus `inline-svg` is, THE Diagram_Renderer SHALL de toegankelijke naam in plaats daarvan binnen het SVG-element plaatsen via een `<title>`-element met een `aria-labelledby`-verwijzing en een `role="img"`, en de beschrijving koppelen via een `aria-describedby`-verwijzing
 4. THE Diagram_Renderer SHALL de toegankelijke naam en beschrijving tijdens de build genereren, zonder afhankelijkheid van client-side JavaScript
 
 ### Requirement 4: Toegankelijke broncode en beschrijving via no-JS disclosure-widgets
@@ -78,7 +84,7 @@ De toegankelijkheidscomplexiteit zit in de pariteit tussen twee omgevingen. In d
 2. WHEN een natuurlijketaal-beschrijving beschikbaar is, THE Diagram_Renderer SHALL die beschrijving opnemen in de HTML-output binnen een native `<details>`/`<summary>`-disclosure-widget
 3. THE Diagram_Renderer SHALL de disclosure-widgets zodanig genereren dat deze in- en uitklapbaar zijn zonder client-side JavaScript
 4. THE Diagram_Renderer SHALL elke `<summary>` voorzien van een beschrijvend label (bijv. "Broncode" en "Beschrijving") zodat de inhoud voor schermlezers herkenbaar is
-5. WHEN de Brightspace-HTML-output wordt gegenereerd, THE Diagram_Renderer SHALL de toegankelijke wrapper (SVG met titel/beschrijving, broncode-disclosure en beschrijving-disclosure) rond elk diagram plaatsen
+5. WHEN de Brightspace-HTML-output wordt gegenereerd, THE Diagram_Renderer SHALL rond elk diagram een toegankelijke wrapper plaatsen die het gerenderde diagram (een base64 `<img>` in de standaardmodus, of een inline SVG wanneer `inline-svg` is geconfigureerd), een broncode-`<details>`/`<summary>` en een beschrijving-`<details>`/`<summary>` bevat
 
 ### Requirement 5: Natuurlijketaal-beschrijving via remark-kroki-a11y
 
@@ -121,7 +127,7 @@ De toegankelijkheidscomplexiteit zit in de pariteit tussen twee omgevingen. In d
 
 1. THE BSO documentatie SHALL vermelden dat het doel van de a11y-functionaliteit schermlezer-toegankelijkheid is voor blinde en slechtziende gebruikers
 2. THE BSO documentatie SHALL vermelden dat volledige WCAG-conformiteit handmatige verificatie met hulptechnologie en toegankelijkheidsexpertise vereist en niet uitsluitend door geautomatiseerde tests wordt gegarandeerd
-3. THE Diagram_Renderer SHALL toegankelijke HTML produceren die de ARIA-relaties tussen SVG, titel en beschrijving correct legt (naam via `aria-labelledby`, beschrijving via `aria-describedby`)
+3. THE Diagram_Renderer SHALL toegankelijke HTML produceren die de ARIA-relaties tussen het diagram, de naam en de beschrijving correct legt (in de standaardmodus: naam via de `alt` van het base64 `<img>` en beschrijving via `aria-describedby`; in de `inline-svg`-modus: naam via `aria-labelledby` naar de SVG-`<title>` en beschrijving via `aria-describedby`)
 
 ### Requirement 9: Testfixtures en verificatie van de HTML-output
 
@@ -132,7 +138,7 @@ De toegankelijkheidscomplexiteit zit in de pariteit tussen twee omgevingen. In d
 1. THE feature SHALL een testfixture bevatten met een lespagina die een PlantUML-codeblok bevat
 2. THE feature SHALL een testfixture bevatten met een lespagina die een Mermaid-codeblok bevat
 3. WHEN een fixture wordt verwerkt, THE test SHALL verifiëren dat de HTML-output een SVG-element (of `<img>`-element) voor het diagram bevat
-4. WHEN een fixture wordt verwerkt, THE test SHALL verifiëren dat de HTML-output de a11y-wrapper bevat: een toegankelijke naam op de SVG, een broncode-disclosure en een natuurlijketaal-beschrijving-disclosure
+4. WHEN een fixture wordt verwerkt, THE test SHALL verifiëren dat de HTML-output de a11y-wrapper bevat: een toegankelijke naam (in de standaardmodus de `alt` van het base64 `<img>`, of in de `inline-svg`-modus een SVG-`<title>`), een broncode-disclosure en een natuurlijketaal-beschrijving-disclosure
 5. WHEN een fixture wordt verwerkt, THE test SHALL verifiëren dat de Brightspace-HTML-output geen `<script>`-elementen bevat die nodig zijn om het diagram of de disclosure-widgets te laten werken
 6. WHEN dezelfde fixture tweemaal wordt verwerkt, THE test SHALL verifiëren dat de HTML-output identiek is (deterministische output)
 
