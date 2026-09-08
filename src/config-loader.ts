@@ -9,8 +9,17 @@ import type {
   BsoConfig,
   CliOverrides,
   ResolvedConfig,
+  ResolvedDiagramConfig,
   ResolvedDocentenConfig,
 } from "./types.ts";
+
+/** Allowed values for the `diagrams.output` field. */
+const DIAGRAM_OUTPUT_VALUES = [
+  "img-html-base64",
+  "inline-svg",
+  "img-base64",
+  "object-base64",
+] as const;
 
 /** Example configuration for error messages and documentation. */
 export const EXAMPLE_CONFIG = `{
@@ -23,6 +32,11 @@ export const EXAMPLE_CONFIG = `{
   "docentenHandleiding": {
     "inputFiles": ["docs/handleiding.md"],
     "outputName": "docentenhandleiding.pdf"
+  },
+  "diagrams": {
+    "krokiUrl": "https://kroki.io",
+    "output": "img-html-base64",
+    "failOnError": true
   }
 }`;
 
@@ -169,6 +183,51 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
   }
 
+  // Validate diagrams if it is present
+  if (obj.diagrams !== undefined) {
+    if (
+      typeof obj.diagrams !== "object" ||
+      obj.diagrams === null ||
+      Array.isArray(obj.diagrams)
+    ) {
+      throw new Error(
+        "Field 'diagrams' must be an object.",
+      );
+    }
+
+    const diagrams = obj.diagrams as Record<string, unknown>;
+
+    if (diagrams.krokiUrl !== undefined) {
+      if (typeof diagrams.krokiUrl !== "string") {
+        throw new Error(
+          "Field 'diagrams.krokiUrl' must be a string if it is provided.",
+        );
+      }
+      try {
+        new URL(diagrams.krokiUrl);
+      } catch {
+        throw new Error(
+          `Field 'diagrams.krokiUrl' must be a valid URL: '${diagrams.krokiUrl}'.`,
+        );
+      }
+    }
+
+    if (
+      diagrams.output !== undefined &&
+      !DIAGRAM_OUTPUT_VALUES.includes(diagrams.output as typeof DIAGRAM_OUTPUT_VALUES[number])
+    ) {
+      throw new Error(
+        `Field 'diagrams.output' must be one of: ${DIAGRAM_OUTPUT_VALUES.join(", ")}.`,
+      );
+    }
+
+    if (diagrams.failOnError !== undefined && typeof diagrams.failOnError !== "boolean") {
+      throw new Error(
+        "Field 'diagrams.failOnError' must be a boolean if it is provided.",
+      );
+    }
+  }
+
   return true;
 }
 
@@ -181,6 +240,29 @@ function slugify(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** Default diagram settings, used when no `diagrams` config is provided. */
+const DEFAULT_DIAGRAM_CONFIG: ResolvedDiagramConfig = {
+  krokiUrl: "https://kroki.io",
+  output: "img-html-base64",
+  failOnError: true,
+  locale: "nl",
+};
+
+/**
+ * Resolves the optional `diagrams` config, filling in defaults for any
+ * missing field. `locale` is not (yet) a user-facing config field and always
+ * defaults to "nl".
+ */
+function resolveDiagramsConfig(config: BsoConfig): ResolvedDiagramConfig {
+  const d = config.diagrams;
+  return {
+    krokiUrl: d?.krokiUrl ?? DEFAULT_DIAGRAM_CONFIG.krokiUrl,
+    output: d?.output ?? DEFAULT_DIAGRAM_CONFIG.output,
+    failOnError: d?.failOnError ?? DEFAULT_DIAGRAM_CONFIG.failOnError,
+    locale: DEFAULT_DIAGRAM_CONFIG.locale,
+  };
 }
 
 /**
@@ -253,6 +335,7 @@ export function resolveConfig(
     name,
     docusaurusDir,
     docentenHandleiding,
+    diagrams: resolveDiagramsConfig(config),
     repoRoot,
   };
 }
@@ -286,6 +369,7 @@ export function resolveFromCliOnly(
     name: "course",
     docusaurusDir: null,
     docentenHandleiding: null,
+    diagrams: { ...DEFAULT_DIAGRAM_CONFIG },
     repoRoot,
   };
 }

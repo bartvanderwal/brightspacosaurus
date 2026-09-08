@@ -8,7 +8,7 @@
 export { loadConfig, validateConfig, resolveConfig, resolveFromCliOnly, findConfigFile, EXAMPLE_CONFIG } from "./config-loader.ts";
 
 // Types
-export type { BsoConfig, DocentenHandleidingConfig, ResolvedConfig, ResolvedDocentenConfig, CliOverrides, ConvertOptions, ConvertResult, ManifestEntry, PackOptions, ScanOptions, ScanResult, ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
+export type { BsoConfig, DiagramsConfig, DocentenHandleidingConfig, ResolvedConfig, ResolvedDiagramConfig, ResolvedDocentenConfig, CliOverrides, ConvertOptions, ConvertResult, ManifestEntry, PackOptions, ScanOptions, ScanResult, ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
 
 // Core modules
 export { scanSources } from "./source-scanner.ts";

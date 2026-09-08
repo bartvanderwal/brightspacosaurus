@@ -124,6 +124,21 @@ export interface BsoConfig {
   docusaurusDir?: string;
   /** Configuratie voor docentenhandleiding-generatie. Optioneel. */
   docentenHandleiding?: DocentenHandleidingConfig;
+  /** Configuratie voor diagramrendering (PlantUML/Mermaid via Kroki). Optioneel. */
+  diagrams?: DiagramsConfig;
+}
+
+/**
+ * Configuratie voor diagramrendering (Requirement 2).
+ * Alle velden zijn optioneel; ontbrekende velden krijgen defaults bij resolutie.
+ */
+export interface DiagramsConfig {
+  /** Kroki_Endpoint (gemapt naar de remark-kroki `server`-optie). Standaard: "https://kroki.io". */
+  krokiUrl?: string;
+  /** Outputmodus (gemapt naar de remark-kroki `output`-optie). Standaard: "img-html-base64". */
+  output?: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64";
+  /** Build laten falen bij een diagramfout. Standaard: true. */
+  failOnError?: boolean;
 }
 
 /** Configuratie voor de docentenhandleiding-PDF-generatie. */
@@ -161,8 +176,25 @@ export interface ResolvedConfig {
   docusaurusDir: string | null;
   /** Docentenhandleiding-configuratie met absolute paden. null = overslaan. */
   docentenHandleiding: ResolvedDocentenConfig | null;
+  /** Definitieve diagram-instellingen (altijd ingevuld met defaults). */
+  diagrams: ResolvedDiagramConfig;
   /** Absoluut pad naar Repo_Root. */
   repoRoot: string;
+}
+
+/**
+ * Definitieve diagram-instellingen (afgeleid van BsoConfig.diagrams).
+ * Alle velden zijn verplicht en altijd ingevuld met defaults na resolutie.
+ */
+export interface ResolvedDiagramConfig {
+  /** Kroki_Endpoint. Standaard: "https://kroki.io". */
+  krokiUrl: string;
+  /** Outputmodus (gemapt naar remark-kroki `output`). Standaard: "img-html-base64". */
+  output: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64";
+  /** Bij een diagramfout de build laten falen. Standaard: true. */
+  failOnError: boolean;
+  /** Taal voor labels/beschrijving-templates ('nl' | 'en'). Standaard: 'nl'. */
+  locale: "nl" | "en";
 }
 
 /** Opgeloste docentenhandleiding-configuratie met absolute paden. */
