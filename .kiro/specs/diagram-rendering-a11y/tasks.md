@@ -34,9 +34,8 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
 
 - [ ] 2. Config-uitbreiding: `diagrams`-object in types en config-loader
   - [ ] 2.1 Voeg het `diagrams`-configtype toe in `src/types.ts`
-    - Voeg een optioneel `diagrams`-veld toe aan het BESTAANDE `BssConfig`-type met een nieuw `DiagramsConfig`-interface (`krokiUrl?: string`, `output?: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64"`, `failOnError?: boolean`).
+    - Voeg een optioneel `diagrams`-veld toe aan het `BsoConfig`-type met een nieuw `DiagramsConfig`-interface (`krokiUrl?: string`, `output?: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64"`, `failOnError?: boolean`).
     - Voeg een `diagrams: ResolvedDiagramConfig`-veld toe aan `ResolvedConfig` (altijd ingevuld met defaults: `krokiUrl`, `output`, `failOnError`, `locale`).
-    - NB: het design gebruikt de doelnaam `BsoConfig`, maar het huidige type heet nog `BssConfig`. Breid hier het bestaande `BssConfig`-type uit; HERNOEM NIET — de rename `BssConfig` → `BsoConfig` is een aparte, latere taak.
     - _Requirements: 2.1, 2.4_
 
   - [ ] 2.2 Valideer en resolve `diagrams` in `src/config-loader.ts`
@@ -226,7 +225,6 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
 - De remark-pipeline is async (Kroki is een netwerkaanroep): de rendering en tests roepen de pipeline asynchroon aan (await).
 - Outputmodus is configureerbaar via `diagrams.output` (standaard `img-html-base64`, base64 `<img>`; `inline-svg` als alternatief met SVG-interne titel/ARIA).
 - Scope blijft de HTML/Brightspace-route; de PDF/reader-route blijft ongemoeid (Requirement 10). `bso lint` wordt NIET geïmplementeerd; taak 7 maakt de validatie alleen herbruikbaar (Requirement 13, [#11](https://github.com/bartvanderwal/brightspacosaurus/issues/11)).
-- NB: het huidige configtype heet nog `BssConfig`; taak 2 breidt dat uit zonder te hernoemen. De rename `BssConfig` → `BsoConfig` is een aparte, latere taak.
 
 ## Task Dependency Graph
 

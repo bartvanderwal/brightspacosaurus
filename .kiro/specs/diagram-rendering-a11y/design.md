@@ -215,8 +215,6 @@ export interface ResolvedConfig {
 
 `validateConfig` krijgt een blok dat het optionele `diagrams`-object controleert: als het aanwezig is, moet het een object zijn; `krokiUrl` (indien aanwezig) een string die als URL parseerbaar is; `output` (indien aanwezig) een van `img-html-base64` | `inline-svg` | `img-base64` | `object-base64`; `failOnError` (indien aanwezig) een boolean. `resolveConfig` vult defaults in: `krokiUrl` → `"https://kroki.io"`, `output` → `"img-html-base64"`, `failOnError` → `true`, `locale` → `"nl"`.
 
-> Naamgeving: dit ontwerp gebruikt de doelnaam `BsoConfig`. In de huidige code heet het type nog `BssConfig` (in `src/types.ts`); de rename `BssConfig` → `BsoConfig` (inclusief regressietests) wordt apart uitgevoerd, na deze feature.
-
 
 ### Assets (`src/assets.ts`, `deno.json`)
 
