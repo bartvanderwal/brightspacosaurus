@@ -32,24 +32,24 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - Noteer dat de no-JS-adaptatielaag (Optie C, taak 5) hoe dan ook nodig is, ongeacht de uitkomst.
     - _Requirements: 11.1, 6.1_
 
-- [ ] 2. Config-uitbreiding: `diagrams`-object in types en config-loader
-  - [ ] 2.1 Voeg het `diagrams`-configtype toe in `src/types.ts`
+- [x] 2. Config-uitbreiding: `diagrams`-object in types en config-loader
+  - [x] 2.1 Voeg het `diagrams`-configtype toe in `src/types.ts`
     - Voeg een optioneel `diagrams`-veld toe aan het `BsoConfig`-type met een nieuw `DiagramsConfig`-interface (`krokiUrl?: string`, `output?: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64"`, `failOnError?: boolean`).
     - Voeg een `diagrams: ResolvedDiagramConfig`-veld toe aan `ResolvedConfig` (altijd ingevuld met defaults: `krokiUrl`, `output`, `failOnError`, `locale`).
     - _Requirements: 2.1, 2.4_
 
-  - [ ] 2.2 Valideer en resolve `diagrams` in `src/config-loader.ts`
+  - [x] 2.2 Valideer en resolve `diagrams` in `src/config-loader.ts`
     - Breid `validateConfig` uit: als `diagrams` aanwezig is, moet het een object zijn; `krokiUrl` (indien aanwezig) een string die als URL parseerbaar is; `output` (indien aanwezig) een van `img-html-base64` | `inline-svg` | `img-base64` | `object-base64`; `failOnError` (indien aanwezig) een boolean. Gooi bij overtreding een duidelijke fout.
     - Breid `resolveConfig` uit met defaults: `krokiUrl` → `"https://kroki.io"`, `output` → `"img-html-base64"`, `failOnError` → `true`, `locale` → `"nl"`.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-  - [ ]* 2.3 Schrijf property test voor config-resolutie en mapping
+  - [x]* 2.3 Schrijf property test voor config-resolutie en mapping
     - Maak `tests/diagram-config.property.test.ts`.
     - **Property 6: Config-resolutie en mapping** — Voor elk geldig config-object vult `resolveConfig` bij ontbrekende `diagrams.krokiUrl` de default `"https://kroki.io"` in en bij ontbrekende `diagrams.output` de default `"img-html-base64"`; bij een aanwezige geldige URL exact die URL; de mapping zet de remark-kroki-optie `server` gelijk aan de opgeloste `krokiUrl` en `output` gelijk aan de opgeloste `output`.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 6`.
     - **Validates: Requirements 2.2, 2.3, 2.5**
 
-  - [ ]* 2.4 Schrijf unit tests voor `diagrams`-validatie
+  - [x]* 2.4 Schrijf unit tests voor `diagrams`-validatie
     - Test: geldige `diagrams`-config wordt geaccepteerd en geresolved; ontbrekende velden krijgen defaults (`krokiUrl`, `output`, `failOnError`).
     - Test: niet-object `diagrams`, niet-parseerbare `krokiUrl`, ongeldige `output`-waarde, niet-boolean `failOnError` geven een duidelijke fout.
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
