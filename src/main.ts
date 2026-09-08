@@ -323,35 +323,35 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
     const docentenOutputDir = config.docentenHandleiding?.outputDir ?? join(buildDir, "docenten");
 
     // Resolve the docs directory locally; from JSR there is no local docs/ path → skip.
-    let bssDocsDir: string | undefined;
-    let bssSource: string | undefined;
+    let bsoDocsDir: string | undefined;
+    let bsoSource: string | undefined;
     try {
       const docsUrl = import.meta.resolve("../docs/user-manual.md");
       if (!docsUrl.startsWith("file:")) {
         throw new Error("docs not available locally (JSR)");
       }
-      bssSource = fromFileUrl(docsUrl);
-      bssDocsDir = dirname(bssSource);
+      bsoSource = fromFileUrl(docsUrl);
+      bsoDocsDir = dirname(bsoSource);
       // Confirm that the source actually exists
-      await Deno.stat(bssSource);
+      await Deno.stat(bsoSource);
     } catch {
-      bssDocsDir = undefined;
-      bssSource = undefined;
+      bsoDocsDir = undefined;
+      bsoSource = undefined;
     }
 
-    if (bssDocsDir && bssSource) {
+    if (bsoDocsDir && bsoSource) {
       try {
         // Make sure docs/images/ exists (copy PNG assets if needed)
-        const bssImagesDir = join(bssDocsDir, "images");
-        try { await Deno.stat(bssImagesDir); } catch {
-          await Deno.mkdir(bssImagesDir, { recursive: true });
+        const bsoImagesDir = join(bsoDocsDir, "images");
+        try { await Deno.stat(bsoImagesDir); } catch {
+          await Deno.mkdir(bsoImagesDir, { recursive: true });
           // PNG assets live next to the docs directory under assets/; materializing is not
           // possible for binary files, so we only copy what exists locally.
-          const bssAssetsDir = resolve(bssDocsDir, "..", "assets");
+          const bsoAssetsDir = resolve(bsoDocsDir, "..", "assets");
           try {
-            for await (const entry of Deno.readDir(bssAssetsDir)) {
+            for await (const entry of Deno.readDir(bsoAssetsDir)) {
               if (entry.isFile && entry.name.endsWith(".png")) {
-                await Deno.copyFile(join(bssAssetsDir, entry.name), join(bssImagesDir, entry.name));
+                await Deno.copyFile(join(bsoAssetsDir, entry.name), join(bsoImagesDir, entry.name));
               }
             }
           } catch {
@@ -360,15 +360,15 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         }
 
         await Deno.mkdir(docentenOutputDir, { recursive: true });
-        const bssOutput = join(docentenOutputDir, "user-manual.pdf");
+        const bsoOutput = join(docentenOutputDir, "user-manual.pdf");
         console.log("Generating Brightspacosaurus user manual PDF...");
         const headerPath = await materializeAsset("reader-header.tex");
         const includeFilterPath = await materializeAsset("include-filter.lua");
-        const bssCmd = new Deno.Command("pandoc", {
+        const bsoCmd = new Deno.Command("pandoc", {
           args: [
-            bssSource,
-            "-o", bssOutput,
-            `--resource-path=${bssDocsDir}`,
+            bsoSource,
+            "-o", bsoOutput,
+            `--resource-path=${bsoDocsDir}`,
             "--pdf-engine=xelatex",
             "-V", "geometry:margin=2.5cm",
             "-V", "lang=nl",
@@ -382,14 +382,14 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
           stdout: "piped",
           stderr: "piped",
         });
-        const bssResult = await bssCmd.output();
-        if (bssResult.success) {
-          console.log(`  ✓ ${relative(buildDir, bssOutput)}`);
+        const bsoResult = await bsoCmd.output();
+        if (bsoResult.success) {
+          console.log(`  ✓ ${relative(buildDir, bsoOutput)}`);
         } else {
-          const bssStderr = new TextDecoder().decode(bssResult.stderr);
+          const bsoStderr = new TextDecoder().decode(bsoResult.stderr);
           console.warn(`  ⚠ Brightspacosaurus user manual PDF failed (non-blocking):`);
-          console.warn(`    ${bssStderr.trim()}`);
-          await Deno.remove(bssOutput).catch(() => undefined);
+          console.warn(`    ${bsoStderr.trim()}`);
+          await Deno.remove(bsoOutput).catch(() => undefined);
         }
       } catch {
         // Brightspacosaurus user manual not found or error — skip

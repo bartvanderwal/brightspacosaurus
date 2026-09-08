@@ -103,7 +103,7 @@ export interface ReaderConvertResult {
  * Schema van het brightspacosaurus.config.json configuratiebestand.
  * Requirements: 1.3, 1.7
  */
-export interface BssConfig {
+export interface BsoConfig {
   /** Cursusnaam voor het manifest. Verplicht. */
   courseName: string;
   /** Versienummer (gebruikt in .imscc-bestandsnaam en HTML-badge). Verplicht. */

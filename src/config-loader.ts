@@ -6,7 +6,7 @@
 
 import { join, resolve } from "@std/path";
 import type {
-  BssConfig,
+  BsoConfig,
   CliOverrides,
   ResolvedConfig,
   ResolvedDocentenConfig,
@@ -65,7 +65,7 @@ export async function findConfigFile(
  * Loads and parses the configuration file.
  * @throws Error if the file cannot be read or parsed
  */
-export async function loadConfig(configPath: string): Promise<BssConfig> {
+export async function loadConfig(configPath: string): Promise<BsoConfig> {
   let content: string;
   try {
     content = await Deno.readTextFile(configPath);
@@ -96,7 +96,7 @@ export async function loadConfig(configPath: string): Promise<BssConfig> {
  * Validates the configuration object against the expected schema.
  * @throws Error if required fields are missing or invalid
  */
-export function validateConfig(config: unknown): config is BssConfig {
+export function validateConfig(config: unknown): config is BsoConfig {
   if (typeof config !== "object" || config === null || Array.isArray(config)) {
     throw new Error(
       "Configuration must be a JSON object.",
@@ -189,7 +189,7 @@ function slugify(name: string): string {
  * All relative paths are resolved to absolute paths based on repoRoot.
  */
 export function resolveConfig(
-  config: BssConfig,
+  config: BsoConfig,
   cliOverrides: CliOverrides,
   repoRoot: string,
 ): ResolvedConfig {
