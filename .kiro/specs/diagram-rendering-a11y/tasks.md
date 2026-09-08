@@ -12,16 +12,16 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
 
 ## Tasks
 
-- [ ] 0. Upstream-context: `remark-kroki-a11y`-backend-spike is DONE (extern, `remark-kroki-a11y`-repo)
-  - [ ] 0.1 Registreer de uitkomst van de upstream Kroki-backend-spike als context voor de BSO-spike
+- [x] 0. Upstream-context: `remark-kroki-a11y`-backend-spike is DONE (extern, `remark-kroki-a11y`-repo)
+  - [x] 0.1 Registreer de uitkomst van de upstream Kroki-backend-spike als context voor de BSO-spike
     - Deze taak wordt NIET in de BSO-repo uitgevoerd; hij legt de (nu grotendeels afgeronde) upstream-afhankelijkheid vast die taak 1 (de BSO-spike) informeert.
     - **DONE:** de backend-swap in `remark-kroki-a11y` is uitgevoerd ([remark-kroki-a11y#26](https://github.com/bartvanderwal/remark-kroki-a11y/issues/26), vervolg op [#17](https://github.com/bartvanderwal/remark-kroki-a11y/issues/17)): de gearchiveerde interne `remark-kroki-plugin` is vervangen door `show-docs/remark-kroki` (ESM-first). De pipeline is in-process en async; er is geen apart proces nodig puur voor Kroki. De standaard outputmodus is `img-html-base64` (base64 `<img>`), met `inline-svg` als configureerbaar alternatief. PlantUML werkt en zijn tests zijn groen. De a11y-kern (natuurlijketaal-beschrijving) is ongewijzigd.
-    - **Open upstream-item:** Mermaid toonde op de branch lokaal error-images (met lokale Docker-Kroki zonder de `yuzutech/kroki-mermaid` companion); dit wordt upstream opgelost/geverifieerd. Met de publieke `https://kroki.io` werkt Mermaid.
+    - **Mermaid (opgelost):** de eerder waargenomen error-images op lokale Docker-Kroki waren 503's doordat de `kroki-mermaid` companion-container niet lokaal draaide. Met de companion-container erbij (of via de publieke `https://kroki.io`) rendert Mermaid correct. Dit bevestigt Requirement 2.9. Gepubliceerd als `remark-kroki-a11y` (npm, huidige latest 0.6.1; 0.6.2 evt. nog te publiceren/propageren).
     - Optioneel (upstream): TypeScript type-defs aan `remark-kroki-a11y` toevoegen; dat maakt Optie A en de BSO-integratie makkelijker (typecheck, betere Deno-interop).
     - _Requirements: 11.1, 6.1_
 
-- [ ] 1. SPIKE — Verifieer dat de (ESM-backed, async) `remark-kroki-a11y` in-process onder Deno draait (Beslissing 1)
-  - [ ] 1.1 Prototype de plugin in een minimale Deno-pipeline en bevestig Optie A (of val terug op B)
+- [x] 1. SPIKE — Verifieer dat de (ESM-backed, async) `remark-kroki-a11y` in-process onder Deno draait (Beslissing 1)
+  - [x] 1.1 Prototype de plugin in een minimale Deno-pipeline en bevestig Optie A (of val terug op B)
     - Dit is een gerichte, informatieve spike (prototype), GEEN wegwerp-experiment: de uitkomst legt de integratieroute vast voor alle rendertaken. De upstream backend-spike (taak 0) is al DONE — deze taak verifieert alleen nog de Deno-npm-compat van de CJS-wrapper specifiek in BSO.
     - Bouw een minimale Deno unified-pipeline die `npm:remark-kroki-a11y` laadt via de npm-compat-specifier en `.use()`t op een `unified()`-processor.
     - Voer de pipeline **asynchroon** uit (await): de Kroki-render is een async netwerkaanroep en de plugin geeft die Promise door aan unified/remark.
@@ -71,9 +71,17 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - _Requirements: 3.1, 5.5, 11.2_
 
 - [ ] 4. Diagram-rendering-integratie (`src/diagram-renderer.ts` + wiring in `src/markdown-converter.ts`)
-  - Gate: gebruik de route uit de spike (taak 1) — Optie A (in-process plugin) of Optie B (Node-subproces).
+  - Route (uit spike taak 1, GO → Optie A): registreer `remark-kroki-a11y` **in-process** in de BSO unified-pipeline; geen Node-subproces (Optie B is niet nodig). Zie `spike/diagram-rendering-a11y/FINDINGS.md`.
+  - [ ] 4.0 Voeg dependencies en permissions toe (uit spike-bevindingen)
+    - Voeg aan `deno.json` `imports` toe: `"remark-kroki-a11y": "npm:remark-kroki-a11y@^0.6.2"` en `"rehype-raw": "npm:rehype-raw@^7.0.0"` (Deno gebruikt `imports`, niet `dependencies`). Importeer in de code statisch via de bare specifier (bijv. `import remarkKrokiA11y from "remark-kroki-a11y";`), consistent met de bestaande `unified`/`remark-*`-imports.
+    - `rehype-raw` is VEREIST: de plugin injecteert raw-HTML-nodes; zonder `rehype-raw` (met `remark-rehype({ allowDangerousHtml: true })` → `rehype-raw` → `rehype-stringify({ allowDangerousHtml: true })`) verschijnen die niet in de output.
+    - Breid de `deno task prepare` in `deno.json` uit met `--allow-net` (Kroki is een netwerkaanroep). Overweeg scoping (bijv. `--allow-net=kroki.io`), maar houd rekening met self-hosted endpoints uit de config. `--allow-env` is al aanwezig (de plugin leest `KROKI_BASE_URL`). Overweeg `--node-modules-dir` voor betrouwbare CJS-resolutie.
+    - _Requirements: 1.1, 1.2, 2.1_
+
   - [ ] 4.1 Implementeer `withDiagramRendering(processor, cfg)` in `src/diagram-renderer.ts`
-    - Registreer `remark-kroki-a11y` als remark-stap (vóór `remark-rehype`) volgens de spike-uitkomst, geconfigureerd via `buildKrokiA11yOptions`.
+    - Registreer `remark-kroki-a11y` als remark-stap (vóór `remark-rehype`) in-process, geconfigureerd via `buildKrokiA11yOptions`.
+    - Geef `languages: ['plantuml', 'mermaid', 'kroki']` mee: de plugin transformeert alléén fenced blocks waarvan de taal in `languages` staat (default is enkel `kroki`). De plugin mapt `alias = languages.filter(l => l !== 'kroki')` naar `remark-kroki`.
+    - Zorg dat BSO per diagram de fence-meta `imgType="plantuml"|"mermaid"` (bepaalt de natuurlijketaal-beschrijving-parser) en `imgTitle="..."` (voedt de toegankelijke naam) levert — bijv. `imgType` afleiden uit de fence-taal en `imgTitle` uit een titelconventie.
     - Render `plantuml`- en `mermaid`-fenced blocks tijdens de build (server-side) naar de geconfigureerde outputmodus (standaard `img-html-base64`, een base64 `<img>`); laat niet-diagram-codeblokken ongemoeid.
     - De Kroki-render is async: zorg dat de pipeline de Promise correct doorgeeft/awaiten kan (consumers roepen de pipeline asynchroon aan).
     - _Requirements: 1.1, 1.2, 1.3, 1.5_
@@ -226,7 +234,7 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
 {
   "waves": [
     { "id": 0, "tasks": ["1.1", "2.1", "11.1"] },
-    { "id": 1, "tasks": ["2.2", "3.1", "7.1"] },
+    { "id": 1, "tasks": ["2.2", "3.1", "4.0", "7.1"] },
     { "id": 2, "tasks": ["2.3", "2.4", "3.2", "4.1", "7.2"] },
     { "id": 3, "tasks": ["4.2", "5.1"] },
     { "id": 4, "tasks": ["8.1"] },
