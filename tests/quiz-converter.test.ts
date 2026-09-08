@@ -38,10 +38,54 @@ async function removeDir(path: string): Promise<void> {
 // Unit-test: vergelijk output met referentie-QTI XML
 // ---------------------------------------------------------------------------
 
-Deno.test("QuizConverter: quiz-2.2-di produceert structureel correcte QTI XML", async () => {
-  const quizMarkdown = await Deno.readTextFile(
-    "../../6.3.Studentenmateriaal/6.3.1.Studentenhandleiding/Lesbeschrijvingen/week-2/quiz-2.2-di-vragen-en-antwoorden.md"
-  );
+// Inline fixture (self-contained, no course-specific external files — see issue #17).
+// 5 multiple-choice questions with correct answers B, A, C, B, B to match the
+// structural assertions below.
+const QUIZ_2_2_DI_FIXTURE = `# Quiz 2.2 DI
+
+## Vraag 1
+Wat is dependency injection?
+- A. Een database-patroon
+- B. Het van buitenaf aanleveren van afhankelijkheden
+- C. Een UI-framework
+- D. Een build-tool
+Correct antwoord: **B**
+
+## Vraag 2
+Welke annotatie markeert een Spring-component voor injectie?
+- A. @Component
+- B. @Table
+- C. @Override
+- D. @Deprecated
+Correct antwoord: **A**
+
+## Vraag 3
+Wat is een voordeel van DI?
+- A. Snellere compilatie
+- B. Kleinere binaries
+- C. Betere testbaarheid door losse koppeling
+- D. Automatische documentatie
+Correct antwoord: **C**
+
+## Vraag 4
+Welke vorm van injectie heeft de voorkeur in Spring?
+- A. Field injection
+- B. Constructor injection
+- C. Static injection
+- D. Reflectie-injectie
+Correct antwoord: **B**
+
+## Vraag 5
+Wat gebeurt er bij een ontbrekende bean bij constructor injection?
+- A. De applicatie start met een null-waarde
+- B. Er wordt een fout gegooid bij het opstarten
+- C. De bean wordt automatisch aangemaakt zonder velden
+- D. Er gebeurt niets
+Correct antwoord: **B**
+`;
+
+Deno.test("QuizConverter: quiz-2.2-di produceert structureel correcte QTI XML", () => {
+  const quizMarkdown = QUIZ_2_2_DI_FIXTURE;
 
   const parsed = parseQuizMarkdown(quizMarkdown);
   const ident = deriveQuizIdent("quiz-2.2-di-vragen-en-antwoorden.md");
