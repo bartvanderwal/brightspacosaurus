@@ -95,5 +95,5 @@ function CodeBlock(block)
   local img = pandoc.Image(caption, img_path)
   local para = pandoc.Para({ img })
 
-  return para
+  return { block, para }
 end
