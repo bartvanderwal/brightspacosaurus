@@ -15,8 +15,21 @@ import {
   generateQtiXml,
   deriveQuizIdent,
   convertQuiz,
+  extractAssessmentTitle,
 } from "../src/quiz-converter.ts";
 import { join, resolve } from "@std/path";
+Deno.test("extractAssessmentTitle: gebruikt de menselijke QTI-titel en decodeert XML-entiteiten", () => {
+  const title = extractAssessmentTitle(
+    '<assessment ident="quiz-les-2-1" title="Quiz 2.1 &amp; PlantUML">',
+    "qti-quiz-les-2-1",
+  );
+
+  assertEquals(title, "Quiz 2.1 & PlantUML");
+});
+
+Deno.test("extractAssessmentTitle: valt terug zonder assessment-titel", () => {
+  assertEquals(extractAssessmentTitle("<questestinterop />", "Quiz zonder titel"), "Quiz zonder titel");
+});
 
 // ---------------------------------------------------------------------------
 // Hulpfuncties

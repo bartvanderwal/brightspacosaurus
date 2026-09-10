@@ -62,8 +62,9 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
           );
         }
 
-        // Eigenschap: voor elke webcontent-entry bestaat een item-element met de titel
-        // QTI-assessments worden niet als organization-item opgenomen (alleen als resource)
+        // Eigenschap: voor elke entry bestaat een item-element met de titel.
+        // QTI-assessments worden ook als organization-item opgenomen zodat
+        // Brightspace de ingebouwde test-koppelpagina in de week toont.
         for (const entry of htmlEntries) {
           assertEquals(
             xml.includes(`<title>${entry.title}</title>`),
@@ -72,12 +73,22 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
           );
         }
 
-        // Eigenschap: QTI-entries hebben wél een resource maar GEEN organization-item
+        // Eigenschap: QTI-entries hebben zowel een resource als organization-item
         for (const entry of qtiEntries) {
           assertEquals(
             xml.includes(`identifier="${entry.id}"`),
             true,
             `Manifest moet resource met id "${entry.id}" bevatten (QTI)`
+          );
+          assertEquals(
+            xml.includes(`identifierref="${entry.id}"`),
+            true,
+            `Manifest moet QTI-entry "${entry.id}" in de organization opnemen`,
+          );
+          assertEquals(
+            xml.includes(`<title>${entry.title}</title>`),
+            true,
+            `Manifest moet QTI-item met titel "${entry.title}" bevatten`,
           );
         }
 

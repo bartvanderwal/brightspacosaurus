@@ -59,19 +59,15 @@ HTML.
 - [ ] T011 [US1] Enable parsed raw provider HTML and wire diagram rendering before `remark-rehype` in `src/markdown-converter.ts`
 - [ ] T012 [US1] Pass source-file context through the converter and ensure unsupported languages remain unchanged in `src/markdown-converter.ts`
 
-**Checkpoint**: PlantUML and Mermaid render during a build; unrelated code and
-repeat-build determinism are independently verified.
+**Checkpoint**: PlantUML and Mermaid render during a build; unrelated code and repeat-build determinism are independently verified.
 
 ---
 
 ## Phase 4: User Story 2 - Understand diagrams without sight or JavaScript (Priority: P1)
 
-**Goal**: Produce native disclosures and correct deterministic accessibility
-relationships without rebuilding provider-generated content.
+**Goal**: Produce native disclosures and correct deterministic accessibility relationships without rebuilding `remark-kroki-a11y` output.
 
-**Independent Test**: Disable JavaScript and inspect every fixture for a named
-image, associated textual description, exact source disclosure, and operable
-native controls.
+**Independent Test**: Inspect every fixture with JavaScript disabled for a named image, associated textual description, exact source disclosure, and operable native controls.
 
 ### Tests for User Story 2
 
@@ -82,22 +78,19 @@ native controls.
 ### Implementation for User Story 2
 
 - [ ] T016 [US2] Implement deterministic ID generation and accessible image/SVG relationships in `src/diagram-adapter.ts`
-- [ ] T017 [US2] Reuse provider-native standalone disclosures or minimally convert combined tab panels into native source and description disclosures in `src/diagram-adapter.ts`
+- [ ] T017 [US2] Reuse `remark-kroki-a11y`'s native standalone disclosures or minimally convert combined tab panels into native source and description disclosures in `src/diagram-adapter.ts`
 - [ ] T018 [US2] Register the awaited Brightspace adaptation after raw HTML parsing in `src/diagram-renderer.ts` and `src/markdown-converter.ts`
 - [ ] T019 [US2] Emit a warning while retaining name and source when no description is available in `src/diagram-renderer.ts`
 
-**Checkpoint**: The complete accessible wrapper works without JavaScript and is
-stable across repeated builds.
+**Checkpoint**: The complete accessible wrapper works in Brightspace's restricted iframe without client-side JavaScript and is stable across repeated builds.
 
 ---
 
 ## Phase 5: User Story 3 - Control rendering and recover from failures (Priority: P2)
 
-**Goal**: Apply custom rendering settings and distinguish strict failure from
-configured warning-plus-fallback behavior.
+**Goal**: Apply custom rendering settings and distinguish strict failure from configured warning-plus-fallback behavior.
 
-**Independent Test**: Exercise every error category in strict and fallback modes
-and verify diagnostics, exit behavior, and retained source.
+**Independent Test**: Exercise every error category in strict and fallback modes and verify diagnostics, exit behavior, and retained source.
 
 ### Tests for User Story 3
 
@@ -118,11 +111,9 @@ categorized, and policy-controlled.
 
 ## Phase 6: User Story 4 - Preview the same accessible content (Priority: P2)
 
-**Goal**: Use shared provider options in preview and production while allowing
-tabs in preview and native disclosures in Brightspace.
+**Goal**: Use shared `remark-kroki-a11y` options in preview and production while allowing tabs in preview and native disclosures in Brightspace.
 
-**Independent Test**: Compare one shared fixture across both routes and verify
-equivalent rendered diagram, source, and description content.
+**Independent Test**: Compare one shared fixture across both routes and verify equivalent rendered diagram, source, and description content.
 
 ### Tests for User Story 4
 
@@ -139,11 +130,9 @@ equivalent rendered diagram, source, and description content.
 
 ## Phase 7: User Story 5 - Reuse diagram validation (Priority: P3)
 
-**Goal**: Detect authoring issues without rendering so future lint work can
-reuse the same typed results.
+**Goal**: Detect authoring issues without rendering so future lint work can reuse the same typed results.
 
-**Independent Test**: Run the validator offline against generated valid and
-invalid blocks and inspect typed issues and source context.
+**Independent Test**: Run the validator offline against generated valid and invalid blocks and inspect typed issues and source context.
 
 ### Tests for User Story 5
 
@@ -176,9 +165,8 @@ invalid blocks and inspect typed issues and source context.
 - Setup has no dependencies.
 - Foundational depends on Setup and blocks all user stories.
 - US1 depends on Foundational.
-- US2 depends on US1 provider output.
-- US3 depends on Foundational and integrates with US1; its tests can begin in
-  parallel with US2.
+- US2 depends on US1 `remark-kroki-a11y` output.
+- US3 depends on Foundational and integrates with US1; its tests can begin in parallel with US2.
 - US4 depends on the shared mapper and the US1/US2 output contract.
 - US5 depends only on Foundational and can run in parallel with US1-US4.
 - Polish follows the stories selected for delivery.
@@ -186,8 +174,7 @@ invalid blocks and inspect typed issues and source context.
 ### Parallel Opportunities
 
 - T002 can run alongside T001.
-- T003 can be written while T004-T007 are being prepared, but implementation
-  follows the failing tests.
+- T003 can be written while T004-T007 are being prepared, but implementation follows the failing tests.
 - Within each story, tasks marked `[P]` touch independent test or documentation
   surfaces.
 - US5 can be implemented in parallel with rendering after Foundational.

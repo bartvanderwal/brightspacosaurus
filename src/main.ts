@@ -8,6 +8,7 @@ import { resolve, join, basename, extname, relative, dirname, fromFileUrl } from
 import { scanSources } from "./source-scanner.ts";
 import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
+import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { materializeAsset, loadPackageVersion } from "./assets.ts";
 import { buildManifest } from "./manifest-builder.ts";
@@ -468,7 +469,9 @@ async function runPack(config: ResolvedConfig): Promise<void> {
         } else if (entry.isFile && entry.name.endsWith(".xml")) {
           const relPath = "quiz/" + relative(quizDir, fullPath);
           const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
-          const title = basename(fullPath, extname(fullPath));
+          const xml = await Deno.readTextFile(fullPath);
+          const fallbackTitle = basename(fullPath, extname(fullPath)).replace(/^qti-/, "");
+          const title = extractAssessmentTitle(xml, fallbackTitle);
           entries.push({ id, title, href: relPath, type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment" });
         }
       }

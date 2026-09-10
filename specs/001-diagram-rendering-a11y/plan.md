@@ -6,19 +6,13 @@
 
 ## Summary
 
-Add build-time PlantUML and Mermaid rendering to the existing Markdown-to-HTML
-pipeline, reusing `remark-kroki-a11y` in-process under Deno. Map project
-configuration to the plugin, normalize its output through a thin Brightspace
-adapter that needs no JavaScript, provide deterministic ARIA relationships, and
-separate static validation from rendering for future lint reuse. The
-PDF/reader route remains unchanged.
+Add build-time PlantUML and Mermaid rendering to the existing Markdown-to-HTML pipeline, reusing `remark-kroki-a11y` in-process under Deno. Map project configuration to the plugin, normalize its output through a thin Brightspace adapter that works in Brightspace's JavaScript-restricted iframe, provide deterministic ARIA relationships, and separate static validation from rendering for future lint reuse. The PDF/reader route remains unchanged.
 
 ## Technical Context
 
 **Language/Version**: TypeScript on Deno >= 2.0
 
-**Primary Dependencies**: `unified`, `remark-*`, `rehype-*`,
-`remark-kroki-a11y@^0.6.2`, Kroki-compatible rendering service
+**Primary Dependencies**: `unified`, `remark-*`, `rehype-*`, `remark-kroki-a11y@^0.6.2`, Kroki-compatible rendering service
 
 **Storage**: Markdown/config input and generated HTML files; no database
 
@@ -34,9 +28,7 @@ JavaScript-restricted Brightspace iframe
 **Performance Goals**: No additional network calls for unsupported code blocks;
 one render request per supported diagram; deterministic repeat builds
 
-**Constraints**: Build-time/no-JS output, actionable fail-fast errors by default,
-configurable fallback, JSR-compatible imports/assets, no changes to PDF output,
-no duplicated upstream rendering or description logic
+**Constraints**: Build-time output for Brightspace's restricted iframe, actionable fail-fast errors by default, configurable fallback, JSR-compatible imports/assets, no changes to PDF output, no duplicated upstream rendering or description logic
 
 **Scale/Scope**: PlantUML and Mermaid in lesson-page HTML; typical course-sized
 source trees; five user stories and nine universal correctness properties
@@ -53,9 +45,7 @@ source trees; five user stories and nine universal correctness properties
 | Test at the right boundary | PASS | Unit, property, fixture, and real-endpoint coverage |
 | Deno and JSR compatibility | PASS | In-process Deno spike passed; no direct bundled-asset reads |
 
-Post-design check: PASS. No constitutional exceptions or unjustified complexity
-remain. The adapter is required because the shared provider's preview-oriented
-markup does not itself satisfy the Brightspace no-JavaScript and ARIA contract.
+Post-design check: PASS. No constitutional exceptions or unjustified complexity remain. The adapter is required because `remark-kroki-a11y`'s preview-oriented markup does not itself satisfy the Brightspace iframe restriction and ARIA contract.
 
 ## Project Structure
 

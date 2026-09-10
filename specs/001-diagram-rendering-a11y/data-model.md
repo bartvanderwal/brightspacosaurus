@@ -21,9 +21,7 @@ Configuration after defaults are applied.
 | `failOnError` | boolean | `true` |
 | `locale` | `nl` or `en` | `nl` |
 
-The option mapper converts this entity to provider options. `krokiUrl` maps to
-the provider's `server`, `output` remains `output`, aliases include PlantUML and
-Mermaid, and the diagram-mode toggle is disabled for Brightspace.
+The option mapper converts this entity to `remark-kroki-a11y` plugin options. `krokiUrl` maps to the plugin's `server`, `output` remains `output`, aliases include PlantUML and Mermaid, and the diagram-mode toggle is disabled for Brightspace.
 
 ## DiagramIssue
 
@@ -56,8 +54,7 @@ detected error
   └── failOnError=false -> warn -> original code block -> build continues
 ```
 
-Author errors never transition to `kroki-unreachable`, even if the endpoint is
-also unavailable.
+Author errors never transition to `kroki-unreachable`, even if the endpoint is also unavailable.
 
 ## DiagramAdaptContext
 
@@ -77,4 +74,4 @@ An output invariant rather than persisted data:
 - a deterministic association to a textual description when present;
 - one native source disclosure containing the exact original source;
 - one native description disclosure when a description exists;
-- no script required for display or disclosure behavior.
+- no client-side script required for display or disclosure behavior; works in Brightspace's restricted iframe.

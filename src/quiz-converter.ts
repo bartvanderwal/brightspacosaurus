@@ -40,6 +40,22 @@ export interface QuizConvertResult {
 }
 
 /**
+ * Extracts the student-facing assessment title from generated QTI XML.
+ * Returns the supplied fallback when the XML has no assessment title.
+ */
+export function extractAssessmentTitle(xml: string, fallback: string): string {
+  const match = xml.match(/<assessment\b[^>]*\btitle="([^"]*)"/i);
+  if (!match) return fallback;
+
+  return match[1]
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "<")
+    .replace(/&amp;/g, "&");
+}
+
+/**
  * Parses a quiz Markdown file into a structured object.
  */
 export function parseQuizMarkdown(content: string): ParsedQuiz {

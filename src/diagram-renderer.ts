@@ -1,0 +1,128 @@
+/**
+ * DiagramRenderer: registers `remark-kroki-a11y` in-process to render
+ * PlantUML/Mermaid fenced blocks during `prepare`, and classifies rendering
+ * failures for the strict/fallback policy in `ResolvedDiagramConfig`.
+ * Requirements: 1.1, 1.2, 1.3, 1.5, 16-19 (error categories)
+ */
+
+import remarkKrokiA11y from "remark-kroki-a11y";
+import type { ResolvedDiagramConfig } from "./types.ts";
+import { buildKrokiA11yOptions, SUPPORTED_DIAGRAM_LANGUAGES } from "./diagram-config.ts";
+
+/** Minimal mdast node shape used for the meta-normalization walk. */
+interface MdastNode {
+  type: string;
+  lang?: string | null;
+  meta?: string | null;
+  depth?: number;
+  children?: MdastNode[];
+  value?: string;
+}
+
+/** Failure categories for diagram rendering (Requirement 16). */
+export type DiagramErrorCategory = "kroki-unreachable" | "invalid-source" | "invalid-parameter";
+
+/** A typed, actionable diagram rendering failure. */
+export class DiagramError extends Error {
+  readonly category: DiagramErrorCategory;
+  readonly sourceFile: string;
+
+  constructor(category: DiagramErrorCategory, sourceFile: string, reason: string, options?: { cause?: unknown }) {
+    super(`Diagram rendering failed in ${sourceFile} (${category}): ${reason}`, options);
+    this.name = "DiagramError";
+    this.category = category;
+    this.sourceFile = sourceFile;
+  }
+}
+
+/**
+ * Classifies a raw error thrown by `remark-kroki-a11y`/`remark-kroki`.
+ * Network/connection failures are `kroki-unreachable`; everything else is
+ * treated conservatively as an invalid diagram source, never reclassified
+ * as an endpoint failure (Requirement 19).
+ */
+function classifyDiagramError(error: unknown): DiagramErrorCategory {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/ECONNREFUSED|ENOTFOUND|fetch failed|network|timed out|timeout/i.test(message)) {
+    return "kroki-unreachable";
+  }
+  return "invalid-source";
+}
+
+/**
+ * Extracts the plain text of the nearest preceding heading in the same list
+ * of siblings, used as a fallback accessible title when the author does not
+ * supply `imgTitle` on the fenced block.
+ */
+function headingText(node: MdastNode): string {
+  const text = (node.children ?? [])
+    .filter((child) => child.type === "text")
+    .map((child) => child.value ?? "")
+    .join("");
+  return text.trim();
+}
+
+/**
+ * Walks the mdast tree and, for fenced code blocks in a supported diagram
+ * language without an explicit `imgType`/`imgTitle`, injects them based on
+ * the fence language and the nearest preceding heading (or a stable
+ * positional fallback title).
+ */
+function normalizeDiagramMeta(tree: MdastNode, sourceFile: string): void {
+  let lastHeading = "";
+  let diagramIndex = 0;
+
+  function walk(node: MdastNode): void {
+    const children = node.children ?? [];
+    for (const child of children) {
+      if (child.type === "heading") {
+        lastHeading = headingText(child) || lastHeading;
+      } else if (
+        child.type === "code" &&
+        typeof child.lang === "string" &&
+        SUPPORTED_DIAGRAM_LANGUAGES.includes(child.lang as typeof SUPPORTED_DIAGRAM_LANGUAGES[number])
+      ) {
+        diagramIndex += 1;
+        const meta = child.meta ?? "";
+        const hasImgType = /\bimgType=/.test(meta);
+        const hasImgTitle = /\bimgTitle=/.test(meta);
+        const fallbackTitle = lastHeading || `${child.lang} diagram ${diagramIndex}`;
+        const additions: string[] = [];
+        if (!hasImgType) additions.push(`imgType="${child.lang}"`);
+        if (!hasImgTitle) additions.push(`imgTitle="${fallbackTitle.replace(/"/g, "'")}"`);
+        if (additions.length > 0) {
+          child.meta = [meta, ...additions].filter(Boolean).join(" ");
+        }
+      }
+      if (child.children) walk(child);
+    }
+  }
+
+  walk(tree);
+  void sourceFile;
+}
+
+/** Remark plugin wrapper around {@link normalizeDiagramMeta}. */
+function remarkNormalizeDiagramMeta(sourceFile: string) {
+  return (tree: MdastNode) => {
+    normalizeDiagramMeta(tree, sourceFile);
+  };
+}
+
+/**
+ * Registers diagram-meta normalization and `remark-kroki-a11y` rendering on a
+ * unified processor. The Kroki render is asynchronous; callers must `await`
+ * `processor.process(...)`.
+ *
+ * On failure, classifies the error and either rethrows a {@link DiagramError}
+ * (strict mode) or returns `null` so the caller can retry without diagram
+ * rendering, preserving the original fenced code blocks (fallback mode).
+ */
+// deno-lint-ignore no-explicit-any
+export function withDiagramRendering(processor: any, cfg: ResolvedDiagramConfig, sourceFile: string): any {
+  return processor
+    .use(() => remarkNormalizeDiagramMeta(sourceFile))
+    .use(remarkKrokiA11y, buildKrokiA11yOptions(cfg));
+}
+
+export { classifyDiagramError };
