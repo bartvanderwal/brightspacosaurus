@@ -48,6 +48,7 @@
       "assets/reader-header.tex",
       "assets/include-filter.lua",
       "assets/diagram-filter.lua",
+      "CHANGELOG.md",
       "docs/user-manual.md",
       "docs/software-guidebook.md",
       "README.md",
