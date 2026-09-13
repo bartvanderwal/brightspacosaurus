@@ -299,7 +299,10 @@ function adaptChildren(
   }
 }
 
-export function rehypeBrightspaceDiagramAdapter() {
+export function rehypeBrightspaceDiagramAdapter(): (
+  tree: HastNode,
+  file?: DiagramAdapterWarningTarget,
+) => void {
   return (tree: HastNode, file?: DiagramAdapterWarningTarget) => {
     const state = { diagramIndex: 0, warnings: [] as string[] };
     adaptChildren(tree, state);
