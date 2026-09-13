@@ -113,6 +113,8 @@ Deno.test("QuizConverter: quiz-2.2-di produceert structureel correcte QTI XML", 
   assertEquals(xml.includes("<questestinterop"), true);
   assertEquals(xml.includes('ident="quiz-les-2-2-di"'), true);
   assertEquals(xml.includes('ident="sectie-les-2-2-di"'), true);
+  assertEquals(xml.includes("<fieldlabel>cc_maxattempts</fieldlabel>"), true);
+  assertEquals(xml.includes("<fieldentry>unlimited</fieldentry>"), true);
 
   // Alle 5 vragen als items
   for (let i = 1; i <= 5; i++) {
@@ -129,6 +131,14 @@ Deno.test("QuizConverter: quiz-2.2-di produceert structureel correcte QTI XML", 
   // Elke vraag heeft 4 antwoordopties
   const responseLabelCount = (xml.match(/<response_label /g) || []).length;
   assertEquals(responseLabelCount, 20, "5 vragen × 4 opties = 20 response_labels");
+});
+
+Deno.test("QuizConverter: maxAttempts is configureerbaar in QTI metadata", () => {
+  const parsed = parseQuizMarkdown(QUIZ_2_2_DI_FIXTURE);
+  const xml = generateQtiXml(parsed, "quiz-les-2-2-di", 5);
+
+  assertEquals(xml.includes("<fieldlabel>cc_maxattempts</fieldlabel>"), true);
+  assertEquals(xml.includes("<fieldentry>5</fieldentry>"), true);
 });
 
 Deno.test("QuizConverter: convertQuiz schrijft QTI XML naar de juiste uitvoermap", async () => {
@@ -156,6 +166,7 @@ Correct antwoord: **B**
       outputDir,
       repoRoot: tempRoot,
       sourcesDir,
+      maxAttempts: 4,
     });
 
     // Bestand moet bestaan
@@ -164,6 +175,9 @@ Correct antwoord: **B**
 
     // Uitvoerpad moet de bronmapstructuur weerspiegelen
     assertEquals(result.outputPath.includes("week-2"), true);
+    const xml = await Deno.readTextFile(result.outputPath);
+    assertEquals(xml.includes("<fieldlabel>cc_maxattempts</fieldlabel>"), true);
+    assertEquals(xml.includes("<fieldentry>4</fieldentry>"), true);
   } finally {
     await removeDir(tempRoot);
   }

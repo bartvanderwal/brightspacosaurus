@@ -33,6 +33,81 @@ function getGroupLabel(href: string): string | null {
   return stripped.substring(0, slashIdx);
 }
 
+function getFileStem(href: string): string {
+  const fileName = href.split("/").pop() ?? href;
+  return fileName.replace(/\.[^.]+$/, "");
+}
+
+function naturalCompare(a: string, b: string): number {
+  return a.localeCompare(b, "nl", { numeric: true, sensitivity: "base" });
+}
+
+function extractNavigationCode(entry: ManifestEntry): number[] | null {
+  const candidates = [
+    entry.title,
+    getFileStem(entry.href).replace(/^qti-/, ""),
+  ];
+
+  for (const candidate of candidates) {
+    const matches = candidate.match(/\d+(?:[.-]\d+)*/g) ?? [];
+    const specific = matches.find((match) => /[.-]/.test(match));
+    const selected = specific ?? matches[0];
+    if (!selected) continue;
+
+    return selected.split(/[.-]/)
+      .map((part) => Number(part))
+      .filter((part) => Number.isFinite(part));
+  }
+
+  return null;
+}
+
+function compareNavigationCodes(
+  a: number[] | null,
+  b: number[] | null,
+): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return -1;
+  if (b === null) return 1;
+
+  const maxLength = Math.max(a.length, b.length);
+  for (let i = 0; i < maxLength; i++) {
+    const diff = (a[i] ?? 0) - (b[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function navigationTypeWeight(entry: ManifestEntry): number {
+  return entry.type === "webcontent" ? 0 : 1;
+}
+
+export function sortManifestEntriesForNavigation(
+  entries: ManifestEntry[],
+): ManifestEntry[] {
+  return [...entries].sort((a, b) => {
+    const groupCompare = naturalCompare(
+      getGroupLabel(a.href) ?? "",
+      getGroupLabel(b.href) ?? "",
+    );
+    if (groupCompare !== 0) return groupCompare;
+
+    const codeCompare = compareNavigationCodes(
+      extractNavigationCode(a),
+      extractNavigationCode(b),
+    );
+    if (codeCompare !== 0) return codeCompare;
+
+    const typeCompare = navigationTypeWeight(a) - navigationTypeWeight(b);
+    if (typeCompare !== 0) return typeCompare;
+
+    const titleCompare = naturalCompare(a.title, b.title);
+    if (titleCompare !== 0) return titleCompare;
+
+    return naturalCompare(a.href, b.href);
+  });
+}
+
 function buildOrganizationItems(entries: ManifestEntry[]): string {
   const groupedEntries = new Map<string, ManifestEntry[]>();
   const readerEntries: ManifestEntry[] = [];
@@ -41,7 +116,10 @@ function buildOrganizationItems(entries: ManifestEntry[]): string {
 
   for (const entry of entries) {
     // Instructor items go into a separate hidden module
-    if (entry.href.startsWith("content/docenten/") || entry.href.startsWith("docenten/")) {
+    if (
+      entry.href.startsWith("content/docenten/") ||
+      entry.href.startsWith("docenten/")
+    ) {
       docentenEntries.push(entry);
       continue;
     }
@@ -64,13 +142,23 @@ function buildOrganizationItems(entries: ManifestEntry[]): string {
     groupedEntries.set(groupLabel, groupEntries);
   }
 
-  const groupItems = [...groupedEntries.entries()].map(([groupLabel, groupEntries]) => {
-    const groupId = "group_" + groupLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-    const childItems = groupEntries.map((entry) => {
-      return `        <item identifier="item_${escapeXml(entry.id)}" identifierref="${escapeXml(entry.id)}">
+  const groupItems = [...groupedEntries.entries()].sort(([a], [b]) =>
+    naturalCompare(a, b)
+  ).map(([groupLabel, groupEntries]) => {
+    const groupId = "group_" +
+      groupLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(
+        /^_|_$/g,
+        "",
+      );
+    const childItems = sortManifestEntriesForNavigation(groupEntries).map(
+      (entry) => {
+        return `        <item identifier="item_${
+          escapeXml(entry.id)
+        }" identifierref="${escapeXml(entry.id)}">
           <title>${escapeXml(entry.title)}</title>
         </item>`;
-    }).join("\n");
+      },
+    ).join("\n");
 
     return `      <item identifier="${escapeXml(groupId)}">
         <title>${escapeXml(groupLabel)}</title>
@@ -79,7 +167,9 @@ ${childItems}
   });
 
   const looseItems = ungroupedEntries.map((entry) => {
-    return `      <item identifier="item_${escapeXml(entry.id)}" identifierref="${escapeXml(entry.id)}">
+    return `      <item identifier="item_${
+      escapeXml(entry.id)
+    }" identifierref="${escapeXml(entry.id)}">
         <title>${escapeXml(entry.title)}</title>
       </item>`;
   });
@@ -88,9 +178,15 @@ ${childItems}
   const readersModule = readerEntries.length > 0
     ? [`      <item identifier="module_readers">
         <title>Readers</title>
-${readerEntries.map((entry) => `        <item identifier="item_${escapeXml(entry.id)}" identifierref="${escapeXml(entry.id)}">
+${
+      readerEntries.map((entry) =>
+        `        <item identifier="item_${
+          escapeXml(entry.id)
+        }" identifierref="${escapeXml(entry.id)}">
           <title>${escapeXml(entry.title)}</title>
-        </item>`).join("\n")}
+        </item>`
+      ).join("\n")
+    }
       </item>`]
     : [];
 
@@ -98,13 +194,20 @@ ${readerEntries.map((entry) => `        <item identifier="item_${escapeXml(entry
   const docentenItems = docentenEntries.length > 0
     ? [`      <item identifier="module_docentenmateriaal">
         <title>Instructor material (hide after import)</title>
-${docentenEntries.map((entry) => `        <item identifier="item_${escapeXml(entry.id)}" identifierref="${escapeXml(entry.id)}">
+${
+      docentenEntries.map((entry) =>
+        `        <item identifier="item_${
+          escapeXml(entry.id)
+        }" identifierref="${escapeXml(entry.id)}">
           <title>${escapeXml(entry.title)}</title>
-        </item>`).join("\n")}
+        </item>`
+      ).join("\n")
+    }
       </item>`]
     : [];
 
-  return [...groupItems, ...looseItems, ...readersModule, ...docentenItems].join("\n");
+  return [...groupItems, ...looseItems, ...readersModule, ...docentenItems]
+    .join("\n");
 }
 
 /**
@@ -117,7 +220,10 @@ ${docentenEntries.map((entry) => `        <item identifier="item_${escapeXml(ent
  * @param entries - Resource entries (HTML web content + QTI assessments)
  * @returns Complete XML string of the manifest
  */
-export function buildManifest(courseTitle: string, entries: ManifestEntry[]): string {
+export function buildManifest(
+  courseTitle: string,
+  entries: ManifestEntry[],
+): string {
   // All entries go into the navigation structure: HTML lessons and QTI quizzes per week.
   // Brightspace imports QTI items both as assessments and as content items in the menu.
   const contentEntries = entries;
@@ -129,7 +235,9 @@ export function buildManifest(courseTitle: string, entries: ManifestEntry[]): st
         fileElements.push(`      <file href="${escapeXml(dep)}"/>`);
       }
     }
-    return `    <resource identifier="${escapeXml(entry.id)}" type="${escapeXml(entry.type)}" href="${escapeXml(entry.href)}">
+    return `    <resource identifier="${escapeXml(entry.id)}" type="${
+      escapeXml(entry.type)
+    }" href="${escapeXml(entry.href)}">
 ${fileElements.join("\n")}
     </resource>`;
   }).join("\n");
@@ -149,7 +257,9 @@ ${fileElements.join("\n")}
     <lomimscc:lom>
       <lomimscc:general>
         <lomimscc:title>
-          <lomimscc:string language="nl-NL">${escapeXml(courseTitle)}</lomimscc:string>
+          <lomimscc:string language="nl-NL">${
+    escapeXml(courseTitle)
+  }</lomimscc:string>
         </lomimscc:title>
       </lomimscc:general>
     </lomimscc:lom>

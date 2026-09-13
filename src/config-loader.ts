@@ -10,7 +10,8 @@ import type {
   CliOverrides,
   ResolvedConfig,
   ResolvedDiagramConfig,
-  ResolvedDocentenConfig,
+  ResolvedQuizConfig,
+  ResolvedTeacherManualConfig,
 } from "./types.ts";
 
 /** Allowed values for the `diagrams.output` field. */
@@ -29,9 +30,12 @@ export const EXAMPLE_CONFIG = `{
   "readersDir": "bronmateriaal/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "scripts/docusaurus",
-  "docentenHandleiding": {
+  "teacherManual": {
     "inputFiles": ["docs/handleiding.md"],
     "outputName": "docentenhandleiding.pdf"
+  },
+  "quiz": {
+    "maxAttempts": 0
   },
   "diagrams": {
     "krokiUrl": "https://kroki.io",
@@ -94,7 +98,9 @@ export async function loadConfig(configPath: string): Promise<BsoConfig> {
     parsed = JSON.parse(content);
   } catch (e) {
     throw new Error(
-      `Invalid JSON in configuration file ${configPath}: ${(e as Error).message}`,
+      `Invalid JSON in configuration file ${configPath}: ${
+        (e as Error).message
+      }`,
     );
   }
 
@@ -119,10 +125,34 @@ export function validateConfig(config: unknown): config is BsoConfig {
 
   const obj = config as Record<string, unknown>;
 
+  const allowedTopLevelFields = new Set([
+    "courseName",
+    "version",
+    "sourcesDir",
+    "readersDir",
+    "assetsDir",
+    "outputDir",
+    "customCss",
+    "name",
+    "docusaurusDir",
+    "teacherManual",
+    "quiz",
+    "diagrams",
+  ]);
+  for (const field of Object.keys(obj)) {
+    if (!allowedTopLevelFields.has(field)) {
+      throw new Error(
+        `Unknown configuration field '${field}'.`,
+      );
+    }
+  }
+
   // Required fields
   const requiredFields = ["courseName", "version", "sourcesDir"] as const;
   for (const field of requiredFields) {
-    if (typeof obj[field] !== "string" || (obj[field] as string).trim() === "") {
+    if (
+      typeof obj[field] !== "string" || (obj[field] as string).trim() === ""
+    ) {
       throw new Error(
         `Required field '${field}' is missing or empty in the configuration file.`,
       );
@@ -146,39 +176,66 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
   }
 
-  // Validate docentenHandleiding if it is present
-  if (obj.docentenHandleiding !== undefined) {
+  // Validate teacherManual if it is present
+  if (obj.teacherManual !== undefined) {
     if (
-      typeof obj.docentenHandleiding !== "object" ||
-      obj.docentenHandleiding === null ||
-      Array.isArray(obj.docentenHandleiding)
+      typeof obj.teacherManual !== "object" ||
+      obj.teacherManual === null ||
+      Array.isArray(obj.teacherManual)
     ) {
       throw new Error(
-        "Field 'docentenHandleiding' must be an object.",
+        "Field 'teacherManual' must be an object.",
       );
     }
 
-    const dh = obj.docentenHandleiding as Record<string, unknown>;
+    const dh = obj.teacherManual as Record<string, unknown>;
     if (!Array.isArray(dh.inputFiles) || dh.inputFiles.length === 0) {
       throw new Error(
-        "Field 'docentenHandleiding.inputFiles' must be a non-empty array of strings.",
+        "Field 'teacherManual.inputFiles' must be a non-empty array of strings.",
       );
     }
     for (const file of dh.inputFiles) {
       if (typeof file !== "string") {
         throw new Error(
-          "All items in 'docentenHandleiding.inputFiles' must be strings.",
+          "All items in 'teacherManual.inputFiles' must be strings.",
         );
       }
     }
     if (dh.outputName !== undefined && typeof dh.outputName !== "string") {
       throw new Error(
-        "Field 'docentenHandleiding.outputName' must be a string if it is provided.",
+        "Field 'teacherManual.outputName' must be a string if it is provided.",
       );
     }
     if (dh.outputDir !== undefined && typeof dh.outputDir !== "string") {
       throw new Error(
-        "Field 'docentenHandleiding.outputDir' must be a string if it is provided.",
+        "Field 'teacherManual.outputDir' must be a string if it is provided.",
+      );
+    }
+  }
+
+  // Validate quiz settings if present
+  if (obj.quiz !== undefined) {
+    if (
+      typeof obj.quiz !== "object" ||
+      obj.quiz === null ||
+      Array.isArray(obj.quiz)
+    ) {
+      throw new Error(
+        "Field 'quiz' must be an object.",
+      );
+    }
+
+    const quiz = obj.quiz as Record<string, unknown>;
+    if (
+      quiz.maxAttempts !== undefined &&
+      (
+        typeof quiz.maxAttempts !== "number" ||
+        !Number.isInteger(quiz.maxAttempts) ||
+        quiz.maxAttempts < 0
+      )
+    ) {
+      throw new Error(
+        "Field 'quiz.maxAttempts' must be a non-negative integer if it is provided.",
       );
     }
   }
@@ -214,14 +271,21 @@ export function validateConfig(config: unknown): config is BsoConfig {
 
     if (
       diagrams.output !== undefined &&
-      !DIAGRAM_OUTPUT_VALUES.includes(diagrams.output as typeof DIAGRAM_OUTPUT_VALUES[number])
+      !DIAGRAM_OUTPUT_VALUES.includes(
+        diagrams.output as typeof DIAGRAM_OUTPUT_VALUES[number],
+      )
     ) {
       throw new Error(
-        `Field 'diagrams.output' must be one of: ${DIAGRAM_OUTPUT_VALUES.join(", ")}.`,
+        `Field 'diagrams.output' must be one of: ${
+          DIAGRAM_OUTPUT_VALUES.join(", ")
+        }.`,
       );
     }
 
-    if (diagrams.failOnError !== undefined && typeof diagrams.failOnError !== "boolean") {
+    if (
+      diagrams.failOnError !== undefined &&
+      typeof diagrams.failOnError !== "boolean"
+    ) {
       throw new Error(
         "Field 'diagrams.failOnError' must be a boolean if it is provided.",
       );
@@ -249,6 +313,17 @@ const DEFAULT_DIAGRAM_CONFIG: ResolvedDiagramConfig = {
   failOnError: true,
   locale: "nl",
 };
+
+/** Default quiz settings. */
+const DEFAULT_QUIZ_CONFIG: ResolvedQuizConfig = {
+  maxAttempts: 0,
+};
+
+function resolveQuizConfig(config: BsoConfig): ResolvedQuizConfig {
+  return {
+    maxAttempts: config.quiz?.maxAttempts ?? DEFAULT_QUIZ_CONFIG.maxAttempts,
+  };
+}
 
 /**
  * Resolves the optional `diagrams` config, filling in defaults for any
@@ -310,16 +385,17 @@ export function resolveConfig(
     ? resolve(repoRoot, config.docusaurusDir)
     : null;
 
-  // docentenHandleiding: resolves to absolute paths if present
-  let docentenHandleiding: ResolvedDocentenConfig | null = null;
-  if (config.docentenHandleiding) {
-    const dh = config.docentenHandleiding;
-    docentenHandleiding = {
+  // teacherManual: resolves to absolute paths if present
+  let teacherManual: ResolvedTeacherManualConfig | null = null;
+  if (config.teacherManual) {
+    const dh = config.teacherManual;
+    teacherManual = {
       inputFiles: dh.inputFiles.map((f) => resolve(repoRoot, f)),
       outputName: dh.outputName ?? "docentenhandleiding.pdf",
       outputDir: resolve(
         repoRoot,
-        dh.outputDir ?? join(config.outputDir ?? "build/brightspace", "docenten"),
+        dh.outputDir ??
+          join(config.outputDir ?? "build/brightspace", "docenten"),
       ),
     };
   }
@@ -334,7 +410,8 @@ export function resolveConfig(
     customCss,
     name,
     docusaurusDir,
-    docentenHandleiding,
+    teacherManual,
+    quiz: resolveQuizConfig(config),
     diagrams: resolveDiagramsConfig(config),
     repoRoot,
   };
@@ -368,7 +445,8 @@ export function resolveFromCliOnly(
     customCss: null,
     name: "course",
     docusaurusDir: null,
-    docentenHandleiding: null,
+    teacherManual: null,
+    quiz: { ...DEFAULT_QUIZ_CONFIG },
     diagrams: { ...DEFAULT_DIAGRAM_CONFIG },
     repoRoot,
   };

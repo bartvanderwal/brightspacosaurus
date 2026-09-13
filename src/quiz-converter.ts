@@ -31,6 +31,8 @@ export interface QuizConvertOptions {
   repoRoot: string;
   /** Source directory for relative path calculation. */
   sourcesDir: string;
+  /** Maximum number of attempts for the generated Brightspace quiz. 0 means unlimited. */
+  maxAttempts?: number;
 }
 
 /** Result of the quiz conversion. */
@@ -142,6 +144,10 @@ function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
+function formatBrightspaceMaxAttempts(maxAttempts: number): string {
+  return maxAttempts === 0 ? "unlimited" : String(maxAttempts);
+}
+
 /**
  * Generates a quiz ident based on the file name.
  * E.g. "quiz-2.2-di-vragen-en-antwoorden.md" → "quiz-les-2-2-di"
@@ -160,7 +166,7 @@ export function deriveQuizIdent(filename: string): string {
 /**
  * Generates QTI 1.2 XML from a parsed quiz.
  */
-export function generateQtiXml(quiz: ParsedQuiz, ident: string): string {
+export function generateQtiXml(quiz: ParsedQuiz, ident: string, maxAttempts = 0): string {
   const sectionIdent = `sectie-${ident.replace(/^quiz-/, "")}`;
 
   let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
@@ -174,6 +180,10 @@ export function generateQtiXml(quiz: ParsedQuiz, ident: string): string {
   xml += `      <qtimetadatafield>\n`;
   xml += `        <fieldlabel>qmd_assessmenttype</fieldlabel>\n`;
   xml += `        <fieldentry>Examination</fieldentry>\n`;
+  xml += `      </qtimetadatafield>\n`;
+  xml += `      <qtimetadatafield>\n`;
+  xml += `        <fieldlabel>cc_maxattempts</fieldlabel>\n`;
+  xml += `        <fieldentry>${formatBrightspaceMaxAttempts(maxAttempts)}</fieldentry>\n`;
   xml += `      </qtimetadatafield>\n`;
   xml += `    </qtimetadata>\n\n`;
   xml += `    <section ident="${escapeXml(sectionIdent)}">\n`;
@@ -256,7 +266,7 @@ export async function convertQuiz(options: QuizConvertOptions): Promise<QuizConv
   const relFromSource = relative(resolvedSourcesDir, dirname(sourcePath));
 
   // Generate QTI XML
-  const qtiXml = generateQtiXml(quiz, ident);
+  const qtiXml = generateQtiXml(quiz, ident, options.maxAttempts ?? 0);
 
   // Write to output directory
   const outputSubDir = join(outputDir, relFromSource);

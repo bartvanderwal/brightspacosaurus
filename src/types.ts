@@ -41,6 +41,8 @@ export interface ConvertOptions {
   customCssPath?: string;
   /** Basismap waartegen het output-pad relatief wordt bepaald. Standaard: repoRoot. Gebruik sourcesDir om diepe repo-structuren af te vlakken. */
   baseDir?: string;
+  /** Definitieve diagram-instellingen voor HTML-diagramrendering. */
+  diagrams?: ResolvedDiagramConfig;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */
@@ -122,10 +124,18 @@ export interface BsoConfig {
   name?: string;
   /** Path to the Docusaurus directory for `bso preview` (relative to Repo_Root). Optional. */
   docusaurusDir?: string;
-  /** Configuratie voor docentenhandleiding-generatie. Optioneel. */
-  docentenHandleiding?: DocentenHandleidingConfig;
+  /** Configuration for instructor manual generation. Optional. */
+  teacherManual?: TeacherManualConfig;
+  /** Configuratie voor gegenereerde quizzen/toetsen. Optioneel. */
+  quiz?: QuizConfig;
   /** Configuratie voor diagramrendering (PlantUML/Mermaid via Kroki). Optioneel. */
   diagrams?: DiagramsConfig;
+}
+
+/** Configuratie voor gegenereerde Brightspace quizzen/toetsen. */
+export interface QuizConfig {
+  /** Maximum aantal pogingen per gegenereerde toets. 0 betekent onbeperkt. Standaard: 0. */
+  maxAttempts?: number;
 }
 
 /**
@@ -141,8 +151,8 @@ export interface DiagramsConfig {
   failOnError?: boolean;
 }
 
-/** Configuratie voor de docentenhandleiding-PDF-generatie. */
-export interface DocentenHandleidingConfig {
+/** Configuration for instructor manual PDF generation. */
+export interface TeacherManualConfig {
   /** Lijst van Markdown-bronbestanden (relatief aan Repo_Root). */
   inputFiles: string[];
   /** Bestandsnaam voor de output-PDF (zonder pad). */
@@ -174,8 +184,10 @@ export interface ResolvedConfig {
   name: string;
   /** Absolute path to the Docusaurus directory. null = preview not configured. */
   docusaurusDir: string | null;
-  /** Docentenhandleiding-configuratie met absolute paden. null = overslaan. */
-  docentenHandleiding: ResolvedDocentenConfig | null;
+  /** Instructor manual configuration with absolute paths. null = skip. */
+  teacherManual: ResolvedTeacherManualConfig | null;
+  /** Definitieve quizinstellingen. */
+  quiz: ResolvedQuizConfig;
   /** Definitieve diagram-instellingen (altijd ingevuld met defaults). */
   diagrams: ResolvedDiagramConfig;
   /** Absoluut pad naar Repo_Root. */
@@ -197,8 +209,14 @@ export interface ResolvedDiagramConfig {
   locale: "nl" | "en";
 }
 
-/** Opgeloste docentenhandleiding-configuratie met absolute paden. */
-export interface ResolvedDocentenConfig {
+/** Opgeloste quizconfiguratie. */
+export interface ResolvedQuizConfig {
+  /** Maximum aantal pogingen per gegenereerde toets. 0 betekent onbeperkt. */
+  maxAttempts: number;
+}
+
+/** Resolved instructor manual configuration with absolute paths. */
+export interface ResolvedTeacherManualConfig {
   /** Absolute paden naar de Markdown-bronbestanden. */
   inputFiles: string[];
   /** Bestandsnaam voor de output-PDF. */
@@ -213,7 +231,7 @@ export interface CliOverrides {
   sources?: string;
   /** Override voor outputDir/outputPath (via `--output`). */
   output?: string;
-  /** Alleen readers en docentenhandleiding genereren (via `--readers-only`). */
+  /** Generate only readers and the instructor manual (via `--readers-only`). */
   readersOnly?: boolean;
   /** Expliciet pad naar configuratiebestand (via `--config`). */
   config?: string;

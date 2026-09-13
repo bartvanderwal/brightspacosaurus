@@ -47,7 +47,8 @@ async function fileExists(path: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "Property 1: PDF-conversie produceert uitvoer op juiste pad met correcte naamgeving",
+  name:
+    "Property 1: PDF-conversie produceert uitvoer op juiste pad met correcte naamgeving",
   ignore: !pandocAvailable(),
   permissions: { run: true, read: true, write: true },
   fn: async () => {
@@ -60,7 +61,7 @@ Deno.test({
     await fc.assert(
       fc.asyncProperty(
         // Genereer willekeurige geldige reader-bestandsnamen: reader- + slug + .md
-        fc.stringMatching(/^[a-z][a-z0-9-]{1,20}$/).map(
+        fc.stringMatching(/^[a-z](?:[a-z0-9-]{0,18}[a-z0-9])$/).map(
           (slug) => `reader-${slug}.md`,
         ),
         async (readerFilename) => {
@@ -133,7 +134,8 @@ Deno.test({
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "Property 3: Foutrapportage — niet-bestaand bronbestand gooit fout met bronpad",
+  name:
+    "Property 3: Foutrapportage — niet-bestaand bronbestand gooit fout met bronpad",
   ignore: !pandocAvailable(),
   permissions: { run: true, read: true, write: true },
   fn: async () => {
@@ -181,7 +183,9 @@ Deno.test({
             assertEquals(
               thrownError!.message.includes(nonExistentSource),
               true,
-              `Foutmelding moet het bronpad bevatten. Foutmelding was: ${thrownError!.message}`,
+              `Foutmelding moet het bronpad bevatten. Foutmelding was: ${
+                thrownError!.message
+              }`,
             );
 
             // Controleer dat er geen PDF-bestand is achtergelaten
@@ -202,7 +206,8 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Property 3: Foutrapportage — ongeldig Markdown met ongeldige LaTeX laat geen PDF achter",
+  name:
+    "Property 3: Foutrapportage — ongeldig Markdown met ongeldige LaTeX laat geen PDF achter",
   ignore: !pandocAvailable(),
   permissions: { run: true, read: true, write: true },
   fn: async () => {
@@ -268,7 +273,9 @@ Deno.test({
             assertEquals(
               thrownError!.message.includes(sourcePath),
               true,
-              `Foutmelding moet het bronpad bevatten. Foutmelding was: ${thrownError!.message}`,
+              `Foutmelding moet het bronpad bevatten. Foutmelding was: ${
+                thrownError!.message
+              }`,
             );
 
             // Controleer dat er geen PDF-bestand is achtergelaten

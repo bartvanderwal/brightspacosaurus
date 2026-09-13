@@ -5,16 +5,15 @@
  *
  * **Validates: Requirements 2.2, 2.3, 2.5**
  *
- * NB: De mapping van de opgeloste config naar remark-kroki-opties
- * (`server`/`output` via `buildKrokiA11yOptions`) wordt in Taak 3 geïmplementeerd
- * (`src/diagram-config.ts` bestaat nog niet). Deze test dekt daarom UITSLUITEND
- * het `resolveConfig`-gedrag (default-invulling en URL-behoud). Taak 3 kan deze
- * test uitbreiden met de `server`/`output`-mapping-assertions.
+ * NB: `remark-kroki-a11y@0.6.x` gebruikt publiek nog `kroki.krokiBase`;
+ * BSO exposeert daarnaast `kroki.server` als alias voor de onderliggende
+ * `remark-kroki`-optienaam zodat preview/config-pariteit testbaar blijft.
  */
 
 import { assertEquals } from "@std/assert";
 import fc from "fast-check";
 import { resolveConfig } from "../src/config-loader.ts";
+import { buildKrokiA11yOptions } from "../src/diagram-config.ts";
 import type { BsoConfig } from "../src/types.ts";
 
 const REPO_ROOT = "/repo";
@@ -24,7 +23,9 @@ const REPO_ROOT = "/repo";
 // ---------------------------------------------------------------------------
 
 /** Verplichte niet-lege config-string (courseName/version/sourcesDir). */
-const requiredStringArb = fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9 ._/-]{0,30}$/);
+const requiredStringArb = fc.stringMatching(
+  /^[A-Za-z0-9][A-Za-z0-9 ._/-]{0,30}$/,
+);
 
 /** Een geldige Kroki-URL. */
 const validUrlArb = fc.oneof(
@@ -113,11 +114,20 @@ Deno.test({
         if (config.diagrams?.failOnError === undefined) {
           assertEquals(resolved.diagrams.failOnError, true);
         } else {
-          assertEquals(resolved.diagrams.failOnError, config.diagrams.failOnError);
+          assertEquals(
+            resolved.diagrams.failOnError,
+            config.diagrams.failOnError,
+          );
         }
 
         // locale is (nog) niet user-facing en is altijd 'nl'
         assertEquals(resolved.diagrams.locale, "nl");
+
+        const options = buildKrokiA11yOptions(resolved.diagrams);
+        assertEquals(options.kroki.krokiBase, resolved.diagrams.krokiUrl);
+        assertEquals(options.kroki.server, resolved.diagrams.krokiUrl);
+        assertEquals(options.kroki.output, resolved.diagrams.output);
+        assertEquals(options.showDiagramModeToggle, false);
       }),
       { numRuns: 100 },
     );

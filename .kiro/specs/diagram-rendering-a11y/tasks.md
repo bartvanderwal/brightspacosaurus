@@ -54,8 +54,8 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - Test: niet-object `diagrams`, niet-parseerbare `krokiUrl`, ongeldige `output`-waarde, niet-boolean `failOnError` geven een duidelijke fout.
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 3. Diagram-config-mappingmodule (`src/diagram-config.ts`)
-  - [ ] 3.1 Implementeer `buildKrokiA11yOptions` en `ResolvedDiagramConfig`
+- [x] 3. Diagram-config-mappingmodule (`src/diagram-config.ts`)
+  - [x] 3.1 Implementeer `buildKrokiA11yOptions` en `ResolvedDiagramConfig`
     - Definieer `ResolvedDiagramConfig` (`krokiUrl`, `output`, `failOnError`, `locale`) en `buildKrokiA11yOptions(cfg)` die BSO-config naar plugin-/remark-kroki-opties (`KrokiA11yOptions`) mapt.
     - Map naar de echte `show-docs/remark-kroki`-optienamen: `krokiUrl` → `server`, `output` → `output` (standaard `img-html-base64`), plus `target`, `headers` en `alias` (valt terug op `languages`) waar van toepassing; zet `showDiagramModeToggle: false` (no-JS Brightspace).
     - Behandel `lang`, `imgRefDir` en `imgDir` als legacy/ongebruikt: niet doorgeven aan de backend (base64-embedding schrijft geen SVG's naar schijf), hooguit legacy-tolerant accepteren.
@@ -63,21 +63,21 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - Exporteer deze functie zodat zowel BSO als de Docusaurus-preview dezelfde bron gebruiken (dev/prod-pariteit).
     - _Requirements: 3.1, 5.5, 6.1, 6.4, 11.2_
 
-  - [ ]* 3.2 Schrijf unit tests voor de config-mapping
+  - [x]* 3.2 Schrijf unit tests voor de config-mapping
     - Test: `krokiUrl` landt in `server`; `output` landt in `output` (default `img-html-base64`); `showDiagramModeToggle` is `false`.
     - Test: `lang`/`imgRefDir`/`imgDir` worden als legacy behandeld en niet als actieve backend-opties doorgegeven.
     - Test: nl- en en-locale leveren de juiste `summaryText`/`a11ySummaryText`-templates met intacte `{type}`/`{title}`-placeholders.
     - _Requirements: 3.1, 5.5, 11.2_
 
-- [ ] 4. Diagram-rendering-integratie (`src/diagram-renderer.ts` + wiring in `src/markdown-converter.ts`)
+- [x] 4. Diagram-rendering-integratie (`src/diagram-renderer.ts` + wiring in `src/markdown-converter.ts`)
   - Route (uit spike taak 1, GO → Optie A): registreer `remark-kroki-a11y` **in-process** in de BSO unified-pipeline; geen Node-subproces (Optie B is niet nodig). Zie `spike/diagram-rendering-a11y/FINDINGS.md`.
-  - [ ] 4.0 Voeg dependencies en permissions toe (uit spike-bevindingen)
+  - [x] 4.0 Voeg dependencies en permissions toe (uit spike-bevindingen)
     - Voeg aan `deno.json` `imports` toe: `"remark-kroki-a11y": "npm:remark-kroki-a11y@^0.6.2"` en `"rehype-raw": "npm:rehype-raw@^7.0.0"` (Deno gebruikt `imports`, niet `dependencies`). Importeer in de code statisch via de bare specifier (bijv. `import remarkKrokiA11y from "remark-kroki-a11y";`), consistent met de bestaande `unified`/`remark-*`-imports.
     - `rehype-raw` is VEREIST: de plugin injecteert raw-HTML-nodes; zonder `rehype-raw` (met `remark-rehype({ allowDangerousHtml: true })` → `rehype-raw` → `rehype-stringify({ allowDangerousHtml: true })`) verschijnen die niet in de output.
     - Breid de `deno task prepare` in `deno.json` uit met `--allow-net` (Kroki is een netwerkaanroep). Overweeg scoping (bijv. `--allow-net=kroki.io`), maar houd rekening met self-hosted endpoints uit de config. `--allow-env` is al aanwezig (de plugin leest `KROKI_BASE_URL`). Overweeg `--node-modules-dir` voor betrouwbare CJS-resolutie.
     - _Requirements: 1.1, 1.2, 2.1_
 
-  - [ ] 4.1 Implementeer `withDiagramRendering(processor, cfg)` in `src/diagram-renderer.ts`
+  - [x] 4.1 Implementeer `withDiagramRendering(processor, cfg)` in `src/diagram-renderer.ts`
     - Registreer `remark-kroki-a11y` als remark-stap (vóór `remark-rehype`) in-process, geconfigureerd via `buildKrokiA11yOptions`.
     - Geef `languages: ['plantuml', 'mermaid', 'kroki']` mee: de plugin transformeert alléén fenced blocks waarvan de taal in `languages` staat (default is enkel `kroki`). De plugin mapt `alias = languages.filter(l => l !== 'kroki')` naar `remark-kroki`.
     - Zorg dat BSO per diagram de fence-meta `imgType="plantuml"|"mermaid"` (bepaalt de natuurlijketaal-beschrijving-parser) en `imgTitle="..."` (voedt de toegankelijke naam) levert — bijv. `imgType` afleiden uit de fence-taal en `imgTitle` uit een titelconventie.
@@ -85,18 +85,18 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - De Kroki-render is async: zorg dat de pipeline de Promise correct doorgeeft/awaiten kan (consumers roepen de pipeline asynchroon aan).
     - _Requirements: 1.1, 1.2, 1.3, 1.5_
 
-  - [ ] 4.2 Wire de diagramrendering in `src/markdown-converter.ts`
+  - [x] 4.2 Wire de diagramrendering in `src/markdown-converter.ts`
     - Roep `withDiagramRendering` aan op de bestaande gedeelde `unified()`-processor met de opgeloste `diagrams`-config; verwerk de pipeline asynchroon (await), omdat de Kroki-render een async netwerkaanroep is.
     - Zorg dat codeblokken met een niet-ondersteunde taalaanduiding ongewijzigd als codeblok in de HTML blijven.
     - _Requirements: 1.1, 1.2, 1.4_
 
-  - [ ]* 4.3 Schrijf property test voor pass-through van niet-diagram-codeblokken
+  - [x]* 4.3 Schrijf property test voor pass-through van niet-diagram-codeblokken
     - **Property 5: Pass-through van niet-diagram-codeblokken** — Voor elk codeblok waarvan de taalaanduiding geen ondersteund diagramtype is, blijft het blok ongewijzigd in de HTML-output.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 5`.
     - **Validates: Requirements 1.4**
 
-- [ ] 5. No-JS Brightspace-output via het juiste `remark-kroki-a11y`-integratiepunt (`src/diagram-adapter.ts`)
-  - [ ] 5.1 Zoek het juiste `remark-kroki-a11y`-integratiepunt en hergebruik de bestaande `<details>`/`<summary>`-HTML
+- [x] 5. No-JS Brightspace-output via het juiste `remark-kroki-a11y`-integratiepunt (`src/diagram-adapter.ts`)
+  - [x] 5.1 Zoek het juiste `remark-kroki-a11y`-integratiepunt en hergebruik de bestaande `<details>`/`<summary>`-HTML
     - Zoek eerst uit welk plugin-punt de gewenste output levert ZONDER de React/JS-tab-HTML te hoeven strippen: de plugin genereert al een native `<details>`/`<summary>`-blok met de broncode en (via de a11y-kern) de natuurlijketaal-beschrijving. Voorkeur: die HTML direct hergebruiken.
     - Voorkeursroute: configureer de plugin zo (bijv. `showDiagramModeToggle: false` en de non-tab/native `<details>`-variant) dat de output al no-JS is; dan is er geen naverwerking nodig. Als er tóch een plugin-optie/functie is die alleen de natuurlijketaal-beschrijving teruggeeft, gebruik die als schoon integratiepunt.
     - Alleen als geen enkel plugin-punt de no-JS-vorm rechtstreeks geeft: pas een MINIMALE naverwerking toe die de JS-tab-bekabeling weglaat, en hergebruik het bestaande `<details>`/`<summary>`-blok in plaats van het opnieuw op te bouwen. Documenteer welke route gekozen is (afhankelijk van de spike, taak 1).
@@ -107,43 +107,43 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - Ken deterministische, stabiele id's toe (content-hash of bronbestand+diagramindex) via `ctx.makeId` (Beslissing 2). Dit blijft hergebruik van de plugin-output, geen herimplementatie van de beschrijvings-/labellogica.
     - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 4.5, 8.3, 11.3, 11.4, 1.6, 9.6_
 
-  - [ ]* 5.2 Schrijf property test voor no-JS output
+  - [x]* 5.2 Schrijf property test voor no-JS output
     - **Property 1: No-JS output** — Voor elk gerenderd diagram bevat de HTML geen `<script>` dat nodig is om diagram of disclosure te laten werken; disclosures zijn native `<details>`/`<summary>`. Kroki gemockt.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 1`.
     - **Validates: Requirements 1.3, 4.3, 5.4, 9.5**
 
-  - [ ]* 5.3 Schrijf property test voor deterministische output (double-run)
+  - [x]* 5.3 Schrijf property test voor deterministische output (double-run)
     - **Property 2: Deterministische output** — Voor elke diagram-broninhoud levert tweemaal verwerken (incl. ARIA-id-toekenning) byte-identieke HTML op. Kroki gemockt.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 2`.
     - **Validates: Requirements 1.6, 9.6**
 
-  - [ ]* 5.4 Schrijf property test voor ARIA-relaties (outputmodus-afhankelijk)
+  - [x]* 5.4 Schrijf property test voor ARIA-relaties (outputmodus-afhankelijk)
     - **Property 3: ARIA-relaties (outputmodus-afhankelijk)** — Voor elk gerenderd diagram geldt: standaardmodus (`img-html-base64`) → het `<img>` heeft een niet-lege `alt` en (indien beschrijving aanwezig) een `aria-describedby` naar het `id` van het beschrijvingselement; `inline-svg`-modus → het `<svg>` heeft `role="img"`, een `aria-labelledby` naar een `<title>` met dezelfde `id`, en (indien beschrijving aanwezig) een `aria-describedby` naar het beschrijvingselement.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 3`.
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 8.3**
 
-  - [ ]* 5.5 Schrijf property test voor de disclosure-structuur
+  - [x]* 5.5 Schrijf property test voor de disclosure-structuur
     - **Property 4: Disclosure-structuur** — Voor elk gerenderd diagram bevat de output een broncode-`<details>` gelijk aan de originele broncode, (indien beschrijving) een beschrijving-`<details>`/`<summary>` met tekstuele inhoud (geen `<img>`), en heeft elke `<details>` een niet-lege `<summary>`.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 4`.
     - **Validates: Requirements 4.1, 4.2, 4.4, 5.2**
 
-- [ ] 6. Checkpoint — Rendering en adaptatie valideren
+- [x] 6. Checkpoint — Rendering en adaptatie valideren
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Herbruikbare validatiemodule (`src/diagram-validation.ts`)
-  - [ ] 7.1 Implementeer `detectDiagramIssues(markdown, sourceFile)`
+- [x] 7. Herbruikbare validatiemodule (`src/diagram-validation.ts`)
+  - [x] 7.1 Implementeer `detectDiagramIssues(markdown, sourceFile)`
     - Detecteer statisch (zonder Kroki-aanroep): niet-ondersteunde talen, onbekende fence-opties, ongeldige/niet-lokale `src=`, lege diagramblokken en afgewezen optiewaarden.
     - Retourneer getypeerde `DiagramIssue[]` (met `kind`, `sourceFile`, `position?`, `diagramTitle?`, `message`).
     - Zet de functie zo op dat ze onafhankelijk van de render-stap aanroepbaar is, zodat een toekomstige `bso lint` (#11) haar kan hergebruiken. Implementeer `bso lint` NIET.
     - _Requirements: 13.1, 13.2, 13.3, 12.2_
 
-  - [ ]* 7.2 Schrijf property test voor statische parameterdetectie
+  - [x]* 7.2 Schrijf property test voor statische parameterdetectie
     - **Property 7: Statische parameterdetectie** — Voor elk diagram-codeblok met een onbekende fence-optie of ongeldige `src=` retourneert `detectDiagramIssues` een `invalid-parameter`/`invalid-src`-issue dat bronbestand en parameter identificeert; bij uitsluitend geldige opties geen parameterissue.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 7`.
     - **Validates: Requirements 12.2**
 
-- [ ] 8. Foutafhandeling en foutmodel (`src/diagram-renderer.ts` / gedeeld)
-  - [ ] 8.1 Implementeer `DiagramError` en de foutbeslissing
+- [x] 8. Foutafhandeling en foutmodel (`src/diagram-renderer.ts` / gedeeld)
+  - [x] 8.1 Implementeer `DiagramError` en de foutbeslissing
     - Definieer `DiagramError` met `category` (`kroki-unreachable` | `invalid-source` | `invalid-parameter`), `sourceFile`, `diagram` (positie/titel) en `reason`.
     - Standaard (`failOnError: true`): laat de build falen (fail-fast, niet-nul exitcode) met een beschrijvende melding die bronbestand + diagram + reden identificeert.
     - `failOnError: false`: schaal af naar een waarschuwing + fallback (oorspronkelijk codeblok behouden) en zet de build voort.
@@ -151,66 +151,67 @@ Scope: uitsluitend de HTML/Brightspace-route. De PDF/reader-route (`reader-pdf-c
     - Behandel "geen beschrijving genereerbaar" als waarschuwing (geen fout): render alsnog met naam + broncode-disclosure.
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 2.6, 2.7, 5.3_
 
-  - [ ]* 8.2 Schrijf property test voor de foutbeslissing (fail vs. fallback)
+  - [x]* 8.2 Schrijf property test voor de foutbeslissing (fail vs. fallback)
     - **Property 8: Foutbeslissing** — Voor elke combinatie van `DiagramError`-categorie en `failOnError`: bij `true` een echte buildfout (throw/niet-nul exit); bij `false` een waarschuwing met fallback zonder de build te stoppen.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 8`.
     - **Validates: Requirements 12.3, 12.4, 12.6**
 
-  - [ ]* 8.3 Schrijf property test voor auteurfout-categorisatie
+  - [x]* 8.3 Schrijf property test voor auteurfout-categorisatie
     - **Property 9: Auteurfout-categorisatie onafhankelijk van bereikbaarheid** — Voor elke auteurfout-invoer is de categorie `invalid-source` of `invalid-parameter` en nooit `kroki-unreachable`, ongeacht Kroki-bereikbaarheid.
     - fast-check, ≥100 iteraties; tag `// Feature: diagram-rendering-a11y, Property 9`.
     - **Validates: Requirements 12.5**
 
-- [ ] 9. Optionele a11y-styling asset (indien nodig)
-  - [ ] 9.1 Voeg `assets/diagram-a11y.css` toe en injecteer via `wrapHtml()`
+- [x] 9. Optionele a11y-styling asset (indien nodig)
+  - [x] 9.1 Voeg `assets/diagram-a11y.css` toe en injecteer via `wrapHtml()`
     - Als extra no-JS-styling voor de `<details>`/`<summary>`-disclosures nodig blijkt: maak `assets/diagram-a11y.css`.
     - Laad de asset via `loadAssetText("diagram-a11y.css")` in `src/assets.ts` — nooit via `import.meta.url` + `Deno.readTextFile()`.
     - Voeg de inhoud toe aan het bestaande `<style>`-blok in `wrapHtml()` van `src/markdown-converter.ts`.
     - Voeg `assets/diagram-a11y.css` toe aan `publish.include` in `deno.json` (JSR-asset-regel).
     - _Requirements: 4.1, 4.3_
+    - **DONE:** fixture review showed the existing `details`/`summary` CSS is sufficient, so no extra asset or publish entry was needed.
 
-- [ ] 10. Docusaurus-preview-configuratie (dev/prod-pariteit)
-  - [ ] 10.1 Configureer `remark-kroki-a11y` in de Docusaurus-remark-pipeline
+- [x] 10. Docusaurus-preview-configuratie (dev/prod-pariteit)
+  - [x] 10.1 Configureer `remark-kroki-a11y` in de Docusaurus-remark-pipeline
     - Registreer de plugin in de Docusaurus-remark-pipeline met DEZELFDE gedeelde opties via `buildKrokiA11yOptions`, zodat de inhoud identiek is aan BSO.
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 7.1, 7.2_
 
-  - [ ]* 10.2 Schrijf een geautomatiseerde test voor de preview-toegankelijke inhoud
+  - [x]* 10.2 Schrijf een geautomatiseerde test voor de preview-toegankelijke inhoud
     - Verifieer voor een fixture dat de preview het gerenderde diagram, de broncode en de natuurlijketaal-beschrijving produceert.
     - Documenteer eerlijk dat `remark-kroki-a11y` tot op heden nog niet in de Docusaurus-preview getest was; deze test dekt dat af.
     - _Requirements: 7.2, 7.3_
 
-- [ ] 11. Testfixtures en integratietests
-  - [ ] 11.1 Maak diagram-testfixtures
+- [x] 11. Testfixtures en integratietests
+  - [x] 11.1 Maak diagram-testfixtures
     - Maak `tests/fixtures/diagram-plantuml.md` (lespagina met PlantUML-codeblok) en `tests/fixtures/diagram-mermaid.md` (lespagina met Mermaid-codeblok).
     - _Requirements: 9.1, 9.2_
 
-  - [ ]* 11.2 Schrijf HTML-output-verificatietests op de fixtures
+  - [x]* 11.2 Schrijf HTML-output-verificatietests op de fixtures
     - Verifieer per fixture: HTML bevat een base64 `<img>`-element (standaardmodus) of een `<svg>`-element (inline-svg-modus) (9.3); bevat de a11y-wrapper — toegankelijke naam (standaardmodus: `<img alt>` + `aria-describedby`; inline-svg: `<title>` + `aria-labelledby`), broncode-disclosure en beschrijving-disclosure (9.4); bevat GEEN vereist `<script>` (9.5); twee runs leveren identieke HTML (9.6).
     - _Requirements: 9.3, 9.4, 9.5, 9.6_
 
-  - [ ]* 11.3 Schrijf integratietests met een echte/lokale Kroki
+  - [x]* 11.3 Schrijf integratietests met een echte/lokale Kroki
     - Draai 1–3 representatieve voorbeelden door de volledige conversie (asynchroon geawait) met een echte of lokaal gehoste Kroki om de daadwerkelijke rendering te dekken (geen property-tests voor de netwerk-/renderstap).
     - Gebruik hetzij de publieke `https://kroki.io`, hetzij een lokale Docker-Kroki; bij een lokale Docker-Kroki is voor de Mermaid-fixture de companion-container `yuzutech/kroki-mermaid` vereist. Documenteer dit in de testopzet.
     - _Requirements: 1.1, 1.2, 1.5_
 
-- [ ] 12. Checkpoint — Validatie, foutpaden en fixtures valideren
+- [x] 12. Checkpoint — Validatie, foutpaden en fixtures valideren
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. Documentatie van de diagram-feature
-  - [ ] 13.1 Documenteer de `diagrams`-config en de a11y-intentie
+- [x] 13. Documentatie van de diagram-feature
+  - [x] 13.1 Documenteer de `diagrams`-config en de a11y-intentie
     - Documenteer het `diagrams`-configobject (`krokiUrl`, `output` met default `img-html-base64`, `failOnError`) met defaults.
     - Beschrijf een zelf-gehoste Kroki via Docker en `KROKI_BASE_URL` voor CI/offline, en waarom dit CI-vriendelijk is. Leg het verschil uit tussen de publieke `https://kroki.io` (Mermaid werkt out of the box) en een lokale Docker-Kroki (voor Mermaid is de companion-container `yuzutech/kroki-mermaid` vereist).
     - Beschrijf de a11y-intentie (schermlezer-toegankelijkheid) met de WCAG-caveat: volledige conformiteit vereist handmatige verificatie met hulptechnologie — niet overclaimen.
     - Vermeld dat de PDF/reader-route buiten scope valt.
     - _Requirements: 2.8, 2.9, 8.1, 8.2, 10.3_
 
-- [ ] 14. Versie-bump voor de feature
-  - [ ] 14.1 Verhoog de versie in `deno.json`
+- [x] 14. Versie-bump voor de feature
+  - [x] 14.1 Verhoog de versie in `deno.json`
     - Bump de versie (minor, 0.x-feature) volgens semver, zodat een latere JSR/npm-publicatie correct is (AGENTS.md-conventie).
     - Publiceer NIET — dat doet de gebruiker.
     - _Requirements: N/A (projectconventie)_
 
-- [ ] 15. Final checkpoint — Alle tests en integratie
+- [x] 15. Final checkpoint — Alle tests en integratie
   - Ensure all tests pass, ask the user if questions arise.
   - Valideer met `deno task test` dat alle unit-, property- en integratietests slagen.
 

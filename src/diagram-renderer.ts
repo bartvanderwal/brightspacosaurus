@@ -5,9 +5,12 @@
  * Requirements: 1.1, 1.2, 1.3, 1.5, 16-19 (error categories)
  */
 
-import remarkKrokiA11y from "remark-kroki-a11y";
 import type { ResolvedDiagramConfig } from "./types.ts";
-import { buildKrokiA11yOptions, SUPPORTED_DIAGRAM_LANGUAGES } from "./diagram-config.ts";
+import {
+  buildKrokiA11yOptions,
+  SUPPORTED_DIAGRAM_LANGUAGES,
+} from "./diagram-config.ts";
+import type { DiagramIssue } from "./diagram-validation.ts";
 
 /** Minimal mdast node shape used for the meta-normalization walk. */
 interface MdastNode {
@@ -20,18 +23,31 @@ interface MdastNode {
 }
 
 /** Failure categories for diagram rendering (Requirement 16). */
-export type DiagramErrorCategory = "kroki-unreachable" | "invalid-source" | "invalid-parameter";
+export type DiagramErrorCategory =
+  | "kroki-unreachable"
+  | "invalid-source"
+  | "invalid-parameter";
 
 /** A typed, actionable diagram rendering failure. */
 export class DiagramError extends Error {
   readonly category: DiagramErrorCategory;
   readonly sourceFile: string;
+  readonly reason: string;
 
-  constructor(category: DiagramErrorCategory, sourceFile: string, reason: string, options?: { cause?: unknown }) {
-    super(`Diagram rendering failed in ${sourceFile} (${category}): ${reason}`, options);
+  constructor(
+    category: DiagramErrorCategory,
+    sourceFile: string,
+    reason: string,
+    options?: { cause?: unknown },
+  ) {
+    super(
+      `Diagram rendering failed in ${sourceFile} (${category}): ${reason}`,
+      options,
+    );
     this.name = "DiagramError";
     this.category = category;
     this.sourceFile = sourceFile;
+    this.reason = reason;
   }
 }
 
@@ -43,10 +59,66 @@ export class DiagramError extends Error {
  */
 function classifyDiagramError(error: unknown): DiagramErrorCategory {
   const message = error instanceof Error ? error.message : String(error);
-  if (/ECONNREFUSED|ENOTFOUND|fetch failed|network|timed out|timeout/i.test(message)) {
+  if (
+    /invalid\s+(parameter|option|src)|unknown\s+(parameter|option)|bad\s+request|syntax|parse/i
+      .test(message)
+  ) {
+    return "invalid-parameter";
+  }
+  if (
+    /ECONNREFUSED|ENOTFOUND|fetch failed|network|timed out|timeout/i.test(
+      message,
+    )
+  ) {
     return "kroki-unreachable";
   }
   return "invalid-source";
+}
+
+function errorReason(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function toDiagramError(
+  error: unknown,
+  sourceFile: string,
+): DiagramError {
+  if (error instanceof DiagramError) return error;
+  return new DiagramError(
+    classifyDiagramError(error),
+    sourceFile,
+    errorReason(error),
+    {
+      cause: error,
+    },
+  );
+}
+
+export function shouldFallbackDiagramError(
+  error: DiagramError,
+  cfg: ResolvedDiagramConfig,
+): boolean {
+  void error;
+  return !cfg.failOnError;
+}
+
+export function formatDiagramWarning(error: DiagramError): string {
+  return `diagram-a11y: ${error.message}. Retaining the original fenced code block.`;
+}
+
+export function diagramIssueToError(issue: DiagramIssue): DiagramError {
+  const category: DiagramErrorCategory = issue.kind === "empty-diagram"
+    ? "invalid-source"
+    : "invalid-parameter";
+  const location = issue.position
+    ? ` at ${issue.sourceFile}:${issue.position.line}:${issue.position.column}`
+    : ` in ${issue.sourceFile}`;
+  const title = issue.diagramTitle ? ` (${issue.diagramTitle})` : "";
+  return new DiagramError(
+    category,
+    issue.sourceFile,
+    `${issue.message}${title}${location}`,
+  );
 }
 
 /**
@@ -80,16 +152,21 @@ function normalizeDiagramMeta(tree: MdastNode, sourceFile: string): void {
       } else if (
         child.type === "code" &&
         typeof child.lang === "string" &&
-        SUPPORTED_DIAGRAM_LANGUAGES.includes(child.lang as typeof SUPPORTED_DIAGRAM_LANGUAGES[number])
+        SUPPORTED_DIAGRAM_LANGUAGES.includes(
+          child.lang as typeof SUPPORTED_DIAGRAM_LANGUAGES[number],
+        )
       ) {
         diagramIndex += 1;
         const meta = child.meta ?? "";
         const hasImgType = /\bimgType=/.test(meta);
         const hasImgTitle = /\bimgTitle=/.test(meta);
-        const fallbackTitle = lastHeading || `${child.lang} diagram ${diagramIndex}`;
+        const fallbackTitle = lastHeading ||
+          `${child.lang} diagram ${diagramIndex}`;
         const additions: string[] = [];
         if (!hasImgType) additions.push(`imgType="${child.lang}"`);
-        if (!hasImgTitle) additions.push(`imgTitle="${fallbackTitle.replace(/"/g, "'")}"`);
+        if (!hasImgTitle) {
+          additions.push(`imgTitle="${fallbackTitle.replace(/"/g, "'")}"`);
+        }
         if (additions.length > 0) {
           child.meta = [meta, ...additions].filter(Boolean).join(" ");
         }
@@ -109,6 +186,22 @@ function remarkNormalizeDiagramMeta(sourceFile: string) {
   };
 }
 
+function remarkKrokiA11yLazy(
+  options: ReturnType<typeof buildKrokiA11yOptions>,
+  sourceFile: string,
+) {
+  return async (tree: unknown, file: unknown) => {
+    const module = await import("remark-kroki-a11y");
+    const remarkKrokiA11y = module.default;
+    const transformer = remarkKrokiA11y(options);
+    try {
+      return await transformer(tree, file);
+    } catch (error) {
+      throw toDiagramError(error, sourceFile);
+    }
+  };
+}
+
 /**
  * Registers diagram-meta normalization and `remark-kroki-a11y` rendering on a
  * unified processor. The Kroki render is asynchronous; callers must `await`
@@ -119,10 +212,14 @@ function remarkNormalizeDiagramMeta(sourceFile: string) {
  * rendering, preserving the original fenced code blocks (fallback mode).
  */
 // deno-lint-ignore no-explicit-any
-export function withDiagramRendering(processor: any, cfg: ResolvedDiagramConfig, sourceFile: string): any {
+export function withDiagramRendering(
+  processor: any,
+  cfg: ResolvedDiagramConfig,
+  sourceFile: string,
+): any {
   return processor
     .use(() => remarkNormalizeDiagramMeta(sourceFile))
-    .use(remarkKrokiA11y, buildKrokiA11yOptions(cfg));
+    .use(() => remarkKrokiA11yLazy(buildKrokiA11yOptions(cfg), sourceFile));
 }
 
 export { classifyDiagramError };

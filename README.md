@@ -57,7 +57,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks with syntax highlighting are all supported.
    - **Quizzes** — files with the `quiz-` prefix are converted to QTI 1.2 and imported into the Brightspace Quizzes tool.
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
-   - **Diagrams** — PlantUML and Mermaid are supported as diagrams-as-code in reader PDFs. Rendering them in the Brightspace HTML output is planned (see [issue #14](https://github.com/bartvanderwal/brightspacosaurus/issues/14)); for now such blocks appear as code in lesson pages.
+   - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
 
    See the user manual (`docs/user-manual.md`) for the exact file conventions and the quiz format. (A `bso lint` command to check your material against a house style is planned — see the roadmap.)
@@ -94,31 +94,51 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
 
 ### Required fields
 
-| Field | Type | Description |
-|------|------|-------------|
-| `courseName` | `string` | Course name as shown in the manifest |
-| `version` | `string` | Version number (semver), used in the .imscc file name and HTML badge |
+| Field        | Type     | Description                                                                       |
+| ------------ | -------- | --------------------------------------------------------------------------------- |
+| `courseName` | `string` | Course name as shown in the manifest                                              |
 | `sourcesDir` | `string` | Source directory for lesson pages and quizzes (relative to the working directory) |
+| `version`    | `string` | Version number (semver), used in the .imscc file name and HTML badge              |
 
 ### Optional fields
 
-| Field | Type | Default | Description |
-|------|------|-----------|-------------|
-| `name` | `string` | derived from `courseName` | Project name for the .imscc file |
-| `readersDir` | `string` | `null` (skip) | Source directory for reader Markdown (PDF conversion via pandoc) |
-| `assetsDir` | `string` | `null` (no extra assets) | Directory with static assets (banners, logos) |
-| `outputDir` | `string` | `"build/brightspace"` | Build output directory |
-| `customCss` | `string` | `null` (default CSS only) | Path to a custom CSS file |
-| `docusaurusDir` | `string` | `null` (no preview) | Path to the Docusaurus directory for `bso preview` |
-| `docentenHandleiding` | `object` | `null` (skip) | Configuration for the instructor manual PDF |
+| Field                 | Type     | Default                   | Description                                                      |
+| --------------------- | -------- | ------------------------- | ---------------------------------------------------------------- |
+| `name`                | `string` | derived from `courseName` | Project name for the .imscc file                                 |
+| `readersDir`          | `string` | `null` (skip)             | Source directory for reader Markdown (PDF conversion via pandoc) |
+| `assetsDir`           | `string` | `null` (no extra assets)  | Directory with static assets (banners, logos)                    |
+| `outputDir`           | `string` | `"build/brightspace"`     | Build output directory                                           |
+| `customCss`           | `string` | `null` (default CSS only) | Path to a custom CSS file                                        |
+| `docusaurusDir`       | `string` | `null` (no preview)       | Path to the Docusaurus directory for `bso preview`               |
+| `quiz`                | `object` | `{ "maxAttempts": 0 }`    | Configuration for generated Brightspace quizzes                  |
+| `diagrams`            | `object` | see below                 | Configuration for PlantUML/Mermaid rendering in lesson HTML      |
+| `teacherManual` | `object` | `null` (skip)             | Configuration for the instructor manual PDF                      |
 
-### docentenHandleiding object
+### diagrams object
 
-| Field | Type | Default | Description |
-|------|------|-----------|-------------|
-| `inputFiles` | `string[]` | (required) | List of Markdown source files (relative to the working directory) |
-| `outputName` | `string` | `"docentenhandleiding.pdf"` | File name for the output PDF |
-| `outputDir` | `string` | `<outputDir>/docenten/` | Output directory for the PDF |
+| Field         | Type                                                                         | Default              | Description                                                                                       |
+| ------------- | ---------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+| `krokiUrl`    | absolute URL string                                                          | `"https://kroki.io"` | Kroki-compatible render endpoint. Use a self-hosted Kroki service for offline/CI builds.          |
+| `output`      | `"img-html-base64"` \| `"inline-svg"` \| `"img-base64"` \| `"object-base64"` | `"img-html-base64"`  | How rendered SVG is embedded in the generated HTML.                                               |
+| `failOnError` | boolean                                                                      | `true`               | `true` fails the build on diagram errors; `false` warns and keeps the original fenced code block. |
+
+Local Kroki works well for PlantUML. Mermaid needs the `yuzutech/kroki-mermaid` companion service when using a local Kroki Docker setup; the public `https://kroki.io` endpoint includes that companion.
+
+BSO's Brightspace output does not rely on custom JavaScript: source and generated natural-language descriptions use native `<details>/<summary>` controls, and descriptions are linked to diagrams with ARIA where available. This keeps diagram access robust when Brightspace content sandboxing or browser restrictions affect scripts. It is an accessibility aid, not a formal WCAG conformance claim; verify important course pages manually with assistive technology in Brightspace.
+
+### quiz object
+
+| Field         | Type                 | Default | Description                                                             |
+| ------------- | -------------------- | ------- | ----------------------------------------------------------------------- |
+| `maxAttempts` | non-negative integer | `0`     | Maximum number of attempts for each generated quiz; `0` means unlimited |
+
+### teacherManual object
+
+| Field        | Type       | Default                     | Description                                                       |
+| ------------ | ---------- | --------------------------- | ----------------------------------------------------------------- |
+| `inputFiles` | `string[]` | (required)                  | List of Markdown source files (relative to the working directory) |
+| `outputName` | `string`   | `"docentenhandleiding.pdf"` | File name for the output PDF                                      |
+| `outputDir`  | `string`   | `<outputDir>/docenten/`     | Output directory for the PDF                                      |
 
 ### Full example
 
@@ -133,7 +153,15 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
   "outputDir": "build/brightspace",
   "customCss": "assets/custom.css",
   "docusaurusDir": "scripts/docusaurus",
-  "docentenHandleiding": {
+  "diagrams": {
+    "krokiUrl": "https://kroki.io",
+    "output": "img-html-base64",
+    "failOnError": true
+  },
+  "quiz": {
+    "maxAttempts": 0
+  },
+  "teacherManual": {
     "inputFiles": [
       "instructor-manual/chapter-1.md",
       "instructor-manual/chapter-2.md"
@@ -182,6 +210,7 @@ bso prepare
 ```
 
 Scans the configured source directory and:
+
 - Converts lesson Markdown to standalone HTML
 - Converts quiz Markdown (prefix `quiz-`) to QTI 1.2 XML
 - Converts reader Markdown (prefix `reader-`) to PDF via pandoc (if configured)

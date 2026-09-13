@@ -6,21 +6,11 @@ date: \today
 lang: en
 ---
 
-\begin{titlepage}
-\centering
-\vspace*{3cm}
-\includegraphics[width=0.4\textwidth]{images/bsosaurus-logo.png}\\[2em]
-{\Huge\bfseries Brightspacosaurus User Manual\par}
-\vspace{1em}
-{\Large Publication pipeline for course material\\from Git to Brightspace\par}
-\vfill
-{\large Bart van der Wal\\[0.5em]\today\par}
-\end{titlepage}
+\begin{titlepage} \centering \vspace*{3cm} \includegraphics[width=0.4\textwidth]{images/bsosaurus-logo.png}\\[2em] {\Huge\bfseries Brightspacosaurus User Manual\par} \vspace{1em} {\Large Publication pipeline for course material\\from Git to Brightspace\par} \vfill {\large Bart van der Wal\\[0.5em]\today\par} \end{titlepage}
 
 # Brightspacosaurus User Manual
 
-*Author(s)*: Bart van der Wal
-*Version*: 1.0
+_Author(s)_: Bart van der Wal _Version_: 1.0
 
 ## 1. Introduction
 
@@ -52,13 +42,13 @@ Keep teacher and student material in separate source directories. BSO only scans
 
 ![Example of the contents of a Common Cartridge package after unpacking](images/common-cartridge-inhoud-voorbeeld.png)
 
-*Figure 1*: Contents of an unpacked Common Cartridge package.
+_Figure 1_: Contents of an unpacked Common Cartridge package.
 
 BSO generates this package format automatically from Markdown source files and images. The archive contains an `imsmanifest.xml`, content directories with HTML files and images. After import into Brightspace, the lesson pages appear as modules and topics.
 
 ![Brightspace Manage Files with reader PDFs](images/brightspace-readers-bestanden-beheren.png)
 
-*Figure 2*: Brightspace Manage Files with reader PDFs.
+_Figure 2_: Brightspace Manage Files with reader PDFs.
 
 Readers are generated as separate PDFs via pandoc and uploaded to Brightspace separately. Students download them as reference material.
 
@@ -98,18 +88,18 @@ For most situations, option 3 is the least risky: teacher material contains answ
 
 Brightspace (D2L) organizes course material primarily through a course offering with Content modules and topics. D2L describes that lecturers can create modules, submodules and topics in Content; topics can contain files, text and HTML, among other things (D2L, n.d.-a).
 
-| Entity | Brightspace term | Analogy |
-|----------|-----------------|----------|
-| Course | Course Offering / Org Unit | A repository |
-| Module | Content Module | A folder/package |
-| Page | Page | An HTML page in Brightspace |
-| Topic | Content Topic | A linked item in a module, such as a page, file, link or activity |
-| Quiz | Quiz Activity | An assessment object with items |
-| Assignment | Dropbox Folder | A submission location |
+| Entity     | Brightspace term           | Analogy                                                           |
+| ---------- | -------------------------- | ----------------------------------------------------------------- |
+| Course     | Course Offering / Org Unit | A repository                                                      |
+| Module     | Content Module             | A folder/package                                                  |
+| Page       | Page                       | An HTML page in Brightspace                                       |
+| Topic      | Content Topic              | A linked item in a module, such as a page, file, link or activity |
+| Quiz       | Quiz Activity              | An assessment object with items                                   |
+| Assignment | Dropbox Folder             | A submission location                                             |
 
 ![Brightspace link to a test or quiz from course material](images/brightspace-link-naar-test-of-quiz-vanuit-lesmateriaal.png)
 
-*Figure 3*: Brightspace link to a test or quiz from course material.
+_Figure 3_: Brightspace link to a test or quiz from course material.
 
 A **module** contains **topics**. A topic can be a Brightspace Page, but also an added file or an existing activity. When creating course content, D2L explicitly mentions the route `Create New > Page` within a module (D2L, n.d.-b).
 
@@ -145,18 +135,22 @@ A minimal configuration file:
 
 The most important fields:
 
-| Field | Required | Description |
-|------|-----------|--------------|
-| `courseName` | yes | Course name as shown in the manifest |
-| `version` | yes | Version number (semver), used in the `.imscc` filename and HTML badge |
-| `sourcesDir` | yes | Source directory for lesson pages and quizzes |
-| `readersDir` | no | Source directory for reader Markdown (PDF conversion via pandoc) |
-| `assetsDir` | no | Directory with static assets (banners, logos) |
-| `outputDir` | no | Build output directory (default `build/brightspace`) |
+| Field                  | Required | Description                                                                                  |
+| ---------------------- | -------- | -------------------------------------------------------------------------------------------- |
+| `courseName`           | yes      | Course name as shown in the manifest                                                         |
+| `version`              | yes      | Version number (semver), used in the `.imscc` filename and HTML badge                        |
+| `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
+| `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
+| `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
+| `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
+| `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
+| `diagrams.krokiUrl`    | no       | Kroki endpoint for PlantUML/Mermaid rendering (default `https://kroki.io`)                   |
+| `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
+| `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
 
 > **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
 
-Missing optional configuration is silently skipped: without `readersDir` BSO skips the reader PDF conversion, without `docentenHandleiding` it skips the teacher manual generation.
+Missing optional configuration is silently skipped: without `readersDir` BSO skips the reader PDF conversion, without `teacherManual` it skips the teacher manual generation.
 
 ---
 
@@ -219,7 +213,7 @@ The import wizard does offer the option **"Overwrite existing files"**. This opt
 
 ![Brightspace: manually removing a page from a module](images/brightspace-pagina-handmatig-verwijderen.png)
 
-*Figure 4*: Manually removing a page in Brightspace.
+_Figure 4_: Manually removing a page in Brightspace.
 
 Figure 4 shows how you manually remove a page.
 
@@ -233,11 +227,11 @@ Recommended workflow: check "Overwrite existing files", but manually remove old 
 
 ![Brightspace import screen for selecting components](images/brightspace-import-componenten-selecteren.png)
 
-*Figure 5*: Brightspace import — selecting components.
+_Figure 5_: Brightspace import — selecting components.
 
 ![Brightspace import screen with the option to overwrite existing files](images/brightspace-import-bestanden-overschrijven.png)
 
-*Figure 6*: Option — overwrite existing files.
+_Figure 6_: Option — overwrite existing files.
 
 After import, check at minimum:
 
@@ -271,6 +265,40 @@ This option links a shared home page or navigation bar defined elsewhere. The BS
 
 Preferably choose a clean sandbox course for tests.
 
+### 5.5 PlantUML and Mermaid diagrams in lesson pages
+
+BSO renders PlantUML and Mermaid fenced code blocks in lesson Markdown during `prepare`. The renderer uses `remark-kroki-a11y` and a Kroki-compatible HTTP service. By default BSO uses the public `https://kroki.io` endpoint and embeds rendered SVG as a base64 image in the generated Brightspace HTML.
+
+Example:
+
+````markdown
+```plantuml
+@startuml
+class Student
+class Course
+Student --> Course : enrolls in
+@enduml
+```
+````
+
+Optional configuration:
+
+```json
+{
+  "diagrams": {
+    "krokiUrl": "https://kroki.io",
+    "output": "img-html-base64",
+    "failOnError": true
+  }
+}
+```
+
+For CI, privacy-sensitive material, or offline work you can point `diagrams.krokiUrl` to a self-hosted Kroki service. A local Docker Kroki setup renders PlantUML directly; Mermaid requires the `yuzutech/kroki-mermaid` companion container. The public `https://kroki.io` service includes that companion.
+
+Brightspace lesson pages should not depend on custom JavaScript for core accessibility behavior. Depending on Brightspace configuration, script-capable content files can be sandboxed in a secure iframe, and browser/security restrictions can also affect embedded scripts. BSO therefore adapts the generated diagram output to native HTML controls: source and natural-language descriptions are exposed through `<details>/<summary>`, and descriptions are associated with the rendered image where available. This improves screen-reader and no-JavaScript access, but it is not a formal WCAG conformance claim. Before publishing an important course, check representative pages manually in Brightspace with the assistive technologies your students use.
+
+`diagrams.failOnError` controls the build policy. With the default `true`, invalid diagram metadata, invalid source, or an unreachable Kroki endpoint fails the build. With `false`, BSO logs a warning, keeps the original fenced code block in the generated page, and continues.
+
 ---
 
 ## 6. Import/export: IMS Common Cartridge
@@ -279,7 +307,7 @@ Brightspace can import and export course components via Common Cartridge. D2L de
 
 ![Contents of a Common Cartridge package: imsmanifest.xml and content directories](images/common-cartridge-inhoud-voorbeeld.png)
 
-*Figure 7*: Contents of an unpacked `.imscc` package.
+_Figure 7_: Contents of an unpacked `.imscc` package.
 
 The manifest describes the resources; the content directories contain the HTML files and images that Brightspace imports.
 
@@ -297,6 +325,8 @@ The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO p
 - `Correct antwoord: **X**` as the indicator of the correct answer
 
 For each quiz Markdown file, BSO generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
+
+Generated quizzes get a maximum attempt count through QTI metadata. Configure it with `quiz.maxAttempts` in `brightspacosaurus.config.json`; when omitted, BSO uses `0`, which means unlimited attempts. The value must be a non-negative integer. In the IMS Common Cartridge output, BSO writes Brightspace's `cc_maxattempts` metadata field; `0` is exported as `unlimited`, matching Brightspace's own Common Cartridge export.
 
 ### 7.1 Images in quizzes
 
@@ -336,7 +366,7 @@ In Brightspace you can offer the reader PDFs as follows:
 
 ![Brightspace Manage Files with reader PDFs in the readers directory](images/brightspace-readers-bestanden-beheren.png)
 
-*Figure 8*: Brightspace Manage Files — reader PDFs are linked from lesson pages.
+_Figure 8_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
 
 ---
 
@@ -399,13 +429,13 @@ The script:
 
 ## References
 
-- 1EdTech. (n.d.). *Question and Test Interoperability (QTI)*. Retrieved June 3, 2026, from https://www.1edtech.org/standards/qti
-- D2L. (n.d.-a). *Add and organize learning materials in the Classic Content experience*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/2750-add-and-organize-learning-materials-in-the-classic-content-experience
-- D2L. (n.d.-b). *Add and organize course content*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/4983-add-and-organize-course-content
-- D2L. (n.d.-c). *Create and configure a quiz*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/3413-create-and-configure-a-quiz
-- D2L. (n.d.-d). *Using the Quizzes tool*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/18174-using-the-quizzes-tool
-- D2L. (n.d.-e). *Create an assignment*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/2776-create-an-assignment
-- D2L. (n.d.-f). *Create a Content topic in Manage Files*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/3670-create-a-content-topic-in-manage-files
-- D2L. (n.d.-g). *About Import/Export/Copy Components*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/16786-about-import-export-copy-components
-- D2L. (n.d.-h). *Import, export, or copy course components*. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/16788-import-export-or-copy-course-components
-- Pandoc. (n.d.). *Releases*. Retrieved May 21, 2026, from https://pandoc.org/releases.html
+- 1EdTech. (n.d.). _Question and Test Interoperability (QTI)_. Retrieved June 3, 2026, from https://www.1edtech.org/standards/qti
+- D2L. (n.d.-a). _Add and organize learning materials in the Classic Content experience_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/2750-add-and-organize-learning-materials-in-the-classic-content-experience
+- D2L. (n.d.-b). _Add and organize course content_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/4983-add-and-organize-course-content
+- D2L. (n.d.-c). _Create and configure a quiz_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/3413-create-and-configure-a-quiz
+- D2L. (n.d.-d). _Using the Quizzes tool_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/18174-using-the-quizzes-tool
+- D2L. (n.d.-e). _Create an assignment_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/2776-create-an-assignment
+- D2L. (n.d.-f). _Create a Content topic in Manage Files_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/3670-create-a-content-topic-in-manage-files
+- D2L. (n.d.-g). _About Import/Export/Copy Components_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/16786-about-import-export-copy-components
+- D2L. (n.d.-h). _Import, export, or copy course components_. Brightspace Community. Retrieved May 14, 2026, from https://community.d2l.com/brightspace/kb/articles/16788-import-export-or-copy-course-components
+- Pandoc. (n.d.). _Releases_. Retrieved May 21, 2026, from https://pandoc.org/releases.html

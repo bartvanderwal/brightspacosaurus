@@ -5,14 +5,25 @@
 
 import { ConvertOptions, ConvertResult } from "./types.ts";
 import { loadAssetText } from "./assets.ts";
-import { resolve, relative, join, dirname, basename, extname } from "@std/path";
+import { basename, dirname, extname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
+import rehypeRaw from "rehype-raw";
 import rehypeExternalLinks from "rehype-external-links";
 import rehypeStringify from "rehype-stringify";
+import {
+  DiagramError,
+  diagramIssueToError,
+  formatDiagramWarning,
+  shouldFallbackDiagramError,
+  toDiagramError,
+  withDiagramRendering,
+} from "./diagram-renderer.ts";
+import { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
+import { detectDiagramIssues } from "./diagram-validation.ts";
 
 /** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
@@ -21,7 +32,8 @@ const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
 const MD_IMAGE_REGEX = /!\[([^\]]*)\]\(([^\s)]+)(?:\s+"[^"]*")?\)/g;
 
 /** Regex for finding links to reader files. */
-const READER_LINK_REGEX = /\[([^\]]*)\]\(([^)]*(?:reader-[^)]+|plantuml-essentials)\.md)\)/g;
+const READER_LINK_REGEX =
+  /\[([^\]]*)\]\(([^)]*(?:reader-[^)]+|plantuml-essentials)\.md)\)/g;
 
 /**
  * Checks whether a path is within the repository root.
@@ -29,7 +41,9 @@ const READER_LINK_REGEX = /\[([^\]]*)\]\(([^)]*(?:reader-[^)]+|plantuml-essentia
 function assertWithinRoot(absPath: string, repoRoot: string): void {
   const rel = relative(repoRoot, absPath);
   if (rel.startsWith("..") || rel.startsWith("/")) {
-    const err = new Error(`Path outside repository root rejected: ${absPath} (root: ${repoRoot})`);
+    const err = new Error(
+      `Path outside repository root rejected: ${absPath} (root: ${repoRoot})`,
+    );
     (err as Error & { exitCode: number }).exitCode = 3;
     throw err;
   }
@@ -49,7 +63,11 @@ function stripQtiSections(markdown: string): string {
  *
  * Requirements: 1.5
  */
-async function resolveIncludes(markdown: string, sourceDir: string, depth = 0): Promise<string> {
+async function resolveIncludes(
+  markdown: string,
+  sourceDir: string,
+  depth = 0,
+): Promise<string> {
   if (depth > 10) return markdown;
   const lines = markdown.split("\n");
   const resolved: string[] = [];
@@ -59,7 +77,11 @@ async function resolveIncludes(markdown: string, sourceDir: string, depth = 0): 
       const includePath = join(sourceDir, match[1]);
       try {
         const content = await Deno.readTextFile(includePath);
-        const nested = await resolveIncludes(content, dirname(includePath), depth + 1);
+        const nested = await resolveIncludes(
+          content,
+          dirname(includePath),
+          depth + 1,
+        );
         resolved.push(nested);
       } catch {
         console.warn(`resolveIncludes: file not found: ${includePath}`);
@@ -81,7 +103,10 @@ function findRelativeImages(markdown: string): string[] {
   const regex = new RegExp(MD_IMAGE_REGEX.source, MD_IMAGE_REGEX.flags);
   while ((match = regex.exec(markdown)) !== null) {
     const imgPath = decodeURIComponent(match[2]);
-    if (!imgPath.startsWith("http://") && !imgPath.startsWith("https://") && !imgPath.startsWith("/")) {
+    if (
+      !imgPath.startsWith("http://") && !imgPath.startsWith("https://") &&
+      !imgPath.startsWith("/")
+    ) {
       images.push(imgPath);
     }
   }
@@ -97,7 +122,10 @@ function findRelativeImages(markdown: string): string[] {
  */
 export function convertReaderLinks(markdown: string): string {
   return markdown.replace(READER_LINK_REGEX, (_match, text, href) => {
-    const pdfHref = href.replace(/\.md$/, ".pdf").replace(/^(?:\.\.\/)*/, "../readers/");
+    const pdfHref = href.replace(/\.md$/, ".pdf").replace(
+      /^(?:\.\.\/)*/,
+      "../readers/",
+    );
     return `[${text}](${pdfHref})`;
   });
 }
@@ -114,7 +142,12 @@ async function getContentCss(): Promise<string> {
  * HAN house-style CSS and a Google Fonts link.
  * Optionally a custom CSS file is inlined alongside the default CSS.
  */
-async function wrapHtml(body: string, title: string, version: string, customCssPath?: string): Promise<string> {
+async function wrapHtml(
+  body: string,
+  title: string,
+  version: string,
+  customCssPath?: string,
+): Promise<string> {
   const css = await getContentCss();
   let customCssBlock = "";
   if (customCssPath) {
@@ -157,22 +190,70 @@ ${body}
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(
+    />/g,
+    "&gt;",
+  );
 }
 
-/** unified processor for Markdown → HTML (remark → rehype), with GFM support for tables, strikethrough and task lists. */
-const processor = unified()
-  .use(remarkParse)
-  .use(remarkFrontmatter, ['yaml'])
-  .use(remarkGfm)
-  .use(remarkRehype)
-  .use(rehypeExternalLinks, {
-    target: "_blank",
-    rel: ["noopener", "noreferrer"],
-    // Only real external links (http/https); relative/internal links left untouched
-    protocols: ["http", "https"],
-  })
-  .use(rehypeStringify);
+/** Creates a Markdown → HTML processor. A fresh processor avoids cross-file state in plugins. */
+function createProcessor(options: ConvertOptions, renderDiagrams = true) {
+  let processor = unified()
+    .use(remarkParse)
+    .use(remarkFrontmatter, ["yaml"])
+    .use(remarkGfm);
+
+  if (renderDiagrams && options.diagrams) {
+    processor = withDiagramRendering(
+      processor,
+      options.diagrams,
+      options.sourcePath,
+    );
+  }
+
+  return processor
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeBrightspaceDiagramAdapter)
+    .use(rehypeExternalLinks, {
+      target: "_blank",
+      rel: ["noopener", "noreferrer"],
+      // Only real external links (http/https); relative/internal links left untouched
+      protocols: ["http", "https"],
+    })
+    .use(rehypeStringify, { allowDangerousHtml: true });
+}
+
+async function processMarkdownBody(
+  markdown: string,
+  options: ConvertOptions,
+): Promise<string> {
+  if (options.diagrams) {
+    const [issue] = detectDiagramIssues(markdown, options.sourcePath);
+    if (issue) {
+      const diagramError = diagramIssueToError(issue);
+      if (!shouldFallbackDiagramError(diagramError, options.diagrams)) {
+        throw diagramError;
+      }
+      console.warn(formatDiagramWarning(diagramError));
+      return String(await createProcessor(options, false).process(markdown));
+    }
+  }
+
+  try {
+    return String(await createProcessor(options).process(markdown));
+  } catch (error) {
+    if (!options.diagrams) throw error;
+    const diagramError = error instanceof DiagramError
+      ? error
+      : toDiagramError(error, options.sourcePath);
+    if (!shouldFallbackDiagramError(diagramError, options.diagrams)) {
+      throw diagramError;
+    }
+    console.warn(formatDiagramWarning(diagramError));
+    return String(await createProcessor(options, false).process(markdown));
+  }
+}
 
 /**
  * Converts a Markdown file to a standalone HTML file.
@@ -181,7 +262,9 @@ const processor = unified()
  * @returns Path to the generated HTML file and copied images
  * @throws Error with exitCode 3 if the source file is outside the repository root
  */
-export async function convertMarkdown(options: ConvertOptions): Promise<ConvertResult> {
+export async function convertMarkdown(
+  options: ConvertOptions,
+): Promise<ConvertResult> {
   const repoRoot = resolve(options.repoRoot);
   const sourcePath = resolve(options.sourcePath);
   const outputDir = resolve(options.outputDir);
@@ -228,10 +311,15 @@ export async function convertMarkdown(options: ConvertOptions): Promise<ConvertR
     }
   }
 
-  const htmlBody = String(await processor.process(convertedMarkdown));
+  const htmlBody = await processMarkdownBody(convertedMarkdown, options);
   const title = basename(sourcePath, extname(sourcePath));
   const version = options.version ?? "?";
-  const fullHtml = await wrapHtml(htmlBody, title, version, options.customCssPath);
+  const fullHtml = await wrapHtml(
+    htmlBody,
+    title,
+    version,
+    options.customCssPath,
+  );
 
   await Deno.writeTextFile(outputPath, fullHtml);
 

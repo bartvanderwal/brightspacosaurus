@@ -7,7 +7,10 @@
 
 import { assertEquals } from "@std/assert";
 import fc from "fast-check";
-import { buildManifest } from "../src/manifest-builder.ts";
+import {
+  buildManifest,
+  sortManifestEntriesForNavigation,
+} from "../src/manifest-builder.ts";
 import { ManifestEntry } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -30,35 +33,49 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
     fc.asyncProperty(
       fc.tuple(
         fc.stringMatching(/^[A-Za-z0-9 ]{3,30}$/), // cursustitel
-        fc.array(manifestEntryArb("webcontent"), { minLength: 1, maxLength: 10 }), // HTML-entries
-        fc.array(manifestEntryArb("imsqti_xmlv1p2/imscc_xmlv1p3/assessment"), { minLength: 0, maxLength: 5 }) // QTI-entries
+        fc.array(manifestEntryArb("webcontent"), {
+          minLength: 1,
+          maxLength: 10,
+        }), // HTML-entries
+        fc.array(manifestEntryArb("imsqti_xmlv1p2/imscc_xmlv1p3/assessment"), {
+          minLength: 0,
+          maxLength: 5,
+        }), // QTI-entries
       ),
       async ([courseTitle, htmlEntries, qtiEntries]) => {
         const allEntries = [...htmlEntries, ...qtiEntries];
         const xml = buildManifest(courseTitle, allEntries);
 
         // Eigenschap: het manifest is geldige XML (begint met declaratie)
-        assertEquals(xml.startsWith('<?xml version="1.0"'), true, "Manifest moet beginnen met XML-declaratie");
+        assertEquals(
+          xml.startsWith('<?xml version="1.0"'),
+          true,
+          "Manifest moet beginnen met XML-declaratie",
+        );
 
         // Eigenschap: het manifest bevat de cursustitel
-        assertEquals(xml.includes(courseTitle), true, "Manifest moet de cursustitel bevatten");
+        assertEquals(
+          xml.includes(courseTitle),
+          true,
+          "Manifest moet de cursustitel bevatten",
+        );
 
         // Eigenschap: voor elke entry bestaat een resource-element met het juiste type
         for (const entry of allEntries) {
           assertEquals(
             xml.includes(`identifier="${entry.id}"`),
             true,
-            `Manifest moet resource met id "${entry.id}" bevatten`
+            `Manifest moet resource met id "${entry.id}" bevatten`,
           );
           assertEquals(
             xml.includes(`type="${entry.type}"`),
             true,
-            `Manifest moet resourcetype "${entry.type}" bevatten`
+            `Manifest moet resourcetype "${entry.type}" bevatten`,
           );
           assertEquals(
             xml.includes(`href="${entry.href}"`),
             true,
-            `Manifest moet href "${entry.href}" bevatten`
+            `Manifest moet href "${entry.href}" bevatten`,
           );
         }
 
@@ -69,7 +86,7 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
           assertEquals(
             xml.includes(`<title>${entry.title}</title>`),
             true,
-            `Manifest moet item met titel "${entry.title}" bevatten`
+            `Manifest moet item met titel "${entry.title}" bevatten`,
           );
         }
 
@@ -78,7 +95,7 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
           assertEquals(
             xml.includes(`identifier="${entry.id}"`),
             true,
-            `Manifest moet resource met id "${entry.id}" bevatten (QTI)`
+            `Manifest moet resource met id "${entry.id}" bevatten (QTI)`,
           );
           assertEquals(
             xml.includes(`identifierref="${entry.id}"`),
@@ -93,18 +110,34 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
         }
 
         // Eigenschap: het manifest bevat het IMS CC 1.3 schema
-        assertEquals(xml.includes("<schemaversion>1.3.0</schemaversion>"), true, "Manifest moet CC 1.3 schema bevatten");
-      }
+        assertEquals(
+          xml.includes("<schemaversion>1.3.0</schemaversion>"),
+          true,
+          "Manifest moet CC 1.3 schema bevatten",
+        );
+      },
     ),
-    { numRuns: 50 }
+    { numRuns: 50 },
   );
 });
 
 Deno.test("Eigenschap 3: manifest met lege entries-lijst genereert geldig XML zonder resources", () => {
   const xml = buildManifest("Lege cursus", []);
-  assertEquals(xml.includes('<?xml version="1.0"'), true, "Moet geldige XML zijn");
-  assertEquals(xml.includes("Lege cursus"), true, "Moet de cursustitel bevatten");
-  assertEquals(xml.includes("<resources>"), true, "Moet een resources-element bevatten");
+  assertEquals(
+    xml.includes('<?xml version="1.0"'),
+    true,
+    "Moet geldige XML zijn",
+  );
+  assertEquals(
+    xml.includes("Lege cursus"),
+    true,
+    "Moet de cursustitel bevatten",
+  );
+  assertEquals(
+    xml.includes("<resources>"),
+    true,
+    "Moet een resources-element bevatten",
+  );
 });
 
 Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => {
@@ -130,15 +163,87 @@ Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => 
   ]);
 
   // Generieke groepering op mapnaam, geen OWE-1 week/niveau mapping
-  assertEquals(xml.includes("<title>week-1</title>"), true, "Moet groep 'week-1' bevatten");
-  assertEquals(xml.includes("<title>week-8</title>"), true, "Moet groep 'week-8' bevatten");
-  assertEquals(xml.includes("<title>module-a</title>"), true, "Moet groep 'module-a' bevatten");
-  assertEquals(xml.includes('identifierref="res_content_week_1_lesoverzicht_1_1_html"'), true);
-  assertEquals(xml.includes('identifierref="res_content_week_8_lesoverzicht_8_1_html"'), true);
-  assertEquals(xml.includes('identifierref="res_content_module_a_intro_html"'), true);
+  assertEquals(
+    xml.includes("<title>week-1</title>"),
+    true,
+    "Moet groep 'week-1' bevatten",
+  );
+  assertEquals(
+    xml.includes("<title>week-8</title>"),
+    true,
+    "Moet groep 'week-8' bevatten",
+  );
+  assertEquals(
+    xml.includes("<title>module-a</title>"),
+    true,
+    "Moet groep 'module-a' bevatten",
+  );
+  assertEquals(
+    xml.includes('identifierref="res_content_week_1_lesoverzicht_1_1_html"'),
+    true,
+  );
+  assertEquals(
+    xml.includes('identifierref="res_content_week_8_lesoverzicht_8_1_html"'),
+    true,
+  );
+  assertEquals(
+    xml.includes('identifierref="res_content_module_a_intro_html"'),
+    true,
+  );
 
   // Mag GEEN OWE-1-specifieke niveaulabels bevatten
-  assertEquals(xml.includes("Niveau"), false, "Mag geen OWE-1-specifieke niveaulabels bevatten");
+  assertEquals(
+    xml.includes("Niveau"),
+    false,
+    "Mag geen OWE-1-specifieke niveaulabels bevatten",
+  );
+});
+
+Deno.test("Brightspace-manifest sorteert quizzen direct na hun lescode binnen een week", () => {
+  const entries: ManifestEntry[] = [
+    {
+      id: "res_quiz_week_6_qti_les_6_2_xml",
+      title: "Quiz 6.2",
+      href: "quiz/week-6/qti-les-6-2.xml",
+      type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+    },
+    {
+      id: "res_content_week_6_les_6_2_html",
+      title: "Les 6.2",
+      href: "content/week-6/les-6.2.html",
+      type: "webcontent",
+    },
+    {
+      id: "res_quiz_week_6_qti_les_6_1_xml",
+      title: "Quiz 6.1",
+      href: "quiz/week-6/qti-les-6-1.xml",
+      type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+    },
+    {
+      id: "res_content_week_6_les_6_1_html",
+      title: "Les 6.1",
+      href: "content/week-6/les-6.1.html",
+      type: "webcontent",
+    },
+  ];
+
+  const sorted = sortManifestEntriesForNavigation(entries);
+  assertEquals(sorted.map((entry) => entry.title), [
+    "Les 6.1",
+    "Quiz 6.1",
+    "Les 6.2",
+    "Quiz 6.2",
+  ]);
+
+  const xml = buildManifest("Cursus X", sorted);
+  const les61 = xml.indexOf("<title>Les 6.1</title>");
+  const quiz61 = xml.indexOf("<title>Quiz 6.1</title>");
+  const les62 = xml.indexOf("<title>Les 6.2</title>");
+  const quiz62 = xml.indexOf("<title>Quiz 6.2</title>");
+
+  assertEquals(les61 < quiz61, true);
+  assertEquals(quiz61 < les62, true);
+  assertEquals(les62 < quiz62, true);
 });
 
 // ---------------------------------------------------------------------------
@@ -152,7 +257,10 @@ Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => 
 function decodeHtmlEntities(text: string): string {
   return text
     // Numerieke entities eerst: hex (&#x26;) en decimaal (&#38;)
-    .replace(/&#x([0-9a-f]+);/gi, (_m, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(
+      /&#x([0-9a-f]+);/gi,
+      (_m, hex) => String.fromCodePoint(parseInt(hex, 16)),
+    )
     .replace(/&#(\d+);/g, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
     // Named entities daarna. &amp; als laatste zodat we geen dubbele decode krijgen
     // (bijv. &amp;lt; → &lt; en niet → <).
@@ -251,12 +359,28 @@ Deno.test("Manifest-titels met meerdere HTML-entities worden correct gedecodeerd
   ]);
 
   // Alle speciale tekens moeten correct single-escaped zijn in de XML
-  assertEquals(xml.includes("&amp;amp;"), false, "Geen dubbele ampersand-escaping");
+  assertEquals(
+    xml.includes("&amp;amp;"),
+    false,
+    "Geen dubbele ampersand-escaping",
+  );
   assertEquals(xml.includes("&amp;lt;"), false, "Geen dubbele lt-escaping");
   assertEquals(xml.includes("&amp;gt;"), false, "Geen dubbele gt-escaping");
 
   // Wel correcte XML-escaping:
-  assertEquals(xml.includes("C++ &amp; Java"), true, "Ampersand correct single-escaped");
-  assertEquals(xml.includes("&lt;8&gt;"), true, "Angle brackets correct single-escaped");
-  assertEquals(xml.includes("&quot;basics&quot;"), true, "Quotes correct single-escaped");
+  assertEquals(
+    xml.includes("C++ &amp; Java"),
+    true,
+    "Ampersand correct single-escaped",
+  );
+  assertEquals(
+    xml.includes("&lt;8&gt;"),
+    true,
+    "Angle brackets correct single-escaped",
+  );
+  assertEquals(
+    xml.includes("&quot;basics&quot;"),
+    true,
+    "Quotes correct single-escaped",
+  );
 });

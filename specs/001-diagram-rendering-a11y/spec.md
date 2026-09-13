@@ -27,18 +27,18 @@ As a course developer, I want PlantUML and Mermaid blocks rendered during the co
 
 ---
 
-### User Story 2 - Understand every diagram as a screen reader user (Priority: P1)
+### User Story 2 - Understand diagrams with assistive technology (Priority: P1)
 
-As a student using a screen reader, I want every diagram to have an accessible name, a textual description, and its source available through controls I can actually operate, so I can understand it in Brightspace.
+As a student (including those using screen readers or magnification), I want every diagram to have an accessible name, a textual description, and its source available through controls I can actually operate, so I can understand it in Brightspace.
 
-**Why this priority**: A visible diagram that excludes screen-reader users does not meet the feature's accessibility goal. Brightspace runs course content in a restricted iframe with no custom client-side JavaScript, so any interactive control the student relies on (expanding a description, revealing source) must work natively, without relying on scripting we do not control.
+**Why this priority**: A visible diagram that excludes screen-reader users does not meet the feature's accessibility goal. Brightspace topic content cannot safely assume custom client-side JavaScript is available or allowed, so any interactive control the student relies on (expanding a description, revealing source) must work natively, without relying on scripting we do not control.
 
 **Independent Test**: Inspect a generated topic with JavaScript disabled and verify that the diagram is announced as an image, its name and description are connected correctly, and source and description disclosures remain operable.
 
 **Acceptance Scenarios**:
 
 1. **Given** a rendered diagram with a generated description, **When** a screen reader encounters it, **Then** it has a non-empty accessible name and the description is programmatically associated with it.
-2. **Given** Brightspace's restricted environment where no custom JavaScript runs, **When** a student opens the source or description disclosure, **Then** the native control reveals the complete content without needing any script to work.
+2. **Given** Brightspace's script-sensitive content environment, **When** a student opens the source or description disclosure, **Then** the native control reveals the complete content without needing any script to work.
 3. **Given** `remark-kroki-a11y` cannot generate a natural-language description for a diagram, **When** the lesson is built, **Then** the diagram still has a name and source disclosure and the course developer receives a warning.
 
 ---
@@ -71,7 +71,7 @@ As a course developer, I want the Docusaurus preview and Brightspace output to c
 **Acceptance Scenarios**:
 
 1. **Given** the same diagram source, **When** it is shown in preview and built for Brightspace, **Then** both contain equivalent diagram, source, and description content.
-2. **Given** preview tabs and Brightspace native disclosures, **When** Brightspace runs no custom JavaScript, **Then** all underlying accessible content remains available.
+2. **Given** preview tabs and Brightspace native disclosures, **When** custom JavaScript is unavailable or blocked in Brightspace content, **Then** all underlying accessible content remains available.
 
 ---
 
@@ -103,7 +103,7 @@ As a BSO maintainer, I want diagram validation separated from rendering so a fut
 ### Functional Requirements
 
 - **FR-001**: The system MUST render valid PlantUML and Mermaid fenced blocks during `prepare` and embed the result in Brightspace HTML.
-- **FR-002**: Diagram display and disclosure controls MUST work without client-side JavaScript, because Brightspace runs course content in a restricted iframe where custom scripts do not execute.
+- **FR-002**: Diagram display and disclosure controls MUST work without client-side JavaScript, because Brightspace content sandboxing and script behavior can vary by course/site configuration.
 - **FR-003**: Unsupported fenced-code languages MUST remain unchanged as code.
 - **FR-004**: Identical input and configuration MUST produce byte-identical HTML, including accessibility identifiers.
 - **FR-005**: Configuration MUST accept an optional diagram endpoint, output mode, and fail-on-error setting.

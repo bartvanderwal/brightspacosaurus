@@ -5,7 +5,7 @@
   "sourcesDir": "6.3.Studentenmateriaal/6.3.1.Studentenhandleiding/Lesbeschrijvingen/",
   "readersDir": "6.3.Studentenmateriaal/6.3.2.Readers/",
   "outputDir": "build/brightspace",
-  "docentenHandleiding": {
+  "teacherManual": {
     "inputFiles": [
       "6.1.Docentenhandleiding/docentenhandleiding.md",
       "6.1.Docentenhandleiding/6.1.1.OWE beschrijving voor in OS-OER/owebeschrijving.md",

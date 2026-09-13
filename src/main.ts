@@ -4,22 +4,33 @@
  * Requirements: 6.2, 6.4, 6.5
  */
 
-import { resolve, join, basename, extname, relative, dirname, fromFileUrl } from "@std/path";
+import {
+  basename,
+  dirname,
+  extname,
+  fromFileUrl,
+  join,
+  relative,
+  resolve,
+} from "@std/path";
 import { scanSources } from "./source-scanner.ts";
 import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
-import { materializeAsset, loadPackageVersion } from "./assets.ts";
-import { buildManifest } from "./manifest-builder.ts";
+import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import {
+  buildManifest,
+  sortManifestEntriesForNavigation,
+} from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
 import { ManifestEntry, ResolvedConfig } from "./types.ts";
 import {
+  EXAMPLE_CONFIG,
   findConfigFile,
   loadConfig,
   resolveConfig,
   resolveFromCliOnly,
-  EXAMPLE_CONFIG,
 } from "./config-loader.ts";
 
 /**
@@ -31,7 +42,10 @@ import {
 function decodeHtmlEntities(text: string): string {
   return text
     // Numeric entities first: hex (&#x26;) and decimal (&#38;)
-    .replace(/&#x([0-9a-f]+);/gi, (_m, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(
+      /&#x([0-9a-f]+);/gi,
+      (_m, hex) => String.fromCodePoint(parseInt(hex, 16)),
+    )
     .replace(/&#(\d+);/g, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
     // Named entities next. &amp; last so we don't get a double decode
     // (e.g. &amp;lt; → &lt; and not → <).
@@ -66,7 +80,10 @@ function buildUsage(version: string): string {
 }
 
 /** Prints usage to the given channel ("stdout" for help, "stderr" for errors). */
-function printUsage(version: string, channel: "stdout" | "stderr" = "stderr"): void {
+function printUsage(
+  version: string,
+  channel: "stdout" | "stderr" = "stderr",
+): void {
   const text = buildUsage(version);
   if (channel === "stdout") {
     console.log(text);
@@ -75,11 +92,21 @@ function printUsage(version: string, channel: "stdout" | "stderr" = "stderr"): v
   }
 }
 
-function parseArgs(args: string[]): { command: string; sources: string; readersOnly: boolean; output: string; config: string } | null {
+function parseArgs(
+  args: string[],
+): {
+  command: string;
+  sources: string;
+  readersOnly: boolean;
+  output: string;
+  config: string;
+} | null {
   if (args.length === 0) return null;
 
   const command = args[0];
-  if (command !== "prepare" && command !== "pack" && command !== "preview") return null;
+  if (command !== "prepare" && command !== "pack" && command !== "preview") {
+    return null;
+  }
 
   let sources = "";
   let readersOnly = false;
@@ -103,9 +130,10 @@ function parseArgs(args: string[]): { command: string; sources: string; readersO
   return { command, sources, readersOnly, output, config };
 }
 
-
-
-async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise<void> {
+async function runPrepare(
+  config: ResolvedConfig,
+  readersOnly: boolean,
+): Promise<void> {
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
   const contentOutputDir = join(buildDir, "content");
@@ -113,13 +141,23 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
   const readersOutputDir = join(buildDir, "readers");
 
   if (!readersOnly) {
-    await Deno.remove(contentOutputDir, { recursive: true }).catch(() => undefined);
-    await Deno.remove(quizOutputDir, { recursive: true }).catch(() => undefined);
+    await Deno.remove(contentOutputDir, { recursive: true }).catch(() =>
+      undefined
+    );
+    await Deno.remove(quizOutputDir, { recursive: true }).catch(() =>
+      undefined
+    );
     await Deno.remove(join(buildDir, "imsmanifest.xml")).catch(() => undefined);
   }
-  await Deno.remove(readersOutputDir, { recursive: true }).catch(() => undefined);
+  await Deno.remove(readersOutputDir, { recursive: true }).catch(() =>
+    undefined
+  );
 
-  console.log(`Scanning source directory: ${relative(repoRoot, config.sourcesDir) || config.sourcesDir}`);
+  console.log(
+    `Scanning source directory: ${
+      relative(repoRoot, config.sourcesDir) || config.sourcesDir
+    }`,
+  );
   const scanResult = await scanSources({
     sourcesDir: config.sourcesDir,
     repoRoot,
@@ -131,7 +169,9 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
   if (config.readersDir) {
     try {
       await Deno.stat(config.readersDir);
-      console.log(`Scanning readers directory: ${relative(repoRoot, config.readersDir)}`);
+      console.log(
+        `Scanning readers directory: ${relative(repoRoot, config.readersDir)}`,
+      );
       const readersScan = await scanSources({
         sourcesDir: config.readersDir,
         repoRoot,
@@ -143,7 +183,9 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
     }
   }
 
-  console.log(`Found: ${scanResult.markdownFiles.length} lesson files, ${scanResult.quizFiles.length} quiz files, ${readerFiles.length} reader files`);
+  console.log(
+    `Found: ${scanResult.markdownFiles.length} lesson files, ${scanResult.quizFiles.length} quiz files, ${readerFiles.length} reader files`,
+  );
 
   if (!readersOnly) {
     // Phase 1: Convert lesson Markdown to HTML
@@ -155,6 +197,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         baseDir: config.sourcesDir,
         version: config.version,
         customCssPath: config.customCss ?? undefined,
+        diagrams: config.diagrams,
       });
       const relPath = relative(contentOutputDir, result.outputPath);
       console.log(`  ✓ ${relPath}`);
@@ -177,6 +220,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
           baseDir: dirname(parentFilePath),
           version: config.version,
           customCssPath: config.customCss ?? undefined,
+          diagrams: config.diagrams,
         });
         const relPath = relative(contentOutputDir, result.outputPath);
         console.log(`  ✓ ${relPath} (${parentFile})`);
@@ -192,6 +236,7 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         outputDir: quizOutputDir,
         repoRoot,
         sourcesDir: config.sourcesDir,
+        maxAttempts: config.quiz.maxAttempts,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
@@ -229,7 +274,9 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
 
       // Summary
       console.log(
-        `Readers: ${succeeded} of ${readerFiles.length} converted${failed > 0 ? `, ${failed} failed` : ""}`,
+        `Readers: ${succeeded} of ${readerFiles.length} converted${
+          failed > 0 ? `, ${failed} failed` : ""
+        }`,
       );
 
       if (failed > 0) {
@@ -254,10 +301,12 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
   }
 
   // Phase 4: Generate instructor manual as a combined PDF (null → skip without notice)
-  if (config.docentenHandleiding && pandocAvailable()) {
-    const dhConfig = config.docentenHandleiding;
-    const docentenOutputDir = dhConfig.outputDir;
-    await Deno.remove(docentenOutputDir, { recursive: true }).catch(() => undefined);
+  if (config.teacherManual && pandocAvailable()) {
+    const dhConfig = config.teacherManual;
+    const teacherOutputDir = dhConfig.outputDir;
+    await Deno.remove(teacherOutputDir, { recursive: true }).catch(() =>
+      undefined
+    );
 
     // Check that all source files exist
     const existingFiles: string[] = [];
@@ -271,13 +320,15 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
     }
 
     if (existingFiles.length > 0) {
-      await Deno.mkdir(docentenOutputDir, { recursive: true });
-      const outputFile = join(docentenOutputDir, dhConfig.outputName);
+      await Deno.mkdir(teacherOutputDir, { recursive: true });
+      const outputFile = join(teacherOutputDir, dhConfig.outputName);
       const today = new Date().toISOString().slice(0, 10);
       // Resource path: directory of the first source file
       const resourcePath = dirname(existingFiles[0]);
 
-      console.log(`Generating instructor manual PDF (${existingFiles.length} source files)...`);
+      console.log(
+        `Generating instructor manual PDF (${existingFiles.length} source files)...`,
+      );
       // Materialize BSO assets to temporary files (works locally and from JSR)
       const headerPath = await materializeAsset("reader-header.tex");
       const includeFilterPath = await materializeAsset("include-filter.lua");
@@ -285,14 +336,20 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       const cmd = new Deno.Command("pandoc", {
         args: [
           ...existingFiles,
-          "-o", outputFile,
+          "-o",
+          outputFile,
           `--resource-path=${resourcePath}`,
           "--pdf-engine=xelatex",
-          `-V`, "geometry:margin=2.5cm",
-          "-V", "lang=nl",
-          "-V", "documentclass=report",
-          `-V`, `title=Docentenhandleiding ${config.courseName}`,
-          "-V", `date=${today}`,
+          `-V`,
+          "geometry:margin=2.5cm",
+          "-V",
+          "lang=nl",
+          "-V",
+          "documentclass=report",
+          `-V`,
+          `title=Docentenhandleiding ${config.courseName}`,
+          "-V",
+          `date=${today}`,
           `--include-in-header=${headerPath}`,
           `--lua-filter=${includeFilterPath}`,
           "--syntax-highlighting=tango",
@@ -308,7 +365,11 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
         console.log(`  ✓ ${relative(buildDir, outputFile)}`);
       } else {
         const stderr = new TextDecoder().decode(pandocOutput.stderr);
-        console.warn(`  ⚠ Instructor manual PDF failed (non-blocking): ${stderr.slice(0, 200)}`);
+        console.warn(
+          `  ⚠ Instructor manual PDF failed (non-blocking): ${
+            stderr.slice(0, 200)
+          }`,
+        );
         // Non-blocking: the instructor manual is optional
         await Deno.remove(outputFile).catch(() => undefined);
       }
@@ -321,7 +382,8 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
   // user manual source cannot be found as a local file (e.g. from the JSR cache),
   // we silently skip this phase.
   if (pandocAvailable()) {
-    const docentenOutputDir = config.docentenHandleiding?.outputDir ?? join(buildDir, "docenten");
+    const teacherOutputDir = config.teacherManual?.outputDir ??
+      join(buildDir, "docenten");
 
     // Resolve the docs directory locally; from JSR there is no local docs/ path → skip.
     let bsoDocsDir: string | undefined;
@@ -344,7 +406,9 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
       try {
         // Make sure docs/images/ exists (copy PNG assets if needed)
         const bsoImagesDir = join(bsoDocsDir, "images");
-        try { await Deno.stat(bsoImagesDir); } catch {
+        try {
+          await Deno.stat(bsoImagesDir);
+        } catch {
           await Deno.mkdir(bsoImagesDir, { recursive: true });
           // PNG assets live next to the docs directory under assets/; materializing is not
           // possible for binary files, so we only copy what exists locally.
@@ -352,7 +416,10 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
           try {
             for await (const entry of Deno.readDir(bsoAssetsDir)) {
               if (entry.isFile && entry.name.endsWith(".png")) {
-                await Deno.copyFile(join(bsoAssetsDir, entry.name), join(bsoImagesDir, entry.name));
+                await Deno.copyFile(
+                  join(bsoAssetsDir, entry.name),
+                  join(bsoImagesDir, entry.name),
+                );
               }
             }
           } catch {
@@ -360,25 +427,29 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
           }
         }
 
-        await Deno.mkdir(docentenOutputDir, { recursive: true });
-        const bsoOutput = join(docentenOutputDir, "user-manual.pdf");
+        await Deno.mkdir(teacherOutputDir, { recursive: true });
+        const bsoOutput = join(teacherOutputDir, "user-manual.pdf");
         console.log("Generating Brightspacosaurus user manual PDF...");
         const headerPath = await materializeAsset("reader-header.tex");
         const includeFilterPath = await materializeAsset("include-filter.lua");
         const bsoCmd = new Deno.Command("pandoc", {
           args: [
             bsoSource,
-            "-o", bsoOutput,
+            "-o",
+            bsoOutput,
             `--resource-path=${bsoDocsDir}`,
             "--pdf-engine=xelatex",
-            "-V", "geometry:margin=2.5cm",
-            "-V", "lang=nl",
+            "-V",
+            "geometry:margin=2.5cm",
+            "-V",
+            "lang=nl",
             `--include-in-header=${headerPath}`,
             `--lua-filter=${includeFilterPath}`,
             "--syntax-highlighting=tango",
             "--toc",
             "--toc-depth=2",
-            `-V`, `date=${new Date().toISOString().slice(0, 10)}`,
+            `-V`,
+            `date=${new Date().toISOString().slice(0, 10)}`,
           ],
           stdout: "piped",
           stderr: "piped",
@@ -388,7 +459,9 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
           console.log(`  ✓ ${relative(buildDir, bsoOutput)}`);
         } else {
           const bsoStderr = new TextDecoder().decode(bsoResult.stderr);
-          console.warn(`  ⚠ Brightspacosaurus user manual PDF failed (non-blocking):`);
+          console.warn(
+            `  ⚠ Brightspacosaurus user manual PDF failed (non-blocking):`,
+          );
           console.warn(`    ${bsoStderr.trim()}`);
           await Deno.remove(bsoOutput).catch(() => undefined);
         }
@@ -404,13 +477,18 @@ async function runPrepare(config: ResolvedConfig, readersOnly: boolean): Promise
 async function runPack(config: ResolvedConfig): Promise<void> {
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
-  const outputPath = join(dirname(buildDir), `${config.name}.v${config.version}.imscc`);
+  const outputPath = join(
+    dirname(buildDir),
+    `${config.name}.v${config.version}.imscc`,
+  );
 
   // Run prepare first if build/content/ does not exist
   try {
     await Deno.stat(join(buildDir, "content"));
   } catch {
-    console.log("build/brightspace/content/ not found, running prepare first...");
+    console.log(
+      "build/brightspace/content/ not found, running prepare first...",
+    );
     await runPrepare(config, false);
   }
 
@@ -435,7 +513,9 @@ async function runPack(config: ResolvedConfig): Promise<void> {
         // decodeHtmlEntities prevents double encoding: rehype already escapes to &amp; etc.,
         // and escapeXml() in buildManifest does that again if we don't decode first.
         const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-        const title = h1Match ? decodeHtmlEntities(h1Match[1].trim()) : basename(fullPath, extname(fullPath));
+        const title = h1Match
+          ? decodeHtmlEntities(h1Match[1].trim())
+          : basename(fullPath, extname(fullPath));
 
         const imgRegex = /src="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp))"/gi;
         const dependencies: string[] = [];
@@ -451,7 +531,13 @@ async function runPack(config: ResolvedConfig): Promise<void> {
           }
         }
 
-        entries.push({ id, title, href: relPath, type: "webcontent", dependencies });
+        entries.push({
+          id,
+          title,
+          href: relPath,
+          type: "webcontent",
+          dependencies,
+        });
       }
     }
   }
@@ -470,9 +556,17 @@ async function runPack(config: ResolvedConfig): Promise<void> {
           const relPath = "quiz/" + relative(quizDir, fullPath);
           const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
           const xml = await Deno.readTextFile(fullPath);
-          const fallbackTitle = basename(fullPath, extname(fullPath)).replace(/^qti-/, "");
+          const fallbackTitle = basename(fullPath, extname(fullPath)).replace(
+            /^qti-/,
+            "",
+          );
           const title = extractAssessmentTitle(xml, fallbackTitle);
-          entries.push({ id, title, href: relPath, type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment" });
+          entries.push({
+            id,
+            title,
+            href: relPath,
+            type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+          });
         }
       }
     }
@@ -501,13 +595,9 @@ async function runPack(config: ResolvedConfig): Promise<void> {
   // They do remain as standalone files in build/brightspace/docenten/ for internal use.
   // There is no instructor landing page: GitLab is the source of truth for instructor material.
 
-  // Sort: HTML first, then quiz
-  entries.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "webcontent" ? -1 : 1;
-    return a.href.localeCompare(b.href);
-  });
+  const sortedEntries = sortManifestEntriesForNavigation(entries);
 
-  const manifestXml = buildManifest(config.courseName, entries);
+  const manifestXml = buildManifest(config.courseName, sortedEntries);
   await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
   console.log("  ✓ imsmanifest.xml");
 
@@ -524,7 +614,7 @@ async function runPreview(config: ResolvedConfig): Promise<void> {
   if (!config.docusaurusDir) {
     const err = new Error(
       "preview requires a 'docusaurusDir' in brightspacosaurus.config.json. " +
-        "Add a \"docusaurusDir\" field pointing to your Docusaurus directory (relative to Repo_Root).",
+        'Add a "docusaurusDir" field pointing to your Docusaurus directory (relative to Repo_Root).',
     ) as Error & { exitCode?: number };
     err.exitCode = 1;
     throw err;
@@ -544,7 +634,9 @@ async function runPreview(config: ResolvedConfig): Promise<void> {
   }
 
   console.log(
-    `Starting Docusaurus dev server in ${relative(repoRoot, config.docusaurusDir)}...`,
+    `Starting Docusaurus dev server in ${
+      relative(repoRoot, config.docusaurusDir)
+    }...`,
   );
 
   const cmd = new Deno.Command("npm", {
