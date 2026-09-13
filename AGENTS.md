@@ -51,6 +51,7 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 - Property-based tests with fast-check (via JSR), at least 100 iterations per property.
 - When making code changes, add or update tests: argument validation, deterministic output, error scenarios.
 - Verify locally with `deno task test` before considering anything "done".
+- Keep overall code coverage at **80% or higher for line coverage**. Also report branch and function coverage, because line coverage alone does not prove both sides of conditional behavior are tested.
 - For security-sensitive or build-wide changes: state what you verified and what you did not.
 
 ## Git and commits
