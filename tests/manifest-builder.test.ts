@@ -9,6 +9,7 @@ import { assertEquals } from "@std/assert";
 import fc from "fast-check";
 import {
   buildManifest,
+  deriveReaderMenuTitle,
   sortManifestEntriesForNavigation,
 } from "../src/manifest-builder.ts";
 import { ManifestEntry } from "../src/types.ts";
@@ -244,6 +245,68 @@ Deno.test("Brightspace-manifest sorteert quizzen direct na hun lescode binnen ee
   assertEquals(les61 < quiz61, true);
   assertEquals(quiz61 < les62, true);
   assertEquals(les62 < quiz62, true);
+});
+
+Deno.test("Brightspace-manifest zet weekintro of weekindex eerst binnen een week", () => {
+  const entries: ManifestEntry[] = [
+    {
+      id: "res_content_week_7_achtergrond_test_tooling_html",
+      title: "Achtergrond test tooling",
+      href: "content/week-7/achtergrond-test-tooling.html",
+      type: "webcontent",
+    },
+    {
+      id: "res_quiz_week_7_qti_les_7_1_xml",
+      title: "Quiz 7.1",
+      href: "quiz/week-7/qti-les-7-1.xml",
+      type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+    },
+    {
+      id: "res_content_week_7_les_7_1_html",
+      title: "Les 7.1",
+      href: "content/week-7/les-7.1.html",
+      type: "webcontent",
+    },
+    {
+      id: "res_content_week_7_weekintro_7_html",
+      title: "Weekintro 7",
+      href: "content/week-7/weekintro-7.html",
+      type: "webcontent",
+    },
+  ];
+
+  const sorted = sortManifestEntriesForNavigation(entries);
+  assertEquals(sorted.map((entry) => entry.title), [
+    "Weekintro 7",
+    "Achtergrond test tooling",
+    "Les 7.1",
+    "Quiz 7.1",
+  ]);
+
+  const xml = buildManifest("Cursus X", sorted);
+  const weekintro = xml.indexOf("<title>Weekintro 7</title>");
+  const background = xml.indexOf("<title>Achtergrond test tooling</title>");
+  const lesson = xml.indexOf("<title>Les 7.1</title>");
+  const quiz = xml.indexOf("<title>Quiz 7.1</title>");
+
+  assertEquals(weekintro < background, true);
+  assertEquals(background < lesson, true);
+  assertEquals(lesson < quiz, true);
+});
+
+Deno.test("Reader-menu titels worden gehumanized in plaats van slugtitels", () => {
+  assertEquals(
+    deriveReaderMenuTitle("plantuml-essentials.pdf"),
+    "Reader PlantUML essentials",
+  );
+  assertEquals(
+    deriveReaderMenuTitle("reader-technisch-schrijven.pdf"),
+    "Reader Technisch schrijven",
+  );
+  assertEquals(
+    deriveReaderMenuTitle("reader-git-en-gitlab.pdf"),
+    "Reader Git en GitLab",
+  );
 });
 
 // ---------------------------------------------------------------------------

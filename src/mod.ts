@@ -42,6 +42,7 @@ export { convertQuiz } from "./quiz-converter.ts";
 export { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 export {
   buildManifest,
+  deriveReaderMenuTitle,
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 export { pack } from "./packer.ts";

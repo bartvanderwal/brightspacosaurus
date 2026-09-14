@@ -21,6 +21,7 @@ import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
 import {
   buildManifest,
+  deriveReaderMenuTitle,
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
@@ -583,7 +584,7 @@ async function runPack(config: ResolvedConfig): Promise<void> {
       if (entry.isFile && entry.name.endsWith(".pdf")) {
         const relPath = "readers/" + entry.name;
         const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
-        const title = basename(entry.name, ".pdf");
+        const title = deriveReaderMenuTitle(entry.name);
         entries.push({ id, title, href: relPath, type: "webcontent" });
       }
     }

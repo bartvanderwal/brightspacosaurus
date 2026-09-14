@@ -42,6 +42,46 @@ function naturalCompare(a: string, b: string): number {
   return a.localeCompare(b, "nl", { numeric: true, sensitivity: "base" });
 }
 
+const READER_TITLE_WORDS: Record<string, string> = {
+  api: "API",
+  css: "CSS",
+  git: "Git",
+  github: "GitHub",
+  gitlab: "GitLab",
+  html: "HTML",
+  http: "HTTP",
+  javascript: "JavaScript",
+  js: "JS",
+  pdf: "PDF",
+  plantuml: "PlantUML",
+  qti: "QTI",
+  svg: "SVG",
+  typescript: "TypeScript",
+  uml: "UML",
+  url: "URL",
+  xml: "XML",
+};
+
+function humanizeReaderWord(word: string, index: number): string {
+  const normalized = word.toLowerCase();
+  const mapped = READER_TITLE_WORDS[normalized];
+  if (mapped) return mapped;
+  if (index === 0) {
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }
+  return normalized;
+}
+
+export function deriveReaderMenuTitle(filename: string): string {
+  const stem = filename.replace(/\.[^.]+$/, "").replace(/^reader[-_]/i, "");
+  const title = stem
+    .split(/[-_\s]+/)
+    .filter((part) => part.length > 0)
+    .map(humanizeReaderWord)
+    .join(" ");
+  return title ? `Reader ${title}` : "Reader";
+}
+
 function extractNavigationCode(entry: ManifestEntry): number[] | null {
   const candidates = [
     entry.title,
@@ -82,6 +122,17 @@ function navigationTypeWeight(entry: ManifestEntry): number {
   return entry.type === "webcontent" ? 0 : 1;
 }
 
+function moduleLeadPageWeight(entry: ManifestEntry): number {
+  if (entry.type !== "webcontent") return 1;
+
+  const stem = getFileStem(entry.href).toLowerCase();
+  return /^(?:weekintro|weekindex|intro|index|overview)(?:[-_.]\d+)?$/.test(
+      stem,
+    )
+    ? 0
+    : 1;
+}
+
 export function sortManifestEntriesForNavigation(
   entries: ManifestEntry[],
 ): ManifestEntry[] {
@@ -91,6 +142,9 @@ export function sortManifestEntriesForNavigation(
       getGroupLabel(b.href) ?? "",
     );
     if (groupCompare !== 0) return groupCompare;
+
+    const moduleLeadCompare = moduleLeadPageWeight(a) - moduleLeadPageWeight(b);
+    if (moduleLeadCompare !== 0) return moduleLeadCompare;
 
     const codeCompare = compareNavigationCodes(
       extractNavigationCode(a),

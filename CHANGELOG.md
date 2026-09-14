@@ -8,6 +8,13 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.8.1 - 2026-09-14
+
+### Changed
+
+- Put module lead pages such as `weekintro-*`, `weekindex-*`, `intro`, `index` and `overview` first within their Brightspace module.
+- Humanize reader PDF menu titles in the generated manifest, for example `plantuml-essentials.pdf` becomes `Reader PlantUML essentials`.
+
 ## 0.8.0 - 2026-09-13
 
 ### Added

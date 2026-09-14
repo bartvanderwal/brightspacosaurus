@@ -10,12 +10,15 @@
  * van type `webcontent`.
  */
 
-import { assertEquals, assert } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import fc from "fast-check";
-import { buildManifest } from "../src/manifest-builder.ts";
+import {
+  buildManifest,
+  deriveReaderMenuTitle,
+} from "../src/manifest-builder.ts";
 import { pack } from "../src/packer.ts";
 import { ManifestEntry } from "../src/types.ts";
-import { join, basename } from "@std/path";
+import { join } from "@std/path";
 import JSZip from "jszip";
 
 // ---------------------------------------------------------------------------
@@ -42,7 +45,7 @@ function buildPdfManifestEntries(pdfFilenames: string[]): ManifestEntry[] {
   return pdfFilenames.map((filename) => {
     const relPath = "readers/" + filename;
     const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
-    const title = basename(filename, ".pdf");
+    const title = deriveReaderMenuTitle(filename);
     return { id, title, href: relPath, type: "webcontent" as const };
   });
 }
@@ -57,18 +60,22 @@ const readerSlugArb = fc.stringMatching(/^[a-z][a-z0-9-]{1,15}$/);
 /** Genereert een PDF-bestandsnaam: prefix `reader-` + slug + `.pdf`, of `plantuml-essentials.pdf`. */
 const pdfFilenameArb = fc.oneof(
   { weight: 4, arbitrary: readerSlugArb.map((slug) => `reader-${slug}.pdf`) },
-  { weight: 1, arbitrary: fc.constant("plantuml-essentials.pdf") }
+  { weight: 1, arbitrary: fc.constant("plantuml-essentials.pdf") },
 );
 
 /** Genereert een unieke set van 1-5 PDF-bestandsnamen. */
-const pdfFilenameSetArb = fc.uniqueArray(pdfFilenameArb, { minLength: 1, maxLength: 5 });
+const pdfFilenameSetArb = fc.uniqueArray(pdfFilenameArb, {
+  minLength: 1,
+  maxLength: 5,
+});
 
 // ---------------------------------------------------------------------------
 // Property 4: IMSCC-pakket bevat alle PDF's met manifest-entries
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "Property 4: Manifest bevat een webcontent resource-entry voor elke PDF in readers/",
+  name:
+    "Property 4: Manifest bevat een webcontent resource-entry voor elke PDF in readers/",
   fn() {
     // Feature: readers-en-pdf-export, Property 4: IMSCC-pakket bevat alle PDF's met manifest-entries
     fc.assert(
@@ -97,24 +104,26 @@ Deno.test({
 
           assert(
             manifestXml.includes(`identifier="${expectedId}"`),
-            `Manifest moet resource met id "${expectedId}" bevatten voor ${filename}`
+            `Manifest moet resource met id "${expectedId}" bevatten voor ${filename}`,
           );
           assert(
             manifestXml.includes(`href="${expectedHref}"`),
-            `Manifest moet href "${expectedHref}" bevatten voor ${filename}`
+            `Manifest moet href "${expectedHref}" bevatten voor ${filename}`,
           );
           // Controleer dat de resource type="webcontent" heeft
           // We zoeken het resource-element dat zowel het id als type bevat
           const resourceRegex = new RegExp(
-            `<resource[^>]*identifier="${expectedId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*type="webcontent"[^>]*>`
+            `<resource[^>]*identifier="${
+              expectedId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            }"[^>]*type="webcontent"[^>]*>`,
           );
           assert(
             resourceRegex.test(manifestXml),
-            `Resource voor ${filename} moet type="webcontent" hebben`
+            `Resource voor ${filename} moet type="webcontent" hebben`,
           );
         }
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   },
 });
@@ -139,14 +148,16 @@ Deno.test({
           for (const filename of pdfFilenames) {
             await Deno.writeFile(
               join(readersDir, filename),
-              new TextEncoder().encode(`%PDF-1.4 dummy content for ${filename}`)
+              new TextEncoder().encode(
+                `%PDF-1.4 dummy content for ${filename}`,
+              ),
             );
           }
 
           // Maak een minimaal HTML-bestand aan (content/ mag niet leeg zijn)
           await Deno.writeTextFile(
             join(contentDir, "dummy.html"),
-            "<html><body><h1>Dummy</h1></body></html>"
+            "<html><body><h1>Dummy</h1></body></html>",
           );
 
           // Bouw manifest-entries (simuleer runPack-logica)
@@ -162,7 +173,10 @@ Deno.test({
 
           // Genereer en schrijf imsmanifest.xml
           const manifestXml = buildManifest("OWE 1 - Test", entries);
-          await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
+          await Deno.writeTextFile(
+            join(buildDir, "imsmanifest.xml"),
+            manifestXml,
+          );
 
           // Pack het archief
           const outputPath = join(tempRoot, "test.imscc");
@@ -178,7 +192,7 @@ Deno.test({
             const zipEntry = zip.file(zipPath);
             assert(
               zipEntry !== null,
-              `IMSCC-archief moet bestand "${zipPath}" bevatten`
+              `IMSCC-archief moet bestand "${zipPath}" bevatten`,
             );
 
             // Controleer dat de inhoud overeenkomt
@@ -186,7 +200,7 @@ Deno.test({
             assertEquals(
               content,
               `%PDF-1.4 dummy content for ${filename}`,
-              `Inhoud van "${zipPath}" in archief moet overeenkomen met bronbestand`
+              `Inhoud van "${zipPath}" in archief moet overeenkomen met bronbestand`,
             );
           }
 
@@ -194,7 +208,7 @@ Deno.test({
           const manifestEntry = zip.file("imsmanifest.xml");
           assert(
             manifestEntry !== null,
-            "IMSCC-archief moet imsmanifest.xml bevatten"
+            "IMSCC-archief moet imsmanifest.xml bevatten",
           );
 
           // Controleer: manifest in archief bevat entries voor alle PDF's
@@ -203,20 +217,21 @@ Deno.test({
             const expectedHref = `readers/${filename}`;
             assert(
               archivedManifest.includes(`href="${expectedHref}"`),
-              `Manifest in archief moet href "${expectedHref}" bevatten`
+              `Manifest in archief moet href "${expectedHref}" bevatten`,
             );
           }
         } finally {
           await removeDir(tempRoot);
         }
       }),
-      { numRuns: 30 }
+      { numRuns: 30 },
     );
   },
 });
 
 Deno.test({
-  name: "Property 4: PDF manifest-entries hebben correcte file-elementen in het manifest",
+  name:
+    "Property 4: PDF manifest-entries hebben correcte file-elementen in het manifest",
   fn() {
     // Feature: readers-en-pdf-export, Property 4: IMSCC-pakket bevat alle PDF's met manifest-entries
     fc.assert(
@@ -238,21 +253,24 @@ Deno.test({
         for (const filename of pdfFilenames) {
           const expectedFileHref = `readers/${filename}`;
           const fileElementRegex = new RegExp(
-            `<file href="${expectedFileHref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"/>`
+            `<file href="${
+              expectedFileHref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            }"/>`,
           );
           assert(
             fileElementRegex.test(manifestXml),
-            `Manifest moet <file href="${expectedFileHref}"/> element bevatten voor ${filename}`
+            `Manifest moet <file href="${expectedFileHref}"/> element bevatten voor ${filename}`,
           );
         }
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   },
 });
 
 Deno.test({
-  name: "Property 4: PDF-entries worden als organization-items opgenomen (webcontent)",
+  name:
+    "Property 4: PDF-entries worden als organization-items opgenomen (webcontent)",
   fn() {
     // Feature: readers-en-pdf-export, Property 4: IMSCC-pakket bevat alle PDF's met manifest-entries
     fc.assert(
@@ -273,22 +291,23 @@ Deno.test({
         // Webcontent-entries worden als organization-items opgenomen
         // PDF-entries die niet in een week-map zitten worden als losse items opgenomen
         for (const filename of pdfFilenames) {
-          const expectedTitle = basename(filename, ".pdf");
-          const expectedId = "res_" + `readers/${filename}`.replace(/[^a-z0-9]/gi, "_");
+          const expectedTitle = deriveReaderMenuTitle(filename);
+          const expectedId = "res_" +
+            `readers/${filename}`.replace(/[^a-z0-9]/gi, "_");
 
           // Controleer dat er een item met identifierref naar deze resource bestaat
           assert(
             manifestXml.includes(`identifierref="${expectedId}"`),
-            `Manifest moet een organization-item bevatten met identifierref="${expectedId}" voor ${filename}`
+            `Manifest moet een organization-item bevatten met identifierref="${expectedId}" voor ${filename}`,
           );
           // Controleer dat de titel van het item overeenkomt
           assert(
             manifestXml.includes(`<title>${expectedTitle}</title>`),
-            `Manifest moet een item-titel "${expectedTitle}" bevatten voor ${filename}`
+            `Manifest moet een item-titel "${expectedTitle}" bevatten voor ${filename}`,
           );
         }
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   },
 });
