@@ -6,6 +6,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { SUPPORTED_DIAGRAM_LANGUAGES } from "./diagram-config.ts";
 
+/** Machine-readable categories for offline diagram authoring issues. */
 export type DiagramIssueKind =
   | "unsupported-language"
   | "unknown-fence-option"
@@ -13,11 +14,25 @@ export type DiagramIssueKind =
   | "empty-diagram"
   | "invalid-option-value";
 
+/** One-based source location for a Markdown diagram fence. */
+export interface DiagramIssuePosition {
+  /** One-based line number in the source file. */
+  line: number;
+  /** One-based column number in the source file. */
+  column: number;
+}
+
+/** A validation issue found in a Markdown diagram fence before rendering. */
 export interface DiagramIssue {
+  /** Machine-readable issue category. */
   kind: DiagramIssueKind;
+  /** File being validated. */
   sourceFile: string;
-  position?: { line: number; column: number };
+  /** Source position of the offending fence when available. */
+  position?: DiagramIssuePosition;
+  /** Author-supplied diagram title when present. */
   diagramTitle?: string;
+  /** Human-readable validation message. */
   message: string;
 }
 
@@ -47,7 +62,7 @@ const ALLOWED_FENCE_OPTIONS = new Set(["imgTitle", "imgType", "src", "title"]);
 
 function positionOf(
   node: MdastNode,
-): { line: number; column: number } | undefined {
+): DiagramIssuePosition | undefined {
   const line = node.position?.start?.line;
   const column = node.position?.start?.column;
   return typeof line === "number" && typeof column === "number"
@@ -162,6 +177,7 @@ function detectCodeIssues(node: MdastNode, sourceFile: string): DiagramIssue[] {
   return issues;
 }
 
+/** Detects diagram authoring issues without contacting Kroki. */
 export function detectDiagramIssues(
   markdown: string,
   sourceFile: string,

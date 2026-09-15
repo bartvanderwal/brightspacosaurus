@@ -12,6 +12,10 @@ import {
 } from "./diagram-config.ts";
 import type { DiagramIssue } from "./diagram-validation.ts";
 
+type ProcessorWithUse = {
+  use(plugin: () => unknown): unknown;
+};
+
 /** Minimal mdast node shape used for the meta-normalization walk. */
 interface MdastNode {
   type: string;
@@ -30,8 +34,11 @@ export type DiagramErrorCategory =
 
 /** A typed, actionable diagram rendering failure. */
 export class DiagramError extends Error {
+  /** Category used to decide whether BSO should fail or fall back. */
   readonly category: DiagramErrorCategory;
+  /** Source file in which the diagram rendering failure occurred. */
   readonly sourceFile: string;
+  /** Human-readable reason reported by the renderer or validator. */
   readonly reason: string;
 
   constructor(
@@ -79,6 +86,7 @@ function errorReason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Converts an unknown renderer failure into a typed `DiagramError`. */
 export function toDiagramError(
   error: unknown,
   sourceFile: string,
@@ -94,6 +102,7 @@ export function toDiagramError(
   );
 }
 
+/** Returns whether a diagram error should keep the original fenced code block. */
 export function shouldFallbackDiagramError(
   error: DiagramError,
   cfg: ResolvedDiagramConfig,
@@ -102,10 +111,12 @@ export function shouldFallbackDiagramError(
   return !cfg.failOnError;
 }
 
+/** Formats a warning message for a non-fatal diagram rendering failure. */
 export function formatDiagramWarning(error: DiagramError): string {
   return `diagram-a11y: ${error.message}. Retaining the original fenced code block.`;
 }
 
+/** Converts an offline validation issue into a typed rendering error. */
 export function diagramIssueToError(issue: DiagramIssue): DiagramError {
   const category: DiagramErrorCategory = issue.kind === "empty-diagram"
     ? "invalid-source"
@@ -211,15 +222,16 @@ function remarkKrokiA11yLazy(
  * (strict mode) or returns `null` so the caller can retry without diagram
  * rendering, preserving the original fenced code blocks (fallback mode).
  */
-// deno-lint-ignore no-explicit-any
-export function withDiagramRendering(
-  processor: any,
+export function withDiagramRendering<P extends ProcessorWithUse>(
+  processor: P,
   cfg: ResolvedDiagramConfig,
   sourceFile: string,
-): any {
-  return processor
-    .use(() => remarkNormalizeDiagramMeta(sourceFile))
-    .use(() => remarkKrokiA11yLazy(buildKrokiA11yOptions(cfg), sourceFile));
+): P {
+  processor.use(() => remarkNormalizeDiagramMeta(sourceFile));
+  processor.use(() =>
+    remarkKrokiA11yLazy(buildKrokiA11yOptions(cfg), sourceFile)
+  );
+  return processor;
 }
 
 export { classifyDiagramError };

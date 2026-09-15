@@ -66,16 +66,6 @@ function findDescendant(
   return undefined;
 }
 
-function findDescriptionTextId(node: HastNode): string | undefined {
-  const text = findDescendant(
-    node,
-    (candidate) =>
-      hasClass(candidate, "diagram-a11y-description-text") &&
-      typeof candidate.properties?.id === "string",
-  );
-  return text?.properties?.id as string | undefined;
-}
-
 function findPreviousDiagramNode(
   siblings: HastNode[],
   index: number,
@@ -299,6 +289,13 @@ function adaptChildren(
   }
 }
 
+/**
+ * Creates a rehype plugin that adapts `remark-kroki-a11y` output for Brightspace.
+ *
+ * The adapter keeps source and natural-language descriptions accessible through
+ * native HTML controls and wires generated diagrams with ARIA labels where
+ * possible, without relying on client-side JavaScript.
+ */
 export function rehypeBrightspaceDiagramAdapter(): (
   tree: HastNode,
   file?: DiagramAdapterWarningTarget,

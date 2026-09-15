@@ -12,7 +12,7 @@ import {
   deriveReaderMenuTitle,
   sortManifestEntriesForNavigation,
 } from "../src/manifest-builder.ts";
-import { ManifestEntry } from "../src/types.ts";
+import type { ManifestEntry } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
 // Eigenschap 3: Pakketinhoud is correct en compleet
@@ -43,7 +43,7 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
           maxLength: 5,
         }), // QTI-entries
       ),
-      async ([courseTitle, htmlEntries, qtiEntries]) => {
+      ([courseTitle, htmlEntries, qtiEntries]) => {
         const allEntries = [...htmlEntries, ...qtiEntries];
         const xml = buildManifest(courseTitle, allEntries);
 

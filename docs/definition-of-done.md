@@ -11,6 +11,7 @@ This Definition of Done applies to Brightspacosaurus code and documentation chan
 
 ## Tests and Coverage
 
+- `deno task check` and `deno task lint` pass locally.
 - `deno task test` passes locally before the change is considered done.
 - Overall line coverage is at least **80%**.
 - Coverage reports include line, branch and function coverage.

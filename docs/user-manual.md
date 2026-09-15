@@ -165,6 +165,7 @@ title Brightspacosaurus exportflow
 start
 :Schrijf of wijzig Markdown in Git;
 :Controleer bestandsnamen en relatieve links;
+:Preview lokaal met Docusaurus;
 :Voer `deno task prepare` uit;
 fork
   :Zet lespagina's om naar HTML;
@@ -185,6 +186,7 @@ The source files remain authoritative:
 
 - Lesson pages and student material live in the configured source directory (`sourcesDir`).
 - BSO converts quiz files with the `quiz-` prefix to QTI.
+- BSO can start the configured Docusaurus preview with `bso preview`, so authors can check formatting, links, code blocks and diagrams before the slower Brightspace import round-trip.
 - BSO does not import teacher answer keys with the suffix `-antwoorden-docent` as a student page.
 - Derived output lives in the build directory (`outputDir`) and should not be edited by hand.
 
@@ -200,6 +202,8 @@ deno task pack
 `prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive (for example `cursus.imscc`, where the name is derived from `name`/`courseName` in the config).
 
 With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build.
+
+For fast author feedback, use `bso preview` when `docusaurusDir` is configured. This starts the Docusaurus development server for the course repository, so most content and formatting issues can be caught locally before creating and importing a new `.imscc` package.
 
 ### 5.2 Import behavior: additive with overwrite option
 

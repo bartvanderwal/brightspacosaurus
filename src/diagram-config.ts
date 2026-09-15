@@ -7,27 +7,45 @@
 import type { ResolvedDiagramConfig } from "./types.ts";
 
 /** Fenced-code languages that `remark-kroki-a11y` transforms into diagrams. */
-export const SUPPORTED_DIAGRAM_LANGUAGES = ["plantuml", "mermaid", "kroki"] as const;
+export const SUPPORTED_DIAGRAM_LANGUAGES = [
+  "plantuml",
+  "mermaid",
+  "kroki",
+] as const;
 
 /** Options accepted by `remark-kroki-a11y` (subset used by BSO). */
 export interface KrokiA11yOptions {
+  /** Diagram fence languages that should be rendered. */
   languages: string[];
+  /** Locale for generated labels in the accessible diagram UI. */
   locale: "nl" | "en";
+  /** Whether the original diagram source should be exposed in the HTML output. */
   showSource: boolean;
+  /** Whether the natural-language diagram description should be exposed. */
   showA11yDescription: boolean;
+  /** Whether a client-side diagram/source mode toggle should be emitted. */
   showDiagramModeToggle: boolean;
+  /** Whether the plugin should emit its diagram legend UI. */
   showDiagramLegend: boolean;
+  /** Template for the source disclosure summary. */
   summaryText: string;
+  /** Template for the natural-language description disclosure summary. */
   a11ySummaryText: string;
+  /** Label for the source tab or disclosure. */
   tabSourceLabel: string;
+  /** Label for the accessibility description tab or disclosure. */
   tabA11yLabel: string;
+  /** Kroki rendering options forwarded to `remark-kroki-a11y`. */
   kroki: {
     /** Public option for remark-kroki-a11y 0.6.x; internally mapped to remark-kroki's `server`. */
     krokiBase: string;
     /** Alias for tests/preview code that reason about the underlying remark-kroki option name. */
     server: string;
+    /** Output mode used by remark-kroki for rendered diagrams. */
     output: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64";
+    /** Rendering target used by the plugin; BSO generates HTML. */
     target: "html";
+    /** Diagram language aliases accepted by the Kroki renderer. */
     alias: string[];
   };
 }
@@ -53,7 +71,9 @@ const UI_TEXT = {
  * The diagram-mode toggle is always disabled: Brightspace has no client-side
  * JavaScript to drive it.
  */
-export function buildKrokiA11yOptions(cfg: ResolvedDiagramConfig): KrokiA11yOptions {
+export function buildKrokiA11yOptions(
+  cfg: ResolvedDiagramConfig,
+): KrokiA11yOptions {
   const ui = UI_TEXT[cfg.locale];
   return {
     languages: [...SUPPORTED_DIAGRAM_LANGUAGES],
@@ -71,7 +91,9 @@ export function buildKrokiA11yOptions(cfg: ResolvedDiagramConfig): KrokiA11yOpti
       server: cfg.krokiUrl,
       output: cfg.output,
       target: "html",
-      alias: SUPPORTED_DIAGRAM_LANGUAGES.filter((language) => language !== "kroki"),
+      alias: SUPPORTED_DIAGRAM_LANGUAGES.filter((language) =>
+        language !== "kroki"
+      ),
     },
   };
 }

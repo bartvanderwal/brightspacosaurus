@@ -8,6 +8,14 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.9.1 - 2026-09-15
+
+### Changed
+
+- Improve public JSR API documentation coverage by adding symbol and property docs for all exported entrypoints.
+- Add explicit `deno task check` and `deno task lint` quality gates and document them in the Definition of Done.
+- Clarify the Docusaurus preview feedback loop in the user manual.
+
 ## 0.9.0 - 2026-09-14
 
 ### Added

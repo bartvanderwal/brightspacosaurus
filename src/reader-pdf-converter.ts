@@ -7,13 +7,17 @@
  * @module
  */
 
-import { ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
+import type { ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
 import { materializeAsset } from "./assets.ts";
 import { basename, dirname, join } from "@std/path";
 
-interface ReaderPdfMetadata {
+/** Metadata passed to pandoc for the generated reader PDF cover page. */
+export interface ReaderPdfMetadata {
+  /** Reader title shown on the cover page. */
   title: string;
+  /** Optional author or course name shown on the cover page. */
   author?: string;
+  /** Date/version line shown on the cover page. */
   date: string;
 }
 
@@ -57,6 +61,7 @@ function extractFirstHeading(content: string): string | null {
   return match ? match[1].trim() : null;
 }
 
+/** Derives reader PDF cover metadata from frontmatter, headings and fallbacks. */
 export function deriveReaderPdfMetadata(
   content: string,
   filename: string,
@@ -86,6 +91,7 @@ export function deriveReaderPdfMetadata(
   };
 }
 
+/** Returns the last Git commit date for a source file, or null when unavailable. */
 export async function gitLastCommitDate(
   sourcePath: string,
   repoRoot: string,
@@ -110,6 +116,7 @@ function metadataArg(key: string, value: string): string {
   return `--metadata=${key}:${value}`;
 }
 
+/** Builds the deterministic pandoc argument list for reader PDF conversion. */
 export function buildReaderPandocArgs(options: {
   sourcePath: string;
   outputPath: string;

@@ -17,7 +17,7 @@ import {
   deriveReaderMenuTitle,
 } from "../src/manifest-builder.ts";
 import { pack } from "../src/packer.ts";
-import { ManifestEntry } from "../src/types.ts";
+import type { ManifestEntry } from "../src/types.ts";
 import { join } from "@std/path";
 import JSZip from "jszip";
 

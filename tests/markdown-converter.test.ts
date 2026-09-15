@@ -12,8 +12,11 @@
 
 import { assertEquals } from "@std/assert";
 import fc from "fast-check";
-import { convertMarkdown, convertReaderLinks } from "../src/markdown-converter.ts";
-import { join, resolve } from "@std/path";
+import {
+  convertMarkdown,
+  convertReaderLinks,
+} from "../src/markdown-converter.ts";
+import { join } from "@std/path";
 
 async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "brightspacosaurus_test_" });
@@ -39,7 +42,7 @@ Deno.test("Eigenschap 1: HTML-uitvoer bevat lang=nl en charset=utf-8", async () 
       // Genereer willekeurige Markdown-inhoud (koppen, tekst)
       fc.tuple(
         fc.stringMatching(/^[a-z][a-z0-9-]{0,12}$/), // bestandsnaam
-        fc.stringMatching(/^[A-Za-z ]{1,50}$/) // inhoud
+        fc.stringMatching(/^[A-Za-z ]{1,50}$/), // inhoud
       ),
       async ([fileName, content]) => {
         const tempRoot = await makeTempDir();
@@ -59,17 +62,29 @@ Deno.test("Eigenschap 1: HTML-uitvoer bevat lang=nl en charset=utf-8", async () 
           const html = await Deno.readTextFile(result.outputPath);
 
           // Eigenschap: HTML bevat lang="nl"
-          assertEquals(html.includes('<html lang="nl">'), true, 'HTML moet lang="nl" bevatten');
+          assertEquals(
+            html.includes('<html lang="nl">'),
+            true,
+            'HTML moet lang="nl" bevatten',
+          );
           // Eigenschap: HTML bevat charset=utf-8
-          assertEquals(html.includes('<meta charset="utf-8">'), true, 'HTML moet charset="utf-8" bevatten');
+          assertEquals(
+            html.includes('<meta charset="utf-8">'),
+            true,
+            'HTML moet charset="utf-8" bevatten',
+          );
           // Eigenschap: HTML is een volledig document
-          assertEquals(html.includes('<!DOCTYPE html>'), true, "HTML moet een DOCTYPE hebben");
+          assertEquals(
+            html.includes("<!DOCTYPE html>"),
+            true,
+            "HTML moet een DOCTYPE hebben",
+          );
         } finally {
           await removeDir(tempRoot);
         }
-      }
+      },
     ),
-    { numRuns: 30 }
+    { numRuns: 30 },
   );
 });
 
@@ -81,10 +96,16 @@ Deno.test("Eigenschap 1: afbeeldingen met relatieve paden worden gekopieerd", as
   try {
     await Deno.mkdir(join(sourceDir, "img"), { recursive: true });
     // Maak een afbeelding aan
-    await Deno.writeTextFile(join(sourceDir, "img", "diagram.png"), "fake-png-data");
+    await Deno.writeTextFile(
+      join(sourceDir, "img", "diagram.png"),
+      "fake-png-data",
+    );
     // Maak een Markdown-bestand met een relatieve afbeeldingsreferentie
     const sourcePath = join(sourceDir, "les-1.md");
-    await Deno.writeTextFile(sourcePath, "# Les 1\n\n![diagram](img/diagram.png)\n");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Les 1\n\n![diagram](img/diagram.png)\n",
+    );
 
     const result = await convertMarkdown({
       sourcePath,
@@ -93,10 +114,18 @@ Deno.test("Eigenschap 1: afbeeldingen met relatieve paden worden gekopieerd", as
     });
 
     // Eigenschap: de afbeelding is gekopieerd
-    assertEquals(result.copiedImages.length, 1, "Er moet 1 afbeelding zijn gekopieerd");
+    assertEquals(
+      result.copiedImages.length,
+      1,
+      "Er moet 1 afbeelding zijn gekopieerd",
+    );
     // Controleer dat het doelbestand bestaat
     const stat = await Deno.stat(result.copiedImages[0]);
-    assertEquals(stat.isFile, true, "Gekopieerde afbeelding moet een bestand zijn");
+    assertEquals(
+      stat.isFile,
+      true,
+      "Gekopieerde afbeelding moet een bestand zijn",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -115,7 +144,7 @@ Deno.test("Eigenschap 8: QTI-gemarkeerde secties verschijnen niet in HTML-uitvoe
       fc.tuple(
         fc.stringMatching(/^[a-z][a-z0-9-]{0,8}$/), // bestandsnaam
         fc.stringMatching(/^[A-Za-z]{3,30}$/), // normale inhoud (geen spaties, min 3 chars)
-        fc.stringMatching(/^QTI_MARKER_[a-z]{3,15}$/) // QTI-inhoud: uniek herkenbaar, komt niet per ongeluk voor
+        fc.stringMatching(/^QTI_MARKER_[a-z]{3,15}$/), // QTI-inhoud: uniek herkenbaar, komt niet per ongeluk voor
       ),
       async ([fileName, normalContent, qtiContent]) => {
         const tempRoot = await makeTempDir();
@@ -124,7 +153,8 @@ Deno.test("Eigenschap 8: QTI-gemarkeerde secties verschijnen niet in HTML-uitvoe
         try {
           await Deno.mkdir(sourceDir, { recursive: true });
           const sourcePath = join(sourceDir, `${fileName}.md`);
-          const markdown = `# Titel\n\n${normalContent}\n\n<!-- QTI -->\n${qtiContent}\n<!-- /QTI -->\n\nEinde.\n`;
+          const markdown =
+            `# Titel\n\n${normalContent}\n\n<!-- QTI -->\n${qtiContent}\n<!-- /QTI -->\n\nEinde.\n`;
           await Deno.writeTextFile(sourcePath, markdown);
 
           const result = await convertMarkdown({
@@ -136,18 +166,25 @@ Deno.test("Eigenschap 8: QTI-gemarkeerde secties verschijnen niet in HTML-uitvoe
           const html = await Deno.readTextFile(result.outputPath);
 
           // Eigenschap: QTI-inhoud mag niet in de HTML staan
-          assertEquals(html.includes(qtiContent), false, `QTI-inhoud "${qtiContent}" mag niet in HTML voorkomen`);
+          assertEquals(
+            html.includes(qtiContent),
+            false,
+            `QTI-inhoud "${qtiContent}" mag niet in HTML voorkomen`,
+          );
           // Eigenschap: normale inhoud moet wel in de HTML staan
-          assertEquals(html.includes(normalContent), true, `Normale inhoud "${normalContent}" moet in HTML voorkomen`);
+          assertEquals(
+            html.includes(normalContent),
+            true,
+            `Normale inhoud "${normalContent}" moet in HTML voorkomen`,
+          );
         } finally {
           await removeDir(tempRoot);
         }
-      }
+      },
     ),
-    { numRuns: 30 }
+    { numRuns: 30 },
   );
 });
-
 
 // ===========================================================================
 // Unit tests voor convertReaderLinks
@@ -160,7 +197,8 @@ Deno.test("Eigenschap 8: QTI-gemarkeerde secties verschijnen niet in HTML-uitvoe
 // ---------------------------------------------------------------------------
 
 Deno.test("convertReaderLinks: ../reader-git-en-gitlab.md → ../readers/reader-git-en-gitlab.pdf", () => {
-  const input = "Zie de [Git-reader](../reader-git-en-gitlab.md) voor meer info.";
+  const input =
+    "Zie de [Git-reader](../reader-git-en-gitlab.md) voor meer info.";
   const result = convertReaderLinks(input);
   assertEquals(
     result,
@@ -173,7 +211,8 @@ Deno.test("convertReaderLinks: ../reader-git-en-gitlab.md → ../readers/reader-
 // ---------------------------------------------------------------------------
 
 Deno.test("convertReaderLinks: ../../reader-geheugenmodellen.md → ../readers/reader-geheugenmodellen.pdf", () => {
-  const input = "Lees de [geheugenmodellen-reader](../../reader-geheugenmodellen.md).";
+  const input =
+    "Lees de [geheugenmodellen-reader](../../reader-geheugenmodellen.md).";
   const result = convertReaderLinks(input);
   assertEquals(
     result,
@@ -214,7 +253,8 @@ Deno.test("convertReaderLinks: reader-test.md (zonder padprefix) → ../readers/
 // ---------------------------------------------------------------------------
 
 Deno.test("convertReaderLinks: ../plantuml-essentials.md → ../readers/plantuml-essentials.pdf", () => {
-  const input = "Zie de [PlantUML-reader](../plantuml-essentials.md) voor diagrammen.";
+  const input =
+    "Zie de [PlantUML-reader](../plantuml-essentials.md) voor diagrammen.";
   const result = convertReaderLinks(input);
   assertEquals(
     result,
@@ -227,7 +267,8 @@ Deno.test("convertReaderLinks: ../plantuml-essentials.md → ../readers/plantuml
 // ---------------------------------------------------------------------------
 
 Deno.test("convertReaderLinks: niet-reader-link ../week-1/lesoverzicht-1.1.md blijft ongewijzigd", () => {
-  const input = "Ga naar [les 1.1](../week-1/lesoverzicht-1.1.md) voor het overzicht.";
+  const input =
+    "Ga naar [les 1.1](../week-1/lesoverzicht-1.1.md) voor het overzicht.";
   const result = convertReaderLinks(input);
   assertEquals(
     result,
@@ -240,7 +281,8 @@ Deno.test("convertReaderLinks: niet-reader-link ../week-1/lesoverzicht-1.1.md bl
 // ---------------------------------------------------------------------------
 
 Deno.test("convertReaderLinks: externe link https://example.com/reader-test.md — huidig gedrag", () => {
-  const input = "Zie [extern](https://example.com/reader-test.md) voor details.";
+  const input =
+    "Zie [extern](https://example.com/reader-test.md) voor details.";
   const result = convertReaderLinks(input);
   // NB: De huidige regex matcht ook externe URLs die reader-*.md bevatten.
   // Dit is een bekende beperking — in de praktijk komen dergelijke externe links
@@ -257,7 +299,8 @@ Deno.test("convertReaderLinks: externe link https://example.com/reader-test.md �
 // ---------------------------------------------------------------------------
 
 Deno.test("convertReaderLinks: link met anchor ../reader-git-en-gitlab.md#branching — test huidig gedrag", () => {
-  const input = "Zie [branching](../reader-git-en-gitlab.md#branching) voor details.";
+  const input =
+    "Zie [branching](../reader-git-en-gitlab.md#branching) voor details.";
   const result = convertReaderLinks(input);
   // De regex vereist dat de href eindigt op .md) — een anchor (#branching) staat na .md
   // waardoor het patroon `reader-[^)]+\.md` niet matcht op `reader-git-en-gitlab.md#branching`
@@ -353,8 +396,16 @@ Deno.test("Externe link krijgt target=_blank en rel=noopener noreferrer", async 
       'Externe link moet target="_blank" bevatten',
     );
     // rel moet zowel noopener als noreferrer bevatten
-    assertEquals(html.includes("noopener"), true, 'rel moet "noopener" bevatten');
-    assertEquals(html.includes("noreferrer"), true, 'rel moet "noreferrer" bevatten');
+    assertEquals(
+      html.includes("noopener"),
+      true,
+      'rel moet "noopener" bevatten',
+    );
+    assertEquals(
+      html.includes("noreferrer"),
+      true,
+      'rel moet "noreferrer" bevatten',
+    );
   } finally {
     await removeDir(tempRoot);
   }

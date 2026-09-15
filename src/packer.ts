@@ -7,7 +7,7 @@
  * @module
  */
 
-import { PackOptions } from "./types.ts";
+import type { PackOptions } from "./types.ts";
 import { join, relative } from "@std/path";
 import JSZip from "jszip";
 

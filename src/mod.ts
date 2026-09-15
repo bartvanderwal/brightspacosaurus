@@ -1,5 +1,6 @@
 /**
- * Brightspacosaurus — Markdown cursusmateriaal → Brightspace Common Cartridge (.imscc)
+ * Brightspacosaurus public API for converting Markdown course material to
+ * Brightspace Common Cartridge packages.
  *
  * @module
  */
@@ -62,4 +63,8 @@ export { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
 export { detectDiagramIssues } from "./diagram-validation.ts";
 export type { KrokiA11yOptions } from "./diagram-config.ts";
 export type { DiagramErrorCategory } from "./diagram-renderer.ts";
-export type { DiagramIssue, DiagramIssueKind } from "./diagram-validation.ts";
+export type {
+  DiagramIssue,
+  DiagramIssueKind,
+  DiagramIssuePosition,
+} from "./diagram-validation.ts";

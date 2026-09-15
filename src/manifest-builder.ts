@@ -7,7 +7,7 @@
  * @module
  */
 
-import { ManifestEntry } from "./types.ts";
+import type { ManifestEntry } from "./types.ts";
 
 /**
  * Escapes XML special characters in a string.
@@ -76,6 +76,7 @@ function humanizeReaderWord(word: string, index: number): string {
   return normalized;
 }
 
+/** Derives a human-readable Brightspace menu title from a reader PDF filename. */
 export function deriveReaderMenuTitle(filename: string): string {
   const stem = filename.replace(/\.[^.]+$/, "").replace(/^reader[-_]/i, "");
   const title = stem
@@ -137,6 +138,7 @@ function moduleLeadPageWeight(entry: ManifestEntry): number {
     : 1;
 }
 
+/** Sorts manifest entries into the navigation order expected in Brightspace. */
 export function sortManifestEntriesForNavigation(
   entries: ManifestEntry[],
 ): ManifestEntry[] {

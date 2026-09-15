@@ -7,7 +7,7 @@
  * @module
  */
 
-import { ScanOptions, ScanResult } from "./types.ts";
+import type { ScanOptions, ScanResult } from "./types.ts";
 import { join, relative, resolve } from "@std/path";
 
 /**

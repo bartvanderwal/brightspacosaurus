@@ -28,7 +28,7 @@ import {
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
-import { ManifestEntry, ResolvedConfig } from "./types.ts";
+import type { ManifestEntry, ResolvedConfig } from "./types.ts";
 import {
   EXAMPLE_CONFIG,
   findConfigFile,
@@ -96,6 +96,7 @@ function printUsage(
   }
 }
 
+/** Parses Brightspacosaurus CLI arguments for the supported subcommands. */
 export function parseArgs(
   args: string[],
 ): {
@@ -134,6 +135,7 @@ export function parseArgs(
   return { command, sources, readersOnly, output, config };
 }
 
+/** Runs the `prepare` command using an already resolved configuration. */
 export async function runPrepare(
   config: ResolvedConfig,
   readersOnly: boolean,
@@ -480,6 +482,7 @@ export async function runPrepare(
   console.log(`Prepare complete.`);
 }
 
+/** Runs the `pack` command using an already resolved configuration. */
 export async function runPack(config: ResolvedConfig): Promise<void> {
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
@@ -553,7 +556,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   const quizDir = join(buildDir, "quiz");
   try {
     await Deno.stat(quizDir);
-    async function scanQuiz(dir: string): Promise<void> {
+    const scanQuiz = async (dir: string): Promise<void> => {
       for await (const entry of Deno.readDir(dir)) {
         const fullPath = join(dir, entry.name);
         if (entry.isDirectory) {
@@ -575,7 +578,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           });
         }
       }
-    }
+    };
     await scanQuiz(quizDir);
   } catch {
     // No quiz directory
@@ -614,6 +617,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   console.log("Pack complete.");
 }
 
+/** Runs the `preview` command using an already resolved configuration. */
 export async function runPreview(config: ResolvedConfig): Promise<void> {
   const repoRoot = config.repoRoot;
 

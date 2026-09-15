@@ -7,7 +7,7 @@
  * @module
  */
 
-import { ConvertOptions, ConvertResult } from "./types.ts";
+import type { ConvertOptions, ConvertResult } from "./types.ts";
 import { loadAssetText } from "./assets.ts";
 import { basename, dirname, extname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";

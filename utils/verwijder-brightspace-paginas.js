@@ -30,12 +30,12 @@
  */
 
 (async function () {
-  'use strict';
+  "use strict";
 
   const POLL = 50; // ms tussen polls
 
   function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async function wachtOp(zoekFn, maxMs = 8000) {
@@ -59,7 +59,7 @@
 
   function alleDocs() {
     const docs = [document];
-    for (const iframe of document.querySelectorAll('iframe')) {
+    for (const iframe of document.querySelectorAll("iframe")) {
       try {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (doc) docs.push(doc);
@@ -78,20 +78,25 @@
 
   function alleItems() {
     for (const doc of alleDocs()) {
-      const items = doc.querySelectorAll('.navigation-item[data-objectid]');
+      const items = doc.querySelectorAll(".navigation-item[data-objectid]");
       if (items.length > 0) return Array.from(items);
     }
     return [];
   }
 
   function getNaam(item) {
-    return item.querySelector('.title-text span')?.textContent?.trim() || '(onbekend)';
+    return item.querySelector(".title-text span")?.textContent?.trim() ||
+      "(onbekend)";
   }
 
   function vindHuidigIndex(items) {
     for (let i = 0; i < items.length; i++) {
-      const box = items[i].querySelector('.unit-box');
-      if (box && (box.classList.contains('selected') || box.getAttribute('tabindex') === '0')) {
+      const box = items[i].querySelector(".unit-box");
+      if (
+        box &&
+        (box.classList.contains("selected") ||
+          box.getAttribute("tabindex") === "0")
+      ) {
         return i;
       }
     }
@@ -101,25 +106,31 @@
   // Check of er open dialogen zijn
   function heeftOpenDialoog() {
     for (const doc of alleDocs()) {
-      if (doc.querySelector('d2l-dialog[opened], d2l-dialog-confirm[opened]')) return true;
+      if (doc.querySelector("d2l-dialog[opened], d2l-dialog-confirm[opened]")) {
+        return true;
+      }
       // Fallback: role="dialog" die zichtbaar is
       for (const dlg of doc.querySelectorAll('[role="dialog"]')) {
-        if (dlg.offsetParent !== null || dlg.style.display !== 'none') return true;
+        if (dlg.offsetParent !== null || dlg.style.display !== "none") {
+          return true;
+        }
       }
     }
     return false;
   }
 
   // Wacht tot alle dialogen dicht zijn
-  async function wachtTotDialogenDicht(maxMs = 15000) {
+  function wachtTotDialogenDicht(maxMs = 15000) {
     return wachtTot(() => !heeftOpenDialoog(), maxMs);
   }
 
   // Sluit toasts
   function sluitToasts() {
     for (const doc of alleDocs()) {
-      for (const toast of doc.querySelectorAll('d2l-alert-toast')) {
-        const btn = toast.querySelector('button[aria-label="Close"], button[aria-label="Sluiten"]');
+      for (const toast of doc.querySelectorAll("d2l-alert-toast")) {
+        const btn = toast.querySelector(
+          'button[aria-label="Close"], button[aria-label="Sluiten"]',
+        );
         if (btn) btn.click();
       }
     }
@@ -129,12 +140,15 @@
   function vindBevestigingsknop() {
     for (const doc of alleDocs()) {
       const dialogen = doc.querySelectorAll(
-        'd2l-dialog[opened], d2l-dialog-confirm[opened], [role="dialog"]'
+        'd2l-dialog[opened], d2l-dialog-confirm[opened], [role="dialog"]',
       );
       for (const dlg of dialogen) {
-        for (const b of dlg.querySelectorAll('button, d2l-button')) {
-          const tekst = (b.textContent || b.getAttribute('text') || '').trim().toLowerCase();
-          if (tekst === 'verwijderen' || tekst === 'remove' || tekst === 'delete') {
+        for (const b of dlg.querySelectorAll("button, d2l-button")) {
+          const tekst = (b.textContent || b.getAttribute("text") || "").trim()
+            .toLowerCase();
+          if (
+            tekst === "verwijderen" || tekst === "remove" || tekst === "delete"
+          ) {
             return b;
           }
         }
@@ -150,29 +164,41 @@
   const startNaam = getNaam(items[startIndex]);
 
   if (aantal === 0) {
-    alert('Geen items gevonden. Zorg dat je in de Content-navigatie zit.');
+    alert("Geen items gevonden. Zorg dat je in de Content-navigatie zit.");
     return;
   }
 
   const invoer = prompt(
-    `${aantal} items totaal. Start bij: "${startNaam}" (positie ${startIndex + 1}).\n\n` +
-    `Hoeveel items verwijderen vanaf hier?\n` +
-    `Leeg = alles vanaf hier (${aantal - startIndex} items).`,
-    ''
+    `${aantal} items totaal. Start bij: "${startNaam}" (positie ${
+      startIndex + 1
+    }).\n\n` +
+      `Hoeveel items verwijderen vanaf hier?\n` +
+      `Leeg = alles vanaf hier (${aantal - startIndex} items).`,
+    "",
   );
 
-  if (invoer === null) { console.log('[opschoning] Geannuleerd.'); return; }
-
-  const beschikbaar = aantal - startIndex;
-  const max = invoer.trim() === '' ? beschikbaar : Math.min(parseInt(invoer, 10) || 0, beschikbaar);
-  if (max <= 0) { alert('Ongeldig getal.'); return; }
-
-  if (!confirm(`${max} items verwijderen vanaf "${startNaam}". Doorgaan?`)) {
-    console.log('[opschoning] Geannuleerd.');
+  if (invoer === null) {
+    console.log("[opschoning] Geannuleerd.");
     return;
   }
 
-  console.log(`[opschoning] Start: ${max} items vanaf positie ${startIndex + 1}`);
+  const beschikbaar = aantal - startIndex;
+  const max = invoer.trim() === ""
+    ? beschikbaar
+    : Math.min(parseInt(invoer, 10) || 0, beschikbaar);
+  if (max <= 0) {
+    alert("Ongeldig getal.");
+    return;
+  }
+
+  if (!confirm(`${max} items verwijderen vanaf "${startNaam}". Doorgaan?`)) {
+    console.log("[opschoning] Geannuleerd.");
+    return;
+  }
+
+  console.log(
+    `[opschoning] Start: ${max} items vanaf positie ${startIndex + 1}`,
+  );
 
   let verwijderd = 0;
   let overgeslagen = 0;
@@ -184,43 +210,50 @@
 
     const huidigeItems = alleItems();
     if (huidigeItems.length === 0) {
-      console.log('[opschoning] Geen items meer.');
+      console.log("[opschoning] Geen items meer.");
       break;
     }
 
     // Zoek eerste niet-mislukt item vanaf startIndex
     let item = null;
     for (let i = startIndex; i < huidigeItems.length; i++) {
-      const oid = huidigeItems[i].getAttribute('data-objectid');
-      if (!mislukt.has(oid)) { item = huidigeItems[i]; break; }
+      const oid = huidigeItems[i].getAttribute("data-objectid");
+      if (!mislukt.has(oid)) {
+        item = huidigeItems[i];
+        break;
+      }
     }
     if (!item) {
-      console.log('[opschoning] Geen verwijderbare items meer.');
+      console.log("[opschoning] Geen verwijderbare items meer.");
       break;
     }
 
     const naam = getNaam(item);
-    const objectId = item.getAttribute('data-objectid');
-    console.log(`[opschoning] [${verwijderd + 1}/${max}] "${naam}" (id=${objectId})`);
+    const objectId = item.getAttribute("data-objectid");
+    console.log(
+      `[opschoning] [${verwijderd + 1}/${max}] "${naam}" (id=${objectId})`,
+    );
 
     sluitToasts();
 
     // Stap 1: Klik context-menu knop (⋮) direct in het item
     let optieKnop = item.querySelector(
       'button[aria-label="Opties"], button[aria-label="Options"], ' +
-      'button[aria-label="More actions"], d2l-button-icon[aria-label="Opties"], ' +
-      'd2l-button-icon[aria-label="Options"], .d2l-dropdown-opener'
+        'button[aria-label="More actions"], d2l-button-icon[aria-label="Opties"], ' +
+        'd2l-button-icon[aria-label="Options"], .d2l-dropdown-opener',
     );
 
     if (!optieKnop) {
       // Fallback: selecteer item, wacht op Opties-knop
       const treeItem = item.querySelector('[role="treeitem"]');
-      if (treeItem) treeItem.click(); else item.click();
+      if (treeItem) treeItem.click();
+      else item.click();
       optieKnop = await wachtOp(
-        () => zoekOveral(
-          '[aria-label="Opties"], [aria-label="Options"], [aria-label="More actions"]'
-        ),
-        5000
+        () =>
+          zoekOveral(
+            '[aria-label="Opties"], [aria-label="Options"], [aria-label="More actions"]',
+          ),
+        5000,
       );
     }
 
@@ -234,11 +267,12 @@
 
     // Stap 2: Wacht op "Verwijderen"/"Remove" in dropdown
     const del = await wachtOp(
-      () => zoekOveral('#optDelete') ||
-            zoekOveral('[data-key="optDelete"]') ||
-            zoekOveral('d2l-menu-item[text="Verwijderen"]') ||
-            zoekOveral('d2l-menu-item[text="Remove"]'),
-      4000
+      () =>
+        zoekOveral("#optDelete") ||
+        zoekOveral('[data-key="optDelete"]') ||
+        zoekOveral('d2l-menu-item[text="Verwijderen"]') ||
+        zoekOveral('d2l-menu-item[text="Remove"]'),
+      4000,
     );
     if (!del) {
       console.warn(`  ⏭️ "${naam}": geen verwijderoptie. Skip.`);
@@ -263,7 +297,7 @@
       const radio = doc.querySelector('input[type="radio"][value="true"]');
       if (radio) {
         radio.click();
-        radio.dispatchEvent(new Event('change', { bubbles: true }));
+        radio.dispatchEvent(new Event("change", { bubbles: true }));
         break;
       }
     }
@@ -273,7 +307,9 @@
     if (!btn) {
       console.warn(`  ⏭️ "${naam}": bevestigingsknop niet gevonden. Skip.`);
       // Forceer dialoog dicht
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
       await wachtTotDialogenDicht(3000);
       mislukt.add(objectId);
       overgeslagen++;
@@ -285,7 +321,7 @@
     const aantalVoor = huidigeItems.length;
     const klaar = await wachtTot(
       () => !heeftOpenDialoog() && alleItems().length < aantalVoor,
-      15000
+      15000,
     );
 
     if (klaar) {
@@ -294,13 +330,17 @@
       console.log(`  ✅ Verwijderd (${verwijderd}/${max})`);
     } else if (!heeftOpenDialoog()) {
       // Dialoog is dicht maar item is er nog — mislukt
-      console.warn(`  ⚠️ "${naam}": dialoog dicht maar item nog aanwezig. Skip.`);
+      console.warn(
+        `  ⚠️ "${naam}": dialoog dicht maar item nog aanwezig. Skip.`,
+      );
       mislukt.add(objectId);
       overgeslagen++;
     } else {
       // Dialoog nog open na 15s — iets is vastgelopen
       console.warn(`  ⚠️ "${naam}": dialoog bleef open. Forceer sluiten.`);
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
       await wachtTotDialogenDicht(3000);
       mislukt.add(objectId);
       overgeslagen++;
@@ -309,8 +349,8 @@
 
   console.log(
     `\n[opschoning] Klaar!\n` +
-    `  ✅ Verwijderd: ${verwijderd}\n` +
-    `  ⏭️ Overgeslagen: ${overgeslagen}\n` +
-    `  Druk F5 om te verifiëren.`
+      `  ✅ Verwijderd: ${verwijderd}\n` +
+      `  ⏭️ Overgeslagen: ${overgeslagen}\n` +
+      `  Druk F5 om te verifiëren.`,
   );
 })();

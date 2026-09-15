@@ -11,15 +11,21 @@ import { basename, dirname, join, relative, resolve } from "@std/path";
 
 /** A parsed quiz question. */
 export interface QuizQuestion {
+  /** Question number as written in the Markdown heading. */
   number: number;
+  /** Question prompt text. */
   text: string;
+  /** Answer options with labels such as A, B, C and D. */
   options: { label: string; text: string }[];
+  /** Label of the correct answer option. */
   correctAnswer: string; // "A", "B", "C" or "D"
 }
 
 /** A parsed quiz. */
 export interface ParsedQuiz {
+  /** Student-facing quiz title. */
   title: string;
+  /** Parsed questions in source order. */
   questions: QuizQuestion[];
 }
 

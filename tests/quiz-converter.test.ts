@@ -11,13 +11,13 @@
 import { assertEquals } from "@std/assert";
 import fc from "fast-check";
 import {
-  parseQuizMarkdown,
-  generateQtiXml,
-  deriveQuizIdent,
   convertQuiz,
+  deriveQuizIdent,
   extractAssessmentTitle,
+  generateQtiXml,
+  parseQuizMarkdown,
 } from "../src/quiz-converter.ts";
-import { join, resolve } from "@std/path";
+import { join } from "@std/path";
 Deno.test("extractAssessmentTitle: gebruikt de menselijke QTI-titel en decodeert XML-entiteiten", () => {
   const title = extractAssessmentTitle(
     '<assessment ident="quiz-les-2-1" title="Quiz 2.1 &amp; PlantUML">',
@@ -28,7 +28,10 @@ Deno.test("extractAssessmentTitle: gebruikt de menselijke QTI-titel en decodeert
 });
 
 Deno.test("extractAssessmentTitle: valt terug zonder assessment-titel", () => {
-  assertEquals(extractAssessmentTitle("<questestinterop />", "Quiz zonder titel"), "Quiz zonder titel");
+  assertEquals(
+    extractAssessmentTitle("<questestinterop />", "Quiz zonder titel"),
+    "Quiz zonder titel",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -118,19 +121,42 @@ Deno.test("QuizConverter: quiz-2.2-di produceert structureel correcte QTI XML", 
 
   // Alle 5 vragen als items
   for (let i = 1; i <= 5; i++) {
-    assertEquals(xml.includes(`ident="q${i}"`), true, `Item q${i} moet aanwezig zijn`);
+    assertEquals(
+      xml.includes(`ident="q${i}"`),
+      true,
+      `Item q${i} moet aanwezig zijn`,
+    );
   }
 
   // Correcte antwoorden
-  assertEquals(xml.includes("<varequal respident=\"q1_resp\">q1_b</varequal>"), true);
-  assertEquals(xml.includes("<varequal respident=\"q2_resp\">q2_a</varequal>"), true);
-  assertEquals(xml.includes("<varequal respident=\"q3_resp\">q3_c</varequal>"), true);
-  assertEquals(xml.includes("<varequal respident=\"q4_resp\">q4_b</varequal>"), true);
-  assertEquals(xml.includes("<varequal respident=\"q5_resp\">q5_b</varequal>"), true);
+  assertEquals(
+    xml.includes('<varequal respident="q1_resp">q1_b</varequal>'),
+    true,
+  );
+  assertEquals(
+    xml.includes('<varequal respident="q2_resp">q2_a</varequal>'),
+    true,
+  );
+  assertEquals(
+    xml.includes('<varequal respident="q3_resp">q3_c</varequal>'),
+    true,
+  );
+  assertEquals(
+    xml.includes('<varequal respident="q4_resp">q4_b</varequal>'),
+    true,
+  );
+  assertEquals(
+    xml.includes('<varequal respident="q5_resp">q5_b</varequal>'),
+    true,
+  );
 
   // Elke vraag heeft 4 antwoordopties
   const responseLabelCount = (xml.match(/<response_label /g) || []).length;
-  assertEquals(responseLabelCount, 20, "5 vragen × 4 opties = 20 response_labels");
+  assertEquals(
+    responseLabelCount,
+    20,
+    "5 vragen × 4 opties = 20 response_labels",
+  );
 });
 
 Deno.test("QuizConverter: maxAttempts is configureerbaar in QTI metadata", () => {
@@ -183,7 +209,6 @@ Correct antwoord: **B**
   }
 });
 
-
 // ---------------------------------------------------------------------------
 // Property-test: voor alle geldige quiz-Markdown bestanden geldt dat de
 // QTI-output een <questestinterop>-element bevat met het juiste aantal items
@@ -201,11 +226,11 @@ const quizMarkdownArb = fc
           fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
           fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
           fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
-          fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/)
+          fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
         ),
         correct: fc.constantFrom("A", "B", "C", "D"),
       }),
-      { minLength: 1, maxLength: 10 }
+      { minLength: 1, maxLength: 10 },
     ),
   })
   .map(({ title, questions }) => {
@@ -230,17 +255,33 @@ Deno.test("Property: QTI-output bevat <questestinterop> met het juiste aantal it
       const xml = generateQtiXml(parsed, ident);
 
       // Moet <questestinterop> bevatten
-      assertEquals(xml.includes("<questestinterop"), true, "XML moet <questestinterop> bevatten");
-      assertEquals(xml.includes("</questestinterop>"), true, "XML moet </questestinterop> bevatten");
+      assertEquals(
+        xml.includes("<questestinterop"),
+        true,
+        "XML moet <questestinterop> bevatten",
+      );
+      assertEquals(
+        xml.includes("</questestinterop>"),
+        true,
+        "XML moet </questestinterop> bevatten",
+      );
 
       // Aantal items moet overeenkomen met het aantal vragen
       const itemCount = (xml.match(/<item ident="/g) || []).length;
-      assertEquals(itemCount, expectedCount, `Verwacht ${expectedCount} items, gevonden ${itemCount}`);
+      assertEquals(
+        itemCount,
+        expectedCount,
+        `Verwacht ${expectedCount} items, gevonden ${itemCount}`,
+      );
 
       // Elke vraag moet 4 response_labels hebben
       const responseLabelCount = (xml.match(/<response_label /g) || []).length;
-      assertEquals(responseLabelCount, expectedCount * 4, `Verwacht ${expectedCount * 4} response_labels`);
+      assertEquals(
+        responseLabelCount,
+        expectedCount * 4,
+        `Verwacht ${expectedCount * 4} response_labels`,
+      );
     }),
-    { numRuns: 100 }
+    { numRuns: 100 },
   );
 });

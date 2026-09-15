@@ -8,7 +8,7 @@ import {
   runPrepare,
   runPreview,
 } from "../src/main.ts";
-import { ResolvedConfig } from "../src/types.ts";
+import type { ResolvedConfig } from "../src/types.ts";
 
 function testConfig(repoRoot: string): ResolvedConfig {
   return {
