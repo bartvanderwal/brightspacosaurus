@@ -1,6 +1,10 @@
 /**
- * Packer: packages build/brightspace/ into a .imscc archive.
- * Requirements: 2.2, 2.4, 2.5, 6.3
+ * Packages a prepared Brightspace build directory into an `.imscc` archive.
+ *
+ * The packer walks the build output deterministically and writes a ZIP archive
+ * suitable for Brightspace Common Cartridge import.
+ *
+ * @module
  */
 
 import { PackOptions } from "./types.ts";
@@ -10,7 +14,10 @@ import JSZip from "jszip";
 /**
  * Collects all files in a directory recursively, sorted by relative path.
  */
-async function collectFiles(dir: string, baseDir: string): Promise<{ relPath: string; absPath: string }[]> {
+async function collectFiles(
+  dir: string,
+  baseDir: string,
+): Promise<{ relPath: string; absPath: string }[]> {
   const files: { relPath: string; absPath: string }[] = [];
 
   async function walk(currentDir: string): Promise<void> {
@@ -86,7 +93,10 @@ export async function pack(options: PackOptions): Promise<void> {
   }
 
   try {
-    const zipContent = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+    const zipContent = await zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+    });
     await Deno.writeFile(outputPath, zipContent);
   } catch (e) {
     // Remove the partially created file

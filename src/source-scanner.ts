@@ -1,11 +1,14 @@
 /**
- * SourceScanner: scans the source directory and classifies files by file name.
- * Quiz files are recognized by the "quiz-" prefix.
- * Requirements: 1.1, 3.1, 3.2, 3.4, 6.1
+ * Scans course source directories and classifies files by naming convention.
+ *
+ * The scanner identifies lesson Markdown, quiz Markdown, reader files,
+ * pre-built PDFs and excluded work-in-progress files.
+ *
+ * @module
  */
 
 import { ScanOptions, ScanResult } from "./types.ts";
-import { resolve, relative, join } from "@std/path";
+import { join, relative, resolve } from "@std/path";
 
 /**
  * Checks whether a path is within the repository root.
@@ -14,7 +17,9 @@ import { resolve, relative, join } from "@std/path";
 function assertWithinRoot(absPath: string, repoRoot: string): void {
   const rel = relative(repoRoot, absPath);
   if (rel.startsWith("..") || rel.startsWith("/")) {
-    const err = new Error(`Path outside repository root rejected: ${absPath} (root: ${repoRoot})`);
+    const err = new Error(
+      `Path outside repository root rejected: ${absPath} (root: ${repoRoot})`,
+    );
     (err as Error & { exitCode: number }).exitCode = 3;
     throw err;
   }
@@ -29,7 +34,8 @@ function isReaderFile(fileName: string): boolean {
   if (fileName.startsWith("TODO-") || fileName.startsWith("quiz-")) {
     return false;
   }
-  return fileName.startsWith("reader-") || fileName === "plantuml-essentials.md";
+  return fileName.startsWith("reader-") ||
+    fileName === "plantuml-essentials.md";
 }
 
 /**
@@ -37,7 +43,16 @@ function isReaderFile(fileName: string): boolean {
  * Files directly in the top-level directory that meet the reader criteria go into readerFiles.
  * Files in subdirectories are classified as markdownFiles or quizFiles.
  */
-async function scanDir(dir: string): Promise<{ markdownFiles: string[]; quizFiles: string[]; readerFiles: string[]; pdfFiles: string[] }> {
+async function scanDir(
+  dir: string,
+): Promise<
+  {
+    markdownFiles: string[];
+    quizFiles: string[];
+    readerFiles: string[];
+    pdfFiles: string[];
+  }
+> {
   const markdownFiles: string[] = [];
   const quizFiles: string[] = [];
   const readerFiles: string[] = [];
@@ -55,9 +70,16 @@ async function scanDir(dir: string): Promise<{ markdownFiles: string[]; quizFile
         // Top-level files: classify as reader where applicable
         if (isTopLevel && isReaderFile(entry.name)) {
           readerFiles.push(fullPath);
-        } else if (entry.name.startsWith("quiz-") && !entry.name.includes("-antwoorden-docent")) {
+        } else if (
+          entry.name.startsWith("quiz-") &&
+          !entry.name.includes("-antwoorden-docent")
+        ) {
           quizFiles.push(fullPath);
-        } else if (!entry.name.startsWith("quiz-") && !entry.name.startsWith("transcript-") && !entry.name.startsWith("TODO-")) {
+        } else if (
+          !entry.name.startsWith("quiz-") &&
+          !entry.name.startsWith("transcript-") &&
+          !entry.name.startsWith("TODO-")
+        ) {
           markdownFiles.push(fullPath);
         }
         // quiz-*-antwoorden-docent.md files are deliberately skipped:

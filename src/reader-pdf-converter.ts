@@ -1,11 +1,150 @@
 /**
- * ReaderPdfConverter: converts reader Markdown files to PDF via pandoc.
- * Requirements: 6.1, 6.2, 6.4, 6.5, 6.6
+ * Converts reader Markdown files to print-oriented PDFs via pandoc.
+ *
+ * Reader PDFs include a mandatory cover page, table of contents, bundled
+ * LaTeX styling and Lua filters for includes and diagrams.
+ *
+ * @module
  */
 
 import { ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
 import { materializeAsset } from "./assets.ts";
 import { basename, dirname, join } from "@std/path";
+
+interface ReaderPdfMetadata {
+  title: string;
+  author?: string;
+  date: string;
+}
+
+function humanizeReaderTitle(filename: string): string {
+  const stem = filename.replace(/\.[^.]+$/, "").replace(/^reader[-_]/i, "");
+  const words = stem.split(/[-_\s]+/).filter((word) => word.length > 0);
+  const title = words.map((word, index) => {
+    const normalized = word.toLowerCase();
+    const special: Record<string, string> = {
+      git: "Git",
+      github: "GitHub",
+      gitlab: "GitLab",
+      javascript: "JavaScript",
+      plantuml: "PlantUML",
+      typescript: "TypeScript",
+      uml: "UML",
+    };
+    return special[normalized] ??
+      (index === 0
+        ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+        : normalized);
+  }).join(" ");
+  return title ? `Reader ${title}` : "Reader";
+}
+
+function extractFrontmatterValue(content: string, key: string): string | null {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return null;
+
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const valueMatch = match[1].match(
+    new RegExp(`^${escapedKey}\\s*:\\s*(.+)$`, "im"),
+  );
+  if (!valueMatch) return null;
+
+  return valueMatch[1].trim().replace(/^["']|["']$/g, "");
+}
+
+function extractFirstHeading(content: string): string | null {
+  const match = content.match(/^#\s+(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+export function deriveReaderPdfMetadata(
+  content: string,
+  filename: string,
+  options: Pick<ReaderConvertOptions, "courseName" | "courseVersion"> & {
+    sourceDate?: string | null;
+  } = {},
+): ReaderPdfMetadata {
+  const title = extractFrontmatterValue(content, "title") ??
+    extractFirstHeading(content) ??
+    humanizeReaderTitle(filename);
+  const author = extractFrontmatterValue(content, "author") ??
+    extractFrontmatterValue(content, "auteur") ??
+    options.courseName;
+  const dateParts = [
+    extractFrontmatterValue(content, "date") ??
+      extractFrontmatterValue(content, "datum") ??
+      options.sourceDate,
+    extractFrontmatterValue(content, "version") ??
+      extractFrontmatterValue(content, "versie") ??
+      (options.courseVersion ? `Versie ${options.courseVersion}` : null),
+  ].filter((part): part is string => Boolean(part));
+
+  return {
+    title,
+    author: author ?? undefined,
+    date: dateParts.join(" - "),
+  };
+}
+
+export async function gitLastCommitDate(
+  sourcePath: string,
+  repoRoot: string,
+): Promise<string | null> {
+  try {
+    const command = new Deno.Command("git", {
+      args: ["-C", repoRoot, "log", "-1", "--format=%cs", "--", sourcePath],
+      stdout: "piped",
+      stderr: "null",
+    });
+    const output = await command.output();
+    if (!output.success) return null;
+
+    const date = new TextDecoder().decode(output.stdout).trim();
+    return date.length > 0 ? date : null;
+  } catch {
+    return null;
+  }
+}
+
+function metadataArg(key: string, value: string): string {
+  return `--metadata=${key}:${value}`;
+}
+
+export function buildReaderPandocArgs(options: {
+  sourcePath: string;
+  outputPath: string;
+  resourcePath: string;
+  headerPath: string;
+  includeFilterPath: string;
+  diagramFilterPath: string;
+  metadata: ReaderPdfMetadata;
+}): string[] {
+  const args = [
+    options.sourcePath,
+    "-o",
+    options.outputPath,
+    `--resource-path=${options.resourcePath}`,
+    "--pdf-engine=lualatex",
+    "-V",
+    "geometry:margin=2.5cm",
+    "-V",
+    "lang=nl",
+    metadataArg("title", options.metadata.title),
+    ...(options.metadata.author
+      ? [metadataArg("author", options.metadata.author)]
+      : []),
+    ...(options.metadata.date
+      ? [metadataArg("date", options.metadata.date)]
+      : []),
+    `--include-in-header=${options.headerPath}`,
+    `--lua-filter=${options.includeFilterPath}`,
+    `--lua-filter=${options.diagramFilterPath}`,
+    "--syntax-highlighting=tango",
+    "--toc",
+  ];
+
+  return args;
+}
 
 /**
  * Checks whether pandoc is available on the system.
@@ -58,25 +197,25 @@ export async function convertReaderToPdf(
   const headerPath = await materializeAsset("reader-header.tex");
   const includeFilterPath = await materializeAsset("include-filter.lua");
   const diagramFilterPath = await materializeAsset("diagram-filter.lua");
+  const sourceContent = await Deno.readTextFile(sourcePath);
+  const sourceDate = await gitLastCommitDate(sourcePath, options.repoRoot);
+  const metadata = deriveReaderPdfMetadata(sourceContent, sourceFilename, {
+    courseName: options.courseName,
+    courseVersion: options.courseVersion,
+    sourceDate,
+  });
 
   // Invoke pandoc
   const command = new Deno.Command("pandoc", {
-    args: [
+    args: buildReaderPandocArgs({
       sourcePath,
-      "-o",
       outputPath,
-      `--resource-path=${resourcePath}`,
-      "--pdf-engine=lualatex",
-      "-V",
-      "geometry:margin=2.5cm",
-      "-V",
-      "lang=nl",
-      `--include-in-header=${headerPath}`,
-      `--lua-filter=${includeFilterPath}`,
-      `--lua-filter=${diagramFilterPath}`,
-      "--syntax-highlighting=tango",
-      "--toc",
-    ],
+      resourcePath,
+      headerPath,
+      includeFilterPath,
+      diagramFilterPath,
+      metadata,
+    }),
     stdout: "piped",
     stderr: "piped",
   });

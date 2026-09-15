@@ -89,6 +89,10 @@ export interface ReaderConvertOptions {
   outputDir: string;
   /** Repository-root voor padresolutie van afbeeldingen. */
   repoRoot: string;
+  /** Cursusnaam voor het PDF-voorblad. */
+  courseName?: string;
+  /** Cursus-/pakketversie voor het PDF-voorblad. */
+  courseVersion?: string;
 }
 
 /** Resultaat van de reader-Markdown-naar-PDF-conversie. */

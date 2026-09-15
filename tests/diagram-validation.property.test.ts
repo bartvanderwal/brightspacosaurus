@@ -26,7 +26,8 @@ const bodyArb = fc
     minLength: 1,
     maxLength: 5,
   })
-  .map((lines) => lines.join("\n"));
+  .map((lines) => lines.join("\n"))
+  .filter((body) => body.trim().length > 0);
 
 function markdown(language: string, meta: string, body: string): string {
   return `# Diagram

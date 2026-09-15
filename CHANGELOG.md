@@ -8,6 +8,13 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.9.0 - 2026-09-14
+
+### Added
+
+- Add a mandatory separate reader-PDF cover page before the table of contents.
+- Derive reader cover metadata from Markdown frontmatter, H1 headings, the reader file's last Git commit date and BSO course/version config with deterministic fallbacks.
+
 ## 0.8.1 - 2026-09-14
 
 ### Changed

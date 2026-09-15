@@ -28,7 +28,7 @@ Install once to get the `bso` command:
 deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 
-The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc --allow-env` (see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for the security rationale).
+The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc,git --allow-env` (`git` is optional and only used for deterministic reader-PDF cover dates; see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for the security rationale).
 
 Prefer not to install? Run it on demand:
 

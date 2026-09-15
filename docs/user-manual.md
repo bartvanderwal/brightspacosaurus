@@ -353,6 +353,7 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - If pandoc is not available, BSO logs a warning and skips the reader PDF conversion without aborting the build.
 - Pandoc's `--resource-path` is set to the directory of the source file, so that relative image references are resolved correctly.
 - If a reader conversion fails, BSO reports the file and continues with the remaining readers, but returns a non-zero exit code afterwards.
+- Generated reader PDFs get a mandatory separate cover page before the table of contents. The cover title comes from Markdown frontmatter `title`, otherwise from the first H1, otherwise from the file name. `author`/`auteur`, `date`/`datum` and `version`/`versie` frontmatter are used when present. Without an explicit date, BSO tries the last Git commit date of the reader Markdown file when `git` is available and permitted; otherwise it omits the date and falls back to the configured course name and version. BSO does not insert the current date automatically, so repeated builds stay reproducible.
 
 BSO includes reader PDFs in the IMSCC package as a webcontent resource under a "Readers" module in the manifest.
 

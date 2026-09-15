@@ -369,6 +369,8 @@ The significant decisions, most captured as Architecture Decision Records in [`a
 
 **Context:** readers and the instructor manual need print-quality PDF output. **Decision:** convert reader Markdown to PDF via pandoc with a xelatex/lualatex engine, a custom LaTeX header and Lua filters. **Rationale:** pandoc gives high-quality typesetting; PDF generation is optional and skipped when pandoc is absent, so the core build never hard-depends on it.
 
+Reader PDFs use a mandatory separate cover page ('voorblad', AIM Controle Kaart) before the table of contents. BSO derives deterministic cover metadata from reader frontmatter, the first H1, the configured course name, the configured version and, when `git` is available and permitted, the last commit date of the reader Markdown file. It deliberately does not inject the current date automatically because repeated builds must remain reproducible.
+
 ### Publication via JSR — [ADR 015](../adr/adr015-brightspacosaurus-publicatie-via-jsr.md)
 
 **Context:** the tool should be reusable both as an executable CLI and as an importable library. **Decision:** publish to JSR as `@bartvanderwal/brightspacosaurus`. **Rationale:** native Deno support with no separate build step, automatically indexed TypeScript types, versioning, and minimal impedance mismatch with the toolchain.
@@ -399,7 +401,7 @@ deno add jsr:@bartvanderwal/brightspacosaurus
 deno x jsr:@bartvanderwal/brightspacosaurus/cli prepare
 
 # Or install a permanent command
-deno install --allow-read --allow-write --allow-run=pandoc --allow-env --allow-net \
+deno install --allow-read --allow-write --allow-run=pandoc,git --allow-env --allow-net \
   -n brightspacosaurus jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 

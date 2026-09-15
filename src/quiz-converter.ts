@@ -1,8 +1,10 @@
 /**
- * QuizConverter: converts quiz Markdown files to QTI 1.2 XML.
- * Quiz files are recognized by the "quiz-" prefix in the file name.
- * The expected format: `# Titel`, `## Vraag N`, 4 options (A–D), `Correct antwoord: **X**`
- * Requirements: 2.3
+ * Converts quiz Markdown files to QTI 1.2 XML for Brightspace.
+ *
+ * Quiz files use a small Markdown convention with a title, numbered questions,
+ * A-D answer options and `Correct antwoord: **X**` markers.
+ *
+ * @module
  */
 
 import { basename, dirname, join, relative, resolve } from "@std/path";
@@ -166,12 +168,19 @@ export function deriveQuizIdent(filename: string): string {
 /**
  * Generates QTI 1.2 XML from a parsed quiz.
  */
-export function generateQtiXml(quiz: ParsedQuiz, ident: string, maxAttempts = 0): string {
+export function generateQtiXml(
+  quiz: ParsedQuiz,
+  ident: string,
+  maxAttempts = 0,
+): string {
   const sectionIdent = `sectie-${ident.replace(/^quiz-/, "")}`;
 
   let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
-  xml += `<questestinterop xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/ims_qtiasiv1p2 http://www.imsglobal.org/profile/cc/ccv1p3/ccv1p3_qtiasiv1p2p1_v1p0.xsd">\n`;
-  xml += `  <assessment ident="${escapeXml(ident)}" title="${escapeXml(quiz.title)}">\n`;
+  xml +=
+    `<questestinterop xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv1p2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/ims_qtiasiv1p2 http://www.imsglobal.org/profile/cc/ccv1p3/ccv1p3_qtiasiv1p2p1_v1p0.xsd">\n`;
+  xml += `  <assessment ident="${escapeXml(ident)}" title="${
+    escapeXml(quiz.title)
+  }">\n`;
   xml += `    <qtimetadata>\n`;
   xml += `      <qtimetadatafield>\n`;
   xml += `        <fieldlabel>cc_profile</fieldlabel>\n`;
@@ -183,7 +192,9 @@ export function generateQtiXml(quiz: ParsedQuiz, ident: string, maxAttempts = 0)
   xml += `      </qtimetadatafield>\n`;
   xml += `      <qtimetadatafield>\n`;
   xml += `        <fieldlabel>cc_maxattempts</fieldlabel>\n`;
-  xml += `        <fieldentry>${formatBrightspaceMaxAttempts(maxAttempts)}</fieldentry>\n`;
+  xml += `        <fieldentry>${
+    formatBrightspaceMaxAttempts(maxAttempts)
+  }</fieldentry>\n`;
   xml += `      </qtimetadatafield>\n`;
   xml += `    </qtimetadata>\n\n`;
   xml += `    <section ident="${escapeXml(sectionIdent)}">\n`;
@@ -208,23 +219,31 @@ export function generateQtiXml(quiz: ParsedQuiz, ident: string, maxAttempts = 0)
     xml += `        </itemmetadata>\n`;
     xml += `        <presentation>\n`;
     xml += `          <material>\n`;
-    xml += `            <mattext texttype="text/html">&lt;p&gt;${escapeXml(question.text)}&lt;/p&gt;</mattext>\n`;
+    xml += `            <mattext texttype="text/html">&lt;p&gt;${
+      escapeXml(question.text)
+    }&lt;/p&gt;</mattext>\n`;
     xml += `          </material>\n`;
-    xml += `          <response_lid ident="${respIdent}" rcardinality="Single">\n`;
+    xml +=
+      `          <response_lid ident="${respIdent}" rcardinality="Single">\n`;
     xml += `            <render_choice>\n`;
 
     for (const option of question.options) {
       const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
-      xml += `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">&lt;p&gt;${escapeXml(option.text)}&lt;/p&gt;</mattext></material></response_label>\n`;
+      xml +=
+        `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">&lt;p&gt;${
+          escapeXml(option.text)
+        }&lt;/p&gt;</mattext></material></response_label>\n`;
     }
 
     xml += `            </render_choice>\n`;
     xml += `          </response_lid>\n`;
     xml += `        </presentation>\n`;
     xml += `        <resprocessing>\n`;
-    xml += `          <outcomes><decvar minvalue="0" maxvalue="100" varname="SCORE" vartype="Decimal" /></outcomes>\n`;
+    xml +=
+      `          <outcomes><decvar minvalue="0" maxvalue="100" varname="SCORE" vartype="Decimal" /></outcomes>\n`;
     xml += `          <respcondition continue="No">\n`;
-    xml += `            <conditionvar><varequal respident="${respIdent}">${correctLabel}</varequal></conditionvar>\n`;
+    xml +=
+      `            <conditionvar><varequal respident="${respIdent}">${correctLabel}</varequal></conditionvar>\n`;
     xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
     xml += `          </respcondition>\n`;
     xml += `        </resprocessing>\n`;
@@ -242,7 +261,9 @@ export function generateQtiXml(quiz: ParsedQuiz, ident: string, maxAttempts = 0)
  * Converts a quiz Markdown file to QTI 1.2 XML.
  * Writes the result to build/brightspace/quiz/ preserving the source directory structure.
  */
-export async function convertQuiz(options: QuizConvertOptions): Promise<QuizConvertResult> {
+export async function convertQuiz(
+  options: QuizConvertOptions,
+): Promise<QuizConvertResult> {
   const { sourcePath, outputDir, repoRoot: _repoRoot, sourcesDir } = options;
 
   // Read the source file

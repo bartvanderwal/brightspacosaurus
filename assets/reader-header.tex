@@ -1,12 +1,29 @@
-% Pagebreak na inhoudsopgave
-\let\oldtableofcontents\tableofcontents
-\renewcommand{\tableofcontents}{\oldtableofcontents\newpage}
-
 % Unicode-support via fontspec (lualatex)
 \usepackage{fontspec}
 \setmainfont{DejaVu Serif}
 \setsansfont{DejaVu Sans}
 \setmonofont{DejaVu Sans Mono}
+
+% Verplicht apart voorblad voor reader-PDF's.
+% Pandoc's standaard LaTeX-template zet \maketitle direct voor de inhoudsopgave.
+% Zonder herdefinitie kunnen titel en TOC op dezelfde pagina terechtkomen.
+\makeatletter
+\renewcommand{\maketitle}{%
+  \begin{titlepage}
+    \centering
+    \vspace*{0.18\textheight}
+    {\Huge\bfseries \@title\par}
+    \vspace{1.5em}
+    {\Large \@author\par}
+    \vfill
+    {\large \@date\par}
+  \end{titlepage}
+}
+\makeatother
+
+% Pagebreak na inhoudsopgave
+\let\oldtableofcontents\tableofcontents
+\renewcommand{\tableofcontents}{\oldtableofcontents\newpage}
 
 % Schaal afbeeldingen automatisch naar maximaal 70% van de paginabreedte.
 % Gebruik \includeimage{pad}{breedte} voor afwijkende breedte per afbeelding.

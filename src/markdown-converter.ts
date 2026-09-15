@@ -1,6 +1,10 @@
 /**
- * MarkdownConverter: converts Markdown files to standalone HTML files.
- * Requirements: 1.1, 1.2, 1.5, 3.5, 6.1
+ * Converts lesson Markdown files to standalone Brightspace HTML files.
+ *
+ * This module owns the unified/remark/rehype pipeline, reader-link conversion,
+ * asset copying and optional diagram rendering for lesson pages.
+ *
+ * @module
  */
 
 import { ConvertOptions, ConvertResult } from "./types.ts";

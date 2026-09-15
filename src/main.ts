@@ -1,7 +1,10 @@
 /**
- * Brightspacosaurus CLI — entry point.
- * Subcommands: prepare, pack
- * Requirements: 6.2, 6.4, 6.5
+ * Command-line interface for Brightspacosaurus.
+ *
+ * Provides the `prepare`, `pack` and `preview` commands used to convert
+ * Markdown course material into Brightspace-ready build output and packages.
+ *
+ * @module
  */
 
 import {
@@ -40,7 +43,7 @@ import {
  * already escaped correctly). Without decoding, escapeXml() in the ManifestBuilder
  * would double-escape the entities (e.g. &amp; → &amp;amp;).
  */
-function decodeHtmlEntities(text: string): string {
+export function decodeHtmlEntities(text: string): string {
   return text
     // Numeric entities first: hex (&#x26;) and decimal (&#38;)
     .replace(
@@ -74,7 +77,7 @@ Options:
 `;
 
 /** Builds the full usage text with a version header line. */
-function buildUsage(version: string): string {
+export function buildUsage(version: string): string {
   const header =
     `Brightspacosaurus v${version} — Markdown course material → Brightspace Common Cartridge (.imscc)\n\n`;
   return header + USAGE_BODY;
@@ -93,7 +96,7 @@ function printUsage(
   }
 }
 
-function parseArgs(
+export function parseArgs(
   args: string[],
 ): {
   command: string;
@@ -131,7 +134,7 @@ function parseArgs(
   return { command, sources, readersOnly, output, config };
 }
 
-async function runPrepare(
+export async function runPrepare(
   config: ResolvedConfig,
   readersOnly: boolean,
 ): Promise<void> {
@@ -262,6 +265,8 @@ async function runPrepare(
             sourcePath: readerFile,
             outputDir: readersOutputDir,
             repoRoot,
+            courseName: config.courseName,
+            courseVersion: config.version,
           });
           console.log(`  ✓ readers/${result.filename}`);
           succeeded++;
@@ -475,7 +480,7 @@ async function runPrepare(
   console.log(`Prepare complete.`);
 }
 
-async function runPack(config: ResolvedConfig): Promise<void> {
+export async function runPack(config: ResolvedConfig): Promise<void> {
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
   const outputPath = join(
@@ -609,7 +614,7 @@ async function runPack(config: ResolvedConfig): Promise<void> {
   console.log("Pack complete.");
 }
 
-async function runPreview(config: ResolvedConfig): Promise<void> {
+export async function runPreview(config: ResolvedConfig): Promise<void> {
   const repoRoot = config.repoRoot;
 
   if (!config.docusaurusDir) {

@@ -1,7 +1,10 @@
 /**
- * Config Loader for Brightspacosaurus.
- * Loads, validates and resolves the configuration file (brightspacosaurus.config.json).
- * Requirements: 1.1, 1.2, 1.4, 1.5, 1.6, 5.7
+ * Loads, validates and resolves Brightspacosaurus configuration files.
+ *
+ * This module owns `brightspacosaurus.config.json` discovery, schema validation,
+ * default handling and CLI override resolution.
+ *
+ * @module
  */
 
 import { join, resolve } from "@std/path";

@@ -1,6 +1,10 @@
 /**
- * ManifestBuilder: generates a valid imsmanifest.xml for Common Cartridge 1.3.
- * Requirements: 2.1, 2.3
+ * Builds IMS Common Cartridge manifests for Brightspace imports.
+ *
+ * The manifest includes content, quiz and reader resources and defines the
+ * deterministic Brightspace navigation order.
+ *
+ * @module
  */
 
 import { ManifestEntry } from "./types.ts";

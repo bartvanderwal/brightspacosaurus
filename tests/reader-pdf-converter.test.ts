@@ -12,7 +12,10 @@ import { assertEquals } from "@std/assert";
 import fc from "fast-check";
 import { join } from "@std/path";
 import {
+  buildReaderPandocArgs,
   convertReaderToPdf,
+  deriveReaderPdfMetadata,
+  gitLastCommitDate,
   pandocAvailable,
 } from "../src/reader-pdf-converter.ts";
 
@@ -39,6 +42,102 @@ async function fileExists(path: string): Promise<boolean> {
     return false;
   }
 }
+
+Deno.test("deriveReaderPdfMetadata gebruikt frontmatter voor verplicht voorblad", () => {
+  const metadata = deriveReaderPdfMetadata(
+    [
+      "---",
+      "title: Reader PlantUML essentials",
+      "author: Bart van der Wal",
+      "date: 2026-09-14",
+      "version: 0.8.2",
+      "---",
+      "",
+      "# Wordt niet gebruikt als titel",
+    ].join("\n"),
+    "plantuml-essentials.md",
+    { courseName: "Fallback course", courseVersion: "1.2.3" },
+  );
+
+  assertEquals(metadata, {
+    title: "Reader PlantUML essentials",
+    author: "Bart van der Wal",
+    date: "2026-09-14 - 0.8.2",
+  });
+});
+
+Deno.test("deriveReaderPdfMetadata gebruikt H1 en cursusversie als fallback", () => {
+  const metadata = deriveReaderPdfMetadata(
+    "# Geheugenmodellen\n\nReadertekst.",
+    "reader-geheugenmodellen.md",
+    { courseName: "OWE 1", courseVersion: "2.1.0" },
+  );
+
+  assertEquals(metadata, {
+    title: "Geheugenmodellen",
+    author: "OWE 1",
+    date: "Versie 2.1.0",
+  });
+});
+
+Deno.test("deriveReaderPdfMetadata gebruikt Git-datum als datumfallback", () => {
+  const metadata = deriveReaderPdfMetadata(
+    "# Geheugenmodellen\n\nReadertekst.",
+    "reader-geheugenmodellen.md",
+    { courseName: "OWE 1", courseVersion: "2.1.0", sourceDate: "2026-09-14" },
+  );
+
+  assertEquals(metadata, {
+    title: "Geheugenmodellen",
+    author: "OWE 1",
+    date: "2026-09-14 - Versie 2.1.0",
+  });
+});
+
+Deno.test("gitLastCommitDate geeft null buiten een Git-repository", async () => {
+  const tempRoot = await makeTempDir();
+  try {
+    const sourcePath = join(tempRoot, "reader-test.md");
+    await Deno.writeTextFile(sourcePath, "# Test\n");
+    assertEquals(await gitLastCommitDate(sourcePath, tempRoot), null);
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+Deno.test("buildReaderPandocArgs stuurt titlepage metadata en TOC naar pandoc", () => {
+  const args = buildReaderPandocArgs({
+    sourcePath: "/tmp/source/reader-test.md",
+    outputPath: "/tmp/build/readers/reader-test.pdf",
+    resourcePath: "/tmp/source",
+    headerPath: "/tmp/reader-header.tex",
+    includeFilterPath: "/tmp/include-filter.lua",
+    diagramFilterPath: "/tmp/diagram-filter.lua",
+    metadata: {
+      title: "Reader Test",
+      author: "OWE 1",
+      date: "Versie 2.1.0",
+    },
+  });
+
+  assertEquals(args.includes("--metadata=title:Reader Test"), true);
+  assertEquals(args.includes("--metadata=author:OWE 1"), true);
+  assertEquals(args.includes("--metadata=date:Versie 2.1.0"), true);
+  assertEquals(args.includes("--toc"), true);
+  assertEquals(
+    args.includes("--include-in-header=/tmp/reader-header.tex"),
+    true,
+  );
+});
+
+Deno.test("reader-header definieert een aparte titlepage voor readers", async () => {
+  const header = await Deno.readTextFile("assets/reader-header.tex");
+
+  assertEquals(header.includes("\\begin{titlepage}"), true);
+  assertEquals(header.includes("\\end{titlepage}"), true);
+  assertEquals(header.includes("\\renewcommand{\\maketitle}"), true);
+  assertEquals(header.includes("\\renewcommand{\\tableofcontents}"), true);
+});
 
 // ---------------------------------------------------------------------------
 // Property 1: PDF-conversie produceert uitvoer op het juiste pad met correcte naamgeving
