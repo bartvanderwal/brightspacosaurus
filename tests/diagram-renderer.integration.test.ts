@@ -100,9 +100,10 @@ Deno.test("convertMarkdown renders PlantUML fixture through remark-kroki-a11y an
     assertStringIncludes(html, "<summary>In natuurlijke taal</summary>");
     assertStringIncludes(html, 'class="language-ts"');
     assertStringIncludes(html, "console.log");
-    assertEquals(html.includes("<script"), false);
+    // Diagram disclosure itself needs no JS-based tab widget (native <details>
+    // only); the page-wide copy-button script (issue #16) is unrelated.
     assertEquals(html.includes('role="tablist"'), false);
-    assertEquals(html.includes("<button"), false);
+    assertEquals(html.includes('data-tab='), false);
   } finally {
     await mockKroki.close();
     await removeDir(tempRoot);
@@ -126,9 +127,10 @@ Deno.test("convertMarkdown renders Mermaid fixture through remark-kroki-a11y", a
     assertStringIncludes(html, 'aria-describedby="bso-diagram-1-description"');
     assertStringIncludes(html, "Mermaid broncode");
     assertStringIncludes(html, 'class="diagram-a11y-description"');
-    assertEquals(html.includes("<script"), false);
+    // Diagram disclosure itself needs no JS-based tab widget (native <details>
+    // only); the page-wide copy-button script (issue #16) is unrelated.
     assertEquals(html.includes('role="tablist"'), false);
-    assertEquals(html.includes("<button"), false);
+    assertEquals(html.includes('data-tab='), false);
   } finally {
     await mockKroki.close();
     await removeDir(tempRoot);

@@ -1,5 +1,7 @@
 # Reader: Testing Basics
 
+{@include: [Learning goals](../partials/lesdoelen-week-1.md)}
+
 A short reference on the arrange-act-assert pattern for unit tests.
 
 ## Arrange-Act-Assert

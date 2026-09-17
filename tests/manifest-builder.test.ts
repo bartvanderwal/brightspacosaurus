@@ -31,7 +31,7 @@ const manifestEntryArb = (type: ManifestEntry["type"]) =>
 Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand en elk quizbestand", async () => {
   // Feature: brightspacosaurus, Eigenschap 3: Pakketinhoud correct en compleet
   await fc.assert(
-    fc.asyncProperty(
+    fc.property(
       fc.tuple(
         fc.stringMatching(/^[A-Za-z0-9 ]{3,30}$/), // cursustitel
         fc.array(manifestEntryArb("webcontent"), {

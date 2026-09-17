@@ -9,11 +9,20 @@ If you prefer MD over BS ;) 🦕</p>
 
 Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. It was created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design. He and other colleagues were using a markdown-based approach and publishing through Docusaurus for course materials. This dropped WYSIWYG, but allowed including code previews with syntax highlighting, adding UML diagrams with diagrams-as-code tools like PlantUML and Mermaid, and even programmable parts like quizzes, using React/MD. They also preferred Git versionable, diffable files, and also having the modern option of AI-enhancement in the editor. This is of course impossible in Brightspace itself where the presence of direct student information makes access of LLM's unwanted/unacceptable.
 
+**Key features:**
+
+- 📝 **Course material as Markdown** — versionable, diffable, AI-editor-friendly; no lock-in to Brightspace's editor.
+- ⚡ **Docusaurus preview** — run `bso preview` for a live, hot-reloading dev server so you can check formatting, links, code blocks and diagrams before ever touching Brightspace.
+- ✅ **Native quizzes** — Markdown quiz files (`quiz-` prefix) are converted to QTI 1.2 and imported as functional Brightspace quizzes, not static pages.
+- 📊 **Diagrams-as-code** — PlantUML and Mermaid fenced code blocks render automatically to accessible images via Kroki, with source and descriptions kept alongside for accessibility.
+- 📄 **Reader PDFs** — Markdown readers (`reader-` prefix) are converted to downloadable PDFs via pandoc.
+- 💻 **Code blocks with a copy button** — fenced code blocks (any language) get a one-click copy-to-clipboard button in the generated Brightspace pages. Full-color syntax highlighting currently only renders in the Docusaurus preview (via Prism); bringing it to the Brightspace export is tracked as a follow-up (see the roadmap).
+
 📖 See the user manual (`docs/user-manual.md`) for the data model and Brightspace import process, and the Software Guidebook (`docs/software-guidebook.md`) for the architecture and design decisions.
 
-> 🤖 Brightspacosaurus was built with substantial help from AI coding assistants. See [About: building this with AI](#about-building-this-with-ai) for the full story.
+> 🤖 Brightspacosaurus was built with substantial help from AI coding assistants, but with human-in-the-loop. See [About: building this with AI](#about-building-this-with-ai) for the full story.
 
-> **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for why.
+**Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for why.
 
 ## Requirements
 
@@ -30,11 +39,35 @@ deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
 
 The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc,git --allow-env` (`git` is optional and only used for deterministic reader-PDF cover dates; see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for the security rationale).
 
-Prefer not to install? Run it on demand:
+Or if you already installed but want the latest you have to add the `-f` flag for forcing override (jsr has NO separate `update` subcommand).:
+
+```sh
+deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
+```
+
+<details>
+<summary>Install problems/questions</summary>
+
+**Don't have Deno yet?** Install it first — no Node.js required:
+
+```sh
+curl -fsSL https://deno.land/install.sh | sh      # macOS/Linux
+irm https://deno.land/install.ps1 | iex            # Windows (PowerShell)
+```
+
+Or via a package manager: `brew install deno` (macOS), `choco install deno` / `winget install DenoLand.Deno` (Windows), `scoop install deno`. Deno also publishes itself to npm, so `npm install -g deno` works if you'd rather stick to tools you already have installed — but the native install script above is the officially recommended route and doesn't pull in Node.js as a dependency. See the [Deno install docs](https://docs.deno.com/runtime/getting_started/installation/) for all options.
+
+**Command not found after installing?** The installer adds Deno to your shell profile, but you may need to restart your terminal (or `source` your profile) before `deno` is on your `PATH`.
+
+**"Too new" / dependency age error?** JSR blocks resolving dependencies published too recently, as a defence against supply-chain attacks where a malicious version is published and consumed before anyone notices. If you're a contributor or tester and want today's just-published version, add the `--minimum-dependency-age 0` flag. See [all flags of `deno install` in the Deno docs](https://docs.deno.com/runtime/reference/cli/install/).
+
+**Prefer not to install anything?** Run it on demand instead:
 
 ```sh
 deno run -A jsr:@bartvanderwal/brightspacosaurus/cli prepare
 ```
+
+</details>
 
 ### Also on npm
 
@@ -54,7 +87,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
 
 2. **Author your course material as Markdown** in the configured `sourcesDir`. Brightspacosaurus classifies files by name:
 
-   - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks with syntax highlighting are all supported.
+   - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks (any language, with a copy button) are all supported. Color syntax highlighting currently renders in the Docusaurus preview only; see the roadmap for bringing it to the Brightspace export.
    - **Quizzes** — files with the `quiz-` prefix are converted to QTI 1.2 and imported into the Brightspace Quizzes tool.
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
@@ -174,7 +207,7 @@ BSO's Brightspace output does not rely on custom JavaScript: source and generate
 
 ## CLI options
 
-```
+```console
 Usage: brightspacosaurus <command> [options]
 
 Commands:

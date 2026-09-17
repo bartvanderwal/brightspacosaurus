@@ -1,7 +1,7 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
   "version": "0.9.1",
-  "description": "CLI build tool that converts Markdown course material into an IMS Common Cartridge (.imscc) package for import into Brightspace (D2L).",
+  "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",

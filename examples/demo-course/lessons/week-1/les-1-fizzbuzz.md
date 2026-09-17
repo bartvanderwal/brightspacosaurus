@@ -1,5 +1,7 @@
 # Lesson 1: FizzBuzz
 
+{@include: [Learning goals](../../partials/lesdoelen-week-1.md)}
+
 FizzBuzz is a classic beginner exercise. For each number from 1 to n:
 
 - print `Fizz` if it is divisible by 3

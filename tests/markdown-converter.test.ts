@@ -10,11 +10,12 @@
  * Valideert: Requirements 8.5
  */
 
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import fc from "fast-check";
 import {
   convertMarkdown,
   convertReaderLinks,
+  delinkInternalMdLinks,
 } from "../src/markdown-converter.ts";
 import { join } from "@std/path";
 
@@ -360,6 +361,198 @@ Deno.test("convertReaderLinks: mix van reader-links en niet-reader-links", () =>
   ].join("\n");
 
   assertEquals(result, expected);
+});
+
+// ===========================================================================
+// Unit tests voor delinkInternalMdLinks (issues #7, #8)
+// Interne .md-links tussen lespagina's worden dode links na Brightspace-import
+// (topic-URL's zijn pas na import bekend). Als vangnet worden zulke links
+// omgezet naar platte tekst; externe links en al-geconverteerde reader-links
+// blijven ongemoeid.
+// ===========================================================================
+
+Deno.test("delinkInternalMdLinks: interne .md-link wordt platte tekst", () => {
+  const input = "Kijk in de [FAQ](../faq.md) voor meer info.";
+  const result = delinkInternalMdLinks(input);
+  assertEquals(result, "Kijk in de FAQ voor meer info.");
+});
+
+Deno.test("delinkInternalMdLinks: interne .md-link met anchor wordt platte tekst", () => {
+  const input = "Zie [les 1.1](../week-1/lesoverzicht-1.1.md#opdracht).";
+  const result = delinkInternalMdLinks(input);
+  assertEquals(result, "Zie les 1.1.");
+});
+
+Deno.test("delinkInternalMdLinks: externe .md-link blijft ongewijzigd", () => {
+  const input = "Zie [extern](https://example.com/handleiding.md) voor details.";
+  const result = delinkInternalMdLinks(input);
+  assertEquals(result, input);
+});
+
+Deno.test("delinkInternalMdLinks: reeds omgezette reader-pdf-link blijft ongewijzigd", () => {
+  const input = "Lees de [Git-reader](../readers/reader-git-en-gitlab.pdf).";
+  const result = delinkInternalMdLinks(input);
+  assertEquals(result, input);
+});
+
+Deno.test("delinkInternalMdLinks: afbeeldingsyntax (![...]) met .md-pad blijft ongewijzigd", () => {
+  const input = "![alt tekst](diagram.md)";
+  const result = delinkInternalMdLinks(input);
+  assertEquals(result, input);
+});
+
+Deno.test("delinkInternalMdLinks: meerdere interne links in één document worden allemaal ontlinkt", () => {
+  const input = [
+    "Ga naar [les 1.1](../week-1/lesoverzicht-1.1.md) voor het programma.",
+    "Raadpleeg de [Git-reader](../readers/reader-git-en-gitlab.pdf) voor Git-instructies.",
+    "En bekijk [quiz 1](../week-1/quiz-1.4-oop-basics.md) voor oefenvragen.",
+  ].join("\n");
+
+  const result = delinkInternalMdLinks(input);
+
+  const expected = [
+    "Ga naar les 1.1 voor het programma.",
+    "Raadpleeg de [Git-reader](../readers/reader-git-en-gitlab.pdf) voor Git-instructies.",
+    "En bekijk quiz 1 voor oefenvragen.",
+  ].join("\n");
+
+  assertEquals(result, expected);
+});
+
+Deno.test("convertMarkdown: interne .md-link tussen lespagina's wordt platte tekst in HTML-uitvoer", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src", "week-1");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    const sourcePath = join(sourceDir, "les.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Les 1\n\nZie [de FAQ](../faq.md) voor vragen.\n",
+    );
+
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir,
+      repoRoot: tempRoot,
+    });
+
+    const html = await Deno.readTextFile(result.outputPath);
+
+    assertEquals(html.includes("<a"), false, "HTML mag geen <a>-tag bevatten");
+    assertEquals(html.includes("de FAQ"), true, "Linktekst moet behouden blijven");
+    assertEquals(html.includes("faq.md"), false, "De .md-referentie mag niet meer voorkomen");
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+// ===========================================================================
+// Copy-knop bij codeblokken in Brightspace HTML-output (issue #16)
+// ===========================================================================
+
+Deno.test("convertMarkdown: HTML-uitvoer bevat copy-knop script en CSS voor codeblokken", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    const sourcePath = join(sourceDir, "codevoorbeeld.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Codevoorbeeld\n\n```sh\ngit clone https://example.com/repo.git\n```\n",
+    );
+
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir,
+      repoRoot: tempRoot,
+    });
+
+    const html = await Deno.readTextFile(result.outputPath);
+
+    assertEquals(
+      html.includes("bso-copy-btn"),
+      true,
+      "HTML moet de copy-knop CSS-klasse bevatten",
+    );
+    assertEquals(
+      html.includes("navigator.clipboard"),
+      true,
+      "HTML moet het copy-script bevatten",
+    );
+    assertEquals(
+      html.includes("<pre><code"),
+      true,
+      "Codeblok moet nog steeds als <pre><code> aanwezig zijn",
+    );
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+// ===========================================================================
+// Markdown-linksyntax in {@include} directives (issue #26, breaking change)
+// {@include: ...} vereist Markdown-linksyntax; de oude padvorm zonder link
+// geeft nu een duidelijke fout.
+// ===========================================================================
+
+Deno.test("convertMarkdown: {@include} met Markdown-linksyntax voegt bestand in", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(sourceDir, "lesdoelen.md"),
+      "- Eerste lesdoel\n- Tweede lesdoel\n",
+    );
+    const sourcePath = join(sourceDir, "les.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Les\n\n{@include: [Lesdoelen](lesdoelen.md)}\n\nAfsluiting.\n",
+    );
+
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir,
+      repoRoot: tempRoot,
+    });
+
+    const html = await Deno.readTextFile(result.outputPath);
+
+    assertEquals(html.includes("Eerste lesdoel"), true);
+    assertEquals(html.includes("Tweede lesdoel"), true);
+    assertEquals(html.includes("@include"), false);
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+Deno.test("convertMarkdown: {@include} met oude padsyntax (zonder link) geeft een foutmelding", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(sourceDir, "lesdoelen.md"),
+      "- Eerste lesdoel\n",
+    );
+    const sourcePath = join(sourceDir, "les.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Les\n\n{@include: lesdoelen.md}\n",
+    );
+
+    await assertRejects(
+      () => convertMarkdown({ sourcePath, outputDir, repoRoot: tempRoot }),
+      Error,
+      "requires Markdown link syntax",
+    );
+  } finally {
+    await removeDir(tempRoot);
+  }
 });
 
 // ===========================================================================

@@ -30,7 +30,7 @@ Deno.test({
       const sourcePath = join(sourceDir, "les.md");
       await Deno.writeTextFile(
         sourcePath,
-        "# Les\n\n{@include: ../partials/lesdoelen.md}\n\nAfsluiting.\n",
+        "# Les\n\n{@include: [Lesdoelen](../partials/lesdoelen.md)}\n\nAfsluiting.\n",
       );
 
       const result = await runPandoc(sourcePath);
@@ -41,6 +41,7 @@ Deno.test({
       assertStringIncludes(output, "- Eerste lesdoel");
       assertStringIncludes(output, "- Tweede lesdoel met `code`");
       assertEquals(output.includes("{@include:"), false);
+      assertEquals(output.includes("Lesdoelen"), false);
     } finally {
       await Deno.remove(tempDir, { recursive: true });
     }
@@ -57,7 +58,10 @@ Deno.test({
 
     try {
       const sourcePath = join(tempDir, "les.md");
-      await Deno.writeTextFile(sourcePath, "{@include: ontbreekt.md}\n");
+      await Deno.writeTextFile(
+        sourcePath,
+        "{@include: [Ontbrekend](ontbreekt.md)}\n",
+      );
 
       const result = await runPandoc(sourcePath);
       const errorOutput = new TextDecoder().decode(result.stderr);
@@ -68,6 +72,41 @@ Deno.test({
         "include-filter: kan bestand niet lezen",
       );
       assertStringIncludes(errorOutput, "ontbreekt.md");
+    } finally {
+      await Deno.remove(tempDir, { recursive: true });
+    }
+  },
+});
+
+// ===========================================================================
+// {@include} vereist Markdown-linksyntax (issue #26, breaking change)
+// De oude padvorm {@include: relatief/pad.md} geeft nu een duidelijke fout,
+// zodat elke include-target in de brontekst klikbaar blijft.
+// ===========================================================================
+
+Deno.test({
+  name: "include-filter geeft een foutmelding bij de oude padvorm zonder Markdown-link",
+  permissions: { read: true, write: true, run: true },
+  async fn() {
+    const tempDir = await Deno.makeTempDir({
+      prefix: "include_filter_legacy_",
+    });
+
+    try {
+      const sourcePath = join(tempDir, "les.md");
+      await Deno.writeTextFile(
+        sourcePath,
+        "# Les\n\n{@include: partials/lesdoelen.md}\n",
+      );
+
+      const result = await runPandoc(sourcePath);
+      const errorOutput = new TextDecoder().decode(result.stderr);
+
+      assertEquals(result.success, false);
+      assertStringIncludes(
+        errorOutput,
+        "include-filter: {@include: ...} vereist Markdown-linksyntax",
+      );
     } finally {
       await Deno.remove(tempDir, { recursive: true });
     }

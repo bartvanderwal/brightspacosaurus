@@ -1,6 +1,9 @@
 -- include-filter.lua
--- Vervangt een losse {@include: relatief/pad.md}-regel door de geparseerde
--- Markdown uit het genoemde bestand.
+-- Vervangt een losse {@include: [linktekst](relatief/pad.md)}-regel door de
+-- geparseerde Markdown uit het genoemde bestand. De directive-inhoud moet
+-- een Markdown-link zijn, zodat de include-target in gewone Markdown/VS Code
+-- klikbaar en herkenbaar blijft (issue #26). Een {@include: relatief/pad.md}
+-- zonder linksyntax geeft een fout.
 --
 -- Paden zijn relatief aan het Markdown-bronbestand dat Pandoc verwerkt.
 -- Gebruik: pandoc bron.md --lua-filter=include-filter.lua ...
@@ -23,7 +26,23 @@ local function include_path_from(block)
     return nil
   end
 
-  return pandoc.utils.stringify(block):match("^%{@include:%s*(.-)%s*%}$")
+  local plain = pandoc.utils.stringify(block)
+  if not plain:match("^%{@include:%s*.-%s*%}$") then
+    return nil
+  end
+
+  -- pandoc.utils.stringify() keeps the link's visible text but drops its
+  -- target, so the target is read directly from the parsed Link inline.
+  for _, inline in ipairs(block.content) do
+    if inline.t == "Link" then
+      return inline.target
+    end
+  end
+
+  error(
+    "include-filter: {@include: ...} vereist Markdown-linksyntax, bijv. "
+      .. '{@include: [linktekst](pad.md)}. Gevonden: "' .. plain .. '"'
+  )
 end
 
 local function expand_blocks(blocks, base_dir)

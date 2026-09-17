@@ -40,6 +40,13 @@ const READER_LINK_REGEX =
   /\[([^\]]*)\]\(([^)]*(?:reader-[^)]+|plantuml-essentials)\.md)\)/g;
 
 /**
+ * Regex for remaining internal .md links (lesson-to-lesson), after reader
+ * links have already been converted to .pdf. Excludes image syntax (`![...]`)
+ * via the negative lookbehind.
+ */
+const INTERNAL_MD_LINK_REGEX = /(?<!!)\[([^\]]*)\]\(([^()\s]+\.md(?:#[^()\s]*)?)\)/g;
+
+/**
  * Checks whether a path is within the repository root.
  */
 function assertWithinRoot(absPath: string, repoRoot: string): void {
@@ -61,9 +68,29 @@ function stripQtiSections(markdown: string): string {
 }
 
 /**
- * Replaces {@include: path} directives with the content of the referenced file.
- * The path is relative to the source file. Cyclic includes are not
- * detected but depth is bounded at 10 levels.
+ * Extracts the include target from an `{@include: [link text](path)}`
+ * directive. The directive content must be a Markdown link, so the include
+ * target stays a clickable, valid Markdown link when authors read the
+ * source directly (e.g. in VS Code).
+ *
+ * Issue: #26
+ */
+function parseIncludeTarget(directiveContent: string, line: string): string {
+  const linkMatch = directiveContent.match(/^\[[^\]]*\]\(([^)]+)\)$/);
+  if (!linkMatch) {
+    const err = new Error(
+      `{@include: ...} requires Markdown link syntax, e.g. {@include: [link text](${directiveContent})}. Found: "${line}"`,
+    );
+    (err as Error & { exitCode: number }).exitCode = 3;
+    throw err;
+  }
+  return linkMatch[1];
+}
+
+/**
+ * Replaces {@include: [link text](path)} directives with the content of the
+ * referenced file. The path is relative to the source file. Cyclic includes
+ * are not detected but depth is bounded at 10 levels.
  *
  * Requirements: 1.5
  */
@@ -76,9 +103,13 @@ async function resolveIncludes(
   const lines = markdown.split("\n");
   const resolved: string[] = [];
   for (const line of lines) {
-    const match = line.trim().match(/^\{@include:\s*(.+?)\s*\}$/);
+    const trimmed = line.trim();
+    const match = trimmed.match(/^\{@include:\s*(.+?)\s*\}$/);
     if (match) {
-      const includePath = join(sourceDir, match[1]);
+      const includePath = join(
+        sourceDir,
+        parseIncludeTarget(match[1], trimmed),
+      );
       try {
         const content = await Deno.readTextFile(includePath);
         const nested = await resolveIncludes(
@@ -135,11 +166,80 @@ export function convertReaderLinks(markdown: string): string {
 }
 
 /**
+ * De-links remaining internal `.md` links (e.g. links between lesson pages),
+ * keeping only the link text. Brightspace assigns topic URLs at import time
+ * that cannot be predicted from the source filename, so a relative `.md` link
+ * would otherwise become a dead link after import. External links (http/https)
+ * are left untouched. Must run after `convertReaderLinks` so reader/PDF links
+ * are not affected.
+ *
+ * Issues: #7, #8
+ */
+export function delinkInternalMdLinks(markdown: string): string {
+  return markdown.replace(INTERNAL_MD_LINK_REGEX, (match, text, href) => {
+    if (/^https?:\/\//i.test(href)) return match;
+    return text;
+  });
+}
+
+/**
  * Reads the shared content CSS (cached via loadAssetText).
  */
 async function getContentCss(): Promise<string> {
   return await loadAssetText("brightspacosaurus.css");
 }
+
+/**
+ * Inline script that adds a copy button to every code block. No external
+ * dependencies or user-controlled data are involved, so inlining is safe.
+ *
+ * Issue: #16
+ */
+const COPY_BUTTON_SCRIPT = `<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('pre code').forEach(function (codeBlock) {
+    var pre = codeBlock.parentElement;
+    if (!pre || pre.dataset.bsoCopyWrapped) return;
+    pre.dataset.bsoCopyWrapped = 'true';
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'bso-code-wrapper';
+    pre.parentNode.insertBefore(wrapper, pre);
+    wrapper.appendChild(pre);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bso-copy-btn';
+    btn.textContent = 'Kopieer';
+    btn.setAttribute('aria-label', 'Kopieer code');
+    btn.addEventListener('click', function () {
+      var text = codeBlock.innerText;
+      var showCopied = function () {
+        btn.textContent = 'Gekopieerd!';
+        setTimeout(function () { btn.textContent = 'Kopieer'; }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showCopied, function () {});
+      } else {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          showCopied();
+        } catch (_err) {
+          // Clipboard unavailable — leave button as-is
+        }
+        document.body.removeChild(textarea);
+      }
+    });
+    wrapper.appendChild(btn);
+  });
+});
+</script>`;
 
 /**
  * Wraps the HTML body in a full HTML document with lang="nl", UTF-8,
@@ -189,6 +289,7 @@ ${css}${customCssBlock}
 <div class="brightspace-content">
 ${body}
 </div>
+${COPY_BUTTON_SCRIPT}
 </body>
 </html>`;
 }
@@ -288,7 +389,9 @@ export async function convertMarkdown(
   const sourceDir = dirname(sourcePath);
   const includedMarkdown = await resolveIncludes(markdown, sourceDir);
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
-  const convertedMarkdown = convertReaderLinks(cleanedMarkdown);
+  const convertedMarkdown = delinkInternalMdLinks(
+    convertReaderLinks(cleanedMarkdown),
+  );
   const relativeImages = findRelativeImages(convertedMarkdown);
 
   const relFromBase = relative(baseDir, sourcePath);

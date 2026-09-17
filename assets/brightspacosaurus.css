@@ -162,6 +162,39 @@ article.markdown pre code {
   line-height: 1.5;
 }
 
+/* Copy-button wrapper for code blocks (Brightspace HTML route only, issue #16) */
+.bso-code-wrapper {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.bso-code-wrapper pre {
+  margin-bottom: 0;
+}
+
+.bso-copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-family: 'Barlow', sans-serif;
+  font-size: 0.75rem;
+  padding: 0.25em 0.6em;
+  background: var(--han-white);
+  border: 1px solid var(--han-code-border);
+  border-radius: 4px;
+  color: var(--han-muted);
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.bso-copy-btn:hover,
+.bso-copy-btn:focus-visible {
+  opacity: 1;
+  background: var(--han-pink-soft);
+  border-color: var(--han-red);
+  color: var(--han-ink);
+}
+
 /* === Tabellen === */
 
 .brightspace-content table,

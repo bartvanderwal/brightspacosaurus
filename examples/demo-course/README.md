@@ -2,7 +2,7 @@
 
 A minimal, generic example course that demonstrates Brightspacosaurus features:
 
-- A lesson page with syntax-highlighted code blocks.
+- A lesson page with fenced code blocks (copy-to-clipboard button; color highlighting in Docusaurus preview only for now).
 - A quiz (`quiz-` prefix) converted to QTI 1.2.
 - A reader (`reader-` prefix) converted to PDF via pandoc, including a diagram-as-code example.
 - A PlantUML class diagram (diagrams-as-code).
