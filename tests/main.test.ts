@@ -8,6 +8,7 @@ import {
   runPrepare,
   runPreview,
 } from "../src/main.ts";
+import { loadPackageVersion } from "../src/assets.ts";
 import type { ResolvedConfig } from "../src/types.ts";
 
 function testConfig(repoRoot: string): ResolvedConfig {
@@ -101,10 +102,18 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
       join(config.outputDir, "imsmanifest.xml"),
     );
     const archive = await Deno.stat(
-      join(repoRoot, "build", "coverage-course.v0.9.0.imscc"),
+      join(
+        repoRoot,
+        "build",
+        `coverage-course.v${await loadPackageVersion()}.imscc`,
+      ),
     );
 
     assertStringIncludes(html, "<h1>Les 1.1 &#x26; intro</h1>");
+    assertStringIncludes(
+      html,
+      `BSO v${await loadPackageVersion()} · content v0.9.0`,
+    );
     assertStringIncludes(manifest, "<title>Les 1.1 &amp; intro</title>");
     assertEquals(
       manifest.includes("<title>Les 1.1 &#x26; intro</title>"),

@@ -16,6 +16,6 @@ bso prepare
 bso pack
 ```
 
-This produces `build/brightspace/demo-course.v1.0.0.imscc`, ready to import into Brightspace.
+This produces `build/brightspace/demo-course.v0.9.2.imscc`, ready to import into Brightspace. The `.imscc` postfix follows the BSO package version in the repository's `deno.json`; the course content version remains configured separately as configured in BSO configuration file `brightspacosaurus.config.json`.
 
 > Note: diagram rendering in the Brightspace HTML output is planned (see issue #14). For now, PlantUML/Mermaid render in reader PDFs; in lesson HTML they appear as code blocks.

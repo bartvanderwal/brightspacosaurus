@@ -140,6 +140,7 @@ export async function runPrepare(
   config: ResolvedConfig,
   readersOnly: boolean,
 ): Promise<void> {
+  const packageVersion = await loadPackageVersion();
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
   const contentOutputDir = join(buildDir, "content");
@@ -202,6 +203,7 @@ export async function runPrepare(
         repoRoot,
         baseDir: config.sourcesDir,
         version: config.version,
+        packageVersion,
         customCssPath: config.customCss ?? undefined,
         diagrams: config.diagrams,
       });
@@ -225,6 +227,7 @@ export async function runPrepare(
           repoRoot,
           baseDir: dirname(parentFilePath),
           version: config.version,
+          packageVersion,
           customCssPath: config.customCss ?? undefined,
           diagrams: config.diagrams,
         });
@@ -488,7 +491,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   const buildDir = config.outputDir;
   const outputPath = join(
     dirname(buildDir),
-    `${config.name}.v${config.version}.imscc`,
+    `${config.name}.v${await loadPackageVersion()}.imscc`,
   );
 
   // Run prepare first if build/content/ does not exist

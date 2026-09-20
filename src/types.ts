@@ -37,6 +37,8 @@ export interface ConvertOptions {
   repoRoot: string;
   /** Versienummer voor de badge (uit config). Standaard: "?" als niet opgegeven. */
   version?: string;
+  /** BSO package version loaded from deno.json. */
+  packageVersion?: string;
   /** Absoluut pad naar een custom CSS-bestand. Wordt naast de standaard-CSS opgenomen. */
   customCssPath?: string;
   /** Basismap waartegen het output-pad relatief wordt bepaald. Standaard: repoRoot. Gebruik sourcesDir om diepe repo-structuren af te vlakken. */
