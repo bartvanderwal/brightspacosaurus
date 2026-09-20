@@ -384,7 +384,8 @@ Deno.test("delinkInternalMdLinks: interne .md-link met anchor wordt platte tekst
 });
 
 Deno.test("delinkInternalMdLinks: externe .md-link blijft ongewijzigd", () => {
-  const input = "Zie [extern](https://example.com/handleiding.md) voor details.";
+  const input =
+    "Zie [extern](https://example.com/handleiding.md) voor details.";
   const result = delinkInternalMdLinks(input);
   assertEquals(result, input);
 });
@@ -440,8 +441,16 @@ Deno.test("convertMarkdown: interne .md-link tussen lespagina's wordt platte tek
     const html = await Deno.readTextFile(result.outputPath);
 
     assertEquals(html.includes("<a"), false, "HTML mag geen <a>-tag bevatten");
-    assertEquals(html.includes("de FAQ"), true, "Linktekst moet behouden blijven");
-    assertEquals(html.includes("faq.md"), false, "De .md-referentie mag niet meer voorkomen");
+    assertEquals(
+      html.includes("de FAQ"),
+      true,
+      "Linktekst moet behouden blijven",
+    );
+    assertEquals(
+      html.includes("faq.md"),
+      false,
+      "De .md-referentie mag niet meer voorkomen",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -543,6 +552,28 @@ Deno.test("convertMarkdown: {@include} met oude padsyntax (zonder link) geeft ee
     await Deno.writeTextFile(
       sourcePath,
       "# Les\n\n{@include: lesdoelen.md}\n",
+    );
+
+    await assertRejects(
+      () => convertMarkdown({ sourcePath, outputDir, repoRoot: tempRoot }),
+      Error,
+      "requires Markdown link syntax",
+    );
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+Deno.test("convertMarkdown: {@include} met HTML-linksyntax geeft een foutmelding", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    const sourcePath = join(sourceDir, "les.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      '# Les\n\n{@include: <a href="lesdoelen.md">Lesdoelen</a>}\n',
     );
 
     await assertRejects(

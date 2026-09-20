@@ -156,6 +156,28 @@ Missing optional configuration is silently skipped: without `readersDir` BSO ski
 
 ---
 
+### 4.3 Reusable Markdown includes
+
+An include inserts another Markdown file at the exact location of the directive. The include target must always be a Markdown link:
+
+```markdown
+{@include: [Learning goals](../partials/learning-goals.md)}
+```
+
+This syntax has two purposes. BSO can resolve the link during HTML and reader-PDF generation, while the source remains a normal, clickable Markdown link in an editor such as VS Code and in a Docusaurus preview. The visible link text is only an editor-facing label; BSO follows the link target and inserts the target file's Markdown content.
+
+The older bare-path form is deliberately invalid:
+
+```markdown
+{@include: ../partials/learning-goals.md}
+```
+
+It produces an error instead of silently accepting content that is not clickable in the source. HTML links such as `<a href="...">...</a>` are not accepted as include syntax either; use the Markdown-link form. A future `bso lint` command will report invalid include directives before a build is started.
+
+Includes are resolved relative to the Markdown file that contains them. The same directive can therefore be used in lesson pages, reader Markdown and other included Markdown files, provided the relative path is correct.
+
+---
+
 ## 5. Workflow: from Markdown to Brightspace
 
 BSO converts quizzes to the QTI format (Question and Test Interoperability). QTI is an open standard from 1EdTech (formerly IMS Global) for exchanging test questions and assessments between systems (1EdTech, n.d.). Brightspace imports QTI files as assessments in the Tests/Quizzes tool, so questions do not have to be retyped by hand.

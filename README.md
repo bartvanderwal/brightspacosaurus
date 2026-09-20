@@ -93,6 +93,14 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
 
+  Includes use clickable Markdown-link syntax so the same source works in BSO, an editor and a Docusaurus preview:
+
+  ```markdown
+  {@include: [Learning goals](../partials/learning-goals.md)}
+  ```
+
+  A bare path or embedded HTML link is invalid and will be reported by the future `bso lint` command.
+
    See the user manual (`docs/user-manual.md`) for the exact file conventions and the quiz format. (A `bso lint` command to check your material against a house style is planned — see the roadmap.)
 
 3. **Preview locally (optional)** with Docusaurus, so you can review content, links, code blocks and diagrams before importing into Brightspace:
