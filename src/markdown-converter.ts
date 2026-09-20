@@ -44,7 +44,8 @@ const READER_LINK_REGEX =
  * links have already been converted to .pdf. Excludes image syntax (`![...]`)
  * via the negative lookbehind.
  */
-const INTERNAL_MD_LINK_REGEX = /(?<!!)\[([^\]]*)\]\(([^()\s]+\.md(?:#[^()\s]*)?)\)/g;
+const INTERNAL_MD_LINK_REGEX =
+  /(?<!!)\[([^\]]*)\]\(([^()\s]+\.md(?:#[^()\s]*)?)\)/g;
 
 /**
  * Checks whether a path is within the repository root.
@@ -250,6 +251,7 @@ async function wrapHtml(
   body: string,
   title: string,
   version: string,
+  packageVersion: string,
   customCssPath?: string,
 ): Promise<string> {
   const css = await getContentCss();
@@ -285,7 +287,9 @@ ${css}${customCssBlock}
 </style>
 </head>
 <body>
-<div class="bso-version-badge">v${escapeHtml(version)}</div>
+<div class="bso-version-badge">BSO v${escapeHtml(packageVersion)} · content v${
+    escapeHtml(version)
+  }</div>
 <div class="brightspace-content">
 ${body}
 </div>
@@ -299,6 +303,36 @@ function escapeHtml(text: string): string {
     />/g,
     "&gt;",
   );
+}
+
+/** Materializes base64 SVG images so Brightspace does not have to preserve data URIs. */
+async function materializeDiagramImages(
+  html: string,
+  outputSubDir: string,
+): Promise<{ html: string; imagePaths: string[] }> {
+  const dataUriRegex = /data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/g;
+  const imagePaths: string[] = [];
+  let diagramIndex = 0;
+  let match: RegExpExecArray | null;
+  let result = "";
+  let lastIndex = 0;
+
+  while ((match = dataUriRegex.exec(html)) !== null) {
+    diagramIndex += 1;
+    const relativePath = `images/diagrams/diagram-${diagramIndex}.svg`;
+    const absolutePath = join(outputSubDir, relativePath);
+    await Deno.mkdir(dirname(absolutePath), { recursive: true });
+    const bytes = Uint8Array.from(atob(match[1]), (char) => char.charCodeAt(0));
+    await Deno.writeFile(absolutePath, bytes);
+    imagePaths.push(absolutePath);
+    result += html.slice(lastIndex, match.index) + relativePath;
+    lastIndex = match.index + match[0].length;
+  }
+
+  return {
+    html: diagramIndex === 0 ? html : result + html.slice(lastIndex),
+    imagePaths,
+  };
 }
 
 /** Creates a Markdown → HTML processor. A fresh processor avoids cross-file state in plugins. */
@@ -419,12 +453,18 @@ export async function convertMarkdown(
   }
 
   const htmlBody = await processMarkdownBody(convertedMarkdown, options);
+  const materializedDiagrams = await materializeDiagramImages(
+    htmlBody,
+    outputSubDir,
+  );
+  copiedImages.push(...materializedDiagrams.imagePaths);
   const title = basename(sourcePath, extname(sourcePath));
   const version = options.version ?? "?";
   const fullHtml = await wrapHtml(
-    htmlBody,
+    materializedDiagrams.html,
     title,
     version,
+    options.packageVersion ?? "?",
     options.customCssPath,
   );
 

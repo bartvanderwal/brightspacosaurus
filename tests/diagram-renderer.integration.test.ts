@@ -91,7 +91,19 @@ Deno.test("convertMarkdown renders PlantUML fixture through remark-kroki-a11y an
 
     assertEquals(mockKroki.requests, ["POST /plantuml/svg"]);
     assertStringIncludes(html, 'class="kroki-image"');
-    assertStringIncludes(html, 'src="data:image/svg+xml;base64,');
+    assertStringIncludes(html, 'src="images/diagrams/diagram-1.svg"');
+    const diagram = await Deno.readTextFile(
+      join(
+        tempRoot,
+        "build",
+        "diagram-plantuml",
+        "src",
+        "images",
+        "diagrams",
+        "diagram-1.svg",
+      ),
+    );
+    assertStringIncludes(diagram, "<svg");
     assertStringIncludes(html, 'alt="PlantUML diagram fixture"');
     assertStringIncludes(html, 'aria-describedby="bso-diagram-1-description"');
     assertStringIncludes(html, "<details");
@@ -103,7 +115,7 @@ Deno.test("convertMarkdown renders PlantUML fixture through remark-kroki-a11y an
     // Diagram disclosure itself needs no JS-based tab widget (native <details>
     // only); the page-wide copy-button script (issue #16) is unrelated.
     assertEquals(html.includes('role="tablist"'), false);
-    assertEquals(html.includes('data-tab='), false);
+    assertEquals(html.includes("data-tab="), false);
   } finally {
     await mockKroki.close();
     await removeDir(tempRoot);
@@ -122,7 +134,7 @@ Deno.test("convertMarkdown renders Mermaid fixture through remark-kroki-a11y", a
 
     assertEquals(mockKroki.requests, ["POST /mermaid/svg"]);
     assertStringIncludes(html, 'class="kroki-image"');
-    assertStringIncludes(html, 'src="data:image/svg+xml;base64,');
+    assertStringIncludes(html, 'src="images/diagrams/diagram-1.svg"');
     assertStringIncludes(html, 'alt="Mermaid diagram fixture"');
     assertStringIncludes(html, 'aria-describedby="bso-diagram-1-description"');
     assertStringIncludes(html, "Mermaid broncode");
@@ -130,7 +142,7 @@ Deno.test("convertMarkdown renders Mermaid fixture through remark-kroki-a11y", a
     // Diagram disclosure itself needs no JS-based tab widget (native <details>
     // only); the page-wide copy-button script (issue #16) is unrelated.
     assertEquals(html.includes('role="tablist"'), false);
-    assertEquals(html.includes('data-tab='), false);
+    assertEquals(html.includes("data-tab="), false);
   } finally {
     await mockKroki.close();
     await removeDir(tempRoot);
