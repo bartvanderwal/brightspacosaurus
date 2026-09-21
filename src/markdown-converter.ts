@@ -167,19 +167,28 @@ export function convertReaderLinks(markdown: string): string {
 }
 
 /**
- * De-links remaining internal `.md` links (e.g. links between lesson pages),
- * keeping only the link text. Brightspace assigns topic URLs at import time
- * that cannot be predicted from the source filename, so a relative `.md` link
- * would otherwise become a dead link after import. External links (http/https)
- * are left untouched. Must run after `convertReaderLinks` so reader/PDF links
- * are not affected.
+ * Converts internal Markdown links to Common Cartridge file-base links.
+ * Reader links are converted first and therefore remain PDF links; external
+ * links are left untouched.
  *
  * Issues: #7, #8
  */
-export function delinkInternalMdLinks(markdown: string): string {
+export function convertInternalMdLinks(
+  markdown: string,
+  sourcePath: string,
+  baseDir: string,
+): string {
+  const sourceDir = dirname(sourcePath);
   return markdown.replace(INTERNAL_MD_LINK_REGEX, (match, text, href) => {
-    if (/^https?:\/\//i.test(href)) return match;
-    return text;
+    if (/^(?:https?:)?\/\//i.test(href)) return match;
+
+    const hashIndex = href.indexOf("#");
+    const pathPart = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
+    const anchor = hashIndex >= 0 ? href.slice(hashIndex) : "";
+    const targetPath = resolve(sourceDir, pathPart);
+    const packagePath = relative(baseDir, targetPath).replace(/\\/g, "/");
+    const htmlPath = packagePath.replace(/\.md$/i, ".html");
+    return `[${text}]($IMS-CC-FILEBASE$/content/${htmlPath}${anchor})`;
   });
 }
 
@@ -423,8 +432,10 @@ export async function convertMarkdown(
   const sourceDir = dirname(sourcePath);
   const includedMarkdown = await resolveIncludes(markdown, sourceDir);
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
-  const convertedMarkdown = delinkInternalMdLinks(
+  const convertedMarkdown = convertInternalMdLinks(
     convertReaderLinks(cleanedMarkdown),
+    sourcePath,
+    baseDir,
   );
   const relativeImages = findRelativeImages(convertedMarkdown);
 

@@ -13,9 +13,9 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import fc from "fast-check";
 import {
+  convertInternalMdLinks,
   convertMarkdown,
   convertReaderLinks,
-  delinkInternalMdLinks,
 } from "../src/markdown-converter.ts";
 import { join } from "@std/path";
 
@@ -112,6 +112,7 @@ Deno.test("Eigenschap 1: afbeeldingen met relatieve paden worden gekopieerd", as
       sourcePath,
       outputDir,
       repoRoot: tempRoot,
+      baseDir: join(tempRoot, "src"),
     });
 
     // Eigenschap: de afbeelding is gekopieerd
@@ -364,63 +365,77 @@ Deno.test("convertReaderLinks: mix van reader-links en niet-reader-links", () =>
 });
 
 // ===========================================================================
-// Unit tests voor delinkInternalMdLinks (issues #7, #8)
-// Interne .md-links tussen lespagina's worden dode links na Brightspace-import
-// (topic-URL's zijn pas na import bekend). Als vangnet worden zulke links
-// omgezet naar platte tekst; externe links en al-geconverteerde reader-links
-// blijven ongemoeid.
+// Unit tests voor convertInternalMdLinks (issues #7, #8)
 // ===========================================================================
 
-Deno.test("delinkInternalMdLinks: interne .md-link wordt platte tekst", () => {
+Deno.test("convertInternalMdLinks: interne .md-link wordt CC file-base link", () => {
   const input = "Kijk in de [FAQ](../faq.md) voor meer info.";
-  const result = delinkInternalMdLinks(input);
-  assertEquals(result, "Kijk in de FAQ voor meer info.");
+  const result = convertInternalMdLinks(
+    input,
+    "/repo/src/week-1/les.md",
+    "/repo/src",
+  );
+  assertEquals(
+    result,
+    "Kijk in de [FAQ]($IMS-CC-FILEBASE$/content/faq.html) voor meer info.",
+  );
 });
 
-Deno.test("delinkInternalMdLinks: interne .md-link met anchor wordt platte tekst", () => {
+Deno.test("convertInternalMdLinks: interne .md-link behoudt anchor", () => {
   const input = "Zie [les 1.1](../week-1/lesoverzicht-1.1.md#opdracht).";
-  const result = delinkInternalMdLinks(input);
-  assertEquals(result, "Zie les 1.1.");
+  const result = convertInternalMdLinks(
+    input,
+    "/repo/src/week-2/les.md",
+    "/repo/src",
+  );
+  assertEquals(
+    result,
+    "Zie [les 1.1]($IMS-CC-FILEBASE$/content/week-1/lesoverzicht-1.1.html#opdracht).",
+  );
 });
 
-Deno.test("delinkInternalMdLinks: externe .md-link blijft ongewijzigd", () => {
+Deno.test("convertInternalMdLinks: externe .md-link blijft ongewijzigd", () => {
   const input =
     "Zie [extern](https://example.com/handleiding.md) voor details.";
-  const result = delinkInternalMdLinks(input);
+  const result = convertInternalMdLinks(input, "/repo/src/les.md", "/repo/src");
   assertEquals(result, input);
 });
 
-Deno.test("delinkInternalMdLinks: reeds omgezette reader-pdf-link blijft ongewijzigd", () => {
+Deno.test("convertInternalMdLinks: reeds omgezette reader-pdf-link blijft ongewijzigd", () => {
   const input = "Lees de [Git-reader](../readers/reader-git-en-gitlab.pdf).";
-  const result = delinkInternalMdLinks(input);
+  const result = convertInternalMdLinks(input, "/repo/src/les.md", "/repo/src");
   assertEquals(result, input);
 });
 
-Deno.test("delinkInternalMdLinks: afbeeldingsyntax (![...]) met .md-pad blijft ongewijzigd", () => {
+Deno.test("convertInternalMdLinks: afbeeldingssyntax (![...]) met .md-pad blijft ongewijzigd", () => {
   const input = "![alt tekst](diagram.md)";
-  const result = delinkInternalMdLinks(input);
+  const result = convertInternalMdLinks(input, "/repo/src/les.md", "/repo/src");
   assertEquals(result, input);
 });
 
-Deno.test("delinkInternalMdLinks: meerdere interne links in één document worden allemaal ontlinkt", () => {
+Deno.test("convertInternalMdLinks: meerdere interne links worden allemaal geconverteerd", () => {
   const input = [
     "Ga naar [les 1.1](../week-1/lesoverzicht-1.1.md) voor het programma.",
     "Raadpleeg de [Git-reader](../readers/reader-git-en-gitlab.pdf) voor Git-instructies.",
     "En bekijk [quiz 1](../week-1/quiz-1.4-oop-basics.md) voor oefenvragen.",
   ].join("\n");
 
-  const result = delinkInternalMdLinks(input);
+  const result = convertInternalMdLinks(
+    input,
+    "/repo/src/week-1/les.md",
+    "/repo/src",
+  );
 
   const expected = [
-    "Ga naar les 1.1 voor het programma.",
+    "Ga naar [les 1.1]($IMS-CC-FILEBASE$/content/week-1/lesoverzicht-1.1.html) voor het programma.",
     "Raadpleeg de [Git-reader](../readers/reader-git-en-gitlab.pdf) voor Git-instructies.",
-    "En bekijk quiz 1 voor oefenvragen.",
+    "En bekijk [quiz 1]($IMS-CC-FILEBASE$/content/week-1/quiz-1.4-oop-basics.html) voor oefenvragen.",
   ].join("\n");
 
   assertEquals(result, expected);
 });
 
-Deno.test("convertMarkdown: interne .md-link tussen lespagina's wordt platte tekst in HTML-uitvoer", async () => {
+Deno.test("convertMarkdown: interne .md-link wordt CC file-base link in HTML-uitvoer", async () => {
   const tempRoot = await makeTempDir();
   const sourceDir = join(tempRoot, "src", "week-1");
   const outputDir = join(tempRoot, "build");
@@ -436,20 +451,25 @@ Deno.test("convertMarkdown: interne .md-link tussen lespagina's wordt platte tek
       sourcePath,
       outputDir,
       repoRoot: tempRoot,
+      baseDir: join(tempRoot, "src"),
     });
 
     const html = await Deno.readTextFile(result.outputPath);
 
-    assertEquals(html.includes("<a"), false, "HTML mag geen <a>-tag bevatten");
+    assertEquals(
+      html.includes("<a"),
+      true,
+      "HTML moet de interne link behouden",
+    );
     assertEquals(
       html.includes("de FAQ"),
       true,
       "Linktekst moet behouden blijven",
     );
     assertEquals(
-      html.includes("faq.md"),
-      false,
-      "De .md-referentie mag niet meer voorkomen",
+      html.includes("$IMS-CC-FILEBASE$/content/faq.html"),
+      true,
+      "De link moet naar de Common Cartridge HTML-resource wijzen",
     );
   } finally {
     await removeDir(tempRoot);
