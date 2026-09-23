@@ -74,7 +74,7 @@ Throughout this guidebook: _export_ refers to BSO writing the package, _import_ 
 
 ### Diagram rendering in context
 
-As of version 0.8.0, BSO integrates **diagram rendering** as a core feature of the `prepare` command. When a lesson Markdown file contains PlantUML or Mermaid fenced blocks, BSO uses `remark-kroki-a11y` to render them to accessible HTML during the build. This happens only for **lesson content** (standard `.md` files converted to HTML topics); **quiz questions** follow a different path (see [ADR 011](../adr/adr011-brightspacosaurus-rijke-inhoud-quizvragen.md)).
+As of version 0.8.0, BSO integrates **diagram rendering** as a core feature of the `prepare` command. When a lesson Markdown file contains PlantUML or Mermaid fenced blocks, BSO uses `remark-kroki-a11y` to render them to accessible HTML during the build. This happens only for **lesson content** (standard `.md` files converted to HTML topics); **quiz questions** follow a different path (see [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)).
 
 Key points:
 
@@ -135,7 +135,7 @@ Manifest navigation order is also deterministic and intentionally mirrors the au
 
 ### Security by design
 
-BSO runs on Deno, which requires explicit permission grants (`--allow-read`, `--allow-write`, `--allow-run=pandoc`, `--allow-env`). There are no automatic postinstall scripts, which removes a common supply-chain attack vector. Publishing via JSR keeps the distribution surface small. See [ADR 008](../adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md).
+BSO runs on Deno, which requires explicit permission grants (`--allow-read`, `--allow-write`, `--allow-run=pandoc`, `--allow-env`). There are no automatic postinstall scripts, which removes a common supply-chain attack vector. Publishing via JSR keeps the distribution surface small. See [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md).
 
 ### Portability
 
@@ -351,27 +351,35 @@ Page titles for the manifest are extracted from the generated HTML (the `<h1>`).
 
 ## 8. Design Decisions
 
-The significant decisions, most captured as Architecture Decision Records in [`adr/`](../adr/).
+### Preview/output parity
 
-### Deno over Node.js — [ADR 008](../adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
+The Docusaurus preview and the Brightspace/IMSCC export are two render targets for the same Markdown source. Every author-visible feature — lessons, quizzes, links, includes, diagrams, flashcards and accessibility behavior — should work in both Docusaurus and Brightspace and remain usable and visually coherent after Brightspace import.
+
+The preferred way to achieve this is code reuse: share parsers, renderers, assets, semantic HTML contracts and browser behavior wherever the two targets allow it. Do not create parallel implementations when a shared implementation is possible. Some target-specific work remains unavoidable because Docusaurus and Brightspace have different rendering, sandboxing and import behavior; therefore parity always requires some tests in both targets, plus a real Brightspace import test for LMS-specific behavior. But this should be minimized through code reuse (same JS in Docusaurus as in Brightspace, use Docusaurus plugins and standards when possible for new features wanted in Brigthspace).
+
+The shared implementation contracts belong with the relevant components and assets. The contribution rules in [CONTRIBUTING.md](../CONTRIBUTING.md) require new features to document and test both targets where applicable.
+
+The significant architectural decisions are recorded as Architecture Decision Records in the [ADR index](adr/README.md).
+
+### Deno over Node.js — [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
 
 **Context:** the tool runs in CI with repository and build-process access, making supply-chain security a first-class concern. **Decision:** use Deno as the runtime. **Rationale:** Deno's explicit permission model limits file access to declared paths, and it does not run postinstall scripts automatically — closing a well-known npm supply-chain vector.
 
-### unified (remark / rehype) for Markdown → HTML — [ADR 010](../adr/adr010-brightspacosaurus-unified-pipeline-markdown-conversie.md)
+### unified (remark / rehype) for Markdown → HTML — [ADR 010](adr/adr010-brightspacosaurus-unified-markdown-pipeline.md)
 
 **Context:** Markdown must convert to clean, standalone HTML with GFM, frontmatter and rich content. **Decision:** use the unified pipeline (remark-parse, remark-gfm, remark-frontmatter, remark-rehype, rehype-stringify). **Rationale:** a well-established, composable, plugin-driven pipeline with predictable output.
 
-### Rich content in quiz questions — [ADR 011](../adr/adr011-brightspacosaurus-rijke-inhoud-quizvragen.md)
+### Rich content in quiz questions — [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)
 
 **Context:** quiz questions need more than plain text (code, formatting). **Decision:** support rich content in quiz Markdown when converting to QTI. **Rationale:** questions stay authored in Markdown while producing valid QTI 1.2 for Brightspace.
 
-### Reader PDF conversion via pandoc — [ADR 014](../adr/adr014-reader-pdf-conversie-via-brightspacosaurus.md)
+### Reader PDF conversion via pandoc — [ADR 014](adr/adr014-reader-pdf-conversion.md)
 
 **Context:** readers and the instructor manual need print-quality PDF output. **Decision:** convert reader Markdown to PDF via pandoc with a xelatex/lualatex engine, a custom LaTeX header and Lua filters. **Rationale:** pandoc gives high-quality typesetting; PDF generation is optional and skipped when pandoc is absent, so the core build never hard-depends on it.
 
 Reader PDFs use a mandatory separate cover page ('voorblad', AIM Controle Kaart) before the table of contents. BSO derives deterministic cover metadata from reader frontmatter, the first H1, the configured course name, the configured version and, when `git` is available and permitted, the last commit date of the reader Markdown file. It deliberately does not inject the current date automatically because repeated builds must remain reproducible.
 
-### Publication via JSR — [ADR 015](../adr/adr015-brightspacosaurus-publicatie-via-jsr.md)
+### Publication via JSR — [ADR 015](adr/adr015-brightspacosaurus-publication-via-jsr.md)
 
 **Context:** the tool should be reusable both as an executable CLI and as an importable library. **Decision:** publish to JSR as `@bartvanderwal/brightspacosaurus`. **Rationale:** native Deno support with no separate build step, automatically indexed TypeScript types, versioning, and minimal impedance mismatch with the toolchain.
 
@@ -379,7 +387,7 @@ Reader PDFs use a mandatory separate cover page ('voorblad', AIM Controle Kaart)
 
 **Context:** bundled assets were loaded with `import.meta.url` + `Deno.readTextFile()`. This works from local source (`file://`) but fails from the JSR cache with _"Must be a file URL"_, because JSR serves modules over `https://`. **Decision:** introduce `src/assets.ts` with `loadAssetText` (`import.meta.resolve()` + `fetch()`) for text assets, and `materializeAsset` (write to a temp file) for external tools such as pandoc that require a real file path. **Rationale:** `fetch` works uniformly across `file://`, `https://` and `jsr:`; temp-file materialization bridges the gap for external processes that cannot read URLs. See GitHub issue #5.
 
-### Diagram rendering via remark-kroki-a11y — [ADR 016](../adr/adr016-diagramrendering-via-remark-kroki-a11y.md)
+### Diagram rendering via remark-kroki-a11y — [ADR 016](adr/adr016-diagram-rendering-via-remark-kroki-a11y.md)
 
 **Context:** lesson HTML needs PlantUML/Mermaid rendering and accessibility support, while Brightspace topic content cannot safely assume custom JavaScript is available or allowed. **Decision:** run `remark-kroki-a11y` in-process, share one option mapper with preview, adapt provider HTML to native Brightspace disclosures, and keep offline validation reusable. **Rationale:** keeps rendering and natural-language descriptions in one upstream provider while giving BSO deterministic no-JS output and strict/fallback error policy.
 
@@ -434,16 +442,16 @@ The final step — importing the `.imscc` into a Brightspace course — remains 
 
 ### Architecture Decision Records
 
-The [`adr/`](../adr/) directory is the running decision log:
+The [`docs/adr/`](adr/README.md) directory is the running decision log:
 
 | ADR                                                                           | Summary                                                                    |
 | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [008](../adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)              | Deno over Node.js — permission model and no auto postinstall scripts.      |
-| [010](../adr/adr010-brightspacosaurus-unified-pipeline-markdown-conversie.md) | unified (remark/rehype) pipeline for Markdown → HTML.                      |
-| [011](../adr/adr011-brightspacosaurus-rijke-inhoud-quizvragen.md)             | Rich content in quiz questions.                                            |
-| [014](../adr/adr014-reader-pdf-conversie-via-brightspacosaurus.md)            | Reader PDF conversion via pandoc.                                          |
-| [015](../adr/adr015-brightspacosaurus-publicatie-via-jsr.md)                  | Publication via JSR.                                                       |
-| [016](../adr/adr016-diagramrendering-via-remark-kroki-a11y.md)                | Diagram rendering via remark-kroki-a11y with no-JS Brightspace adaptation. |
+| [008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) | Deno over Node.js — permission model and no auto postinstall scripts. |
+| [010](adr/adr010-brightspacosaurus-unified-markdown-pipeline.md) | unified (remark/rehype) pipeline for Markdown → HTML. |
+| [011](adr/adr011-brightspacosaurus-rich-quiz-content.md) | Rich content in quiz questions. |
+| [014](adr/adr014-brightspacosaurus-reader-pdf-conversion.md) | Reader PDF conversion via pandoc. |
+| [015](adr/adr015-brightspacosaurus-publication-via-jsr.md) | Publication via JSR. |
+| [016](adr/adr016-diagram-rendering-via-remark-kroki-a11y.md) | Diagram rendering via remark-kroki-a11y with no-JS Brightspace adaptation. |
 
 ### Versioning
 

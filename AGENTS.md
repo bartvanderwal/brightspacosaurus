@@ -5,7 +5,7 @@ These instructions apply to this repository and are the primary context for AI a
 ## Project context
 
 - Project: **Brightspacosaurus** (BSO) — a CLI build tool that converts Markdown course material into an IMS Common Cartridge package (`.imscc`) for import into Brightspace.
-- Runtime: **Deno** ≥ 2.0 (see `adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`).
+- Runtime: **Deno** ≥ 2.0 (see `docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`).
 - Language: **TypeScript**.
 - Distribution: published to **JSR** as `@bartvanderwal/brightspacosaurus`; npm-compatible via Deno's compatibility layer.
 - The tool is generic: project-specific settings come from `brightspacosaurus.config.json`, not from the source code.
