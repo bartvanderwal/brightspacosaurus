@@ -139,6 +139,13 @@ Deno.test("reader-header definieert een aparte titlepage voor readers", async ()
   assertEquals(header.includes("\\renewcommand{\\tableofcontents}"), true);
 });
 
+Deno.test("reader-header rendert vinktekens met DejaVu Sans", async () => {
+  const header = await Deno.readTextFile("assets/reader-header.tex");
+
+  assertEquals(header.includes("\\newfontfamily\\symbolfont{DejaVu Sans}"), true);
+  assertEquals(header.includes("\\newunicodechar{✔}{{\\symbolfont ✔}}"), true);
+});
+
 // ---------------------------------------------------------------------------
 // Property 1: PDF-conversie produceert uitvoer op het juiste pad met correcte naamgeving
 // Feature: readers-en-pdf-export, Property 1: PDF-conversie produceert uitvoer op juiste pad
