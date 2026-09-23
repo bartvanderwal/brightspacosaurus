@@ -1,6 +1,6 @@
 # Reader: Testing Basics
 
-{@include: [Learning goals](../partials/lesdoelen-week-1.md)}
+{@include: [Learning goals](../partials/learning-goals.md)}
 
 A short reference on the arrange-act-assert pattern for unit tests.
 
@@ -16,10 +16,26 @@ Most unit tests follow three phases:
 
 ```mermaid
 flowchart TD
-    A[Arrange: create FizzBuzz] --> B[Act: call convert]
+    A[Arrange: create FizzBuzzer] --> B[Act: call fizzBuzz]
     B --> C{Assert: result correct?}
     C -->|yes| D[Test passes]
     C -->|no| E[Test fails]
+```
+
+## Class diagram
+
+```plantuml
+@startuml
+class FizzBuzzer {
+    +fizzBuzz(n: int): String
+}
+
+class Main {
+    +main(args: String[]): void
+}
+
+Main ..> FizzBuzzer : uses
+@enduml
 ```
 
 Keep tests small and focused: one behaviour per test, with a clear name that describes the expected outcome.

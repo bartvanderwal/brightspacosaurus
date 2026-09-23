@@ -1,6 +1,6 @@
 # Quiz 1: FizzBuzz
 
-## Vraag 1
+## Question 1
 
 What does FizzBuzz print for the number 15?
 
@@ -9,9 +9,9 @@ What does FizzBuzz print for the number 15?
 - C. FizzBuzz
 - D. 15
 
-Correct antwoord: **C**
+Correct answer: **C**
 
-## Vraag 2
+## Question 2
 
 What does FizzBuzz print for the number 7?
 
@@ -20,9 +20,9 @@ What does FizzBuzz print for the number 7?
 - C. FizzBuzz
 - D. 7
 
-Correct antwoord: **D**
+Correct answer: **D**
 
-## Vraag 3
+## Question 3
 
 Which numbers produce "Fizz" (divisible by 3 but not 5)?
 
@@ -31,4 +31,4 @@ Which numbers produce "Fizz" (divisible by 3 but not 5)?
 - C. 15, 30, 45
 - D. 1, 2, 4, 7
 
-Correct antwoord: **A**
+Correct answer: **A**
