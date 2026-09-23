@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -19,7 +19,8 @@
     "pack": "deno run --allow-read --allow-write --allow-env src/main.ts pack",
     "check": "deno check src/mod.ts src/main.ts",
     "lint": "deno lint",
-    "test": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 tests/"
+    "test": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 tests/",
+    "demo": "cd examples/demo-course && deno run -A ../../src/main.ts prepare && deno run -A ../../src/main.ts pack"
   },
   "fmt": {
     "proseWrap": "never",
@@ -38,6 +39,7 @@
     "unified": "npm:unified@^11.0.0",
     "remark-parse": "npm:remark-parse@^11.0.0",
     "remark-frontmatter": "npm:remark-frontmatter@^5.0.0",
+    "remark-directive": "npm:remark-directive@^3.0.0",
     "remark-gfm": "npm:remark-gfm@^4.0.0",
     "remark-kroki-a11y": "npm:remark-kroki-a11y@0.6.3",
     "remark-rehype": "npm:remark-rehype@^11.0.0",
@@ -52,6 +54,7 @@
       "src/",
       "src/mod.ts",
       "assets/brightspacosaurus.css",
+      "assets/brightspacosaurus-flashcards.js",
       "assets/reader-header.tex",
       "assets/include-filter.lua",
       "assets/diagram-filter.lua",

@@ -22,11 +22,11 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 
 > 🤖 Brightspacosaurus was built with substantial help from AI coding assistants, but with human-in-the-loop. See [About: building this with AI](#about-building-this-with-ai) for the full story.
 
-**Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for why.
+**Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for why.
 
 ## Requirements
 
-- [Deno](https://deno.com/) ≥ 2.0 — see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for the rationale
+- [Deno](https://deno.com/) ≥ 2.0 — see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the rationale
 - [pandoc](https://pandoc.org/) (optional) — required for reader-PDF generation and the instructor manual
 
 ## Installation
@@ -37,7 +37,7 @@ Install once to get the `bso` command:
 deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 
-The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc,git --allow-env` (`git` is optional and only used for deterministic reader-PDF cover dates; see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`) for the security rationale).
+The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc,git --allow-env` (`git` is optional and only used for deterministic reader-PDF cover dates; see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the security rationale).
 
 Or if you already installed but want the latest you have to add the `-f` flag for forcing override (jsr has NO separate `update` subcommand).:
 
@@ -92,6 +92,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
+  - **Flashcards** — use `:::flashcards` with compact `term:` cards for retrieval practice; definitions support normal Markdown and remain readable without JavaScript.
 
   Includes use clickable Markdown-link syntax so the same source works in BSO, an editor and a Docusaurus preview:
 
@@ -369,7 +370,7 @@ brightspacosaurus/
 │   └── cli.test.ts
 ├── utils/
 │   └── verwijder-brightspace-paginas.js  # experimental cleanup utility
-├── adr/                       # Architecture Decision Records
+├── docs/adr/                  # Architecture Decision Records
 ├── docs/
 │   ├── user-manual.md
 │   └── software-guidebook.md
@@ -379,11 +380,11 @@ brightspacosaurus/
 
 ## Design decisions
 
-- **Deno as runtime** instead of Node.js — see ADR 008 (`adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md`)
-- **unified (remark/rehype)** for Markdown → HTML — see ADR 010 (`adr/adr010-brightspacosaurus-unified-pipeline-markdown-conversie.md`)
-- **Property-based testing** with fast-check — see ADR 011 (`adr/adr011-brightspacosaurus-rijke-inhoud-quizvragen.md`)
-- **Reader-PDF conversion via pandoc** — see ADR 014 (`adr/adr014-reader-pdf-conversie-via-brightspacosaurus.md`)
-- **JSR as the primary distribution channel** — see ADR 015 (`adr/adr015-brightspacosaurus-publicatie-via-jsr.md`)
+- **Deno as runtime** instead of Node.js — see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
+- **unified (remark/rehype)** for Markdown → HTML — see [ADR 010](docs/adr/adr010-brightspacosaurus-unified-markdown-pipeline.md)
+- **Rich quiz content** — see [ADR 011](docs/adr/adr011-brightspacosaurus-rich-quiz-content.md)
+- **Reader-PDF conversion via pandoc** — see [ADR 014](docs/adr/adr014-brightspacosaurus-reader-pdf-conversion.md)
+- **JSR as the primary distribution channel** — see [ADR 015](docs/adr/adr015-brightspacosaurus-publication-via-jsr.md)
 - **Config-driven with sensible defaults** — project-specific settings via `brightspacosaurus.config.json`, CLI arguments take precedence over config
 - All output in `build/`, never next to source files
 - Deterministic file ordering for reproducible archives

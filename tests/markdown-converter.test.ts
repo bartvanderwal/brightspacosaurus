@@ -10,7 +10,7 @@
  * Valideert: Requirements 8.5
  */
 
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import fc from "fast-check";
 import {
   convertInternalMdLinks,
@@ -601,6 +601,48 @@ Deno.test("convertMarkdown: {@include} met HTML-linksyntax geeft een foutmelding
       Error,
       "requires Markdown link syntax",
     );
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+Deno.test("convertMarkdown: flashcards behouden term, Markdown-definitie en no-JS fallback", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "src");
+  const outputDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(sourceDir, { recursive: true });
+    const sourcePath = join(sourceDir, "flashcards.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      `# Core concepts
+
+:::flashcards
+
+:::flashcard
+term: Unit test
+
+A **small** test in _isolation_.
+:::
+
+:::
+`,
+    );
+
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir,
+      repoRoot: tempRoot,
+    });
+    const html = await Deno.readTextFile(result.outputPath);
+
+    assertStringIncludes(html, 'class="bso-flashcards"');
+    assertStringIncludes(html, 'class="bso-flashcard-toggle"');
+    assertStringIncludes(html, "Unit test");
+    assertStringIncludes(html, "<strong>small</strong>");
+    assertStringIncludes(html, "<em>isolation</em>");
+    assertStringIncludes(html, 'class="bso-flashcard-definition"');
+    assertStringIncludes(html, "bso-flashcard-global-toggle");
   } finally {
     await removeDir(tempRoot);
   }

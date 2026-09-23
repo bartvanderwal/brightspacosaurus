@@ -8,6 +8,15 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.10.0 - 2026-09-21
+
+### Added
+
+- Add accessible interactive flashcards for compact core-concept practice using `:::flashcards` and `:::flashcard` Markdown containers.
+- Keep flashcard definitions usable without JavaScript and support nested Markdown in definitions.
+- Add global and per-card reveal controls with keyboard focus and `aria-expanded` state.
+- Expand the demo course with a durable two-week manual regression fixture.
+
 ## 0.9.1 - 2026-09-15
 
 ### Changed

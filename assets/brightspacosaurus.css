@@ -195,6 +195,50 @@ article.markdown pre code {
   color: var(--han-ink);
 }
 
+/* Flashcards progressively enhance readable Markdown definitions (issue #31). */
+.bso-flashcards {
+  margin: 1.5rem 0;
+}
+
+.bso-flashcard {
+  border: 1px solid var(--han-code-border);
+  border-radius: 8px;
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--han-soft);
+}
+
+.bso-flashcard-toggle,
+.bso-flashcard-global-toggle {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--han-line);
+  border-radius: 4px;
+  background: var(--han-white);
+  color: var(--han-ink);
+  padding: 0.4rem 0.7rem;
+}
+
+.bso-flashcard-toggle {
+  width: 100%;
+  text-align: left;
+  font-weight: 700;
+}
+
+.bso-flashcard-toggle:focus-visible,
+.bso-flashcard-global-toggle:focus-visible {
+  outline: 3px solid var(--han-red);
+  outline-offset: 2px;
+}
+
+.bso-flashcard-definition {
+  margin-top: 0.75rem;
+}
+
+.bso-flashcard-toolbar {
+  margin-bottom: 0.75rem;
+}
+
 /* === Tabellen === */
 
 .brightspace-content table,

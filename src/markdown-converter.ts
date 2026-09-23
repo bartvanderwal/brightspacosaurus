@@ -13,6 +13,7 @@ import { basename, dirname, extname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
+import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
@@ -66,6 +67,69 @@ function assertWithinRoot(absPath: string, repoRoot: string): void {
  */
 function stripQtiSections(markdown: string): string {
   return markdown.replace(QTI_SECTION_REGEX, "");
+}
+
+interface FlashcardMdastNode {
+  type: string;
+  name?: string;
+  value?: string;
+  children?: FlashcardMdastNode[];
+}
+
+function nodeText(node: FlashcardMdastNode): string {
+  return node.value ?? (node.children ?? []).map(nodeText).join("");
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(
+    /</g,
+    "&lt;",
+  ).replace(/>/g, "&gt;");
+}
+
+/** Converts flashcard directives to semantic HTML with a no-JS fallback. */
+function transformFlashcards(tree: FlashcardMdastNode): void {
+  function walk(parent: FlashcardMdastNode): void {
+    if (!parent.children) return;
+    const transformed: FlashcardMdastNode[] = [];
+    for (const child of parent.children) {
+      if (child.type === "containerDirective" && child.name === "flashcards") {
+        walk(child);
+        transformed.push(
+          { type: "html", value: '<section class="bso-flashcards">' },
+          ...(child.children ?? []),
+          { type: "html", value: "</section>" },
+        );
+      } else if (
+        child.type === "containerDirective" && child.name === "flashcard"
+      ) {
+        walk(child);
+        const first = child.children?.[0];
+        const termLine = first?.type === "paragraph" ? nodeText(first) : "";
+        if (!termLine.startsWith("term:")) {
+          transformed.push(child);
+          continue;
+        }
+        const term = termLine.slice("term:".length).trim();
+        transformed.push(
+          {
+            type: "html",
+            value:
+              `<article class="bso-flashcard"><button type="button" class="bso-flashcard-toggle" aria-expanded="false"><span class="bso-flashcard-term">${
+                escapeAttribute(term)
+              }</span></button><div class="bso-flashcard-definition">`,
+          },
+          ...(child.children?.slice(1) ?? []),
+          { type: "html", value: "</div></article>" },
+        );
+      } else {
+        walk(child);
+        transformed.push(child);
+      }
+    }
+    parent.children = transformed;
+  }
+  walk(tree);
 }
 
 /**
@@ -264,6 +328,9 @@ async function wrapHtml(
   customCssPath?: string,
 ): Promise<string> {
   const css = await getContentCss();
+  const flashcardScript = await loadAssetText(
+    "brightspacosaurus-flashcards.js",
+  );
   let customCssBlock = "";
   if (customCssPath) {
     try {
@@ -303,6 +370,7 @@ ${css}${customCssBlock}
 ${body}
 </div>
 ${COPY_BUTTON_SCRIPT}
+<script>${flashcardScript}</script>
 </body>
 </html>`;
 }
@@ -349,7 +417,9 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
   let processor = unified()
     .use(remarkParse)
     .use(remarkFrontmatter, ["yaml"])
-    .use(remarkGfm);
+    .use(remarkGfm)
+    .use(remarkDirective)
+    .use(() => (tree: FlashcardMdastNode) => transformFlashcards(tree));
 
   if (renderDiagrams && options.diagrams) {
     processor = withDiagramRendering(
