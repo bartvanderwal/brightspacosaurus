@@ -18,6 +18,18 @@ import {
   parseQuizMarkdown,
 } from "../src/quiz-converter.ts";
 import { join } from "@std/path";
+
+Deno.test("parseQuizMarkdown: English question labels are supported", () => {
+  const parsed = parseQuizMarkdown(`# Quiz: English\n
+## Question 1\n
+Which answer is correct?\n
+- A. Yes\n+- B. No\n
+Correct answer: **A**\n`);
+
+  assertEquals(parsed.questions.length, 1);
+  assertEquals(parsed.questions[0].text, "Which answer is correct?");
+  assertEquals(parsed.questions[0].correctAnswer, "A");
+});
 Deno.test("extractAssessmentTitle: gebruikt de menselijke QTI-titel en decodeert XML-entiteiten", () => {
   const title = extractAssessmentTitle(
     '<assessment ident="quiz-les-2-1" title="Quiz 2.1 &amp; PlantUML">',

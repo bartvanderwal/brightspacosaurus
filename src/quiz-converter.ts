@@ -2,7 +2,8 @@
  * Converts quiz Markdown files to QTI 1.2 XML for Brightspace.
  *
  * Quiz files use a small Markdown convention with a title, numbered questions,
- * A-D answer options and `Correct antwoord: **X**` markers.
+ * A-D answer options and `Correct answer: **X**` markers. The Dutch legacy
+ * labels remain accepted for existing course material.
  *
  * @module
  */
@@ -83,8 +84,8 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       continue;
     }
 
-    // New question: ## Vraag N
-    const questionMatch = line.match(/^## Vraag (\d+)/);
+    // New question: ## Question N (legacy Dutch: ## Vraag N)
+    const questionMatch = line.match(/^## (?:Question|Vraag) (\d+)/i);
     if (questionMatch) {
       if (currentQuestion && currentQuestion.number !== undefined) {
         questions.push(currentQuestion as QuizQuestion);
@@ -111,8 +112,10 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       continue;
     }
 
-    // Correct answer: **X**
-    const correctMatch = line.match(/^Correct antwoord:\s*\*\*([A-D])\*\*/);
+    // Correct answer: **X** (legacy Dutch: Correct antwoord: **X**)
+    const correctMatch = line.match(
+      /^Correct (?:answer|antwoord):\s*\*\*([A-D])\*\*/i,
+    );
     if (correctMatch) {
       currentQuestion.correctAnswer = correctMatch[1];
       continue;
