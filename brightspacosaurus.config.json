@@ -1,0 +1,13 @@
+{
+  "courseName": "Demo Course",
+  "version": "0.10.0",
+  "name": "demo-course",
+  "sourcesDir": "examples/demo-course/lessons/",
+  "readersDir": "examples/demo-course/readers/",
+  "outputDir": "build/brightspace",
+  "docusaurusDir": "demo-course-docs",
+  "quiz": {
+    "maxAttempts": 0,
+    "shuffleAnswers": true
+  }
+}

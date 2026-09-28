@@ -7,3 +7,8 @@ build/
 # Deno / editor
 .DS_Store
 node_modules/
+
+# Docusaurus generated files
+.docusaurus/
+demo-course-docs/test-results/
+demo-course-docs/playwright-report/
