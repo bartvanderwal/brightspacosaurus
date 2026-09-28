@@ -1,4 +1,4 @@
-# Quiz 5: Readers
+# Quiz 2.2: Readers
 
 ## Question 1
 

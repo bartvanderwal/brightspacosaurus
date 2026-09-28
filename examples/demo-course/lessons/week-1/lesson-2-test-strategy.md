@@ -1,4 +1,4 @@
-# Lesson 2: Test Pyramid and Test Strategy
+# Lesson 1.2: Test Pyramid and Test Strategy
 
 {@include: [Learning goals](../../partials/learning-goals.md)}
 

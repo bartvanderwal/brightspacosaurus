@@ -1,7 +1,27 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { join } from "@std/path";
+import { join, resolve } from "@std/path";
+import {
+  findConfigFile,
+  loadConfig,
+  resolveConfig,
+} from "../src/config-loader.ts";
 
 const demoRoot = join("examples", "demo-course");
+
+Deno.test("demo preview resolves the same app from the checkout and course roots", async () => {
+  for (const cwd of [Deno.cwd(), resolve(demoRoot)]) {
+    const configPath = await findConfigFile(cwd);
+    if (!configPath) throw new Error(`Missing demo config in ${cwd}`);
+    const config = resolveConfig(await loadConfig(configPath), {}, cwd);
+    assertEquals(config.sourcesDir, resolve(demoRoot, "lessons"));
+    assertEquals(config.readersDir, resolve(demoRoot, "readers"));
+    assertEquals(config.docusaurusDir, resolve("demo-course-docs"));
+    const pkg = JSON.parse(
+      await Deno.readTextFile(join(config.docusaurusDir!, "package.json")),
+    );
+    assertEquals(pkg.scripts.start, "docusaurus start");
+  }
+});
 
 Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios", async () => {
   const config = JSON.parse(
@@ -13,10 +33,13 @@ Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios
   const handbook = await Deno.readTextFile(
     join(demoRoot, "lessons", "README.md"),
   );
-  assertStringIncludes(handbook, "[Lesson 1: FizzBuzz](week-1/lesson-1-fizzbuzz.md)");
   assertStringIncludes(
     handbook,
-    "[Lesson 2: Test pyramid and test strategy](week-1/lesson-2-test-strategy.md)",
+    "[Lesson 1.1: FizzBuzz](week-1/lesson-1-fizzbuzz.md)",
+  );
+  assertStringIncludes(
+    handbook,
+    "[Lesson 1.2: Test pyramid and test strategy](week-1/lesson-2-test-strategy.md)",
   );
 
   const strategyLesson = await Deno.readTextFile(
@@ -38,7 +61,9 @@ Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios
     const entries = [];
     for await (const entry of Deno.readDir(lessonDir)) entries.push(entry.name);
     assertEquals(
-      entries.filter((name) => name.endsWith(".md") && name.startsWith("lesson-")).length,
+      entries.filter((name) =>
+        name.endsWith(".md") && name.startsWith("lesson-")
+      ).length,
       week === "week-1" ? 4 : 3,
     );
     assertEquals(entries.filter((name) => name.startsWith("quiz-")).length, 3);

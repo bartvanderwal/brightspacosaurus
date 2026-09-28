@@ -1,4 +1,4 @@
-# Lesson 3: Package and Version
+# Lesson 2.3: Package and Version
 
 **Manual test:** inspect IMSCC contents, the manifest, menu order and version sources.
 

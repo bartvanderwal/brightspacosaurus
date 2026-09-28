@@ -1,4 +1,4 @@
-# Quiz 6: Package and Version
+# Quiz 2.3: Package and Version
 
 ## Question 1
 

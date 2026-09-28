@@ -1,4 +1,4 @@
-# Quiz 2: Test Strategy
+# Quiz 1.2: Test Strategy
 
 ## Question 1
 
