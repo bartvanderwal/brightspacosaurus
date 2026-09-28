@@ -357,6 +357,39 @@ The Docusaurus preview and the Brightspace/IMSCC export are two render targets f
 
 The preferred way to achieve this is code reuse: share parsers, renderers, assets, semantic HTML contracts and browser behavior wherever the two targets allow it. Do not create parallel implementations when a shared implementation is possible. Some target-specific work remains unavoidable because Docusaurus and Brightspace have different rendering, sandboxing and import behavior; therefore parity always requires some tests in both targets, plus a real Brightspace import test for LMS-specific behavior. But this should be minimized through code reuse (same JS in Docusaurus as in Brightspace, use Docusaurus plugins and standards when possible for new features wanted in Brigthspace).
 
+The flashcard contract is implemented in `src/flashcards.ts` (`remarkFlashcards`).
+It emits semantic `hName`/`hProperties` elements, which both remark-rehype and
+Docusaurus/MDX support; raw HTML injection would not reliably survive MDX.
+`assets/brightspacosaurus-flashcards.js` is the single interaction implementation:
+classic inline script in exported HTML, imported initializer in Docusaurus. The
+initializer is idempotent and runs after each preview route mounts. Both targets
+load `assets/brightspacosaurus.css`. Definitions are initially visible for no-JS
+use, and browser tests exercise both the generated export and actual Docusaurus
+build, including keyboard input and client navigation. Nested directive fences
+must be longer outside than inside (`::::flashcards` around `:::flashcard`).
+
+Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`;
+`src/quiz-config.ts` supplies shared configuration validation/defaults. The QTI
+converter validates again before serialization, refusing ungradable items.
+`src/quiz-preview.ts` runs before Docusaurus' default remark plugins so generated
+metadata reflects the transformed page. It uses the same parsed questions and
+stable answer labels as QTI; `assets/brightspacosaurus-quizzes.js` shuffles DOM
+options per attempt, preserving the scoring key. QTI expresses the setting as
+`render_choice/@shuffle` (`Yes`/`No`), so build output remains deterministic.
+`bso preview` passes resolved quiz settings through `BSO_PREVIEW_QUIZ_CONFIG`; the
+demo falls back to its root course config when launched directly with npm.
+A native Brightspace import still needs manual verification. Preview is practice,
+with local feedback; it does not persist grades or enforce native attempt limits.
+
+`src/course-linter.ts` adds read-only diagnostics on top of generic Markdown style
+linting. It reuses the quiz validator, diagram checks and include syntax parser,
+checks flashcard structure in the Markdown AST and follows local includes with
+cycle detection. Diagnostics carry severity, rule, source file and one-based
+line/column. Warnings do not fail the command; authoring errors do. This is the
+first implementation slice of #11; configurable rules and didactic standards are
+not implemented yet. Include expansion and rendered diagrams in the demo preview
+remain outstanding parity gaps.
+
 The shared implementation contracts belong with the relevant components and assets. The contribution rules in [CONTRIBUTING.md](../CONTRIBUTING.md) require new features to document and test both targets where applicable.
 
 The significant architectural decisions are recorded as Architecture Decision Records in the [ADR index](adr/README.md).

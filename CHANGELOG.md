@@ -8,6 +8,37 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.11.0 - 2026-09-25
+
+### Added
+
+- Add offline `bso lint` diagnostics for flashcard nesting/content, includes, diagrams and quiz validity, with file/line locations and error/warning severities (first slice of #11).
+- Add `quiz.shuffleAnswers` (default false), mapped to deterministic QTI `render_choice shuffle="Yes|No"`, and an interactive Docusaurus quiz preview sharing parsing, validation and configuration (#35).
+
+### Fixed
+
+- Accept plain, bold and inline-code answer letters, Dutch/English answer labels and `**a)**` options; reject missing/duplicate/unreachable keys and invalid questions before QTI output (#34).
+- Connect Docusaurus flashcards to the shared remark transformation, behavior asset and CSS; initialize after page transitions without duplicating controls (#31).
+- Correct nested demo/manual flashcard fences: four colons outside, three per card. All eight cards belong to the interactive set.
+- Keep quiz-only courses packable.
+- Complete the demo Docusaurus app and correct its course paths.
+- Add a repository-root demo config so `bso preview` works from the checkout, plus a `deno task demo:preview` task for the local CLI.
+- Document the npm subprocess permission needed by installed preview commands.
+- Fix the Docusaurus preview crashing with `Cannot find module '@std/path'`: diagram config resolution now lives in a runtime-neutral module.
+- Expand `{@include: ...}` in the Docusaurus preview with the same shared module as the export, so partials no longer need to be preview pages.
+- Load the `remark-kroki-a11y` tab script and CSS in the preview, so the source and natural-language diagram tabs work.
+- Order the preview sidebar with the same navigation sort as the Brightspace manifest, so each quiz follows its lesson.
+
+### Changed
+
+- Skip `_`-prefixed files and folders when scanning sources, matching the Docusaurus convention for include-only partials.
+- Demo lessons and quizzes use `week.lesson` codes (e.g. `Lesson 1.1`, `Quiz 1.1`), so each quiz sorts directly after its lesson.
+
+### Validation
+
+- Add browser regression tests for preview/export flashcards, no-JS fallback, client navigation and quiz scoring/shuffling.
+- Brightspace import remains a manual check for native answer randomization and LMS script restrictions.
+
 ## 0.10.0 - 2026-09-21
 
 ### Added

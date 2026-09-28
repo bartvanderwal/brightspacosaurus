@@ -145,6 +145,7 @@ The most important fields:
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
+| `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
 | `diagrams.krokiUrl`    | no       | Kroki endpoint for PlantUML/Mermaid rendering (default `https://kroki.io`)                   |
 | `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
@@ -176,6 +177,8 @@ It produces an error instead of silently accepting content that is not clickable
 
 Includes are resolved relative to the Markdown file that contains them. The same directive can therefore be used in lesson pages, reader Markdown and other included Markdown files, provided the relative path is correct.
 
+Include-only partials must not appear as pages of their own. Keep them outside `sourcesDir` (as the demo course does with `partials/`), or prefix the file or folder with an underscore, e.g. `lessons/_shared/learning-goals.md`. BSO skips `_`-prefixed files and folders when scanning, and Docusaurus excludes them by default. The Docusaurus preview expands includes with the same code as the export, so partials do not need to be in the docs `include` list.
+
 ---
 
 ### 4.4 Core-concept flashcards
@@ -184,10 +187,10 @@ Flashcards support **retrieval practice**: a student tries to recall the definit
 
 Student story: _As a student, I want to practise the key terms from a lesson one at a time, so that I can actively recall a definition, reveal it when needed, and repeat the terms I do not yet know._
 
-Use a `flashcards` container with one `flashcard` container per concept. The `term:` line is the short front of the card. The Markdown block below it is the definition and may contain emphasis, inline code, links, lists or multiple paragraphs:
+Use a `flashcards` container with one `flashcard` container per concept. The outer container must use **four colons** (`::::flashcards` / `::::`), while each inner card uses three (`:::flashcard` / `:::`). Using three for both closes the set too early; `bso lint` detects this. The `term:` line is the short front of the card. The Markdown block below it is the definition and may contain emphasis, inline code, links, lists or multiple paragraphs:
 
 ```markdown
-:::flashcards
+::::flashcards
 
 :::flashcard
 term: Unit test
@@ -195,14 +198,14 @@ term: Unit test
 A **unit test** checks one small part of a system _in isolation_.
 :::
 
-:::
+::::
 ```
 
 BSO renders the definitions as normal HTML first. JavaScript progressively adds global and per-card reveal controls, while keyboard focus and `aria-expanded` communicate state. If JavaScript is unavailable or storage is blocked, the definition remains usable. Flashcards are practice support, not a Brightspace quiz or formal assessment; use the QTI quiz format for graded questions.
 
 The current implementation does not persist a student preference across pages until Brightspace storage behavior has been validated in a real course. The fallback is intentionally safe: no storage is required for the cards to work.
 
-For Docusaurus preview parity and implementation details, see the [Software Guidebook](software-guidebook.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). The preview should offer the same flashcard behavior as the Brightspace export where the course's Docusaurus setup loads the shared behavior asset.
+For Docusaurus preview parity and implementation details, see the [Software Guidebook](software-guidebook.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). The demo uses the same `remarkFlashcards` transformation, CSS and `brightspacosaurus-flashcards.js` initializer as Brightspace. Docusaurus invokes the initializer after hydration and every client-side navigation.
 
 ---
 
@@ -355,6 +358,12 @@ Brightspace lesson pages should not depend on custom JavaScript for core accessi
 
 `diagrams.failOnError` controls the build policy. With the default `true`, invalid diagram metadata, invalid source, or an unreachable Kroki endpoint fails the build. With `false`, BSO logs a warning, keeps the original fenced code block in the generated page, and continues.
 
+![Docusaurus preview of a PlantUML diagram with Source and In natural language tabs](images/docusaurus-diagram-a11y-tabs.png)
+
+*Figure 7*: Diagram in the Docusaurus preview with source and natural-language description tabs.
+
+Figure 7 shows the Docusaurus preview. In Brightspace the same content appears as native `<details>` disclosures.
+
 ---
 
 ## 6. Import/export: IMS Common Cartridge
@@ -363,7 +372,7 @@ Brightspace can import and export course components via Common Cartridge. D2L de
 
 ![Contents of a Common Cartridge package: imsmanifest.xml and content directories](images/common-cartridge-inhoud-voorbeeld.png)
 
-_Figure 7_: Contents of an unpacked `.imscc` package.
+_Figure 8_: Contents of an unpacked `.imscc` package.
 
 The manifest describes the resources; the content directories contain the HTML files and images that Brightspace imports.
 
@@ -383,6 +392,24 @@ The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO p
 For each quiz Markdown file, BSO generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
 
 Generated quizzes get a maximum attempt count through QTI metadata. Configure it with `quiz.maxAttempts` in `brightspacosaurus.config.json`; when omitted, BSO uses `0`, which means unlimited attempts. The value must be a non-negative integer. In the IMS Common Cartridge output, BSO writes Brightspace's `cc_maxattempts` metadata field; `0` is exported as `unlimited`, matching Brightspace's own Common Cartridge export.
+
+Answer markers accept `Correct answer`, `Answer`, `Correct antwoord`, `Goed antwoord`,
+`Goede antwoord`, `Juiste antwoord` and `Antwoord`, followed by a colon and one letter.
+The letter may be plain, bold or inline code; `**Antwoord:** c` is also supported.
+Options accept `- A. ...`, `a) ...` and `**a)** ...`; letters are normalized to uppercase.
+Invalid, missing or duplicate answers, missing options, duplicate labels/question
+numbers and answer keys without a matching option stop export with a source path
+and question number. No correct answer is inferred.
+
+Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
+answer order per attempt. Default `false` preserves source order. BSO writes
+`<render_choice shuffle="Yes">` or `shuffle="No"`, keeping stable option identifiers
+and the correct scoring reference. See the [Common Cartridge specification](https://www.imsglobal.org/node/51891).
+The Docusaurus demo uses the same setting and parser for interactive practice;
+answers are shuffled on page entry/new attempt, and stay in place while answering.
+Preview scores are local feedback, not stored grades; Brightspace enforces native
+assessment rules and attempt limits. Restart preview after changing configuration.
+Verify native randomization and correct scoring after importing into Brightspace.
 
 ### 7.1 Images in quizzes
 
@@ -423,7 +450,7 @@ In Brightspace you can offer the reader PDFs as follows:
 
 ![Brightspace Manage Files with reader PDFs in the readers directory](images/brightspace-readers-bestanden-beheren.png)
 
-_Figure 8_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
+_Figure 9_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
 
 ---
 
