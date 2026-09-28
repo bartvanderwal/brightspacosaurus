@@ -60,6 +60,8 @@ async function scanDir(
 
   async function walk(currentDir: string, isTopLevel: boolean): Promise<void> {
     for await (const entry of Deno.readDir(currentDir)) {
+      // Same convention as Docusaurus: `_file.md` and `_dir/` are include-only partials.
+      if (entry.name.startsWith("_")) continue;
       const fullPath = join(currentDir, entry.name);
       if (entry.isDirectory) {
         await walk(fullPath, false);

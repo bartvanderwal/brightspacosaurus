@@ -393,3 +393,23 @@ article.markdown details[open] summary {
   vertical-align: middle;
   white-space: nowrap;
 }
+
+/* Practice quiz controls share the content palette and keyboard focus styles. */
+.bso-quiz-question {
+  border: 1px solid var(--han-code-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.bso-quiz-options label { cursor: pointer; }
+.bso-quiz-options input { margin-right: 0.5rem; }
+.bso-quiz > button {
+  font: inherit;
+  padding: 0.4rem 0.7rem;
+  margin-right: 0.75rem;
+  cursor: pointer;
+}
+.bso-quiz input:focus-visible, .bso-quiz button:focus-visible {
+  outline: 3px solid var(--han-red);
+  outline-offset: 2px;
+}

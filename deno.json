@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -12,7 +12,10 @@
     "./quiz": "./src/quiz-converter.ts",
     "./reader": "./src/reader-pdf-converter.ts",
     "./manifest": "./src/manifest-builder.ts",
-    "./packer": "./src/packer.ts"
+    "./packer": "./src/packer.ts",
+    "./flashcards": "./src/flashcards.ts",
+    "./lint": "./src/course-linter.ts",
+    "./quiz-preview": "./src/quiz-preview.ts"
   },
   "tasks": {
     "prepare": "deno run --allow-read --allow-write --allow-run=pandoc,git --allow-env --allow-net --node-modules-dir=auto src/main.ts prepare",
@@ -20,7 +23,9 @@
     "check": "deno check src/mod.ts src/main.ts",
     "lint": "deno lint",
     "test": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 tests/",
-    "demo": "cd examples/demo-course && deno run -A ../../src/main.ts prepare && deno run -A ../../src/main.ts pack"
+    "demo": "cd examples/demo-course && deno run -A ../../src/main.ts prepare && deno run -A ../../src/main.ts pack",
+    "demo:preview": "deno run --allow-read --allow-env --allow-run=npm src/main.ts preview",
+    "lint:course": "deno run --allow-read --allow-env src/main.ts lint"
   },
   "fmt": {
     "proseWrap": "never",
@@ -62,7 +67,8 @@
       "docs/user-manual.md",
       "docs/software-guidebook.md",
       "README.md",
-      "deno.json"
+      "deno.json",
+      "assets/brightspacosaurus-quizzes.js"
     ]
   }
 }

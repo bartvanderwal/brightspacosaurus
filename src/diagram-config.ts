@@ -4,7 +4,32 @@
  * Requirements: 3.1, 5.5, 6.1, 6.4, 11.2
  */
 
-import type { ResolvedDiagramConfig } from "./types.ts";
+import type { BsoConfig, ResolvedDiagramConfig } from "./types.ts";
+
+/** Default diagram settings, used when no `diagrams` config is provided. */
+const DEFAULT_DIAGRAM_CONFIG: ResolvedDiagramConfig = {
+  krokiUrl: "https://kroki.io",
+  output: "img-html-base64",
+  failOnError: true,
+  locale: "nl",
+};
+
+/**
+ * Resolves the optional `diagrams` config, filling in defaults for any
+ * missing field. `locale` is not (yet) a user-facing config field and always
+ * defaults to "nl".
+ */
+export function resolveDiagramsConfig(
+  config: Pick<BsoConfig, "diagrams">,
+): ResolvedDiagramConfig {
+  const d = config.diagrams;
+  return {
+    krokiUrl: d?.krokiUrl ?? DEFAULT_DIAGRAM_CONFIG.krokiUrl,
+    output: d?.output ?? DEFAULT_DIAGRAM_CONFIG.output,
+    failOnError: d?.failOnError ?? DEFAULT_DIAGRAM_CONFIG.failOnError,
+    locale: DEFAULT_DIAGRAM_CONFIG.locale,
+  };
+}
 
 /** Fenced-code languages that `remark-kroki-a11y` transforms into diagrams. */
 export const SUPPORTED_DIAGRAM_LANGUAGES = [

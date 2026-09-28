@@ -617,7 +617,7 @@ Deno.test("convertMarkdown: flashcards behouden term, Markdown-definitie en no-J
       sourcePath,
       `# Core concepts
 
-:::flashcards
+::::flashcards
 
 :::flashcard
 term: Unit test
@@ -625,7 +625,7 @@ term: Unit test
 A **small** test in _isolation_.
 :::
 
-:::
+::::
 `,
     );
 

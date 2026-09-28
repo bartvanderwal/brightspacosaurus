@@ -142,6 +142,8 @@ export interface BsoConfig {
 export interface QuizConfig {
   /** Maximum aantal pogingen per gegenereerde toets. 0 betekent onbeperkt. Standaard: 0. */
   maxAttempts?: number;
+  /** Shuffle answer choices per attempt. Default: false. */
+  shuffleAnswers?: boolean;
 }
 
 /**
@@ -219,6 +221,8 @@ export interface ResolvedDiagramConfig {
 export interface ResolvedQuizConfig {
   /** Maximum aantal pogingen per gegenereerde toets. 0 betekent onbeperkt. */
   maxAttempts: number;
+  /** Shuffle answer choices per attempt. */
+  shuffleAnswers: boolean;
 }
 
 /** Resolved instructor manual configuration with absolute paths. */

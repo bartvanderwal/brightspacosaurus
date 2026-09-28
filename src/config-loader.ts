@@ -7,12 +7,14 @@
  * @module
  */
 
+import { resolveQuizOptions } from "./quiz-config.ts";
+import { resolveDiagramsConfig } from "./diagram-config.ts";
+export { resolveDiagramsConfig };
 import { join, resolve } from "@std/path";
 import type {
   BsoConfig,
   CliOverrides,
   ResolvedConfig,
-  ResolvedDiagramConfig,
   ResolvedQuizConfig,
   ResolvedTeacherManualConfig,
 } from "./types.ts";
@@ -216,32 +218,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
   }
 
-  // Validate quiz settings if present
-  if (obj.quiz !== undefined) {
-    if (
-      typeof obj.quiz !== "object" ||
-      obj.quiz === null ||
-      Array.isArray(obj.quiz)
-    ) {
-      throw new Error(
-        "Field 'quiz' must be an object.",
-      );
-    }
-
-    const quiz = obj.quiz as Record<string, unknown>;
-    if (
-      quiz.maxAttempts !== undefined &&
-      (
-        typeof quiz.maxAttempts !== "number" ||
-        !Number.isInteger(quiz.maxAttempts) ||
-        quiz.maxAttempts < 0
-      )
-    ) {
-      throw new Error(
-        "Field 'quiz.maxAttempts' must be a non-negative integer if it is provided.",
-      );
-    }
-  }
+  resolveQuizOptions(obj.quiz);
 
   // Validate diagrams if it is present
   if (obj.diagrams !== undefined) {
@@ -309,38 +286,10 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** Default diagram settings, used when no `diagrams` config is provided. */
-const DEFAULT_DIAGRAM_CONFIG: ResolvedDiagramConfig = {
-  krokiUrl: "https://kroki.io",
-  output: "img-html-base64",
-  failOnError: true,
-  locale: "nl",
-};
-
-/** Default quiz settings. */
-const DEFAULT_QUIZ_CONFIG: ResolvedQuizConfig = {
-  maxAttempts: 0,
-};
+const DEFAULT_QUIZ_CONFIG = resolveQuizOptions();
 
 function resolveQuizConfig(config: BsoConfig): ResolvedQuizConfig {
-  return {
-    maxAttempts: config.quiz?.maxAttempts ?? DEFAULT_QUIZ_CONFIG.maxAttempts,
-  };
-}
-
-/**
- * Resolves the optional `diagrams` config, filling in defaults for any
- * missing field. `locale` is not (yet) a user-facing config field and always
- * defaults to "nl".
- */
-function resolveDiagramsConfig(config: BsoConfig): ResolvedDiagramConfig {
-  const d = config.diagrams;
-  return {
-    krokiUrl: d?.krokiUrl ?? DEFAULT_DIAGRAM_CONFIG.krokiUrl,
-    output: d?.output ?? DEFAULT_DIAGRAM_CONFIG.output,
-    failOnError: d?.failOnError ?? DEFAULT_DIAGRAM_CONFIG.failOnError,
-    locale: DEFAULT_DIAGRAM_CONFIG.locale,
-  };
+  return resolveQuizOptions(config.quiz);
 }
 
 /**
@@ -450,7 +399,7 @@ export function resolveFromCliOnly(
     docusaurusDir: null,
     teacherManual: null,
     quiz: { ...DEFAULT_QUIZ_CONFIG },
-    diagrams: { ...DEFAULT_DIAGRAM_CONFIG },
+    diagrams: resolveDiagramsConfig({}),
     repoRoot,
   };
 }

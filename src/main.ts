@@ -7,6 +7,7 @@
  * @module
  */
 
+import { formatLintDiagnostic, lintCourse } from "./course-linter.ts";
 import {
   basename,
   dirname,
@@ -66,6 +67,7 @@ Commands:
   prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
   pack      Package the build directory into a .imscc archive
   preview   Start the Docusaurus dev server (requires docusaurusDir in config)
+  lint      Check BSO-specific Markdown, includes, diagrams and quiz answers
 
 Options:
   --config <path>    Path to the configuration file (default: brightspacosaurus.config.json in cwd)
@@ -109,7 +111,7 @@ export function parseArgs(
   if (args.length === 0) return null;
 
   const command = args[0];
-  if (command !== "prepare" && command !== "pack" && command !== "preview") {
+  if (!["prepare", "pack", "preview", "lint"].includes(command)) {
     return null;
   }
 
@@ -196,6 +198,8 @@ export async function runPrepare(
 
   if (!readersOnly) {
     // Phase 1: Convert lesson Markdown to HTML
+    // Keep quiz-only courses packable even when no lesson creates this directory.
+    await Deno.mkdir(contentOutputDir, { recursive: true });
     for (const mdFile of scanResult.markdownFiles) {
       const result = await convertMarkdown({
         sourcePath: mdFile,
@@ -246,6 +250,7 @@ export async function runPrepare(
         repoRoot,
         sourcesDir: config.sourcesDir,
         maxAttempts: config.quiz.maxAttempts,
+        shuffleAnswers: config.quiz.shuffleAnswers,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
@@ -654,6 +659,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
 
   const cmd = new Deno.Command("npm", {
     args: ["start"],
+    env: { BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz) },
     cwd: config.docusaurusDir,
     stdout: "inherit",
     stderr: "inherit",
@@ -667,6 +673,29 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     ) as Error & { exitCode?: number };
     err.exitCode = status.code || 1;
     throw err;
+  }
+}
+
+/** Report authoring diagnostics without generating course output. */
+export async function runLint(config: ResolvedConfig): Promise<void> {
+  const result = await lintCourse(config);
+  for (const diagnostic of result.diagnostics) {
+    console.error(formatLintDiagnostic(diagnostic, config.repoRoot));
+  }
+  const errors =
+    result.diagnostics.filter((diagnostic) => diagnostic.severity === "error")
+      .length;
+  const warnings = result.diagnostics.length - errors;
+  console.log(
+    `Checked ${result.filesChecked} Markdown files: ${errors} errors, ${warnings} warnings.`,
+  );
+  if (errors) {
+    throw Object.assign(
+      new Error(
+        "Course lint failed. Fix the reported errors before exporting.",
+      ),
+      { exitCode: 1 },
+    );
   }
 }
 
@@ -756,6 +785,8 @@ async function main(): Promise<void> {
       await runPack(resolvedConfig);
     } else if (parsed.command === "preview") {
       await runPreview(resolvedConfig);
+    } else if (parsed.command === "lint") {
+      await runLint(resolvedConfig);
     }
   } catch (e) {
     const error = e as Error & { exitCode?: number };

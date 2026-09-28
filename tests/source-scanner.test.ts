@@ -333,6 +333,25 @@ Deno.test("Reader-classificatie: TODO-prefix bestanden worden uitgesloten van re
   }
 });
 
+Deno.test("Partials: _-prefix bestanden en mappen worden overgeslagen (Docusaurus-conventie)", async () => {
+  const tempRoot = await makeTempDir();
+  const sourcesDir = join(tempRoot, "lessen");
+  try {
+    await writeFile(join(sourcesDir, "week-1", "les-1.md"), "# Les 1\n");
+    await writeFile(join(sourcesDir, "week-1", "_leerdoelen.md"), "- doel\n");
+    await writeFile(join(sourcesDir, "_shared", "quiz-intro.md"), "# Q\n");
+    await writeFile(join(sourcesDir, "_reader-concept.md"), "# R\n");
+
+    const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
+
+    assertEquals(result.markdownFiles, [resolve(join(sourcesDir, "week-1", "les-1.md"))]);
+    assertEquals(result.quizFiles, []);
+    assertEquals(result.readerFiles, []);
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
 Deno.test("Reader-classificatie: volledige mapstructuur met readers, lessen en uitgesloten bestanden", async () => {
   const tempRoot = await makeTempDir();
   const sourcesDir = join(tempRoot, "Lesbeschrijvingen");

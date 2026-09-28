@@ -14,6 +14,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkDirective from "remark-directive";
+import { remarkFlashcards } from "./flashcards.ts";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
@@ -29,6 +30,7 @@ import {
 } from "./diagram-renderer.ts";
 import { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
 import { detectDiagramIssues } from "./diagram-validation.ts";
+import { expandIncludes, parseIncludeTarget } from "./includes.ts";
 
 /** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
@@ -69,129 +71,22 @@ function stripQtiSections(markdown: string): string {
   return markdown.replace(QTI_SECTION_REGEX, "");
 }
 
-interface FlashcardMdastNode {
-  type: string;
-  name?: string;
-  value?: string;
-  children?: FlashcardMdastNode[];
-}
+export { parseIncludeTarget };
 
-function nodeText(node: FlashcardMdastNode): string {
-  return node.value ?? (node.children ?? []).map(nodeText).join("");
-}
-
-function escapeAttribute(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(
-    /</g,
-    "&lt;",
-  ).replace(/>/g, "&gt;");
-}
-
-/** Converts flashcard directives to semantic HTML with a no-JS fallback. */
-function transformFlashcards(tree: FlashcardMdastNode): void {
-  function walk(parent: FlashcardMdastNode): void {
-    if (!parent.children) return;
-    const transformed: FlashcardMdastNode[] = [];
-    for (const child of parent.children) {
-      if (child.type === "containerDirective" && child.name === "flashcards") {
-        walk(child);
-        transformed.push(
-          { type: "html", value: '<section class="bso-flashcards">' },
-          ...(child.children ?? []),
-          { type: "html", value: "</section>" },
-        );
-      } else if (
-        child.type === "containerDirective" && child.name === "flashcard"
-      ) {
-        walk(child);
-        const first = child.children?.[0];
-        const termLine = first?.type === "paragraph" ? nodeText(first) : "";
-        if (!termLine.startsWith("term:")) {
-          transformed.push(child);
-          continue;
-        }
-        const term = termLine.slice("term:".length).trim();
-        transformed.push(
-          {
-            type: "html",
-            value:
-              `<article class="bso-flashcard"><button type="button" class="bso-flashcard-toggle" aria-expanded="false"><span class="bso-flashcard-term">${
-                escapeAttribute(term)
-              }</span></button><div class="bso-flashcard-definition">`,
-          },
-          ...(child.children?.slice(1) ?? []),
-          { type: "html", value: "</div></article>" },
-        );
-      } else {
-        walk(child);
-        transformed.push(child);
-      }
-    }
-    parent.children = transformed;
-  }
-  walk(tree);
-}
-
-/**
- * Extracts the include target from an `{@include: [link text](path)}`
- * directive. The directive content must be a Markdown link, so the include
- * target stays a clickable, valid Markdown link when authors read the
- * source directly (e.g. in VS Code).
- *
- * Issue: #26
- */
-function parseIncludeTarget(directiveContent: string, line: string): string {
-  const linkMatch = directiveContent.match(/^\[[^\]]*\]\(([^)]+)\)$/);
-  if (!linkMatch) {
-    const err = new Error(
-      `{@include: ...} requires Markdown link syntax, e.g. {@include: [link text](${directiveContent})}. Found: "${line}"`,
-    );
-    (err as Error & { exitCode: number }).exitCode = 3;
-    throw err;
-  }
-  return linkMatch[1];
-}
-
-/**
- * Replaces {@include: [link text](path)} directives with the content of the
- * referenced file. The path is relative to the source file. Cyclic includes
- * are not detected but depth is bounded at 10 levels.
- *
- * Requirements: 1.5
- */
-async function resolveIncludes(
-  markdown: string,
-  sourceDir: string,
-  depth = 0,
-): Promise<string> {
-  if (depth > 10) return markdown;
-  const lines = markdown.split("\n");
-  const resolved: string[] = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const match = trimmed.match(/^\{@include:\s*(.+?)\s*\}$/);
-    if (match) {
-      const includePath = join(
-        sourceDir,
-        parseIncludeTarget(match[1], trimmed),
-      );
+/** Requirements: 1.5 */
+function resolveIncludes(markdown: string, sourceDir: string): string {
+  return expandIncludes(markdown, sourceDir, {
+    resolve: join,
+    dirname,
+    readFile: (path) => {
       try {
-        const content = await Deno.readTextFile(includePath);
-        const nested = await resolveIncludes(
-          content,
-          dirname(includePath),
-          depth + 1,
-        );
-        resolved.push(nested);
+        return Deno.readTextFileSync(path);
       } catch {
-        console.warn(`resolveIncludes: file not found: ${includePath}`);
-        resolved.push(line);
+        return null;
       }
-    } else {
-      resolved.push(line);
-    }
-  }
-  return resolved.join("\n");
+    },
+    warn: console.warn,
+  });
 }
 
 /**
@@ -419,7 +314,7 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkFrontmatter, ["yaml"])
     .use(remarkGfm)
     .use(remarkDirective)
-    .use(() => (tree: FlashcardMdastNode) => transformFlashcards(tree));
+    .use(remarkFlashcards);
 
   if (renderDiagrams && options.diagrams) {
     processor = withDiagramRendering(
@@ -500,7 +395,7 @@ export async function convertMarkdown(
   }
 
   const sourceDir = dirname(sourcePath);
-  const includedMarkdown = await resolveIncludes(markdown, sourceDir);
+  const includedMarkdown = resolveIncludes(markdown, sourceDir);
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
   const convertedMarkdown = convertInternalMdLinks(
     convertReaderLinks(cleanedMarkdown),

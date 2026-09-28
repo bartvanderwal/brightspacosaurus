@@ -234,4 +234,17 @@ export function withDiagramRendering<P extends ProcessorWithUse>(
   return processor;
 }
 
+/**
+ * Remark plugin for Docusaurus preview: applies the same diagram-meta
+ * normalization and `remark-kroki-a11y` options as the Brightspace export.
+ */
+export function remarkDiagrams(cfg: ResolvedDiagramConfig) {
+  const options = buildKrokiA11yOptions(cfg);
+  return async (tree: MdastNode, file: { path?: string }) => {
+    const sourceFile = file?.path ?? "";
+    normalizeDiagramMeta(tree, sourceFile);
+    return await remarkKrokiA11yLazy(options, sourceFile)(tree, file);
+  };
+}
+
 export { classifyDiagramError };
