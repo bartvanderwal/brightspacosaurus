@@ -1,6 +1,8 @@
-# Lesson 1: FizzBuzz
+# Lesson 1.1: FizzBuzz
 
 {@include: [Learning goals](../../partials/learning-goals.md)}
+
+## Introduction
 
 FizzBuzz is a classic beginner exercise. For each number from 1 to n:
 

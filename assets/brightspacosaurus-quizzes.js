@@ -1,0 +1,76 @@
+/** Stable option identities survive Fisher-Yates shuffling of their DOM nodes. */
+function shuffleOptions(options, random) {
+  const shuffled = Array.from(options);
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const other = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
+  }
+  return shuffled;
+}
+
+/** Initialize practice quizzes once per page, also after Docusaurus navigation. */
+function initializeQuizzes(root, random = Math.random) {
+  root.querySelectorAll(".bso-quiz").forEach(function (quiz) {
+    if (quiz.dataset.bsoQuizReady) return;
+    quiz.dataset.bsoQuizReady = "true";
+    const questions = Array.from(quiz.querySelectorAll(".bso-quiz-question"));
+    const sourceOptions = questions.map((question) =>
+      Array.from(question.querySelector(".bso-quiz-options").children)
+    );
+    const feedback = document.createElement("p");
+    feedback.className = "bso-quiz-feedback";
+    feedback.setAttribute("role", "status");
+    const check = document.createElement("button");
+    check.type = "button";
+    check.textContent = "Check answers";
+    const restart = document.createElement("button");
+    restart.type = "button";
+    restart.textContent = "New attempt";
+    function beginAttempt() {
+      questions.forEach(function (question, index) {
+        const list = question.querySelector(".bso-quiz-options");
+        const options = quiz.dataset.shuffleAnswers === "true"
+          ? shuffleOptions(sourceOptions[index], random)
+          : sourceOptions[index];
+        options.forEach((option) => list.appendChild(option));
+        question.querySelectorAll("input").forEach((input) => {
+          input.checked = false;
+        });
+        const answer = question.querySelector(".bso-quiz-answer");
+        answer.hidden = true;
+        answer.open = false;
+      });
+      feedback.textContent = "";
+    }
+    check.addEventListener("click", function () {
+      const selected = questions.map((question) =>
+        question.querySelector("input:checked")
+      );
+      if (selected.some((answer) => !answer)) {
+        feedback.textContent = "Choose an answer for every question.";
+        return;
+      }
+      const correct = questions.filter((question, index) =>
+        selected[index].value === question.dataset.correctAnswer
+      ).length;
+      feedback.textContent = `${correct} / ${questions.length} correct`;
+      questions.forEach((question) => {
+        question.querySelector(".bso-quiz-answer").hidden = false;
+      });
+    });
+    restart.addEventListener("click", function () {
+      beginAttempt();
+      questions[0].querySelector("input").focus();
+    });
+    quiz.append(check, restart, feedback);
+    beginAttempt();
+  });
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { initializeQuizzes, shuffleOptions };
+} else if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", function () {
+    initializeQuizzes(document);
+  });
+}

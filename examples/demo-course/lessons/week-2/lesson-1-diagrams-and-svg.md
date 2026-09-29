@@ -1,4 +1,4 @@
-# Lesson 1: Diagrams and SVG
+# Lesson 2.1: Diagrams and SVG
 
 **Manual test:** verify PlantUML, Mermaid, SVG assets, alt text, source disclosure and diagram descriptions.
 

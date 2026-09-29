@@ -5,7 +5,7 @@
  * Eigenschap 3: Pakketinhoud is correct en compleet
  */
 
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import fc from "fast-check";
 import {
   buildManifest,
@@ -292,6 +292,37 @@ Deno.test("Brightspace-manifest zet weekintro of weekindex eerst binnen een week
   assertEquals(weekintro < background, true);
   assertEquals(background < lesson, true);
   assertEquals(lesson < quiz, true);
+});
+
+Deno.test("Module-titel komt uit de H1 van index.html; zonder index blijft de mapnaam", () => {
+  const xml = buildManifest("Cursus X", [
+    {
+      id: "res_week_1_index",
+      title: "Week 1: Authoring and links",
+      href: "content/week-1/index.html",
+      type: "webcontent",
+    },
+    {
+      id: "res_week_1_les",
+      title: "Lesson 1.1",
+      href: "content/week-1/lesson-1.html",
+      type: "webcontent",
+    },
+    {
+      id: "res_week_2_les",
+      title: "Lesson 2.1",
+      href: "content/week-2/lesson-1.html",
+      type: "webcontent",
+    },
+  ]);
+  assertStringIncludes(
+    xml,
+    '<item identifier="group_week_1">\n        <title>Week 1: Authoring and links</title>',
+  );
+  assertStringIncludes(
+    xml,
+    '<item identifier="group_week_2">\n        <title>week-2</title>',
+  );
 });
 
 Deno.test("Reader-menu titels worden gehumanized in plaats van slugtitels", () => {

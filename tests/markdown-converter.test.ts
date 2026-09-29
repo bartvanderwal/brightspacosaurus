@@ -229,11 +229,18 @@ Deno.test("convertReaderLinks: ../../reader-geheugenmodellen.md → ../readers/r
 Deno.test("convertReaderLinks: ./reader-technisch-schrijven.md wordt geconverteerd", () => {
   const input = "Zie [technisch schrijven](./reader-technisch-schrijven.md).";
   const result = convertReaderLinks(input);
-  // De regex vervangt nul of meer ../ prefixen door ../readers/
-  // Bij ./reader-X.md matcht ^(?:\.\.\/)*  op de lege string, dus ../readers/ wordt vooraan gezet
   assertEquals(
     result,
-    "Zie [technisch schrijven](../readers/./reader-technisch-schrijven.pdf).",
+    "Zie [technisch schrijven](../readers/reader-technisch-schrijven.pdf).",
+  );
+});
+
+Deno.test("convertReaderLinks: bronmap readers/ wordt niet verdubbeld en diepte volgt de HTML-map (Brightspace-import)", () => {
+  const input =
+    "Zie de [reader](../../readers/reader-testing-basics.md).";
+  assertEquals(
+    convertReaderLinks(input, 2),
+    "Zie de [reader](../../readers/reader-testing-basics.pdf).",
   );
 });
 
@@ -282,18 +289,10 @@ Deno.test("convertReaderLinks: niet-reader-link ../week-1/lesoverzicht-1.1.md bl
 // 7. Externe links blijven ongewijzigd
 // ---------------------------------------------------------------------------
 
-Deno.test("convertReaderLinks: externe link https://example.com/reader-test.md — huidig gedrag", () => {
+Deno.test("convertReaderLinks: externe link https://example.com/reader-test.md blijft ongewijzigd", () => {
   const input =
     "Zie [extern](https://example.com/reader-test.md) voor details.";
-  const result = convertReaderLinks(input);
-  // NB: De huidige regex matcht ook externe URLs die reader-*.md bevatten.
-  // Dit is een bekende beperking — in de praktijk komen dergelijke externe links
-  // niet voor in het lesmateriaal. De regex zou uitgebreid kunnen worden met een
-  // negatieve lookahead voor http(s):// als dit in de toekomst nodig is.
-  assertEquals(
-    result,
-    "Zie [extern](../readers/https://example.com/reader-test.pdf) voor details.",
-  );
+  assertEquals(convertReaderLinks(input), input);
 });
 
 // ---------------------------------------------------------------------------
@@ -368,48 +367,45 @@ Deno.test("convertReaderLinks: mix van reader-links en niet-reader-links", () =>
 // Unit tests voor convertInternalMdLinks (issues #7, #8)
 // ===========================================================================
 
-Deno.test("convertInternalMdLinks: interne .md-link wordt CC file-base link", () => {
+Deno.test("convertInternalMdLinks: interne .md-link wordt relatieve HTML-link", () => {
   const input = "Kijk in de [FAQ](../faq.md) voor meer info.";
-  const result = convertInternalMdLinks(
-    input,
-    "/repo/src/week-1/les.md",
-    "/repo/src",
-  );
-  assertEquals(
-    result,
-    "Kijk in de [FAQ]($IMS-CC-FILEBASE$/content/faq.html) voor meer info.",
-  );
+  const result = convertInternalMdLinks(input, "/repo/src/week-1/les.md");
+  assertEquals(result, "Kijk in de [FAQ](../faq.html) voor meer info.");
 });
 
 Deno.test("convertInternalMdLinks: interne .md-link behoudt anchor", () => {
   const input = "Zie [les 1.1](../week-1/lesoverzicht-1.1.md#opdracht).";
-  const result = convertInternalMdLinks(
-    input,
-    "/repo/src/week-2/les.md",
-    "/repo/src",
-  );
+  const result = convertInternalMdLinks(input, "/repo/src/week-2/les.md");
   assertEquals(
     result,
-    "Zie [les 1.1]($IMS-CC-FILEBASE$/content/week-1/lesoverzicht-1.1.html#opdracht).",
+    "Zie [les 1.1](../week-1/lesoverzicht-1.1.html#opdracht).",
+  );
+});
+
+Deno.test("convertInternalMdLinks: handboeklink naar submap blijft relatief (Brightspace-import)", () => {
+  const input = "[Lesson 1.1](week-1/lesson-1-fizzbuzz.md)";
+  assertEquals(
+    convertInternalMdLinks(input, "/repo/lessons/README.md"),
+    "[Lesson 1.1](week-1/lesson-1-fizzbuzz.html)",
   );
 });
 
 Deno.test("convertInternalMdLinks: externe .md-link blijft ongewijzigd", () => {
   const input =
     "Zie [extern](https://example.com/handleiding.md) voor details.";
-  const result = convertInternalMdLinks(input, "/repo/src/les.md", "/repo/src");
+  const result = convertInternalMdLinks(input, "/repo/src/les.md");
   assertEquals(result, input);
 });
 
 Deno.test("convertInternalMdLinks: reeds omgezette reader-pdf-link blijft ongewijzigd", () => {
   const input = "Lees de [Git-reader](../readers/reader-git-en-gitlab.pdf).";
-  const result = convertInternalMdLinks(input, "/repo/src/les.md", "/repo/src");
+  const result = convertInternalMdLinks(input, "/repo/src/les.md");
   assertEquals(result, input);
 });
 
 Deno.test("convertInternalMdLinks: afbeeldingssyntax (![...]) met .md-pad blijft ongewijzigd", () => {
   const input = "![alt tekst](diagram.md)";
-  const result = convertInternalMdLinks(input, "/repo/src/les.md", "/repo/src");
+  const result = convertInternalMdLinks(input, "/repo/src/les.md");
   assertEquals(result, input);
 });
 
@@ -420,22 +416,18 @@ Deno.test("convertInternalMdLinks: meerdere interne links worden allemaal geconv
     "En bekijk [quiz 1](../week-1/quiz-1.4-oop-basics.md) voor oefenvragen.",
   ].join("\n");
 
-  const result = convertInternalMdLinks(
-    input,
-    "/repo/src/week-1/les.md",
-    "/repo/src",
-  );
+  const result = convertInternalMdLinks(input, "/repo/src/week-1/les.md");
 
   const expected = [
-    "Ga naar [les 1.1]($IMS-CC-FILEBASE$/content/week-1/lesoverzicht-1.1.html) voor het programma.",
+    "Ga naar [les 1.1](lesoverzicht-1.1.html) voor het programma.",
     "Raadpleeg de [Git-reader](../readers/reader-git-en-gitlab.pdf) voor Git-instructies.",
-    "En bekijk [quiz 1]($IMS-CC-FILEBASE$/content/week-1/quiz-1.4-oop-basics.html) voor oefenvragen.",
+    "En bekijk [quiz 1](quiz-1.4-oop-basics.html) voor oefenvragen.",
   ].join("\n");
 
   assertEquals(result, expected);
 });
 
-Deno.test("convertMarkdown: interne .md-link wordt CC file-base link in HTML-uitvoer", async () => {
+Deno.test("convertMarkdown: interne .md-link en reader-link wijzen relatief naar package-resources", async () => {
   const tempRoot = await makeTempDir();
   const sourceDir = join(tempRoot, "src", "week-1");
   const outputDir = join(tempRoot, "build");
@@ -444,7 +436,7 @@ Deno.test("convertMarkdown: interne .md-link wordt CC file-base link in HTML-uit
     const sourcePath = join(sourceDir, "les.md");
     await Deno.writeTextFile(
       sourcePath,
-      "# Les 1\n\nZie [de FAQ](../faq.md) voor vragen.\n",
+      "# Les 1\n\nZie [de FAQ](../faq.md) en de [reader](../../readers/reader-x.md).\n",
     );
 
     const result = await convertMarkdown({
@@ -455,22 +447,9 @@ Deno.test("convertMarkdown: interne .md-link wordt CC file-base link in HTML-uit
     });
 
     const html = await Deno.readTextFile(result.outputPath);
-
-    assertEquals(
-      html.includes("<a"),
-      true,
-      "HTML moet de interne link behouden",
-    );
-    assertEquals(
-      html.includes("de FAQ"),
-      true,
-      "Linktekst moet behouden blijven",
-    );
-    assertEquals(
-      html.includes("$IMS-CC-FILEBASE$/content/faq.html"),
-      true,
-      "De link moet naar de Common Cartridge HTML-resource wijzen",
-    );
+    assertEquals(html.includes('href="../faq.html"'), true);
+    assertEquals(html.includes('href="../../readers/reader-x.pdf"'), true);
+    assertEquals(html.includes("IMS-CC-FILEBASE"), false);
   } finally {
     await removeDir(tempRoot);
   }
@@ -511,13 +490,52 @@ Deno.test("convertMarkdown: HTML-uitvoer bevat copy-knop script en CSS voor code
       "HTML moet het copy-script bevatten",
     );
     assertEquals(
-      html.includes("<pre><code"),
+      /<pre[^>]*><code/.test(html),
       true,
       "Codeblok moet nog steeds als <pre><code> aanwezig zijn",
     );
   } finally {
     await removeDir(tempRoot);
   }
+});
+
+async function convertCodeBlock(language: string, code: string): Promise<string> {
+  const tempRoot = await makeTempDir();
+  try {
+    const sourcePath = join(tempRoot, "code.md");
+    await Deno.writeTextFile(sourcePath, `# Code\n\n\`\`\`${language}\n${code}\n\`\`\`\n`);
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir: join(tempRoot, "build"),
+      repoRoot: tempRoot,
+    });
+    return await Deno.readTextFile(result.outputPath);
+  } finally {
+    await removeDir(tempRoot);
+  }
+}
+
+Deno.test("convertMarkdown: Java-codeblok krijgt Prism-tokens bij build (#28)", async () => {
+  const html = await convertCodeBlock(
+    "java",
+    'public class Hello { // groet\n  String s = "hi";\n}',
+  );
+  assertStringIncludes(html, '<span class="token keyword">public</span>');
+  assertStringIncludes(html, '<span class="token comment">// groet</span>');
+  assertStringIncludes(html, '<span class="token string">"hi"</span>');
+  assertStringIncludes(html, ".brightspace-content .token.keyword");
+});
+
+Deno.test("convertMarkdown: JavaScript-codeblok krijgt Prism-tokens (#28)", async () => {
+  const html = await convertCodeBlock("javascript", "const x = 42;");
+  assertStringIncludes(html, '<span class="token keyword">const</span>');
+  assertStringIncludes(html, '<span class="token number">42</span>');
+});
+
+Deno.test("convertMarkdown: onbekende taal blijft platte code zonder fout (#28)", async () => {
+  const html = await convertCodeBlock("onbekendetaal", "foo bar");
+  assertStringIncludes(html, "foo bar");
+  assertEquals(html.includes('class="token'), false);
 });
 
 // ===========================================================================
@@ -617,7 +635,7 @@ Deno.test("convertMarkdown: flashcards behouden term, Markdown-definitie en no-J
       sourcePath,
       `# Core concepts
 
-:::flashcards
+::::flashcards
 
 :::flashcard
 term: Unit test
@@ -625,7 +643,7 @@ term: Unit test
 A **small** test in _isolation_.
 :::
 
-:::
+::::
 `,
     );
 

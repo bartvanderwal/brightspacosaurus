@@ -14,10 +14,12 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkDirective from "remark-directive";
+import { remarkFlashcards } from "./flashcards.ts";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
 import rehypeExternalLinks from "rehype-external-links";
+import rehypePrismPlus from "rehype-prism-plus";
 import rehypeStringify from "rehype-stringify";
 import {
   DiagramError,
@@ -29,6 +31,7 @@ import {
 } from "./diagram-renderer.ts";
 import { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
 import { detectDiagramIssues } from "./diagram-validation.ts";
+import { expandIncludes, parseIncludeTarget } from "./includes.ts";
 
 /** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
@@ -69,129 +72,22 @@ function stripQtiSections(markdown: string): string {
   return markdown.replace(QTI_SECTION_REGEX, "");
 }
 
-interface FlashcardMdastNode {
-  type: string;
-  name?: string;
-  value?: string;
-  children?: FlashcardMdastNode[];
-}
+export { parseIncludeTarget };
 
-function nodeText(node: FlashcardMdastNode): string {
-  return node.value ?? (node.children ?? []).map(nodeText).join("");
-}
-
-function escapeAttribute(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(
-    /</g,
-    "&lt;",
-  ).replace(/>/g, "&gt;");
-}
-
-/** Converts flashcard directives to semantic HTML with a no-JS fallback. */
-function transformFlashcards(tree: FlashcardMdastNode): void {
-  function walk(parent: FlashcardMdastNode): void {
-    if (!parent.children) return;
-    const transformed: FlashcardMdastNode[] = [];
-    for (const child of parent.children) {
-      if (child.type === "containerDirective" && child.name === "flashcards") {
-        walk(child);
-        transformed.push(
-          { type: "html", value: '<section class="bso-flashcards">' },
-          ...(child.children ?? []),
-          { type: "html", value: "</section>" },
-        );
-      } else if (
-        child.type === "containerDirective" && child.name === "flashcard"
-      ) {
-        walk(child);
-        const first = child.children?.[0];
-        const termLine = first?.type === "paragraph" ? nodeText(first) : "";
-        if (!termLine.startsWith("term:")) {
-          transformed.push(child);
-          continue;
-        }
-        const term = termLine.slice("term:".length).trim();
-        transformed.push(
-          {
-            type: "html",
-            value:
-              `<article class="bso-flashcard"><button type="button" class="bso-flashcard-toggle" aria-expanded="false"><span class="bso-flashcard-term">${
-                escapeAttribute(term)
-              }</span></button><div class="bso-flashcard-definition">`,
-          },
-          ...(child.children?.slice(1) ?? []),
-          { type: "html", value: "</div></article>" },
-        );
-      } else {
-        walk(child);
-        transformed.push(child);
-      }
-    }
-    parent.children = transformed;
-  }
-  walk(tree);
-}
-
-/**
- * Extracts the include target from an `{@include: [link text](path)}`
- * directive. The directive content must be a Markdown link, so the include
- * target stays a clickable, valid Markdown link when authors read the
- * source directly (e.g. in VS Code).
- *
- * Issue: #26
- */
-function parseIncludeTarget(directiveContent: string, line: string): string {
-  const linkMatch = directiveContent.match(/^\[[^\]]*\]\(([^)]+)\)$/);
-  if (!linkMatch) {
-    const err = new Error(
-      `{@include: ...} requires Markdown link syntax, e.g. {@include: [link text](${directiveContent})}. Found: "${line}"`,
-    );
-    (err as Error & { exitCode: number }).exitCode = 3;
-    throw err;
-  }
-  return linkMatch[1];
-}
-
-/**
- * Replaces {@include: [link text](path)} directives with the content of the
- * referenced file. The path is relative to the source file. Cyclic includes
- * are not detected but depth is bounded at 10 levels.
- *
- * Requirements: 1.5
- */
-async function resolveIncludes(
-  markdown: string,
-  sourceDir: string,
-  depth = 0,
-): Promise<string> {
-  if (depth > 10) return markdown;
-  const lines = markdown.split("\n");
-  const resolved: string[] = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const match = trimmed.match(/^\{@include:\s*(.+?)\s*\}$/);
-    if (match) {
-      const includePath = join(
-        sourceDir,
-        parseIncludeTarget(match[1], trimmed),
-      );
+/** Requirements: 1.5 */
+function resolveIncludes(markdown: string, sourceDir: string): string {
+  return expandIncludes(markdown, sourceDir, {
+    resolve: join,
+    dirname,
+    readFile: (path) => {
       try {
-        const content = await Deno.readTextFile(includePath);
-        const nested = await resolveIncludes(
-          content,
-          dirname(includePath),
-          depth + 1,
-        );
-        resolved.push(nested);
+        return Deno.readTextFileSync(path);
       } catch {
-        console.warn(`resolveIncludes: file not found: ${includePath}`);
-        resolved.push(line);
+        return null;
       }
-    } else {
-      resolved.push(line);
-    }
-  }
-  return resolved.join("\n");
+    },
+    warn: console.warn,
+  });
 }
 
 /**
@@ -214,33 +110,35 @@ function findRelativeImages(markdown: string): string[] {
 }
 
 /**
- * Converts links to reader Markdown files into PDF links in the readers/ directory.
- * Recognizes links to files with the prefix `reader-` or the name `plantuml-essentials.md`.
- * Replaces the `.md` extension with `.pdf` and normalizes the path to `../readers/`.
+ * Converts links to reader Markdown files into PDF links in the package-root
+ * `readers/` directory. Recognizes links to files with the prefix `reader-` or
+ * the name `plantuml-essentials.md`; external URLs are left untouched.
+ *
+ * @param htmlDepth - Directory depth of the generated HTML page below the
+ *   package root, e.g. 2 for `content/week-1/lesson.html`.
  *
  * Requirements: 8.5
  */
-export function convertReaderLinks(markdown: string): string {
-  return markdown.replace(READER_LINK_REGEX, (_match, text, href) => {
-    const pdfHref = href.replace(/\.md$/, ".pdf").replace(
-      /^(?:\.\.\/)*/,
-      "../readers/",
-    );
-    return `[${text}](${pdfHref})`;
+export function convertReaderLinks(markdown: string, htmlDepth = 1): string {
+  return markdown.replace(READER_LINK_REGEX, (match, text, href) => {
+    if (/^(?:https?:)?\/\//i.test(href)) return match;
+    const pdfName = basename(href).replace(/\.md$/, ".pdf");
+    return `[${text}](${"../".repeat(htmlDepth)}readers/${pdfName})`;
   });
 }
 
 /**
- * Converts internal Markdown links to Common Cartridge file-base links.
- * Reader links are converted first and therefore remain PDF links; external
- * links are left untouched.
+ * Converts internal Markdown links to relative links to the generated HTML.
+ * The package mirrors the source tree under `content/`, and Brightspace
+ * resolves relative links against the page's file location. Reader links are
+ * converted first and therefore remain PDF links; external links are left
+ * untouched.
  *
  * Issues: #7, #8
  */
 export function convertInternalMdLinks(
   markdown: string,
   sourcePath: string,
-  baseDir: string,
 ): string {
   const sourceDir = dirname(sourcePath);
   return markdown.replace(INTERNAL_MD_LINK_REGEX, (match, text, href) => {
@@ -250,9 +148,9 @@ export function convertInternalMdLinks(
     const pathPart = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
     const anchor = hashIndex >= 0 ? href.slice(hashIndex) : "";
     const targetPath = resolve(sourceDir, pathPart);
-    const packagePath = relative(baseDir, targetPath).replace(/\\/g, "/");
-    const htmlPath = packagePath.replace(/\.md$/i, ".html");
-    return `[${text}]($IMS-CC-FILEBASE$/content/${htmlPath}${anchor})`;
+    const htmlPath = relative(sourceDir, targetPath).replace(/\\/g, "/")
+      .replace(/\.md$/i, ".html");
+    return `[${text}](${htmlPath}${anchor})`;
   });
 }
 
@@ -419,7 +317,7 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkFrontmatter, ["yaml"])
     .use(remarkGfm)
     .use(remarkDirective)
-    .use(() => (tree: FlashcardMdastNode) => transformFlashcards(tree));
+    .use(remarkFlashcards);
 
   if (renderDiagrams && options.diagrams) {
     processor = withDiagramRendering(
@@ -433,6 +331,8 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
     .use(rehypeBrightspaceDiagramAdapter)
+    // Same Prism token classes as the Docusaurus preview (#28); unknown languages stay plain.
+    .use(rehypePrismPlus, { ignoreMissing: true })
     .use(rehypeExternalLinks, {
       target: "_blank",
       rel: ["noopener", "noreferrer"],
@@ -500,12 +400,16 @@ export async function convertMarkdown(
   }
 
   const sourceDir = dirname(sourcePath);
-  const includedMarkdown = await resolveIncludes(markdown, sourceDir);
+  const includedMarkdown = resolveIncludes(markdown, sourceDir);
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
+  // 1 for content/ plus the page's subdirectories below baseDir.
+  const htmlDepth = 1 +
+    relative(baseDir, sourceDir).split(/[\\/]/).filter((part) =>
+      part && part !== "."
+    ).length;
   const convertedMarkdown = convertInternalMdLinks(
-    convertReaderLinks(cleanedMarkdown),
+    convertReaderLinks(cleanedMarkdown, htmlDepth),
     sourcePath,
-    baseDir,
   );
   const relativeImages = findRelativeImages(convertedMarkdown);
 

@@ -24,7 +24,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
     name: "coverage-course",
     docusaurusDir: null,
     teacherManual: null,
-    quiz: { maxAttempts: 0 },
+    quiz: { maxAttempts: 0, shuffleAnswers: false },
     diagrams: {
       krokiUrl: "https://kroki.io",
       output: "img-html-base64",
@@ -81,7 +81,7 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
     );
     await Deno.writeTextFile(
       join(config.sourcesDir, "week-1", "quiz-1.1.md"),
-      "# Quiz 1.1\n\n## Vraag 1\n\nWat klopt?\n\n- [x] Ja\n- [ ] Nee\n",
+      "# Quiz 1.1\n\n## Vraag 1\n\nWat klopt?\n\n- A. Ja\n- B. Nee\nCorrect answer: A\n",
     );
     await Deno.writeFile(
       join(config.sourcesDir, "week-1", "image.png"),

@@ -1,4 +1,4 @@
-# Quiz 1: FizzBuzz
+# Quiz 1.1: FizzBuzz
 
 ## Question 1
 

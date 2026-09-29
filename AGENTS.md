@@ -42,8 +42,14 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 - Fail fast with useful error messages to `stderr`; progress to `stdout`.
 - Deterministic file ordering when creating archives.
 - All output goes to the build directory (`outputDir`), never next to source files.
+- Never write files outside the repository (e.g. `/tmp`), also not for temporary logs or scratch output; use the gitignored `build/` directory instead.
 - No hardcoded project-specific paths; everything via `brightspacosaurus.config.json` or CLI arguments.
 - Location-independent: use `Deno.cwd()` as the repo root.
+
+## Documentation
+
+- ADRs in `docs/adr/` are immutable once accepted. Only typo fixes and small corrections shortly after writing are allowed. To change a decision, write a new ADR and mark the old one as deprecated or superseded, with a link to the new one.
+- Design and code-level explanations (how something is implemented, plugin choices within an existing architecture) belong in the Software Guidebook, chapter 7 "Code", not in an ADR.
 
 ## Testing
 

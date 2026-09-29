@@ -16,7 +16,7 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 - ✅ **Native quizzes** — Markdown quiz files (`quiz-` prefix) are converted to QTI 1.2 and imported as functional Brightspace quizzes, not static pages.
 - 📊 **Diagrams-as-code** — PlantUML and Mermaid fenced code blocks render automatically to accessible images via Kroki, with source and descriptions kept alongside for accessibility.
 - 📄 **Reader PDFs** — Markdown readers (`reader-` prefix) are converted to downloadable PDFs via pandoc.
-- 💻 **Code blocks with a copy button** — fenced code blocks (any language) get a one-click copy-to-clipboard button in the generated Brightspace pages. Full-color syntax highlighting currently only renders in the Docusaurus preview (via Prism); bringing it to the Brightspace export is tracked as a follow-up (see the roadmap).
+- 💻 **Code blocks with a copy button** — fenced code blocks (any language) get a one-click copy-to-clipboard button in the generated Brightspace pages, and color syntax highlighting at build time (Prism, the same token classes as the Docusaurus preview; no runtime JavaScript needed).
 
 📖 See the user manual (`docs/user-manual.md`) for the data model and Brightspace import process, and the Software Guidebook (`docs/software-guidebook.md`) for the architecture and design decisions.
 
@@ -87,12 +87,12 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
 
 2. **Author your course material as Markdown** in the configured `sourcesDir`. Brightspacosaurus classifies files by name:
 
-   - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks (any language, with a copy button) are all supported. Color syntax highlighting currently renders in the Docusaurus preview only; see the roadmap for bringing it to the Brightspace export.
+   - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks (any language, with a copy button and syntax highlighting for every language Prism supports) are all supported.
    - **Quizzes** — files with the `quiz-` prefix are converted to QTI 1.2 and imported into the Brightspace Quizzes tool.
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
-  - **Flashcards** — use `:::flashcards` with compact `term:` cards for retrieval practice; definitions support normal Markdown and remain readable without JavaScript.
+  - **Flashcards** — use an outer `::::flashcards` container with inner `:::flashcard` containers and compact `term:` cards for retrieval practice; definitions support normal Markdown and remain readable without JavaScript.
 
   Includes use clickable Markdown-link syntax so the same source works in BSO, an editor and a Docusaurus preview:
 
@@ -152,9 +152,16 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
 | `outputDir`           | `string` | `"build/brightspace"`     | Build output directory                                           |
 | `customCss`           | `string` | `null` (default CSS only) | Path to a custom CSS file                                        |
 | `docusaurusDir`       | `string` | `null` (no preview)       | Path to the Docusaurus directory for `bso preview`               |
-| `quiz`                | `object` | `{ "maxAttempts": 0 }`    | Configuration for generated Brightspace quizzes                  |
+| `quiz`                | `object` | `{ "maxAttempts": 0, "shuffleAnswers": false }`    | Configuration for generated Brightspace quizzes                  |
 | `diagrams`            | `object` | see below                 | Configuration for PlantUML/Mermaid rendering in lesson HTML      |
 | `teacherManual` | `object` | `null` (skip)             | Configuration for the instructor manual PDF                      |
+
+### quiz object
+
+`maxAttempts` is a non-negative integer (`0` means unlimited).
+`shuffleAnswers` is a boolean, default `false`. Set it to `true` to request random
+answer order in the exported QTI and in the demo's interactive quiz preview.
+Builds keep stable option IDs and ordering; randomization happens per attempt.
 
 ### diagrams object
 
@@ -201,7 +208,8 @@ BSO's Brightspace output does not rely on custom JavaScript: source and generate
     "failOnError": true
   },
   "quiz": {
-    "maxAttempts": 0
+    "maxAttempts": 0,
+    "shuffleAnswers": false
   },
   "teacherManual": {
     "inputFiles": [
@@ -277,6 +285,41 @@ Starts the Docusaurus dev server by running `npm start` in the configured `docus
 
 - A `docusaurusDir` field in `brightspacosaurus.config.json` pointing to your Docusaurus directory (relative to the working directory).
 - The `--allow-run=npm` permission. If you installed `bso` with `deno install -A ...` this is already covered; otherwise add `--allow-run=npm` to the run permissions.
+
+For the bundled demo, run these commands from this repository's root:
+
+```sh
+npm ci --prefix demo-course-docs
+bso preview
+```
+
+The root configuration selects `examples/demo-course`; its Docusaurus app lives in
+`demo-course-docs`. To preview with the local CLI source, use
+`deno task demo:preview`. You can also run `bso preview` from `examples/demo-course`.
+
+If your installed `bso` only permits running pandoc, reinstall it with npm permission:
+
+```sh
+deno install -g -f --allow-read --allow-write --allow-net --allow-env --allow-run=pandoc,npm -n bso jsr:@bartvanderwal/brightspacosaurus/cli
+```
+
+### Lint course material
+
+```sh
+bso lint
+bso lint --sources path/to/lessons
+# Use the local development version before publishing/installing the new release:
+deno task lint:course
+```
+
+This complements Quickmark/Markdown style linting with BSO-specific checks:
+flashcard nesting and content, include syntax/targets/cycles, diagram declarations,
+and valid quiz answer keys. It checks the configured lessons, quizzes, readers and
+linked include files without rendering, network requests or writing build output.
+Diagnostics go to stderr as `file:line:column: error|warning rule: message`; the
+summary goes to stdout. Exit code `1` means authoring errors; warnings alone return
+`0`. Invalid configuration or inaccessible source directories also fail the command.
+Rule configuration and didactic lesson standards remain follow-ups under #11.
 
 ## Importing into Brightspace
 

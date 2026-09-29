@@ -99,10 +99,15 @@ Deno.test("Property 5: unsupported code blocks pass through and double-run outpu
           );
 
           assertEquals(first, second);
-          assertStringIncludes(first, `class="language-${language}"`);
+          assertEquals(
+            new RegExp(`class="language-${language}[\\s"]`).test(first),
+            true,
+          );
+          // Prism highlighting (#28) splits code over token spans; compare visible text.
+          const text = first.replace(/<[^>]*>/g, "");
           for (const line of code.split("\n")) {
             if (line.length > 0) {
-              assertStringIncludes(first, line);
+              assertStringIncludes(text, line);
             }
           }
           assertEquals(first.includes("kroki-image"), false);

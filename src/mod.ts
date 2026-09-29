@@ -39,6 +39,8 @@ export type {
 // Core modules
 export { scanSources } from "./source-scanner.ts";
 export { convertMarkdown } from "./markdown-converter.ts";
+export { remarkFlashcards } from "./flashcards.ts";
+export type { FlashcardNode } from "./flashcards.ts";
 export { convertQuiz } from "./quiz-converter.ts";
 export { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 export {
@@ -68,3 +70,19 @@ export type {
   DiagramIssueKind,
   DiagramIssuePosition,
 } from "./diagram-validation.ts";
+
+// Shared authoring validation and preview adapters
+export {
+  formatLintDiagnostic,
+  lintCourse,
+  lintMarkdown,
+} from "./course-linter.ts";
+export type { LintDiagnostic, LintResult } from "./course-linter.ts";
+export {
+  assertValidQuiz,
+  parseQuizMarkdown,
+  validateQuiz,
+} from "./quiz-parser.ts";
+export type { ParsedQuiz, QuizIssue, QuizQuestion } from "./quiz-parser.ts";
+export { resolveQuizOptions } from "./quiz-config.ts";
+export { remarkQuizPreview } from "./quiz-preview.ts";

@@ -10,25 +10,10 @@
 
 import { basename, dirname, join, relative, resolve } from "@std/path";
 
-/** A parsed quiz question. */
-export interface QuizQuestion {
-  /** Question number as written in the Markdown heading. */
-  number: number;
-  /** Question prompt text. */
-  text: string;
-  /** Answer options with labels such as A, B, C and D. */
-  options: { label: string; text: string }[];
-  /** Label of the correct answer option. */
-  correctAnswer: string; // "A", "B", "C" or "D"
-}
-
-/** A parsed quiz. */
-export interface ParsedQuiz {
-  /** Student-facing quiz title. */
-  title: string;
-  /** Parsed questions in source order. */
-  questions: QuizQuestion[];
-}
+import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
+import type { ParsedQuiz } from "./quiz-parser.ts";
+export { parseQuizMarkdown } from "./quiz-parser.ts";
+export type { ParsedQuiz, QuizQuestion } from "./quiz-parser.ts";
 
 /** Options for converting a quiz Markdown file. */
 export interface QuizConvertOptions {
@@ -42,6 +27,8 @@ export interface QuizConvertOptions {
   sourcesDir: string;
   /** Maximum number of attempts for the generated Brightspace quiz. 0 means unlimited. */
   maxAttempts?: number;
+  /** Allow the LMS to randomize answer order; source and XML order stay stable. */
+  shuffleAnswers?: boolean;
 }
 
 /** Result of the quiz conversion. */
@@ -64,83 +51,6 @@ export function extractAssessmentTitle(xml: string, fallback: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&lt;/g, "<")
     .replace(/&amp;/g, "&");
-}
-
-/**
- * Parses a quiz Markdown file into a structured object.
- */
-export function parseQuizMarkdown(content: string): ParsedQuiz {
-  const lines = content.split("\n");
-  let title = "";
-  const questions: QuizQuestion[] = [];
-  let currentQuestion: Partial<QuizQuestion> | null = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Title: # Quiz X.Y - Topic
-    if (line.startsWith("# ") && !line.startsWith("## ")) {
-      title = line.slice(2).trim();
-      continue;
-    }
-
-    // New question: ## Question N (legacy Dutch: ## Vraag N)
-    const questionMatch = line.match(/^## (?:Question|Vraag) (\d+)/i);
-    if (questionMatch) {
-      if (currentQuestion && currentQuestion.number !== undefined) {
-        questions.push(currentQuestion as QuizQuestion);
-      }
-      currentQuestion = {
-        number: parseInt(questionMatch[1]),
-        text: "",
-        options: [],
-        correctAnswer: "",
-      };
-      continue;
-    }
-
-    if (!currentQuestion) continue;
-
-    // Answer option: - A. text or - B. text etc.
-    const optionMatch = line.match(/^- ([A-D])\.\s+(.+)/);
-    if (optionMatch) {
-      currentQuestion.options = currentQuestion.options || [];
-      currentQuestion.options.push({
-        label: optionMatch[1],
-        text: optionMatch[2].trim(),
-      });
-      continue;
-    }
-
-    // Correct answer: **X** (legacy Dutch: Correct antwoord: **X**)
-    const correctMatch = line.match(
-      /^Correct (?:answer|antwoord):\s*\*\*([A-D])\*\*/i,
-    );
-    if (correctMatch) {
-      currentQuestion.correctAnswer = correctMatch[1];
-      continue;
-    }
-
-    // Question text: non-empty lines after ## Vraag N, before the options
-    if (
-      currentQuestion.number !== undefined &&
-      (!currentQuestion.options || currentQuestion.options.length === 0) &&
-      line.trim() !== ""
-    ) {
-      if (currentQuestion.text) {
-        currentQuestion.text += " " + line.trim();
-      } else {
-        currentQuestion.text = line.trim();
-      }
-    }
-  }
-
-  // Add the last question
-  if (currentQuestion && currentQuestion.number !== undefined) {
-    questions.push(currentQuestion as QuizQuestion);
-  }
-
-  return { title, questions };
 }
 
 /**
@@ -181,7 +91,9 @@ export function generateQtiXml(
   quiz: ParsedQuiz,
   ident: string,
   maxAttempts = 0,
+  shuffleAnswers = false,
 ): string {
+  assertValidQuiz(quiz);
   const sectionIdent = `sectie-${ident.replace(/^quiz-/, "")}`;
 
   let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
@@ -234,7 +146,9 @@ export function generateQtiXml(
     xml += `          </material>\n`;
     xml +=
       `          <response_lid ident="${respIdent}" rcardinality="Single">\n`;
-    xml += `            <render_choice>\n`;
+    xml += `            <render_choice shuffle="${
+      shuffleAnswers ? "Yes" : "No"
+    }">\n`;
 
     for (const option of question.options) {
       const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
@@ -280,14 +194,8 @@ export async function convertQuiz(
 
   // Parse the quiz
   const quiz = parseQuizMarkdown(content);
+  assertValidQuiz(quiz, sourcePath);
 
-  if (quiz.questions.length === 0) {
-    const err = new Error(`No questions found in quiz file: ${sourcePath}`);
-    (err as Error & { exitCode: number }).exitCode = 3;
-    throw err;
-  }
-
-  // Determine the ident and output file name
   const filename = basename(sourcePath);
   const ident = deriveQuizIdent(filename);
 
@@ -296,7 +204,12 @@ export async function convertQuiz(
   const relFromSource = relative(resolvedSourcesDir, dirname(sourcePath));
 
   // Generate QTI XML
-  const qtiXml = generateQtiXml(quiz, ident, options.maxAttempts ?? 0);
+  const qtiXml = generateQtiXml(
+    quiz,
+    ident,
+    options.maxAttempts ?? 0,
+    options.shuffleAnswers ?? false,
+  );
 
   // Write to output directory
   const outputSubDir = join(outputDir, relFromSource);

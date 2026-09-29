@@ -1,4 +1,4 @@
-# Lesson 2: Readers and PDF
+# Lesson 2.2: Readers and PDF
 
 **Manual test:** verify the reader link, PDF cover, table of contents, includes and diagram rendering in the PDF.
 
@@ -6,4 +6,4 @@ Read the [Testing Basics reader](../../readers/reader-testing-basics.md). The re
 
 The reader PDF must contain a separate cover page, table of contents, source code and rendered diagrams.
 
-See also [Lesson 1: Diagrams and SVG](lesson-1-diagrams-and-svg.md).
+See also [Lesson 2.1: Diagrams and SVG](lesson-1-diagrams-and-svg.md).

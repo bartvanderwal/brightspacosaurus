@@ -233,12 +233,14 @@ const quizMarkdownArb = fc
     title: fc.stringMatching(/^[A-Za-z0-9 .-]{3,30}$/),
     questions: fc.array(
       fc.record({
-        text: fc.stringMatching(/^[A-Za-z0-9 ,.?!]{5,60}$/),
+        text: fc.stringMatching(/^[A-Za-z0-9 ,.?!]{5,60}$/).map((text) =>
+          `Prompt ${text}`
+        ),
         options: fc.tuple(
-          fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
-          fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
-          fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
-          fc.stringMatching(/^[A-Za-z0-9 ,.]{3,40}$/),
+          fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9 ,.]{2,39}$/),
+          fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9 ,.]{2,39}$/),
+          fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9 ,.]{2,39}$/),
+          fc.stringMatching(/^[A-Za-z0-9][A-Za-z0-9 ,.]{2,39}$/),
         ),
         correct: fc.constantFrom("A", "B", "C", "D"),
       }),

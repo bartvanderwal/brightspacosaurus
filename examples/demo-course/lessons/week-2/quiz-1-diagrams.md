@@ -1,4 +1,4 @@
-# Quiz 4: Diagrams
+# Quiz 2.1: Diagrams
 
 ## Question 1
 

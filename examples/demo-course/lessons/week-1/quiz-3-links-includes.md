@@ -1,4 +1,4 @@
-# Quiz 3: Links and Includes
+# Quiz 1.3: Links and Includes
 
 ## Question 1
 
