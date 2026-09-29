@@ -14,3 +14,4 @@ The numbering is historical rather than contiguous. Brightspacosaurus was extrac
 | [015](adr015-brightspacosaurus-publication-via-jsr.md) | Publication through JSR |
 | [016](adr016-diagram-rendering-via-remark-kroki-a11y.md) | Accessible diagram rendering |
 | [017](adr017-test-strategy-and-quality-levels.md) | Layered testing strategy |
+| [018](adr018-github-flow-and-release-tags.md) | GitHub Flow with release tags |

@@ -69,13 +69,16 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 - **Do NOT commit and push spontaneously after every change.** The user wants to review changes first via the Git Changes view and test them personally. Only commit and push at the user's explicit request.
 - Split large changes into logically coherent commits per topic.
 - Untracked files should be committed or added to `.gitignore` — do not leave them lying around.
-- Push to a separate branch, never directly to `main`, unless explicitly requested.
+- Branching follows GitHub Flow (`docs/adr/adr018-github-flow-and-release-tags.md`): `main` is the only long-lived branch; no `develop`, `release/*` or `hotfix/*` branches.
+- Commit directly to `main` by default (still only when the user asks to commit).
+- Only large changes that colleagues should review get a feature branch `feature/<issue>-<slug>` from the current `main` and a pull request. If unsure whether a change is large enough, ask. Delete the branch after merge.
 
 ## Versioning and publishing
 
 - The version lives in `deno.json`. Follow semver: patch for bugfixes, minor for features (0.x).
 - Bump the version in the same change as the corresponding feature/fix, so the JSR publication is correct.
 - Publishing to JSR (`deno publish`) is done by the user, unless agreed otherwise (auth prompt).
+- Publish from the intended commit on `main` and tag it `vX.Y.Z` (ADR 018).
 - After a fix that affects JSR behavior: verify locally first, then publish, and only then test the JSR variant (chicken-and-egg: the JSR version can only be tested after publishing).
 - **Publishing to JSR:** `deno publish` (done by the user).
 - **Publishing to npm — important:** do NOT publish directly from the `.tgz` tarball (`npm publish ./file.tgz`). Due to a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)), publishing from a tarball leaves the per-version `readme` field empty, so the npm website shows "This package does not have a README". Instead, publish from the extracted package directory so npm picks up the README:
