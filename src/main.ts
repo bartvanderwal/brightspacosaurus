@@ -467,6 +467,8 @@ export async function runPrepare(
             `-V`,
             `date=${new Date().toISOString().slice(0, 10)}`,
           ],
+          // Raw LaTeX \includegraphics on the cover page resolves against the cwd, not --resource-path.
+          cwd: bsoDocsDir,
           stdout: "piped",
           stderr: "piped",
         });

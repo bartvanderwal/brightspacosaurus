@@ -10,6 +10,7 @@ import { assertEquals } from "@std/assert";
 import fc from "fast-check";
 import { pack } from "../src/packer.ts";
 import { join } from "@std/path";
+import JSZip from "jszip";
 
 async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "brightspacosaurus_test_" });
@@ -76,6 +77,29 @@ Deno.test("Eigenschap 2: twee keer pack op dezelfde invoer geeft byte-voor-byte 
 // Eigenschap 7: Geen corrupt artefact bij archiveringsfout
 // Valideert: Requirements 6.3
 // ---------------------------------------------------------------------------
+
+Deno.test("Docentenmateriaal (docenten/ in de build-root) komt nooit in het .imscc", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(join(sourceDir, "content", "docenten"), { recursive: true });
+    await Deno.mkdir(join(sourceDir, "docenten"), { recursive: true });
+    await Deno.writeTextFile(join(sourceDir, "imsmanifest.xml"), "<manifest/>");
+    await Deno.writeTextFile(join(sourceDir, "docenten", "antwoorden.pdf"), "geheim");
+    await Deno.writeTextFile(join(sourceDir, "content", "docenten", "les.html"), "<p/>");
+
+    const outputPath = join(tempRoot, "out.imscc");
+    await pack({ sourceDir, outputPath });
+
+    const zip = await JSZip.loadAsync(await Deno.readFile(outputPath));
+    assertEquals(Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort(), [
+      "content/docenten/les.html",
+      "imsmanifest.xml",
+    ]);
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
 
 Deno.test("Eigenschap 7: lege bronmap geeft fout en geen artefact", async () => {
   // Feature: brightspacosaurus, Eigenschap 7: Geen corrupt artefact bij archiveringsfout

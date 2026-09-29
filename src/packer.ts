@@ -24,6 +24,8 @@ async function collectFiles(
     for await (const entry of Deno.readDir(currentDir)) {
       const fullPath = join(currentDir, entry.name);
       if (entry.isDirectory) {
+        // Instructor material (answer keys, manuals) must never reach students.
+        if (currentDir === baseDir && entry.name === "docenten") continue;
         await walk(fullPath);
       } else if (entry.isFile) {
         // Exclude previously generated .imscc archives
