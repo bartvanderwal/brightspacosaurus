@@ -168,6 +168,18 @@ export function sortManifestEntriesForNavigation(
   });
 }
 
+/**
+ * Module title: the author-written title of the module's `index` page (same
+ * convention as a Docusaurus category index), otherwise the folder name.
+ */
+function moduleTitle(groupLabel: string, groupEntries: ManifestEntry[]): string {
+  const index = groupEntries.find((entry) =>
+    entry.type === "webcontent" &&
+    entry.href.replace(/^content\//, "") === `${groupLabel}/index.html`
+  );
+  return index?.title ?? groupLabel;
+}
+
 function buildOrganizationItems(entries: ManifestEntry[]): string {
   const groupedEntries = new Map<string, ManifestEntry[]>();
   const readerEntries: ManifestEntry[] = [];
@@ -221,7 +233,7 @@ function buildOrganizationItems(entries: ManifestEntry[]): string {
     ).join("\n");
 
     return `      <item identifier="${escapeXml(groupId)}">
-        <title>${escapeXml(groupLabel)}</title>
+        <title>${escapeXml(moduleTitle(groupLabel, groupEntries))}</title>
 ${childItems}
       </item>`;
   });
