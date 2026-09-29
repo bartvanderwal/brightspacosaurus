@@ -19,6 +19,7 @@ import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
 import rehypeExternalLinks from "rehype-external-links";
+import rehypePrismPlus from "rehype-prism-plus";
 import rehypeStringify from "rehype-stringify";
 import {
   DiagramError,
@@ -109,33 +110,35 @@ function findRelativeImages(markdown: string): string[] {
 }
 
 /**
- * Converts links to reader Markdown files into PDF links in the readers/ directory.
- * Recognizes links to files with the prefix `reader-` or the name `plantuml-essentials.md`.
- * Replaces the `.md` extension with `.pdf` and normalizes the path to `../readers/`.
+ * Converts links to reader Markdown files into PDF links in the package-root
+ * `readers/` directory. Recognizes links to files with the prefix `reader-` or
+ * the name `plantuml-essentials.md`; external URLs are left untouched.
+ *
+ * @param htmlDepth - Directory depth of the generated HTML page below the
+ *   package root, e.g. 2 for `content/week-1/lesson.html`.
  *
  * Requirements: 8.5
  */
-export function convertReaderLinks(markdown: string): string {
-  return markdown.replace(READER_LINK_REGEX, (_match, text, href) => {
-    const pdfHref = href.replace(/\.md$/, ".pdf").replace(
-      /^(?:\.\.\/)*/,
-      "../readers/",
-    );
-    return `[${text}](${pdfHref})`;
+export function convertReaderLinks(markdown: string, htmlDepth = 1): string {
+  return markdown.replace(READER_LINK_REGEX, (match, text, href) => {
+    if (/^(?:https?:)?\/\//i.test(href)) return match;
+    const pdfName = basename(href).replace(/\.md$/, ".pdf");
+    return `[${text}](${"../".repeat(htmlDepth)}readers/${pdfName})`;
   });
 }
 
 /**
- * Converts internal Markdown links to Common Cartridge file-base links.
- * Reader links are converted first and therefore remain PDF links; external
- * links are left untouched.
+ * Converts internal Markdown links to relative links to the generated HTML.
+ * The package mirrors the source tree under `content/`, and Brightspace
+ * resolves relative links against the page's file location. Reader links are
+ * converted first and therefore remain PDF links; external links are left
+ * untouched.
  *
  * Issues: #7, #8
  */
 export function convertInternalMdLinks(
   markdown: string,
   sourcePath: string,
-  baseDir: string,
 ): string {
   const sourceDir = dirname(sourcePath);
   return markdown.replace(INTERNAL_MD_LINK_REGEX, (match, text, href) => {
@@ -145,9 +148,9 @@ export function convertInternalMdLinks(
     const pathPart = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
     const anchor = hashIndex >= 0 ? href.slice(hashIndex) : "";
     const targetPath = resolve(sourceDir, pathPart);
-    const packagePath = relative(baseDir, targetPath).replace(/\\/g, "/");
-    const htmlPath = packagePath.replace(/\.md$/i, ".html");
-    return `[${text}]($IMS-CC-FILEBASE$/content/${htmlPath}${anchor})`;
+    const htmlPath = relative(sourceDir, targetPath).replace(/\\/g, "/")
+      .replace(/\.md$/i, ".html");
+    return `[${text}](${htmlPath}${anchor})`;
   });
 }
 
@@ -328,6 +331,8 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
     .use(rehypeBrightspaceDiagramAdapter)
+    // Same Prism token classes as the Docusaurus preview (#28); unknown languages stay plain.
+    .use(rehypePrismPlus, { ignoreMissing: true })
     .use(rehypeExternalLinks, {
       target: "_blank",
       rel: ["noopener", "noreferrer"],
@@ -397,10 +402,14 @@ export async function convertMarkdown(
   const sourceDir = dirname(sourcePath);
   const includedMarkdown = resolveIncludes(markdown, sourceDir);
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
+  // 1 for content/ plus the page's subdirectories below baseDir.
+  const htmlDepth = 1 +
+    relative(baseDir, sourceDir).split(/[\\/]/).filter((part) =>
+      part && part !== "."
+    ).length;
   const convertedMarkdown = convertInternalMdLinks(
-    convertReaderLinks(cleanedMarkdown),
+    convertReaderLinks(cleanedMarkdown, htmlDepth),
     sourcePath,
-    baseDir,
   );
   const relativeImages = findRelativeImages(convertedMarkdown);
 

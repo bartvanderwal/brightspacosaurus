@@ -14,6 +14,11 @@ async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "brightspacosaurus_diagram_test_" });
 }
 
+/** Visible text of the HTML; Prism highlighting (#28) splits code over token spans. */
+function textOf(html: string): string {
+  return html.replace(/<[^>]*>/g, "");
+}
+
 async function removeDir(path: string): Promise<void> {
   try {
     await Deno.remove(path, { recursive: true });
@@ -111,7 +116,7 @@ Deno.test("convertMarkdown renders PlantUML fixture through remark-kroki-a11y an
     assertStringIncludes(html, 'class="diagram-a11y-description"');
     assertStringIncludes(html, "<summary>In natuurlijke taal</summary>");
     assertStringIncludes(html, 'class="language-ts"');
-    assertStringIncludes(html, "console.log");
+    assertStringIncludes(textOf(html), "console.log");
     // Diagram disclosure itself needs no JS-based tab widget (native <details>
     // only); the page-wide copy-button script (issue #16) is unrelated.
     assertEquals(html.includes('role="tablist"'), false);
@@ -325,8 +330,8 @@ Alice -> Bob
       true,
     );
     assertStringIncludes(html, 'class="language-plantuml"');
-    assertStringIncludes(html, "@startuml");
-    assertStringIncludes(html, "Alice -> Bob");
+    assertStringIncludes(textOf(html), "@startuml");
+    assertStringIncludes(textOf(html), "Alice -> Bob");
     assertEquals(html.includes("kroki-image"), false);
     assertEquals(html.includes("diagram-expandable-source"), false);
   } finally {

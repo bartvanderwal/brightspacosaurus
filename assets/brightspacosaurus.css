@@ -162,6 +162,51 @@ article.markdown pre code {
   line-height: 1.5;
 }
 
+/* Prism tokens (issue #28): hues of the Docusaurus GitHub theme, darkened to meet WCAG AA on --han-code-bg. */
+.brightspace-content .token.comment,
+.brightspace-content .token.prolog,
+.brightspace-content .token.doctype,
+.brightspace-content .token.cdata {
+  color: #57606a;
+  font-style: italic;
+}
+.brightspace-content .token.string,
+.brightspace-content .token.char,
+.brightspace-content .token.attr-value {
+  color: #b3105a;
+}
+.brightspace-content .token.punctuation,
+.brightspace-content .token.operator {
+  color: #393a34;
+}
+.brightspace-content .token.number,
+.brightspace-content .token.boolean,
+.brightspace-content .token.constant,
+.brightspace-content .token.variable,
+.brightspace-content .token.property,
+.brightspace-content .token.regex,
+.brightspace-content .token.url,
+.brightspace-content .token.entity {
+  color: #0b7a78;
+}
+.brightspace-content .token.atrule,
+.brightspace-content .token.attr-name,
+.brightspace-content .token.annotation {
+  color: #0369a1;
+}
+.brightspace-content .token.function {
+  color: #b31d28;
+}
+.brightspace-content .token.class-name,
+.brightspace-content .token.function-variable {
+  color: #6f42c1;
+}
+.brightspace-content .token.keyword,
+.brightspace-content .token.tag,
+.brightspace-content .token.selector {
+  color: #00009f;
+}
+
 /* Copy-button wrapper for code blocks (Brightspace HTML route only, issue #16) */
 .bso-code-wrapper {
   position: relative;

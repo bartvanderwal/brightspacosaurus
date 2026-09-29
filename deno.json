@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -49,6 +49,7 @@
     "remark-kroki-a11y": "npm:remark-kroki-a11y@0.6.3",
     "remark-rehype": "npm:remark-rehype@^11.0.0",
     "rehype-external-links": "npm:rehype-external-links@^3.0.0",
+    "rehype-prism-plus": "npm:rehype-prism-plus@^2.0.0",
     "rehype-raw": "npm:rehype-raw@^7.0.0",
     "rehype-stringify": "npm:rehype-stringify@^10.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",
