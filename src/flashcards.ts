@@ -2,15 +2,32 @@
 
 /** Optional automatic conversion of term/definition lists under these headings. */
 export interface FlashcardsConfig {
-  /** Case-insensitive heading titles. Empty or omitted disables automatic conversion. */
+  /**
+   * Case-insensitive heading titles; a leading number such as `7.` or `2.3`
+   * is ignored. Omitted means {@link DEFAULT_SECTION_HEADINGS}; empty disables
+   * automatic conversion.
+   */
   sectionHeadings?: string[];
+}
+
+/** Section headings recognized when `flashcards.sectionHeadings` is omitted. */
+export const DEFAULT_SECTION_HEADINGS: readonly string[] = ["Core concepts"];
+
+/**
+ * Comparison key for section headings: trimmed, lowercase and without a
+ * leading section number, so `7. Kernbegrippen` matches `Kernbegrippen`.
+ */
+export function normalizeSectionHeading(title: string): string {
+  return title.trim().replace(/^\d+(?:\.\d+)*\.?\s+/, "").toLowerCase();
 }
 
 /** Validate options for both BSO configuration and direct remark plugin use. */
 export function resolveFlashcardsOptions(
   value?: unknown,
 ): Required<FlashcardsConfig> {
-  if (value === undefined) return { sectionHeadings: [] };
+  if (value === undefined) {
+    return { sectionHeadings: [...DEFAULT_SECTION_HEADINGS] };
+  }
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Field 'flashcards' must be an object.");
   }
@@ -21,7 +38,9 @@ export function resolveFlashcardsOptions(
     }
   }
   const headings = options.sectionHeadings;
-  if (headings === undefined) return { sectionHeadings: [] };
+  if (headings === undefined) {
+    return { sectionHeadings: [...DEFAULT_SECTION_HEADINGS] };
+  }
   if (
     !Array.isArray(headings) ||
     headings.some((heading) => typeof heading !== "string" || !heading.trim())
@@ -132,8 +151,8 @@ export function remarkFlashcards(
   options?: FlashcardsConfig,
 ): (tree: FlashcardNode) => void {
   const headings = new Set(
-    resolveFlashcardsOptions(options).sectionHeadings.map((heading) =>
-      heading.toLowerCase()
+    resolveFlashcardsOptions(options).sectionHeadings.map(
+      normalizeSectionHeading,
     ),
   );
   return function walk(node: FlashcardNode): void {
@@ -144,7 +163,7 @@ export function remarkFlashcards(
           if (sectionDepth !== undefined && child.depth! <= sectionDepth) {
             sectionDepth = undefined;
           }
-          if (headings.has(nodeText(child).trim().toLowerCase())) {
+          if (headings.has(normalizeSectionHeading(nodeText(child)))) {
             sectionDepth ??= child.depth;
           }
         }

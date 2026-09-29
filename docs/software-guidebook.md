@@ -377,7 +377,11 @@ must be longer outside than inside (`::::flashcards` around `:::flashcard`).
 The same transformer also accepts unordered `term: definition` lists, either in
 an explicit `flashcards` container or under a heading listed in
 `flashcards.sectionHeadings`. `resolveFlashcardsOptions` validates the shared
-options and defaults to no automatic headings. The CLI passes resolved options
+options and defaults to `DEFAULT_SECTION_HEADINGS` (`["Core concepts"]`); an
+explicit `[]` disables heading recognition. `normalizeSectionHeading` is the
+single comparison key for the transformer and the linter: trimmed, lowercase and
+without a leading section number (`7.`, `2.3`), because course material often
+numbers its sections. The CLI passes resolved options
 to both HTML conversions and to Docusaurus via `BSO_PREVIEW_FLASHCARDS_CONFIG`;
 the demo reads its course config when invoked directly. Custom preview apps must
 pass these options to `remarkFlashcards` as well.
@@ -389,6 +393,17 @@ visible colon preserves definition formatting and subsequent blocks, while terms
 are rendered as escaped text. All syntaxes produce the existing card classes and
 use the existing browser initializer. Property tests exercise deterministic
 conversion, and browser tests compare both demo sets in preview and export.
+
+`src/teacher-page.ts` is likewise runtime-neutral. `resolveTeacherPage`
+validates `teacherPage` (a relative `.md` path inside `sourcesDir`, default
+`for-teachers.md`); `resolveConfig` records whether it was explicit, because only
+a missing explicit page fails `prepare`. `convertMarkdown` receives
+`teacherPageVersions` for that one page and calls `insertVersionTable` after
+include expansion, so every `{@bso-versions}` line outside fenced code becomes a
+Markdown table (or the table follows the first H1). The table contains only
+versions, no build time, so output stays idempotent. The demo Docusaurus
+preprocessor applies the same function; `bso preview` passes path and versions
+via `BSO_PREVIEW_TEACHER_PAGE`. Git dates and the #37 dashboard build on this page.
 
 Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`;
 `src/quiz-config.ts` supplies shared configuration validation/defaults. The QTI

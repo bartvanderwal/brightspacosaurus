@@ -13,8 +13,10 @@ import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 import {
+  DEFAULT_SECTION_HEADINGS,
   type FlashcardNode,
   type FlashcardsConfig,
+  normalizeSectionHeading,
   remarkFlashcards,
   resolveFlashcardsOptions,
 } from "../src/flashcards.ts";
@@ -37,13 +39,14 @@ async function render(
   );
 }
 
-Deno.test("shared flashcard renderer preserves eight demo cards and matches the exported markup", async () => {
+Deno.test("shared flashcard renderer preserves both demo sets and matches the exported markup", async () => {
   const sourcePath = resolve(
     "examples/demo-course/lessons/week-1/lesson-4-core-concepts.md",
   );
   const source = await Deno.readTextFile(sourcePath);
   const html = await render(source);
-  assertEquals((html.match(/class="bso-flashcard"/g) ?? []).length, 8);
+  // Eight directive cards plus eight from the default "Core concepts" section.
+  assertEquals((html.match(/class="bso-flashcard"/g) ?? []).length, 16);
   assertStringIncludes(html, "<strong>unit test</strong>");
   assertStringIncludes(html, "<em>in isolation</em>");
   assertEquals(html.includes("term: Unit test"), false);
@@ -137,7 +140,7 @@ Deno.test("heading lists preserve formatted definitions and only split the first
   assertStringIncludes(html, "<strong>bold definition</strong>");
 });
 
-Deno.test("heading recognition is opt-in, case-insensitive and ends at the same or higher level", async () => {
+Deno.test("heading recognition is case-insensitive and ends at the same or higher level", async () => {
   const source = `- outside: ordinary
 
 ## **KERNBEGRIPPEN**
@@ -228,13 +231,23 @@ Deno.test("demo heading cards match configured export and remain readable withou
 Deno.test("flashcard config validates options and resolves defaults without shared arrays", () => {
   const base = { courseName: "Test", version: "1", sourcesDir: "lessons" };
   assertEquals(resolveConfig(base, {}, Deno.cwd()).flashcards, {
-    sectionHeadings: [],
+    sectionHeadings: ["Core concepts"],
   });
   assertEquals(
     resolveFromCliOnly({ sources: "lessons" }, Deno.cwd()).flashcards,
+    { sectionHeadings: ["Core concepts"] },
+  );
+  const defaults = resolveFlashcardsOptions({});
+  assertEquals(defaults, { sectionHeadings: ["Core concepts"] });
+  defaults.sectionHeadings!.push("Other");
+  assertEquals(DEFAULT_SECTION_HEADINGS, ["Core concepts"]);
+  assertEquals(resolveFlashcardsOptions(), {
+    sectionHeadings: ["Core concepts"],
+  });
+  assertEquals(
+    resolveFlashcardsOptions({ sectionHeadings: [] }),
     { sectionHeadings: [] },
   );
-  assertEquals(resolveFlashcardsOptions({}), { sectionHeadings: [] });
   const options = { sectionHeadings: [" Kernbegrippen "] };
   assertEquals(validateConfig({ ...base, flashcards: options }), true);
   const resolved = resolveFlashcardsOptions(options);
@@ -290,6 +303,71 @@ Deno.test("property: glossary conversion preserves terms and definitions determi
           assertStringIncludes(html, `<p>${definition.trim()}</p>`);
         }
         assertEquals(await render(source, glossaryOptions), html);
+      },
+    ),
+    { numRuns: 100 },
+  );
+});
+
+Deno.test("Core concepts is recognized by default and an empty list disables it", async () => {
+  const source = "## Core concepts\n\n- request: Message.";
+  assertEquals(cardCount(await render(source)), 1);
+  assertEquals(cardCount(await render(source, {})), 1);
+  assertEquals(cardCount(await render(source, { sectionHeadings: [] })), 0);
+  assertEquals(
+    cardCount(await render(source, { sectionHeadings: ["Kernbegrippen"] })),
+    0,
+  );
+});
+
+Deno.test("leading section numbers are ignored in headings and configuration", async () => {
+  const options = { sectionHeadings: ["Kernbegrippen"] };
+  for (
+    const heading of [
+      "7. Kernbegrippen",
+      "2.3 Kernbegrippen",
+      "2.3. kernbegrippen",
+      "10 KERNBEGRIPPEN",
+    ]
+  ) {
+    assertEquals(
+      cardCount(await render(`## ${heading}\n\n- request: Bericht.`, options)),
+      1,
+      heading,
+    );
+  }
+  for (
+    const heading of ["Kernbegrippen 2", "7.Kernbegrippen", "v7 Kernbegrippen"]
+  ) {
+    assertEquals(
+      cardCount(await render(`## ${heading}\n\n- request: Bericht.`, options)),
+      0,
+      heading,
+    );
+  }
+  assertEquals(
+    cardCount(
+      await render("## Kernbegrippen\n\n- request: Bericht.", {
+        sectionHeadings: ["5. Kernbegrippen"],
+      }),
+    ),
+    1,
+  );
+});
+
+Deno.test("normalizeSectionHeading drops any dotted number prefix (property)", () => {
+  fc.assert(
+    fc.property(
+      fc.array(fc.nat({ max: 999 }), { minLength: 1, maxLength: 4 }),
+      fc.boolean(),
+      fc.stringMatching(/^[A-Za-z][A-Za-z ]{0,20}[A-Za-z]$/),
+      (parts, trailingDot, title) => {
+        const prefix = parts.join(".") + (trailingDot ? "." : "");
+        assertEquals(
+          normalizeSectionHeading(`  ${prefix} ${title} `),
+          title.toLowerCase(),
+        );
+        assertEquals(normalizeSectionHeading(title), title.toLowerCase());
       },
     ),
     { numRuns: 100 },

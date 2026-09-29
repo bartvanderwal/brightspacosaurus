@@ -9,6 +9,7 @@
 
 import { resolveFlashcardsOptions } from "./flashcards.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
+import { resolveTeacherPage } from "./teacher-page.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
 export { resolveDiagramsConfig };
 import { join, resolve } from "@std/path";
@@ -148,6 +149,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "quiz",
     "diagrams",
     "flashcards",
+    "teacherPage",
     "lint",
   ]);
   for (const field of Object.keys(obj)) {
@@ -226,6 +228,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
 
   resolveQuizOptions(obj.quiz);
   resolveFlashcardsOptions(obj.flashcards);
+  resolveTeacherPage(obj.teacherPage);
   if (obj.lint !== undefined) {
     if (
       typeof obj.lint !== "object" || obj.lint === null ||
@@ -396,6 +399,10 @@ export function resolveConfig(
     teacherManual,
     quiz: resolveQuizConfig(config),
     flashcards: resolveFlashcardsOptions(config.flashcards),
+    teacherPage: {
+      path: resolve(sourcesDir, resolveTeacherPage(config.teacherPage)),
+      explicit: config.teacherPage !== undefined,
+    },
     lint: {
       includeDirs: cliOverrides.sources
         ? [sourcesDir]
@@ -437,6 +444,10 @@ export function resolveFromCliOnly(
     teacherManual: null,
     quiz: { ...DEFAULT_QUIZ_CONFIG },
     flashcards: resolveFlashcardsOptions(),
+    teacherPage: {
+      path: resolve(sourcesDir, resolveTeacherPage()),
+      explicit: false,
+    },
     diagrams: resolveDiagramsConfig({}),
     repoRoot,
   };

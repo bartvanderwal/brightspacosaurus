@@ -142,6 +142,8 @@ The most important fields:
 | `diagrams.krokiUrl`    | no       | Kroki endpoint for PlantUML/Mermaid rendering (default `https://kroki.io`)                   |
 | `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
 | `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
+| `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.4](#44-core-concept-flashcards) |
+| `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.6](#46-teacher-page) |
 
 > **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
 
@@ -204,7 +206,7 @@ For lightweight cards, use a normal bullet list inside a single container (no in
 :::
 ```
 
-To turn existing glossary sections into flashcards automatically, configure their heading titles in `brightspacosaurus.config.json`:
+Sections titled `Core concepts` become flashcards automatically. To recognize other glossary headings, configure their titles in `brightspacosaurus.config.json`:
 
 ```json
 {
@@ -214,7 +216,7 @@ To turn existing glossary sections into flashcards automatically, configure thei
 }
 ```
 
-This is an optional fragment to add to your existing course configuration. The default is `[]`, which disables automatic heading recognition. With that setting, this plain Markdown becomes a flashcard set:
+This is an optional fragment to add to your existing course configuration. The list replaces the default `["Core concepts"]`; `[]` disables automatic heading recognition. With that setting, this plain Markdown becomes a flashcard set:
 
 ```markdown
 ## Kernbegrippen
@@ -224,7 +226,7 @@ This is an optional fragment to add to your existing course configuration. The d
 - **statuscode:** HTTP-code die het resultaat van een request aanduidt, bijvoorbeeld `200`.
 ```
 
-Heading titles match exactly after trimming and ignoring letter case; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists. Place introductory prose before the heading or in a separate section.
+Heading titles match exactly after trimming and ignoring letter case and a leading section number, so `## 7. Kernbegrippen` and `### 2.3 Kernbegrippen` match `Kernbegrippen`; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists. Place introductory prose before the heading or in a separate section.
 
 Each unordered list is converted only when every item has a non-empty term before the first colon (`:`) and a non-empty definition after it. Plain, **bold** and `inline-code` terms work, with the colon inside or outside their formatting. Definitions retain Markdown formatting, links, subsequent paragraphs and nested lists. Additional colons belong to the definition. Numbered lists, task lists and lists with incomplete items remain ordinary Markdown in full; other sections are unaffected.
 
@@ -252,7 +254,33 @@ By default, lint scans `sourcesDir`, `readersDir` and their linked Markdown incl
 
 These paths are relative to the current working directory and replace the default source/reader inputs. They must remain inside the project root. `bso lint --sources lessons/week-1` overrides the selection. Linked includes are always checked as dependencies.
 
-For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (27 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-with-all-lint-issues/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout; an installed CLI pinned to 0.11.1 does not yet know the new configuration fields.
+For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (27 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-with-all-lint-issues/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout. An installed CLI older than 0.11.2 does not know `lint.includeDirs`, and one older than 0.12.0 rejects `teacherPage`.
+
+### 4.6 Teacher page
+
+A teacher page is a lesson page you write yourself for teachers, for example with import instructions and contact details. BSO fills in the imported versions, so teachers can check after an import that Brightspace shows the current material. Later, the GitLab progress dashboard ([#37](https://github.com/bartvanderwal/brightspacosaurus/issues/37)) will appear on the same page.
+
+By default BSO uses `for-teachers.md` in `sourcesDir`. Choose a different file with `teacherPage`, relative to `sourcesDir`:
+
+```json
+{
+  "teacherPage": "voor-docenten.md"
+}
+```
+
+Place the directive `{@bso-versions}` on its own line where the version table belongs:
+
+```markdown
+# For teachers
+
+## Version information
+
+{@bso-versions}
+```
+
+BSO replaces the directive with a table containing the course name and `version` from the configuration and the Brightspacosaurus version. Without the directive, the table follows the page's first H1. Directives in code blocks and on other pages stay unchanged. The Docusaurus preview shows the same table.
+
+If the default page does not exist, BSO skips it without a message. If a configured `teacherPage` does not exist, `bso prepare` fails. The page is a normal topic in the cartridge: hide it for students in Brightspace after each import. It contains no secrets.
 
 ---
 

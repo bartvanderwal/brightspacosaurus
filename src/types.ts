@@ -1,4 +1,5 @@
 import type { FlashcardsConfig } from "./flashcards.ts";
+import type { TeacherPageVersions } from "./teacher-page.ts";
 
 /**
  * TypeScript-interfaces voor Brightspacosaurus.
@@ -49,6 +50,8 @@ export interface ConvertOptions {
   diagrams?: ResolvedDiagramConfig;
   /** Automatic flashcards for configured section headings. */
   flashcards?: FlashcardsConfig;
+  /** Set for the teacher page only: versions filled in at `{@bso-versions}`. */
+  teacherPageVersions?: TeacherPageVersions;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */
@@ -142,6 +145,8 @@ export interface BsoConfig {
   diagrams?: DiagramsConfig;
   /** Automatic flashcards for configured section headings. */
   flashcards?: FlashcardsConfig;
+  /** Teacher page relative to sourcesDir, filled with versions. Default: "for-teachers.md". */
+  teacherPage?: string;
   /** Optional lint input selection. */
   lint?: LintConfig;
 }
@@ -208,6 +213,8 @@ export interface ResolvedConfig {
   diagrams: ResolvedDiagramConfig;
   /** Automatic flashcards; absent or empty disables heading recognition. */
   flashcards?: FlashcardsConfig;
+  /** Teacher page that BSO fills with versions. Absent = no teacher page. */
+  teacherPage?: ResolvedTeacherPageConfig;
   /** Optional lint input selection, with absolute directory paths. */
   lint?: LintConfig;
   /** Absoluut pad naar Repo_Root. */
@@ -245,6 +252,14 @@ export interface ResolvedTeacherManualConfig {
   outputName: string;
   /** Absoluut pad naar de output-directory. */
   outputDir: string;
+}
+
+/** Resolved teacher page. */
+export interface ResolvedTeacherPageConfig {
+  /** Absolute path to the teacher page Markdown file. */
+  path: string;
+  /** True when set in the configuration; a missing explicit page is an error. */
+  explicit: boolean;
 }
 
 /** CLI-argumenten die als override kunnen dienen boven Config_File-waarden. */

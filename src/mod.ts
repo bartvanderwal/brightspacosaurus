@@ -32,6 +32,7 @@ export type {
   ResolvedDiagramConfig,
   ResolvedQuizConfig,
   ResolvedTeacherManualConfig,
+  ResolvedTeacherPageConfig,
   ScanOptions,
   ScanResult,
   TeacherManualConfig,
@@ -40,8 +41,21 @@ export type {
 // Core modules
 export { scanSources } from "./source-scanner.ts";
 export { convertMarkdown } from "./markdown-converter.ts";
-export { remarkFlashcards, resolveFlashcardsOptions } from "./flashcards.ts";
+export {
+  DEFAULT_SECTION_HEADINGS,
+  normalizeSectionHeading,
+  remarkFlashcards,
+  resolveFlashcardsOptions,
+} from "./flashcards.ts";
 export type { FlashcardNode, FlashcardsConfig } from "./flashcards.ts";
+export {
+  DEFAULT_TEACHER_PAGE,
+  insertVersionTable,
+  renderVersionTable,
+  resolveTeacherPage,
+  VERSIONS_DIRECTIVE,
+} from "./teacher-page.ts";
+export type { TeacherPageVersions } from "./teacher-page.ts";
 export { convertQuiz } from "./quiz-converter.ts";
 export { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 export {

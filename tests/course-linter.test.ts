@@ -272,8 +272,22 @@ Deno.test("configured flashcard sections warn unless they contain only complete 
     [],
   );
   assertEquals(
-    lintMarkdown("## Core concepts\n\nNot a list.", "lesson.md"),
+    lintMarkdown("## Core concepts\n\nNot a list.", "lesson.md")[0].rule,
+    "flashcard-section-content",
+  );
+  assertEquals(
+    lintMarkdown("## Core concepts\n\nNot a list.", "lesson.md", {
+      flashcards: { sectionHeadings: [] },
+    }),
     [],
+  );
+  assertEquals(
+    lintMarkdown(
+      "## 7. Kernbegrippen\n\nNot a list.",
+      "lesson.md",
+      options,
+    )[0].rule,
+    "flashcard-section-content",
   );
   assertEquals(
     lintMarkdown(

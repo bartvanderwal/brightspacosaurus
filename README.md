@@ -155,6 +155,7 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
 | `quiz`                | `object` | `{ "maxAttempts": 0, "shuffleAnswers": false }`    | Configuration for generated Brightspace quizzes                  |
 | `diagrams`            | `object` | see below                 | Configuration for PlantUML/Mermaid rendering in lesson HTML      |
 | `teacherManual` | `object` | `null` (skip)             | Configuration for the instructor manual PDF                      |
+| `teacherPage`         | `string` | `"for-teachers.md"`       | Teacher page in `sourcesDir` on which BSO fills in the course and BSO versions; see the [user manual](docs/user-manual.md#46-teacher-page) |
 
 ### quiz object
 
@@ -167,9 +168,9 @@ Builds keep stable option IDs and ordering; randomization happens per attempt.
 
 | Field | Type | Default | Description |
 | ----- | ---- | ------- | ----------- |
-| `sectionHeadings` | `string[]` | `[]` | Heading titles whose unordered term/definition lists become flashcards. Case-insensitive, exact matching after trimming. |
+| `sectionHeadings` | `string[]` | `["Core concepts"]` | Heading titles whose unordered term/definition lists become flashcards. Case-insensitive, exact matching after trimming; a leading section number such as `7.` or `2.3` is ignored. `[]` disables automatic conversion. |
 
-For example, `"flashcards": { "sectionHeadings": ["Kernbegrippen"] }` converts lists such as `- **request:** Message sent by a client.` under that heading. The section ends at the next heading of the same or a higher level. Each item must have a term and definition separated by the first colon. Invalid lists, numbered lists and task lists remain unchanged. Omitting this option keeps automatic conversion disabled; explicit flashcard containers still work.
+For example, `"flashcards": { "sectionHeadings": ["Kernbegrippen"] }` converts lists such as `- **request:** Message sent by a client.` under that heading. The section ends at the next heading of the same or a higher level. Each item must have a term and definition separated by the first colon. Invalid lists, numbered lists and task lists remain unchanged. Headings such as `## 7. Kernbegrippen` match too, because leading section numbers are ignored. Omitting this option recognizes `Core concepts`; set `[]` to disable automatic conversion. Explicit flashcard containers always work.
 
 ### diagrams object
 

@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import {
   type FlashcardsConfig,
   isFlashcardList,
+  normalizeSectionHeading,
   resolveFlashcardsOptions,
 } from "./flashcards.ts";
 import remarkDirective from "remark-directive";
@@ -207,8 +208,8 @@ function inspectMarkdown(
   walk(tree);
 
   const headings = new Set(
-    resolveFlashcardsOptions(options.flashcards).sectionHeadings.map((title) =>
-      title.toLowerCase()
+    resolveFlashcardsOptions(options.flashcards).sectionHeadings.map(
+      normalizeSectionHeading,
     ),
   );
   function checkSections(parent: Node): void {
@@ -217,7 +218,7 @@ function inspectMarkdown(
       const heading = children[index];
       if (
         heading.type !== "heading" ||
-        !headings.has(nodeText(heading).trim().toLowerCase())
+        !headings.has(normalizeSectionHeading(nodeText(heading)))
       ) continue;
       let end = index + 1;
       while (

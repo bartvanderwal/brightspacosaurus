@@ -32,6 +32,7 @@ import {
 import { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { expandIncludes, parseIncludeTarget } from "./includes.ts";
+import { insertVersionTable } from "./teacher-page.ts";
 
 /** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
@@ -400,7 +401,10 @@ export async function convertMarkdown(
   }
 
   const sourceDir = dirname(sourcePath);
-  const includedMarkdown = resolveIncludes(markdown, sourceDir);
+  const expandedMarkdown = resolveIncludes(markdown, sourceDir);
+  const includedMarkdown = options.teacherPageVersions
+    ? insertVersionTable(expandedMarkdown, options.teacherPageVersions)
+    : expandedMarkdown;
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
   // 1 for content/ plus the page's subdirectories below baseDir.
   const htmlDepth = 1 +

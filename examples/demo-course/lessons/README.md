@@ -18,3 +18,7 @@ This course index is the single handbook for the demo course. The week folders a
 | [Lesson 2.1: Diagrams and SVG](week-2/lesson-1-diagrams-and-svg.md) | PlantUML, Mermaid and SVG assets |
 | [Lesson 2.2: Readers and PDF](week-2/lesson-2-readers-and-pdf.md) | Reader links and PDF output |
 | [Lesson 2.3: Package and version](week-2/lesson-3-package-and-version.md) | IMSCC, manifest and versioning |
+
+## For teachers
+
+[For teachers](for-teachers.md) shows the imported course and BSO versions. Hide it for students after import.
