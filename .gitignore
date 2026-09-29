@@ -12,3 +12,7 @@ node_modules/
 .docusaurus/
 demo-course-docs/test-results/
 demo-course-docs/playwright-report/
+
+# Personal Claude Code settings (plugins, statusline)
+.claude/settings.json
+.claude/settings.local.json
