@@ -13,6 +13,7 @@ Deno.test("demo preview resolves the same app from the checkout and course roots
     const configPath = await findConfigFile(cwd);
     if (!configPath) throw new Error(`Missing demo config in ${cwd}`);
     const config = resolveConfig(await loadConfig(configPath), {}, cwd);
+    assertEquals(config.flashcards, { sectionHeadings: ["Core concepts"] });
     assertEquals(config.sourcesDir, resolve(demoRoot, "lessons"));
     assertEquals(config.readersDir, resolve(demoRoot, "readers"));
     assertEquals(config.docusaurusDir, resolve("demo-course-docs"));
@@ -74,6 +75,8 @@ Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios
   );
   assertEquals((flashcards.match(/^:::flashcard$/gm) ?? []).length, 8);
   assertStringIncludes(flashcards, "term: Unit test");
+  assertStringIncludes(flashcards, "## Core concepts");
+  assertStringIncludes(flashcards, "- **request:**");
   assertStringIncludes(flashcards, "**unit test**");
   assertStringIncludes(flashcards, "_end-to-end test_");
 });

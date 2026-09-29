@@ -6,6 +6,9 @@
   "readersDir": "examples/demo-course/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "demo-course-docs",
+  "flashcards": {
+    "sectionHeadings": ["Core concepts"]
+  },
   "quiz": {
     "maxAttempts": 0,
     "shuffleAnswers": true

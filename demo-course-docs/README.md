@@ -14,7 +14,11 @@ server after changes to Docusaurus configuration or plugins.
 
 The app reads lessons, readers and linked partials from `examples/demo-course`.
 Flashcards share the remark transformation, CSS and browser behavior with the
-Brightspace export. Quiz previews share the parser, validation and quiz settings
+Brightspace export. The core-concepts lesson demonstrates both explicit cards and
+a plain `Core concepts` list, enabled by `flashcards.sectionHeadings` in the demo
+course config. `bso preview` forwards the selected config through
+`BSO_PREVIEW_FLASHCARDS_CONFIG`; direct builds fall back to the root course config.
+Quiz previews share the parser, validation and quiz settings
 with QTI export; `quiz.shuffleAnswers` controls randomization per attempt.
 The demo enables shuffle. The default for courses that omit this setting is false.
 

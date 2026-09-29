@@ -108,12 +108,12 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       continue;
     }
     const option = line.match(
-      /^(?:[-+*]\s+)?(?:\*\*|__|`)?([a-z])(?:\*\*|__|`)?[.)](?:\*\*|__|`)?\s+(.+)$/i,
+      /^(?:[-+*]\s+)?(?:\*\*|__|`)?([a-z])(?:\*\*|__|`)?[.)](?:\*\*|__|`)?(?:\s+(.*))?$/i,
     );
     if (option) {
       question.options.push({
         label: option[1].toUpperCase(),
-        text: option[2].trim(),
+        text: (option[2] ?? "").trim(),
       });
       continue;
     }
@@ -124,7 +124,7 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       issue(
         "quiz-option-syntax",
         index + 1,
-        "Unrecognized or empty option; use '- A. Answer text' or '**a)** Answer text'.",
+        "Unrecognized option; use '- A. Answer text' or '**a)** Answer text'.",
       );
     } else if (!question.options.length && !answerSeen) {
       question.text += `${question.text ? " " : ""}${line}`;
@@ -181,7 +181,14 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
     if (question.options.some((option) => !option.text.trim())) {
       issue("quiz-option-text", "Answer option text cannot be empty.");
     }
-    if (!question.correctAnswer || !labels.includes(question.correctAnswer)) {
+    // A malformed key already has a precise diagnostic at its declaration.
+    const malformedAnswer = issues.some((issue) =>
+      issue.rule === "quiz-answer-syntax" && issue.question === question.number
+    );
+    if (
+      !malformedAnswer &&
+      (!question.correctAnswer || !labels.includes(question.correctAnswer))
+    ) {
       issue(
         "quiz-answer",
         "The correct answer is missing or does not match an option. Use 'Correct answer: A' or 'Antwoord: A' with an existing option letter.",

@@ -200,6 +200,19 @@ export async function runPrepare(
     // Phase 1: Convert lesson Markdown to HTML
     // Keep quiz-only courses packable even when no lesson creates this directory.
     await Deno.mkdir(contentOutputDir, { recursive: true });
+    const teacherPage = config.teacherPage;
+    if (
+      teacherPage?.explicit &&
+      !scanResult.markdownFiles.includes(teacherPage.path)
+    ) {
+      const err = new Error(
+        `Teacher page not found: ${
+          relative(repoRoot, teacherPage.path)
+        }. Create it or correct 'teacherPage' in brightspacosaurus.config.json.`,
+      );
+      (err as Error & { exitCode: number }).exitCode = 3;
+      throw err;
+    }
     for (const mdFile of scanResult.markdownFiles) {
       const result = await convertMarkdown({
         sourcePath: mdFile,
@@ -210,15 +223,23 @@ export async function runPrepare(
         packageVersion,
         customCssPath: config.customCss ?? undefined,
         diagrams: config.diagrams,
+        flashcards: config.flashcards,
+        teacherPageVersions: mdFile === teacherPage?.path
+          ? {
+            courseName: config.courseName,
+            courseVersion: config.version,
+            bsoVersion: packageVersion,
+          }
+          : undefined,
       });
       const relPath = relative(contentOutputDir, result.outputPath);
       console.log(`  ✓ ${relPath}`);
     }
 
-    // Phase 1b: Convert README.md and other standalone HTML pages from the sourcesDir parent to HTML
+    // Phase 1b: Convert README.md from the sourcesDir parent to HTML
     // (if it exists, place it under the first week directory for manifest grouping)
     const sourcesParent = dirname(config.sourcesDir);
-    const parentHtmlFiles = ["README.md", "voor-docenten.md"];
+    const parentHtmlFiles = ["README.md"];
     for (const parentFile of parentHtmlFiles) {
       const parentFilePath = join(sourcesParent, parentFile);
       try {
@@ -234,6 +255,7 @@ export async function runPrepare(
           packageVersion,
           customCssPath: config.customCss ?? undefined,
           diagrams: config.diagrams,
+          flashcards: config.flashcards,
         });
         const relPath = relative(contentOutputDir, result.outputPath);
         console.log(`  ✓ ${relPath} (${parentFile})`);
@@ -661,7 +683,16 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
 
   const cmd = new Deno.Command("npm", {
     args: ["start"],
-    env: { BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz) },
+    env: {
+      BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
+      BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
+      BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({
+        path: config.teacherPage?.path ?? null,
+        courseName: config.courseName,
+        courseVersion: config.version,
+        bsoVersion: await loadPackageVersion(),
+      }),
+    },
     cwd: config.docusaurusDir,
     stdout: "inherit",
     stderr: "inherit",

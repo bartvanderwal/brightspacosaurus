@@ -1,8 +1,14 @@
 const path = require("node:path");
 const fs = require("node:fs");
-const { remarkFlashcards } = require("../src/flashcards.ts");
+const { remarkFlashcards, resolveFlashcardsOptions } = require(
+  "../src/flashcards.ts",
+);
 const { remarkDiagrams } = require("../src/diagram-renderer.ts");
 const { expandIncludes } = require("../src/includes.ts");
+const {
+  insertVersionTable,
+  resolveTeacherPage,
+} = require("../src/teacher-page.ts");
 const {
   sortManifestEntriesForNavigation,
 } = require("../src/manifest-builder.ts");
@@ -16,7 +22,26 @@ const quizOptions = resolveQuizOptions(
     ? JSON.parse(process.env.BSO_PREVIEW_QUIZ_CONFIG)
     : course.quiz,
 );
+const flashcardOptions = resolveFlashcardsOptions(
+  process.env.BSO_PREVIEW_FLASHCARDS_CONFIG
+    ? JSON.parse(process.env.BSO_PREVIEW_FLASHCARDS_CONFIG)
+    : course.flashcards,
+);
 const diagramOptions = resolveDiagramsConfig(course);
+// `bso preview` passes the selected course's teacher page and versions.
+const teacherPage = process.env.BSO_PREVIEW_TEACHER_PAGE
+  ? JSON.parse(process.env.BSO_PREVIEW_TEACHER_PAGE)
+  : {
+    path: path.resolve(
+      __dirname,
+      "..",
+      course.sourcesDir,
+      resolveTeacherPage(course.teacherPage),
+    ),
+    courseName: course.courseName,
+    courseVersion: course.version,
+    bsoVersion: require("../deno.json").version,
+  };
 const includeHost = {
   resolve: path.join,
   dirname: path.dirname,
@@ -58,8 +83,16 @@ module.exports = {
   onBrokenLinks: "throw",
   markdown: {
     format: "detect",
-    preprocessor: ({ filePath, fileContent }) =>
-      expandIncludes(fileContent, path.dirname(filePath), includeHost),
+    preprocessor: ({ filePath, fileContent }) => {
+      const markdown = expandIncludes(
+        fileContent,
+        path.dirname(filePath),
+        includeHost,
+      );
+      return path.resolve(filePath) === teacherPage.path
+        ? insertVersionTable(markdown, teacherPage)
+        : markdown;
+    },
   },
   clientModules: [
     require.resolve("./src/flashcards-client.js"),
@@ -70,13 +103,18 @@ module.exports = {
       path: "../examples/demo-course",
       include: ["lessons/**/*.md", "readers/**/*.md"],
       routeBasePath: "/",
-      sidebarItemsGenerator: async ({ defaultSidebarItemsGenerator, ...args }) =>
+      sidebarItemsGenerator: async (
+        { defaultSidebarItemsGenerator, ...args },
+      ) =>
         sortLikeBrightspace(
           await defaultSidebarItemsGenerator(args),
           new Map(args.docs.map((doc) => [doc.id, doc.title])),
         ),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
-      remarkPlugins: [remarkFlashcards, [remarkDiagrams, diagramOptions]],
+      remarkPlugins: [[remarkFlashcards, flashcardOptions], [
+        remarkDiagrams,
+        diagramOptions,
+      ]],
     },
     blog: false,
     theme: { customCss: require.resolve("./src/css/custom.css") },

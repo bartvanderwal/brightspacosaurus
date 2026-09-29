@@ -1,3 +1,6 @@
+import type { FlashcardsConfig } from "./flashcards.ts";
+import type { TeacherPageVersions } from "./teacher-page.ts";
+
 /**
  * TypeScript-interfaces voor Brightspacosaurus.
  * Requirements: 3.1
@@ -45,6 +48,10 @@ export interface ConvertOptions {
   baseDir?: string;
   /** Definitieve diagram-instellingen voor HTML-diagramrendering. */
   diagrams?: ResolvedDiagramConfig;
+  /** Automatic flashcards for configured section headings. */
+  flashcards?: FlashcardsConfig;
+  /** Set for the teacher page only: versions filled in at `{@bso-versions}`. */
+  teacherPageVersions?: TeacherPageVersions;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */
@@ -136,6 +143,12 @@ export interface BsoConfig {
   quiz?: QuizConfig;
   /** Configuratie voor diagramrendering (PlantUML/Mermaid via Kroki). Optioneel. */
   diagrams?: DiagramsConfig;
+  /** Automatic flashcards for configured section headings. */
+  flashcards?: FlashcardsConfig;
+  /** Teacher page relative to sourcesDir, filled with versions. Default: "for-teachers.md". */
+  teacherPage?: string;
+  /** Optional lint input selection. */
+  lint?: LintConfig;
 }
 
 /** Configuratie voor gegenereerde Brightspace quizzen/toetsen. */
@@ -198,6 +211,12 @@ export interface ResolvedConfig {
   quiz: ResolvedQuizConfig;
   /** Definitieve diagram-instellingen (altijd ingevuld met defaults). */
   diagrams: ResolvedDiagramConfig;
+  /** Automatic flashcards; absent or empty disables heading recognition. */
+  flashcards?: FlashcardsConfig;
+  /** Teacher page that BSO fills with versions. Absent = no teacher page. */
+  teacherPage?: ResolvedTeacherPageConfig;
+  /** Optional lint input selection, with absolute directory paths. */
+  lint?: LintConfig;
   /** Absoluut pad naar Repo_Root. */
   repoRoot: string;
 }
@@ -235,6 +254,14 @@ export interface ResolvedTeacherManualConfig {
   outputDir: string;
 }
 
+/** Resolved teacher page. */
+export interface ResolvedTeacherPageConfig {
+  /** Absolute path to the teacher page Markdown file. */
+  path: string;
+  /** True when set in the configuration; a missing explicit page is an error. */
+  explicit: boolean;
+}
+
 /** CLI-argumenten die als override kunnen dienen boven Config_File-waarden. */
 export interface CliOverrides {
   /** Override voor sourcesDir (via `--sources`). */
@@ -245,4 +272,10 @@ export interface CliOverrides {
   readersOnly?: boolean;
   /** Expliciet pad naar configuratiebestand (via `--config`). */
   config?: string;
+}
+
+/** Input selection for offline course linting. */
+export interface LintConfig {
+  /** Directories scanned recursively instead of sourcesDir/readersDir. */
+  includeDirs?: string[];
 }
