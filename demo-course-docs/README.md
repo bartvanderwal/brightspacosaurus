@@ -8,6 +8,7 @@ deno task demo:preview
 ```
 
 Or run `bso preview` using an installation with `--allow-run=npm` permission.
+
 Open http://localhost:3000 and stop the server with Ctrl+C. Restart the preview
 server after changes to Docusaurus configuration or plugins.
 

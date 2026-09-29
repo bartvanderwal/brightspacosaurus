@@ -8,6 +8,23 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.11.1 - 2026-09-29
+
+### Added
+
+- Color syntax highlighting for fenced code blocks in the Brightspace export, at build time via `rehype-prism-plus` (same Prism token classes as the Docusaurus preview, no runtime JavaScript). Unknown languages stay plain code (#28).
+
+### Fixed
+
+- Fix reader PDF links from lesson pages (`readers/` was duplicated and one `../` level was missing).
+- Replace `$IMS-CC-FILEBASE$` lesson links, which Brightspace resolved to a 404, with relative links. They open inside the topic iframe; the Brightspace menu does not follow yet (#8).
+- Never pack the `docenten/` build folder into the `.imscc`; instructor PDFs are for internal use only.
+- Generate the user manual PDF with its cover logo (pandoc now runs from `docs/`).
+
+### Changed
+
+- Take a module's Brightspace menu title from the H1 of its `index.md`, as a Docusaurus category index does; without an index the folder name remains.
+
 ## 0.11.0 - 2026-09-25
 
 ### Added

@@ -6,8 +6,9 @@ const expectedShuffle =
 
 test("sidebar places each quiz directly after its lesson, like the Brightspace menu", async ({ page }) => {
   await page.goto(quizPath);
-  const week1 = page.locator(".menu__list-item", { hasText: "week-1" }).last()
-    .locator("ul a.menu__link");
+  const week1 = page.locator(".menu__list-item", {
+    hasText: "Week 1: Authoring and links",
+  }).last().locator("ul a.menu__link");
   await expect(week1).toHaveText([
     "Lesson 1.1: FizzBuzz",
     "Quiz 1.1: FizzBuzz",
@@ -18,6 +19,9 @@ test("sidebar places each quiz directly after its lesson, like the Brightspace m
     "Lesson 1.4: Core Concepts Flashcards",
   ]);
   await expect(page.getByRole("button", { name: "partials" })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Week 2: Package features", exact: true }),
+  ).toBeVisible();
 });
 
 test("quiz preview preserves scoring identities when shuffling and keeps order stable within an attempt", async ({ page }) => {
@@ -74,7 +78,10 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
 
 test("quiz preview initializes after client navigation and supports keyboard answers", async ({ page }) => {
   await page.goto("/lessons/");
-  await page.getByRole("button", { name: "week-1", exact: true }).click();
+  await page.getByRole("link", {
+    name: "Week 1: Authoring and links",
+    exact: true,
+  }).first().click();
   await page.getByRole("link", { name: "Quiz 1.1: FizzBuzz", exact: true })
     .click();
   const quiz = page.locator(".bso-quiz");

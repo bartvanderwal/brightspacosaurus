@@ -347,6 +347,12 @@ Page titles for the manifest are extracted from the generated HTML (the `<h1>`).
 
 `diagram-validation.ts` detects offline authoring issues before a Kroki request is made: unsupported diagram declarations, unknown fence options, non-local `src=`, empty diagram blocks, and inconsistent option values. Rendering failures are wrapped in `DiagramError` with category `kroki-unreachable`, `invalid-source`, or `invalid-parameter`. The resolved `diagrams.failOnError` setting decides whether that error fails the build or becomes a warning plus original-code fallback.
 
+### Syntax highlighting
+
+The HTML export highlights fenced code blocks at build time with `rehype-prism-plus` (issue #28). It emits the same Prism token classes (`token keyword`, `token comment`, ...) as the Docusaurus preview, so visual parity only needs CSS and Brightspace pages need no runtime JavaScript. Languages Prism does not know stay plain code (`ignoreMissing`).
+
+This relies on Docusaurus currently using Prism; BSO imports nothing from Docusaurus. If Docusaurus switches highlighter (for example to Shiki), re-evaluate whether BSO follows for parity or deliberately stays on Prism. The token colors in `assets/brightspacosaurus.css` are scoped to `.brightspace-content` and follow the hues of the Docusaurus GitHub theme, darkened for readability on the grey code background.
+
 ---
 
 ## 8. Design Decisions

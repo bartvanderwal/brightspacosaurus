@@ -16,7 +16,7 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 - ✅ **Native quizzes** — Markdown quiz files (`quiz-` prefix) are converted to QTI 1.2 and imported as functional Brightspace quizzes, not static pages.
 - 📊 **Diagrams-as-code** — PlantUML and Mermaid fenced code blocks render automatically to accessible images via Kroki, with source and descriptions kept alongside for accessibility.
 - 📄 **Reader PDFs** — Markdown readers (`reader-` prefix) are converted to downloadable PDFs via pandoc.
-- 💻 **Code blocks with a copy button** — fenced code blocks (any language) get a one-click copy-to-clipboard button in the generated Brightspace pages. Full-color syntax highlighting currently only renders in the Docusaurus preview (via Prism); bringing it to the Brightspace export is tracked as a follow-up (see the roadmap).
+- 💻 **Code blocks with a copy button** — fenced code blocks (any language) get a one-click copy-to-clipboard button in the generated Brightspace pages, and color syntax highlighting at build time (Prism, the same token classes as the Docusaurus preview; no runtime JavaScript needed).
 
 📖 See the user manual (`docs/user-manual.md`) for the data model and Brightspace import process, and the Software Guidebook (`docs/software-guidebook.md`) for the architecture and design decisions.
 
@@ -87,7 +87,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
 
 2. **Author your course material as Markdown** in the configured `sourcesDir`. Brightspacosaurus classifies files by name:
 
-   - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks (any language, with a copy button) are all supported. Color syntax highlighting currently renders in the Docusaurus preview only; see the roadmap for bringing it to the Brightspace export.
+   - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks (any language, with a copy button and syntax highlighting for every language Prism supports) are all supported.
    - **Quizzes** — files with the `quiz-` prefix are converted to QTI 1.2 and imported into the Brightspace Quizzes tool.
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
