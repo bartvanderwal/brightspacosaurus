@@ -374,6 +374,22 @@ use, and browser tests exercise both the generated export and actual Docusaurus
 build, including keyboard input and client navigation. Nested directive fences
 must be longer outside than inside (`::::flashcards` around `:::flashcard`).
 
+The same transformer also accepts unordered `term: definition` lists, either in
+an explicit `flashcards` container or under a heading listed in
+`flashcards.sectionHeadings`. `resolveFlashcardsOptions` validates the shared
+options and defaults to no automatic headings. The CLI passes resolved options
+to both HTML conversions and to Docusaurus via `BSO_PREVIEW_FLASHCARDS_CONFIG`;
+the demo reads its course config when invoked directly. Custom preview apps must
+pass these options to `remarkFlashcards` as well.
+
+Heading scope follows Markdown depth until the next same/higher-level heading.
+A list converts atomically only if every item has a term and definition; ordered
+and task lists stay unchanged. Splitting the inline syntax tree at the first
+visible colon preserves definition formatting and subsequent blocks, while terms
+are rendered as escaped text. All syntaxes produce the existing card classes and
+use the existing browser initializer. Property tests exercise deterministic
+conversion, and browser tests compare both demo sets in preview and export.
+
 Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`;
 `src/quiz-config.ts` supplies shared configuration validation/defaults. The QTI
 converter validates again before serialization, refusing ungradable items.
@@ -392,9 +408,25 @@ linting. It reuses the quiz validator, diagram checks and include syntax parser,
 checks flashcard structure in the Markdown AST and follows local includes with
 cycle detection. Diagnostics carry severity, rule, source file and one-based
 line/column. Warnings do not fail the command; authoring errors do. This is the
-first implementation slice of #11; configurable rules and didactic standards are
-not implemented yet. Include expansion and rendered diagrams in the demo preview
-remain outstanding parity gaps.
+first implementation slice of #11; per-rule enable/disable settings and broader
+didactic standards remain follow-ups. `lint.includeDirs` selects recursive scan
+roots in place of the configured source/reader directories; a `--sources` override
+wins. Includes remain transitive dependencies and diagnostics are deduplicated
+by file and sorted deterministically.
+
+`lintMarkdown` accepts a third `LintOptions` argument with `flashcards` settings.
+Configured headings must contain only complete term/definition bullet lists;
+empty sections, prose, subheadings, code and invalid lists produce one
+`flashcard-section-content` warning per affected section. List validation is
+shared with the renderer. Rendering preserves content even when lint warns.
+
+The separate `examples/demo-course-with-all-lint-issues` course contains 27
+minimal lessons and an expected-rule manifest. Integration tests require exactly
+one diagnostic per lesson and unique rules across all lessons; the regular demo
+must emit none. Invalid directive nesting and malformed quiz answer keys report
+the primary cause without a second derived diagnostic. Empty quiz options remain
+in the parsed model long enough to produce the specific `quiz-option-text` error;
+export still rejects them.
 
 The shared implementation contracts belong with the relevant components and assets. The contribution rules in [CONTRIBUTING.md](../CONTRIBUTING.md) require new features to document and test both targets where applicable.
 

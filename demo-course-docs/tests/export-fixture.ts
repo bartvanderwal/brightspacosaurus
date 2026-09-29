@@ -8,5 +8,8 @@ const result = await convertMarkdown({
   ),
   outputDir: resolve("build/export"),
   repoRoot: resolve(".."),
+  flashcards:
+    JSON.parse(await Deno.readTextFile("../brightspacosaurus.config.json"))
+      .flashcards,
 });
 await Deno.copyFile(result.outputPath, "build/flashcards-export.html");

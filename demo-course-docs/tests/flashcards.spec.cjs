@@ -13,11 +13,17 @@ for (
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(url);
-    const cards = page.locator(".bso-flashcards .bso-flashcard");
+    const cards = page.locator(".bso-flashcards").first().locator(
+      ".bso-flashcard",
+    );
     const definitions = cards.locator(".bso-flashcard-definition");
     const buttons = cards.locator(".bso-flashcard-toggle");
     await expect(cards).toHaveCount(8);
-    await expect(page.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
+    await expect(
+      page.locator(".bso-flashcards").first().locator(
+        ".bso-flashcard-definition[hidden]",
+      ),
+    ).toHaveCount(
       8,
     );
     await expect(cards.first()).toHaveCSS("border-radius", "8px");
@@ -33,14 +39,24 @@ for (
     await expect(definitions.last()).toBeHidden();
     await page.keyboard.press("Space");
     await expect(definitions.last()).toBeVisible();
-    const globalToggle = page.locator(".bso-flashcard-global-toggle");
+    const globalToggle = page.locator(".bso-flashcards").first().locator(
+      ".bso-flashcard-global-toggle",
+    );
     await globalToggle.click();
-    await expect(page.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
+    await expect(
+      page.locator(".bso-flashcards").first().locator(
+        ".bso-flashcard-definition[hidden]",
+      ),
+    ).toHaveCount(
       8,
     );
     await expect(globalToggle).toHaveText("Show definitions");
     await globalToggle.click();
-    await expect(page.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
+    await expect(
+      page.locator(".bso-flashcards").first().locator(
+        ".bso-flashcard-definition[hidden]",
+      ),
+    ).toHaveCount(
       0,
     );
     await expect(globalToggle).toHaveText("Hide definitions");
@@ -51,10 +67,16 @@ for (
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:3101${url}`);
-    const definitions = page.locator(".bso-flashcard-definition");
+    const definitions = page.locator(".bso-flashcards").first().locator(
+      ".bso-flashcard-definition",
+    );
     await expect(definitions).toHaveCount(8);
     for (let i = 0; i < 8; i++) await expect(definitions.nth(i)).toBeVisible();
-    await expect(page.locator(".bso-flashcard-global-toggle")).toHaveCount(0);
+    await expect(
+      page.locator(".bso-flashcards").first().locator(
+        ".bso-flashcard-global-toggle",
+      ),
+    ).toHaveCount(0);
     await context.close();
   });
 }
@@ -68,28 +90,48 @@ test("Docusaurus initializes after client navigation and does not duplicate cont
     name: "Lesson 1.4: Core concepts flashcards",
     exact: true,
   }).click();
-  await expect(page.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
+  await expect(
+    page.locator(".bso-flashcards").first().locator(
+      ".bso-flashcard-definition[hidden]",
+    ),
+  ).toHaveCount(
     8,
   );
   expect(await page.evaluate(() => globalThis.flashcardNavigationMarker)).toBe(
     "same document",
   );
-  await page.locator(".bso-flashcard-toggle").first().click();
+  await page.locator(".bso-flashcards").first().locator(".bso-flashcard-toggle")
+    .first().click();
   await page.evaluate(() => location.hash = "practice-checklist");
-  await expect(page.locator(".bso-flashcard-toolbar")).toHaveCount(1);
-  await expect(page.locator(".bso-flashcard-definition").first()).toBeVisible();
+  await expect(
+    page.locator(".bso-flashcards").first().locator(".bso-flashcard-toolbar"),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".bso-flashcards").first().locator(".bso-flashcard-definition")
+      .first(),
+  ).toBeVisible();
   await page.goBack();
   await page.goBack();
   await page.getByRole("link", {
     name: "Lesson 1.4: Core concepts flashcards",
     exact: true,
   }).click();
-  await expect(page.locator(".bso-flashcard-toolbar")).toHaveCount(1);
-  await expect(page.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
+  await expect(
+    page.locator(".bso-flashcards").first().locator(".bso-flashcard-toolbar"),
+  ).toHaveCount(1);
+  await expect(
+    page.locator(".bso-flashcards").first().locator(
+      ".bso-flashcard-definition[hidden]",
+    ),
+  ).toHaveCount(
     8,
   );
-  await page.locator(".bso-flashcard-toggle").last().click();
-  await expect(page.locator(".bso-flashcard-definition").last()).toBeVisible();
+  await page.locator(".bso-flashcards").first().locator(".bso-flashcard-toggle")
+    .last().click();
+  await expect(
+    page.locator(".bso-flashcards").first().locator(".bso-flashcard-definition")
+      .last(),
+  ).toBeVisible();
 });
 
 test("preview and export contain the same terms and rich definitions", async ({ page }) => {
@@ -104,3 +146,49 @@ test("preview and export contain the same terms and rich definitions", async ({ 
   };
   expect(await snapshot(preview)).toEqual(await snapshot(exported));
 });
+
+for (
+  const [target, url] of [["Docusaurus", preview], [
+    "Brightspace HTML",
+    exported,
+  ]]
+) {
+  test(`${target}: heading-based glossary supports reveal and keeps surrounding lists`, async ({ page }) => {
+    await page.goto(url);
+    const set = page.locator(".bso-flashcards").nth(1);
+    await expect(set.locator(".bso-flashcard")).toHaveCount(8);
+    await expect(set.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
+      8,
+    );
+    await expect(set.locator(".bso-flashcard-term").first()).toHaveText(
+      "request",
+    );
+    const first = set.locator(".bso-flashcard-toggle").first();
+    await first.focus();
+    await page.keyboard.press("Enter");
+    await expect(set.locator(".bso-flashcard-definition").first())
+      .toBeVisible();
+    await expect(
+      set.locator(".bso-flashcard-definition").first().locator("strong"),
+    ).toHaveText("client");
+    await set.locator(".bso-flashcard-global-toggle").click();
+    await expect(set.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
+      0,
+    );
+    await expect(
+      page.locator("li").filter({ hasText: "Check: this list must remain" }),
+    ).toHaveCount(1);
+  });
+
+  test(`${target}: heading-based definitions remain visible without JavaScript`, async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto(`http://127.0.0.1:3101${url}`);
+    const definitions = page.locator(".bso-flashcards").nth(1).locator(
+      ".bso-flashcard-definition",
+    );
+    await expect(definitions).toHaveCount(8);
+    for (let i = 0; i < 8; i++) await expect(definitions.nth(i)).toBeVisible();
+    await context.close();
+  });
+}

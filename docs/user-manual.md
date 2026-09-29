@@ -1,14 +1,6 @@
----
-author:
-  - Bart van der Wal
-subtitle: "Publication pipeline for course material from Git to Brightspace"
-date: \today
-lang: en
----
-
-\begin{titlepage} \centering \vspace*{3cm} \includegraphics[width=0.4\textwidth]{images/bsosaurus-logo.png}\\[2em] {\Huge\bfseries Brightspacosaurus User Manual\par} \vspace{1em} {\Large Publication pipeline for course material\\from Git to Brightspace\par} \vfill {\large Bart van der Wal\\[0.5em]\today\par} \end{titlepage}
-
 # Brightspacosaurus User Manual
+
+Publication pipeline for course material from Git to Brightspace
 
 _Author(s)_: Bart van der Wal _Version_: 1.0
 
@@ -173,7 +165,7 @@ The older bare-path form is deliberately invalid:
 {@include: ../partials/learning-goals.md}
 ```
 
-It produces an error instead of silently accepting content that is not clickable in the source. HTML links such as `<a href="...">...</a>` are not accepted as include syntax either; use the Markdown-link form. A future `bso lint` command will report invalid include directives before a build is started.
+It produces an error instead of silently accepting content that is not clickable in the source. HTML links such as `<a href="...">...</a>` are not accepted as include syntax either; use the Markdown-link form. `bso lint` reports invalid include directives before a build is started.
 
 Includes are resolved relative to the Markdown file that contains them. The same directive can therefore be used in lesson pages, reader Markdown and other included Markdown files, provided the relative path is correct.
 
@@ -201,11 +193,66 @@ A **unit test** checks one small part of a system _in isolation_.
 ::::
 ```
 
+For lightweight cards, use a normal bullet list inside a single container (no inner directives):
+
+```markdown
+:::flashcards
+
+- **request:** A client asks a server for data or an action.
+- **response:** The server sends the result back, for example `200 OK`.
+
+:::
+```
+
+To turn existing glossary sections into flashcards automatically, configure their heading titles in `brightspacosaurus.config.json`:
+
+```json
+{
+  "flashcards": {
+    "sectionHeadings": ["Kernbegrippen", "Kern begrippen", "kern concepten"]
+  }
+}
+```
+
+This is an optional fragment to add to your existing course configuration. The default is `[]`, which disables automatic heading recognition. With that setting, this plain Markdown becomes a flashcard set:
+
+```markdown
+## Kernbegrippen
+
+- **request:** bericht waarmee een client een server om een handeling of gegevens vraagt.
+- **response:** bericht waarmee de server het resultaat van een request terugstuurt.
+- **statuscode:** HTTP-code die het resultaat van een request aanduidt, bijvoorbeeld `200`.
+```
+
+Heading titles match exactly after trimming and ignoring letter case; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists. Place introductory prose before the heading or in a separate section.
+
+Each unordered list is converted only when every item has a non-empty term before the first colon (`:`) and a non-empty definition after it. Plain, **bold** and `inline-code` terms work, with the colon inside or outside their formatting. Definitions retain Markdown formatting, links, subsequent paragraphs and nested lists. Additional colons belong to the definition. Numbered lists, task lists and lists with incomplete items remain ordinary Markdown in full; other sections are unaffected.
+
+The demo's “Core Concepts Flashcards” lesson includes both directive cards and an English `Core concepts` list, using `"sectionHeadings": ["Core concepts"]`. Both the Brightspace HTML export and the configured Docusaurus preview use the same transformation. For your own Docusaurus app, pass the same `flashcards` options to `remarkFlashcards`; see the [demo configuration](../demo-course-docs/docusaurus.config.js). `bso preview` supplies the selected course's options through `BSO_PREVIEW_FLASHCARDS_CONFIG`; direct Docusaurus builds must read them from the course configuration.
+
 BSO renders the definitions as normal HTML first. JavaScript progressively adds global and per-card reveal controls, while keyboard focus and `aria-expanded` communicate state. If JavaScript is unavailable or storage is blocked, the definition remains usable. Flashcards are practice support, not a Brightspace quiz or formal assessment; use the QTI quiz format for graded questions.
 
 The current implementation does not persist a student preference across pages until Brightspace storage behavior has been validated in a real course. The fallback is intentionally safe: no storage is required for the cards to work.
 
 For Docusaurus preview parity and implementation details, see the [Software Guidebook](software-guidebook.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). The demo uses the same `remarkFlashcards` transformation, CSS and `brightspacosaurus-flashcards.js` initializer as Brightspace. Docusaurus invokes the initializer after hydration and every client-side navigation.
+
+### 4.5 Linting course material
+
+`bso lint` checks flashcards, includes, diagrams and quiz authoring without building or contacting external services. It reports `file:line:column`, severity and rule. Errors return exit code 1; warnings alone return 0.
+
+By default, lint scans `sourcesDir`, `readersDir` and their linked Markdown includes. To select only specific folders or subfolders, add this fragment to your configuration:
+
+```json
+{
+  "lint": {
+    "includeDirs": ["lessons/week-1", "lessons/week-2"]
+  }
+}
+```
+
+These paths are relative to the current working directory and replace the default source/reader inputs. They must remain inside the project root. `bso lint --sources lessons/week-1` overrides the selection. Linked includes are always checked as dependencies.
+
+For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (27 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-with-all-lint-issues/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout; an installed CLI pinned to 0.11.1 does not yet know the new configuration fields.
 
 ---
 

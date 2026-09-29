@@ -1,6 +1,8 @@
 const path = require("node:path");
 const fs = require("node:fs");
-const { remarkFlashcards } = require("../src/flashcards.ts");
+const { remarkFlashcards, resolveFlashcardsOptions } = require(
+  "../src/flashcards.ts",
+);
 const { remarkDiagrams } = require("../src/diagram-renderer.ts");
 const { expandIncludes } = require("../src/includes.ts");
 const {
@@ -15,6 +17,11 @@ const quizOptions = resolveQuizOptions(
   process.env.BSO_PREVIEW_QUIZ_CONFIG
     ? JSON.parse(process.env.BSO_PREVIEW_QUIZ_CONFIG)
     : course.quiz,
+);
+const flashcardOptions = resolveFlashcardsOptions(
+  process.env.BSO_PREVIEW_FLASHCARDS_CONFIG
+    ? JSON.parse(process.env.BSO_PREVIEW_FLASHCARDS_CONFIG)
+    : course.flashcards,
 );
 const diagramOptions = resolveDiagramsConfig(course);
 const includeHost = {
@@ -70,13 +77,18 @@ module.exports = {
       path: "../examples/demo-course",
       include: ["lessons/**/*.md", "readers/**/*.md"],
       routeBasePath: "/",
-      sidebarItemsGenerator: async ({ defaultSidebarItemsGenerator, ...args }) =>
+      sidebarItemsGenerator: async (
+        { defaultSidebarItemsGenerator, ...args },
+      ) =>
         sortLikeBrightspace(
           await defaultSidebarItemsGenerator(args),
           new Map(args.docs.map((doc) => [doc.id, doc.title])),
         ),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
-      remarkPlugins: [remarkFlashcards, [remarkDiagrams, diagramOptions]],
+      remarkPlugins: [[remarkFlashcards, flashcardOptions], [
+        remarkDiagrams,
+        diagramOptions,
+      ]],
     },
     blog: false,
     theme: { customCss: require.resolve("./src/css/custom.css") },

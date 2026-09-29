@@ -210,6 +210,7 @@ export async function runPrepare(
         packageVersion,
         customCssPath: config.customCss ?? undefined,
         diagrams: config.diagrams,
+        flashcards: config.flashcards,
       });
       const relPath = relative(contentOutputDir, result.outputPath);
       console.log(`  ✓ ${relPath}`);
@@ -234,6 +235,7 @@ export async function runPrepare(
           packageVersion,
           customCssPath: config.customCss ?? undefined,
           diagrams: config.diagrams,
+          flashcards: config.flashcards,
         });
         const relPath = relative(contentOutputDir, result.outputPath);
         console.log(`  ✓ ${relPath} (${parentFile})`);
@@ -661,7 +663,10 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
 
   const cmd = new Deno.Command("npm", {
     args: ["start"],
-    env: { BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz) },
+    env: {
+      BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
+      BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
+    },
     cwd: config.docusaurusDir,
     stdout: "inherit",
     stderr: "inherit",

@@ -92,7 +92,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
-  - **Flashcards** — use an outer `::::flashcards` container with inner `:::flashcard` containers and compact `term:` cards for retrieval practice; definitions support normal Markdown and remain readable without JavaScript.
+  - **Flashcards** — use `::::flashcards` with inner `:::flashcard` cards, lightweight `- **term:** definition` lists inside `:::flashcards`, or automatically convert glossary sections via `flashcards.sectionHeadings: ["Kernbegrippen"]`. Definitions support normal Markdown and remain readable without JavaScript. See the [flashcard guide](docs/user-manual.md#44-core-concept-flashcards).
 
   Includes use clickable Markdown-link syntax so the same source works in BSO, an editor and a Docusaurus preview:
 
@@ -100,9 +100,9 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
   {@include: [Learning goals](../partials/learning-goals.md)}
   ```
 
-  A bare path or embedded HTML link is invalid and will be reported by the future `bso lint` command.
+  A bare path or embedded HTML link is invalid and is reported by `bso lint`.
 
-   See the user manual (`docs/user-manual.md`) for the exact file conventions and the quiz format. (A `bso lint` command to check your material against a house style is planned — see the roadmap.)
+   See the user manual (`docs/user-manual.md`) for the exact file conventions and the quiz format. Run `bso lint` to check BSO-specific authoring rules before exporting.
 
 3. **Preview locally (optional)** with Docusaurus, so you can review content, links, code blocks and diagrams before importing into Brightspace:
 
@@ -163,6 +163,14 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
 answer order in the exported QTI and in the demo's interactive quiz preview.
 Builds keep stable option IDs and ordering; randomization happens per attempt.
 
+### flashcards object
+
+| Field | Type | Default | Description |
+| ----- | ---- | ------- | ----------- |
+| `sectionHeadings` | `string[]` | `[]` | Heading titles whose unordered term/definition lists become flashcards. Case-insensitive, exact matching after trimming. |
+
+For example, `"flashcards": { "sectionHeadings": ["Kernbegrippen"] }` converts lists such as `- **request:** Message sent by a client.` under that heading. The section ends at the next heading of the same or a higher level. Each item must have a term and definition separated by the first colon. Invalid lists, numbered lists and task lists remain unchanged. Omitting this option keeps automatic conversion disabled; explicit flashcard containers still work.
+
 ### diagrams object
 
 | Field         | Type                                                                         | Default              | Description                                                                                       |
@@ -202,6 +210,9 @@ BSO's Brightspace output does not rely on custom JavaScript: source and generate
   "outputDir": "build/brightspace",
   "customCss": "assets/custom.css",
   "docusaurusDir": "scripts/docusaurus",
+  "flashcards": {
+    "sectionHeadings": ["Kernbegrippen", "Core concepts"]
+  },
   "diagrams": {
     "krokiUrl": "https://kroki.io",
     "output": "img-html-base64",
@@ -319,7 +330,37 @@ linked include files without rendering, network requests or writing build output
 Diagnostics go to stderr as `file:line:column: error|warning rule: message`; the
 summary goes to stdout. Exit code `1` means authoring errors; warnings alone return
 `0`. Invalid configuration or inaccessible source directories also fail the command.
-Rule configuration and didactic lesson standards remain follow-ups under #11.
+For configured `flashcards.sectionHeadings`, lint warns unless the section contains
+only complete unordered `term: definition` lists. Put introductions before the
+heading or in another section. Conversion still preserves invalid content.
+
+Limit linting to selected directories with this optional config fragment:
+
+```json
+{
+  "lint": {
+    "includeDirs": ["lessons/week-1", "lessons/week-2"]
+  }
+}
+```
+
+The directories are scanned recursively, replacing the usual `sourcesDir` and
+`readersDir` inputs. Paths are relative to the working directory; each must be
+inside the project root. `--sources` overrides this selection with one directory.
+Linked includes are still checked as dependencies even outside the selected folders.
+
+Two local regression commands separate clean content from deliberate errors:
+
+```sh
+deno task lint:demo    # 0 errors, 0 warnings (exit 0)
+deno task lint:issues  # 24 errors, 3 warnings (expected exit 1)
+```
+
+The [antipattern course](examples/demo-course-with-all-lint-issues/README.md) has
+its own config and one lesson per linter rule. Automated tests verify exactly one
+diagnostic per lesson and require the regular demo to stay clean. These tasks use
+the checkout; an installed `bso` pinned to 0.11.1 must be updated after 0.11.2 is
+published before it recognizes the new `flashcards` and `lint` fields.
 
 ## Importing into Brightspace
 

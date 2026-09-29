@@ -1,0 +1,16 @@
+{
+  "courseName": "Lint Antipatterns",
+  "version": "0.11.2",
+  "sourcesDir": "lessons",
+  "outputDir": "build/brightspace",
+  "flashcards": {
+    "sectionHeadings": [
+      "Core concepts"
+    ]
+  },
+  "lint": {
+    "includeDirs": [
+      "lessons"
+    ]
+  }
+}

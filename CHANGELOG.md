@@ -8,6 +8,20 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.11.2 - 2026-09-30
+
+### Added
+
+- Support lightweight `- **term:** definition` flashcards in explicit containers and automatic glossary conversion under configurable `flashcards.sectionHeadings`, including Markdown definitions and shared preview/export behavior (#31).
+- Warn when configured glossary headings contain anything other than complete term/definition bullet lists, and add `lint.includeDirs` for selecting recursive lint inputs (#11).
+- Add a separate antipattern course with one lesson for each of the 27 lint rules, plus `lint:demo` and `lint:issues` regression tasks.
+- Demonstrate and test both flashcard formats in the demo course, including the configured `Core concepts` section.
+
+### Fixed
+
+- Report the primary cause for malformed directive nesting and quiz answer keys; report empty quiz options specifically as `quiz-option-text`.
+- Remove PDF-specific frontmatter and raw LaTeX from the user manual's Markdown, and restore the old manual path with a link to the current manual.
+
 ## 0.11.1 - 2026-09-29
 
 ### Added

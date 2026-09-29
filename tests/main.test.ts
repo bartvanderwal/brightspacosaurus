@@ -25,6 +25,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
     docusaurusDir: null,
     teacherManual: null,
     quiz: { maxAttempts: 0, shuffleAnswers: false },
+    flashcards: { sectionHeadings: ["Kernbegrippen"] },
     diagrams: {
       krokiUrl: "https://kroki.io",
       output: "img-html-base64",
@@ -77,7 +78,7 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
     await Deno.mkdir(config.readersDir!, { recursive: true });
     await Deno.writeTextFile(
       join(config.sourcesDir, "week-1", "les-1.1.md"),
-      "# Les 1.1 & intro\n\n![plaatje](image.png)\n",
+      "# Les 1.1 & intro\n\n![plaatje](image.png)\n\n## Kernbegrippen\n\n- **request:** Bericht van een client.\n",
     );
     await Deno.writeTextFile(
       join(config.sourcesDir, "week-1", "quiz-1.1.md"),
@@ -109,6 +110,7 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
       ),
     );
 
+    assertStringIncludes(html, 'class="bso-flashcard-term">request</span>');
     assertStringIncludes(html, "<h1>Les 1.1 &#x26; intro</h1>");
     assertStringIncludes(
       html,

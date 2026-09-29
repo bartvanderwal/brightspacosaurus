@@ -1,3 +1,5 @@
+import type { FlashcardsConfig } from "./flashcards.ts";
+
 /**
  * TypeScript-interfaces voor Brightspacosaurus.
  * Requirements: 3.1
@@ -45,6 +47,8 @@ export interface ConvertOptions {
   baseDir?: string;
   /** Definitieve diagram-instellingen voor HTML-diagramrendering. */
   diagrams?: ResolvedDiagramConfig;
+  /** Automatic flashcards for configured section headings. */
+  flashcards?: FlashcardsConfig;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */
@@ -136,6 +140,10 @@ export interface BsoConfig {
   quiz?: QuizConfig;
   /** Configuratie voor diagramrendering (PlantUML/Mermaid via Kroki). Optioneel. */
   diagrams?: DiagramsConfig;
+  /** Automatic flashcards for configured section headings. */
+  flashcards?: FlashcardsConfig;
+  /** Optional lint input selection. */
+  lint?: LintConfig;
 }
 
 /** Configuratie voor gegenereerde Brightspace quizzen/toetsen. */
@@ -198,6 +206,10 @@ export interface ResolvedConfig {
   quiz: ResolvedQuizConfig;
   /** Definitieve diagram-instellingen (altijd ingevuld met defaults). */
   diagrams: ResolvedDiagramConfig;
+  /** Automatic flashcards; absent or empty disables heading recognition. */
+  flashcards?: FlashcardsConfig;
+  /** Optional lint input selection, with absolute directory paths. */
+  lint?: LintConfig;
   /** Absoluut pad naar Repo_Root. */
   repoRoot: string;
 }
@@ -245,4 +257,10 @@ export interface CliOverrides {
   readersOnly?: boolean;
   /** Expliciet pad naar configuratiebestand (via `--config`). */
   config?: string;
+}
+
+/** Input selection for offline course linting. */
+export interface LintConfig {
+  /** Directories scanned recursively instead of sourcesDir/readersDir. */
+  includeDirs?: string[];
 }

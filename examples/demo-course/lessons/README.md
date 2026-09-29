@@ -9,7 +9,7 @@ This course index is the single handbook for the demo course. The week folders a
 | [Lesson 1.1: FizzBuzz](week-1/lesson-1-fizzbuzz.md) | Java code, unit tests, copy button and PlantUML |
 | [Lesson 1.2: Test pyramid and test strategy](week-1/lesson-2-test-strategy.md) | Mermaid, reader link and testing strategy |
 | [Lesson 1.3: Links, includes and export](week-1/lesson-3-links-includes-export.md) | Internal/external links and includes |
-| [Lesson 1.4: Core concepts flashcards](week-1/lesson-4-core-concepts.md) | Eight concepts with nested Markdown definitions |
+| [Lesson 1.4: Core concepts flashcards](week-1/lesson-4-core-concepts.md) | Two sets of eight concepts: directive cards and a configured glossary list |
 
 ## Week 2: Package features
 

@@ -317,7 +317,7 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkFrontmatter, ["yaml"])
     .use(remarkGfm)
     .use(remarkDirective)
-    .use(remarkFlashcards);
+    .use(remarkFlashcards, options.flashcards);
 
   if (renderDiagrams && options.diagrams) {
     processor = withDiagramRendering(

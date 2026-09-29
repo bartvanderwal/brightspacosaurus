@@ -1,0 +1,4 @@
+# diagram-empty-diagram
+
+```mermaid
+```

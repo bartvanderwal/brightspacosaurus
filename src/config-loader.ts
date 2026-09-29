@@ -7,6 +7,7 @@
  * @module
  */
 
+import { resolveFlashcardsOptions } from "./flashcards.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
 export { resolveDiagramsConfig };
@@ -41,6 +42,9 @@ export const EXAMPLE_CONFIG = `{
   },
   "quiz": {
     "maxAttempts": 0
+  },
+  "flashcards": {
+    "sectionHeadings": ["Kernbegrippen"]
   },
   "diagrams": {
     "krokiUrl": "https://kroki.io",
@@ -143,6 +147,8 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "teacherManual",
     "quiz",
     "diagrams",
+    "flashcards",
+    "lint",
   ]);
   for (const field of Object.keys(obj)) {
     if (!allowedTopLevelFields.has(field)) {
@@ -219,6 +225,31 @@ export function validateConfig(config: unknown): config is BsoConfig {
   }
 
   resolveQuizOptions(obj.quiz);
+  resolveFlashcardsOptions(obj.flashcards);
+  if (obj.lint !== undefined) {
+    if (
+      typeof obj.lint !== "object" || obj.lint === null ||
+      Array.isArray(obj.lint)
+    ) {
+      throw new Error("Field 'lint' must be an object.");
+    }
+    const lint = obj.lint as Record<string, unknown>;
+    for (const key of Object.keys(lint)) {
+      if (key !== "includeDirs") {
+        throw new Error(`Unknown configuration field 'lint.${key}'.`);
+      }
+    }
+    if (
+      lint.includeDirs !== undefined && (
+        !Array.isArray(lint.includeDirs) || lint.includeDirs.length === 0 ||
+        lint.includeDirs.some((dir) => typeof dir !== "string" || !dir.trim())
+      )
+    ) {
+      throw new Error(
+        "Field 'lint.includeDirs' must be a non-empty array of non-empty directory paths.",
+      );
+    }
+  }
 
   // Validate diagrams if it is present
   if (obj.diagrams !== undefined) {
@@ -364,6 +395,12 @@ export function resolveConfig(
     docusaurusDir,
     teacherManual,
     quiz: resolveQuizConfig(config),
+    flashcards: resolveFlashcardsOptions(config.flashcards),
+    lint: {
+      includeDirs: cliOverrides.sources
+        ? [sourcesDir]
+        : config.lint?.includeDirs?.map((dir) => resolve(repoRoot, dir)),
+    },
     diagrams: resolveDiagramsConfig(config),
     repoRoot,
   };
@@ -399,6 +436,7 @@ export function resolveFromCliOnly(
     docusaurusDir: null,
     teacherManual: null,
     quiz: { ...DEFAULT_QUIZ_CONFIG },
+    flashcards: resolveFlashcardsOptions(),
     diagrams: resolveDiagramsConfig({}),
     repoRoot,
   };

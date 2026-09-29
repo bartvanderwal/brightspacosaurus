@@ -16,7 +16,7 @@ Every code or behavior change should ideally also update the documentation that 
 
 ## Flashcard parity
 
-Flashcards are authored in Markdown with `:::flashcards` and `:::flashcard` containers. The Brightspace export and Docusaurus preview must use the same semantic classes and the shared published behavior asset documented in the Software Guidebook. Do not implement a second preview-only flashcard interaction.
+Flashcards are authored with `::::flashcards` and inner `:::flashcard` containers, lightweight term/definition lists in `:::flashcards`, or ordinary lists under configured `flashcards.sectionHeadings`. The Brightspace export and Docusaurus preview must use the same semantic classes and the shared published behavior asset documented in the Software Guidebook. Do not implement a second preview-only flashcard interaction.
 
 ## Validation
 
@@ -28,5 +28,7 @@ deno task lint
 deno task test
 deno task demo
 ```
+
+Run `deno task lint:demo` for the clean course and `deno task lint:issues` for the deliberately invalid course (expected exit 1). Every new lint rule needs one focused lesson and an entry in `examples/demo-course-with-all-lint-issues/expected-rules.json`; the regression test requires exactly one diagnostic per lesson.
 
 The demo build is a durable manual regression fixture. Import its generated `.imscc` into a Brightspace sandbox when a change affects generated HTML, links, JavaScript, assets, navigation, quizzes or PDFs.

@@ -3,6 +3,12 @@ import { basename, dirname, isAbsolute, relative, resolve } from "@std/path";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
+import remarkGfm from "remark-gfm";
+import {
+  type FlashcardsConfig,
+  isFlashcardList,
+  resolveFlashcardsOptions,
+} from "./flashcards.ts";
 import remarkDirective from "remark-directive";
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { parseQuizMarkdown, validateQuiz } from "./quiz-parser.ts";
@@ -34,9 +40,16 @@ export interface LintResult {
   diagnostics: LintDiagnostic[];
 }
 
+/** Options shared by single-file and course linting. */
+export interface LintOptions {
+  /** Headings whose content must consist solely of term/definition lists. */
+  flashcards?: FlashcardsConfig;
+}
+
 interface Node {
   type: string;
   name?: string;
+  depth?: number;
   value?: string;
   children?: Node[];
   position?: {
@@ -64,9 +77,13 @@ function compareDiagnostics(a: LintDiagnostic, b: LintDiagnostic): number {
 function inspectMarkdown(
   markdown: string,
   sourceFile: string,
+  options: LintOptions = {},
 ): { diagnostics: LintDiagnostic[]; includes: Include[] } {
   const lines = markdown.split(/\r?\n/);
-  const tree = unified().use(remarkParse).use(remarkFrontmatter, ["yaml"]).use(
+  const tree = unified().use(remarkParse).use(remarkGfm).use(
+    remarkFrontmatter,
+    ["yaml"],
+  ).use(
     remarkDirective,
   ).parse(markdown) as Node;
   const diagnostics: LintDiagnostic[] = [];
@@ -116,7 +133,8 @@ function inspectMarkdown(
         );
       } else {
         const parent = containers.at(-1);
-        if (parent && fenceLength(parent) <= fenceLength(node)) {
+        const badNesting = parent && fenceLength(parent) <= fenceLength(node);
+        if (badNesting) {
           report(
             node,
             "flashcard-fence-nesting",
@@ -127,7 +145,10 @@ function inspectMarkdown(
         const closing = lines[end.line - 1].slice(0, end.column - 1).match(
           /(:{3,})\s*$/,
         );
-        if (!closing || closing[1].length < fenceLength(node)) {
+        // Invalid nesting already explains a prematurely closed inner card.
+        if (
+          !badNesting && (!closing || closing[1].length < fenceLength(node))
+        ) {
           report(
             node,
             "flashcard-unclosed",
@@ -165,13 +186,14 @@ function inspectMarkdown(
           }
         } else if (
           !node.children?.some((child) =>
-            child.type === "containerDirective" && child.name === "flashcard"
+            (child.type === "containerDirective" &&
+              child.name === "flashcard") || isFlashcardList(child)
           )
         ) {
           report(
             node,
             "flashcard-empty-set",
-            "This flashcard set has no direct flashcard children.",
+            "This flashcard set has no direct flashcard children or complete term/definition list.",
             "warning",
           );
         }
@@ -183,6 +205,42 @@ function inspectMarkdown(
     for (const child of node.children ?? []) walk(child, ancestors);
   }
   walk(tree);
+
+  const headings = new Set(
+    resolveFlashcardsOptions(options.flashcards).sectionHeadings.map((title) =>
+      title.toLowerCase()
+    ),
+  );
+  function checkSections(parent: Node): void {
+    const children = parent.children ?? [];
+    for (let index = 0; index < children.length; index++) {
+      const heading = children[index];
+      if (
+        heading.type !== "heading" ||
+        !headings.has(nodeText(heading).trim().toLowerCase())
+      ) continue;
+      let end = index + 1;
+      while (
+        end < children.length &&
+        !(children[end].type === "heading" &&
+          children[end].depth! <= heading.depth!)
+      ) end++;
+      const content = children.slice(index + 1, end);
+      const invalid = content.find((child) => !isFlashcardList(child));
+      if (invalid || content.length === 0) {
+        report(
+          invalid ?? heading,
+          "flashcard-section-content",
+          `Section '${
+            nodeText(heading)
+          }' must contain only unordered lists of non-empty 'term: definition' items. Move prose, subheadings and other content outside this section.`,
+          "warning",
+        );
+      }
+    }
+    for (const child of children) checkSections(child);
+  }
+  checkSections(tree);
 
   lines.forEach((line, index) => {
     if (
@@ -246,8 +304,9 @@ function inspectMarkdown(
 export function lintMarkdown(
   markdown: string,
   sourceFile: string,
+  options: LintOptions = {},
 ): LintDiagnostic[] {
-  return inspectMarkdown(markdown, sourceFile).diagnostics;
+  return inspectMarkdown(markdown, sourceFile, options).diagnostics;
 }
 
 /** Check configured lessons/readers/quizzes and their linked include files offline. */
@@ -255,9 +314,8 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   const files = new Set<string>();
   for (
     const dir of new Set(
-      [config.sourcesDir, config.readersDir].filter((dir): dir is string =>
-        Boolean(dir)
-      ),
+      (config.lint?.includeDirs ?? [config.sourcesDir, config.readersDir])
+        .filter((dir): dir is string => Boolean(dir)),
     )
   ) {
     const scan = await scanSources({
@@ -277,7 +335,9 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   async function check(file: string, ancestors: string[] = []): Promise<void> {
     if (visited.has(file)) return;
     visited.add(file);
-    const result = inspectMarkdown(await Deno.readTextFile(file), file);
+    const result = inspectMarkdown(await Deno.readTextFile(file), file, {
+      flashcards: config.flashcards,
+    });
     diagnostics.push(...result.diagnostics);
     for (const include of result.includes) {
       const target = resolve(dirname(file), include.target);
