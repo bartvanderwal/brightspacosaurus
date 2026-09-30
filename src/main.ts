@@ -72,7 +72,7 @@ Commands:
 Options:
   --config <path>    Path to the configuration file (default: brightspacosaurus.config.json in cwd)
   --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
-  --output <path>    Output path or name for .imscc (overrides config.outputDir/name)
+  --output <path>    Build directory that also receives the .imscc (overrides config.outputDir)
   --readers-only     Generate reader and instructor PDFs only (skip HTML/QTI conversion)
   --version, -v      Show version number
   --help, -h         Show this help
@@ -518,10 +518,8 @@ export async function runPrepare(
 export async function runPack(config: ResolvedConfig): Promise<void> {
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
-  const outputPath = join(
-    dirname(buildDir),
-    `${config.name}.v${await loadPackageVersion()}.imscc`,
-  );
+  // Course version, not BSO version: it identifies the imported content (#42).
+  const outputPath = join(buildDir, `${config.name}.v${config.version}.imscc`);
 
   // Run prepare first if build/content/ does not exist
   try {

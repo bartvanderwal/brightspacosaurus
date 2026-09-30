@@ -230,6 +230,9 @@ async function wrapHtml(
   const flashcardScript = await loadAssetText(
     "brightspacosaurus-flashcards.js",
   );
+  const navigationScript = await loadAssetText(
+    "brightspacosaurus-navigation.js",
+  );
   let customCssBlock = "";
   if (customCssPath) {
     try {
@@ -270,6 +273,7 @@ ${body}
 </div>
 ${COPY_BUTTON_SCRIPT}
 <script>${flashcardScript}</script>
+<script>${navigationScript}</script>
 </body>
 </html>`;
 }

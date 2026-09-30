@@ -13,3 +13,11 @@ const result = await convertMarkdown({
       .flashcards,
 });
 await Deno.copyFile(result.outputPath, "build/flashcards-export.html");
+
+// Exported handbook with relative lesson links for the topic navigation test.
+const handbook = await convertMarkdown({
+  sourcePath: resolve("../examples/demo-course/lessons/README.md"),
+  outputDir: resolve("build/export"),
+  repoRoot: resolve(".."),
+});
+await Deno.copyFile(handbook.outputPath, "build/navigation-export.html");

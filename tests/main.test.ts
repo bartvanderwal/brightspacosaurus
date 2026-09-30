@@ -1,5 +1,7 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { join } from "@std/path";
+import { join, resolve } from "@std/path";
+import JSZip from "jszip";
+import { resolveConfig } from "../src/config-loader.ts";
 import {
   buildUsage,
   decodeHtmlEntities,
@@ -103,11 +105,7 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
       join(config.outputDir, "imsmanifest.xml"),
     );
     const archive = await Deno.stat(
-      join(
-        repoRoot,
-        "build",
-        `coverage-course.v${await loadPackageVersion()}.imscc`,
-      ),
+      join(config.outputDir, "coverage-course.v0.9.0.imscc"),
     );
 
     assertStringIncludes(html, 'class="bso-flashcard-term">request</span>');
@@ -173,4 +171,59 @@ Deno.test("runPreview geeft een duidelijke fout zonder docusaurusDir", async () 
   } finally {
     await Deno.remove(repoRoot, { recursive: true });
   }
+});
+
+Deno.test("runPack names the package after the course version and writes it to outputDir (#42)", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const repoRoot = resolve(
+    await Deno.makeTempDir({ dir: "build", prefix: "pack-" }),
+  );
+  try {
+    const config = testConfig(repoRoot);
+    await Deno.mkdir(config.sourcesDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "les-1.md"),
+      "# Les 1\n\nTekst.\n",
+    );
+    await runPack(config);
+    await runPack(config);
+
+    const packageVersion = await loadPackageVersion();
+    const names: string[] = [];
+    for await (const entry of Deno.readDir(config.outputDir)) {
+      if (entry.name.endsWith(".imscc")) names.push(entry.name);
+    }
+    assertEquals(names, ["coverage-course.v0.9.0.imscc"]);
+    if (packageVersion !== "0.9.0") {
+      assertEquals(
+        names.includes(`coverage-course.v${packageVersion}.imscc`),
+        false,
+      );
+    }
+
+    const zip = await JSZip.loadAsync(
+      await Deno.readFile(join(config.outputDir, names[0])),
+    );
+    const files = Object.keys(zip.files);
+    assertEquals(files.some((file) => file.endsWith(".imscc")), false);
+    assertEquals(files.includes("imsmanifest.xml"), true);
+  } finally {
+    await Deno.remove(repoRoot, { recursive: true });
+  }
+});
+
+Deno.test("--output overrides the build directory that receives the package", () => {
+  const base = { courseName: "C", version: "1.2.3", sourcesDir: "lessons" };
+  assertEquals(
+    resolveConfig(base, { output: "dist/pkg" }, "/repo").outputDir,
+    resolve("/repo", "dist/pkg"),
+  );
+  assertEquals(
+    resolveConfig({ ...base, outputDir: "out" }, {}, "/repo").outputDir,
+    resolve("/repo", "out"),
+  );
+  assertEquals(
+    resolveConfig(base, {}, "/repo").outputDir,
+    resolve("/repo", "build/brightspace"),
+  );
 });

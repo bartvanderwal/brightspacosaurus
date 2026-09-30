@@ -143,7 +143,7 @@ The most important fields:
 | `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
 | `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
 | `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.4](#44-core-concept-flashcards) |
-| `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.6](#46-teacher-page) |
+| `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.7](#47-teacher-page) |
 
 > **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
 
@@ -256,7 +256,13 @@ These paths are relative to the current working directory and replace the defaul
 
 For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (27 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-with-all-lint-issues/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout. An installed CLI older than 0.11.2 does not know `lint.includeDirs`, and one older than 0.12.0 rejects `teacherPage`.
 
-### 4.6 Teacher page
+### 4.6 Links between lesson pages
+
+Link to other lesson pages with a normal relative Markdown link, such as `[FAQ](../faq.md)`. BSO turns it into a link to the generated HTML page, so it also works in editors and in the Docusaurus preview.
+
+In Brightspace a lesson page opens in a frame inside the course viewer. A plain link would open the next page inside that frame, while the content menu keeps showing the previous topic. Exported pages therefore contain a small script: after a click on a lesson link, it looks up the target topic in the course's table of contents (with the student's own Brightspace session) and lets Brightspace open that topic. The menu, previous/next navigation and progress then match the page on screen. If the lookup fails, for example because the target page is not a topic in the course, the plain link opens as before. Links with a new-tab target, external links and PDF links are left alone.
+
+### 4.7 Teacher page
 
 A teacher page is a lesson page you write yourself for teachers, for example with import instructions and contact details. BSO fills in the imported versions, so teachers can check after an import that Brightspace shows the current material. Later, the GitLab progress dashboard ([#37](https://github.com/bartvanderwal/brightspacosaurus/issues/37)) will appear on the same page.
 
@@ -329,7 +335,7 @@ deno task prepare
 deno task pack
 ```
 
-`prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive (for example `cursus.imscc`, where the name is derived from `name`/`courseName` in the config).
+`prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive in the same build directory, for example `build/brightspace/cursus.v1.0.0.imscc`: the name comes from `name`/`courseName` and the postfix from the course `version` in the config.
 
 With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build.
 
@@ -512,6 +518,7 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - Pandoc's `--resource-path` is set to the directory of the source file, so that relative image references are resolved correctly.
 - If a reader conversion fails, BSO reports the file and continues with the remaining readers, but returns a non-zero exit code afterwards.
 - Generated reader PDFs get a mandatory separate cover page before the table of contents. The cover title comes from Markdown frontmatter `title`, otherwise from the first H1, otherwise from the file name. `author`/`auteur`, `date`/`datum` and `version`/`versie` frontmatter are used when present. Without an explicit date, BSO tries the last Git commit date of the reader Markdown file when `git` is available and permitted; otherwise it omits the date and falls back to the configured course name and version. BSO does not insert the current date automatically, so repeated builds stay reproducible.
+- Add a cover image with `coverImage` in the frontmatter, relative to the reader file, for example `coverImage: img/git-branches.png`. The image appears between author and date, scaled to at most 80% of the page width and 45% of its height. Use PNG or JPG, and a path without spaces or LaTeX special characters (`%`, `#`, `{`, `}`). If the file is missing or the path is unusable, BSO prints a warning and builds the cover without image. `coverAlt` may hold a description for editors; the PDF does not use it yet.
 
 BSO includes reader PDFs in the IMSCC package as a webcontent resource under a "Readers" module in the manifest.
 

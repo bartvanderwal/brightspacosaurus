@@ -8,6 +8,18 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.13.0 - 2026-09-30
+
+### Added
+
+- Show `coverImage` from the reader frontmatter on the PDF cover page, between author and date. A missing or unusable image gives a warning and a cover without image.
+- Keep the Brightspace content menu in sync after clicking a link to another lesson page: exported pages look up the target topic via the Brightspace LE API with the viewer's session and let Brightspace open it. Without Brightspace, or if the lookup fails, the plain relative link still works (#41). Still needs confirmation after a real Brightspace import.
+
+### Changed
+
+- Name the package after the course `version` instead of the BSO version, and write it to `outputDir` (default `build/brightspace/`) instead of its parent, as the README already described. The BSO version stays visible on every page and on the teacher page (#42, revises #30).
+- Correct the `--output` help text: it sets the build directory that also receives the package.
+
 ## 0.12.0 - 2026-09-30
 
 ### Added

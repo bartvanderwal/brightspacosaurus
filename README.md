@@ -155,7 +155,7 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
 | `quiz`                | `object` | `{ "maxAttempts": 0, "shuffleAnswers": false }`    | Configuration for generated Brightspace quizzes                  |
 | `diagrams`            | `object` | see below                 | Configuration for PlantUML/Mermaid rendering in lesson HTML      |
 | `teacherManual` | `object` | `null` (skip)             | Configuration for the instructor manual PDF                      |
-| `teacherPage`         | `string` | `"for-teachers.md"`       | Teacher page in `sourcesDir` on which BSO fills in the course and BSO versions; see the [user manual](docs/user-manual.md#46-teacher-page) |
+| `teacherPage`         | `string` | `"for-teachers.md"`       | Teacher page in `sourcesDir` on which BSO fills in the course and BSO versions; see the [user manual](docs/user-manual.md#47-teacher-page) |
 
 ### quiz object
 
@@ -247,7 +247,7 @@ Commands:
 Options:
   --config <path>    Path to the configuration file (default: brightspacosaurus.config.json in cwd)
   --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
-  --output <path>    Output path (overrides config.outputDir)
+  --output <path>    Build directory that also receives the .imscc (overrides config.outputDir)
   --readers-only     Generate reader and instructor PDFs only
 ```
 

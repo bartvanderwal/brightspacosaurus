@@ -180,11 +180,8 @@ Deno.test("#35 shuffle settings survive prepare and pack with deterministic answ
       );
       await runPrepare(config, false);
       await runPack(config);
-      const archive = [...Deno.readDirSync(join(root, "build"))].find((entry) =>
-        entry.name.endsWith(".imscc")
-      )!;
       const zip = await JSZip.loadAsync(
-        await Deno.readFile(join(root, "build", archive.name)),
+        await Deno.readFile(join(config.outputDir, "quiz.v1.0.imscc")),
       );
       const qtiFile = Object.keys(zip.files).find((name) =>
         name.endsWith(".xml") && name.includes("qti-")

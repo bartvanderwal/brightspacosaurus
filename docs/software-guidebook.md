@@ -394,6 +394,27 @@ are rendered as escaped text. All syntaxes produce the existing card classes and
 use the existing browser initializer. Property tests exercise deterministic
 conversion, and browser tests compare both demo sets in preview and export.
 
+`assets/brightspacosaurus-navigation.js` (#41) is inlined into every exported
+page. Relative lesson links stay the portable fallback (#8); the script only
+changes a plain same-origin click on another `.html` page when the parent window
+is a Brightspace viewer (`/d2l/le/content/{ou}/…` or `/d2l/le/lessons/{ou}/…`).
+It then reads the course table of contents through the documented LE API
+(`/d2l/api/versions/le`, then `/d2l/api/le/{version}/{ou}/content/toc`) with the
+viewer's session and optional `X-Csrf-Token`, matches the topic `Url` against the
+link path and navigates the top window to the topic viewer. The API was chosen
+over scraping the menu DOM, which Brightspace does not document. Any failure or a
+4-second timeout falls back to the plain link. Pure helpers are exposed as
+`bsoTopicNavigation` for Deno unit tests; `demo-course-docs/tests/navigation.spec.cjs`
+exercises the real export inside a mocked Brightspace shell.
+
+Reader cover images: `deriveReaderPdfMetadata` reads `coverImage`;
+`convertReaderToPdf` resolves it against the reader directory and writes a
+one-line header defining `\bsocoverimage` next to the PDF output, included before
+`assets/reader-header.tex` and removed after pandoc. The title page in that
+header shows the image only `\ifdefined\bsocoverimage`. Paths outside
+`[A-Za-z0-9._/:-]` are rejected with a warning instead of being escaped, because
+LaTeX path escaping is fragile across engines.
+
 `src/teacher-page.ts` is likewise runtime-neutral. `resolveTeacherPage`
 validates `teacherPage` (a relative `.md` path inside `sourcesDir`, default
 `for-teachers.md`); `resolveConfig` records whether it was explicit, because only
