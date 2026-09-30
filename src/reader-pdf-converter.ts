@@ -9,7 +9,7 @@
 
 import type { ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
 import { materializeAsset } from "./assets.ts";
-import { basename, dirname, join } from "@std/path";
+import { basename, dirname, join, resolve } from "@std/path";
 
 /** Metadata passed to pandoc for the generated reader PDF cover page. */
 export interface ReaderPdfMetadata {
@@ -19,6 +19,8 @@ export interface ReaderPdfMetadata {
   author?: string;
   /** Date/version line shown on the cover page. */
   date: string;
+  /** Cover image path from `coverImage`, relative to the reader file. */
+  coverImage?: string;
 }
 
 function humanizeReaderTitle(filename: string): string {
@@ -84,11 +86,26 @@ export function deriveReaderPdfMetadata(
       (options.courseVersion ? `Versie ${options.courseVersion}` : null),
   ].filter((part): part is string => Boolean(part));
 
+  const coverImage = extractFrontmatterValue(content, "coverImage");
   return {
     title,
     author: author ?? undefined,
     date: dateParts.join(" - "),
+    ...(coverImage ? { coverImage } : {}),
   };
+}
+
+/** Characters LaTeX can take literally in an \includegraphics path. */
+const SAFE_LATEX_PATH = /^[A-Za-z0-9._\/:-]+$/;
+
+/**
+ * LaTeX header that defines `\bsocoverimage` for the cover page, or null
+ * when the path cannot be used safely in LaTeX.
+ */
+export function coverImageHeader(imagePath: string): string | null {
+  const normalized = imagePath.replace(/\\/g, "/");
+  if (!SAFE_LATEX_PATH.test(normalized)) return null;
+  return `\\newcommand{\\bsocoverimage}{${normalized}}\n`;
 }
 
 /** Returns the last Git commit date for a source file, or null when unavailable. */
@@ -125,6 +142,8 @@ export function buildReaderPandocArgs(options: {
   includeFilterPath: string;
   diagramFilterPath: string;
   metadata: ReaderPdfMetadata;
+  /** Header defining the cover image; included before the reader header. */
+  coverHeaderPath?: string;
 }): string[] {
   const args = [
     options.sourcePath,
@@ -142,6 +161,9 @@ export function buildReaderPandocArgs(options: {
       : []),
     ...(options.metadata.date
       ? [metadataArg("date", options.metadata.date)]
+      : []),
+    ...(options.coverHeaderPath
+      ? [`--include-in-header=${options.coverHeaderPath}`]
       : []),
     `--include-in-header=${options.headerPath}`,
     `--lua-filter=${options.includeFilterPath}`,
@@ -212,6 +234,31 @@ export async function convertReaderToPdf(
     sourceDate,
   });
 
+  // Optional cover image, written as a small header next to the PDF output.
+  let coverHeaderPath: string | undefined;
+  if (metadata.coverImage) {
+    const imagePath = resolve(resourcePath, metadata.coverImage);
+    const header = coverImageHeader(imagePath);
+    let exists = false;
+    try {
+      exists = (await Deno.stat(imagePath)).isFile;
+    } catch {
+      // Reported below.
+    }
+    if (!exists) {
+      console.warn(
+        `⚠ Cover image not found for ${sourceFilename}: ${metadata.coverImage} — PDF gets a cover without image.`,
+      );
+    } else if (!header) {
+      console.warn(
+        `⚠ Cover image path for ${sourceFilename} contains characters LaTeX cannot use (spaces or special characters): ${metadata.coverImage} — PDF gets a cover without image.`,
+      );
+    } else {
+      coverHeaderPath = join(outputDir, `.${pdfFilename}.cover.tex`);
+      await Deno.writeTextFile(coverHeaderPath, header);
+    }
+  }
+
   // Invoke pandoc
   const command = new Deno.Command("pandoc", {
     args: buildReaderPandocArgs({
@@ -222,12 +269,15 @@ export async function convertReaderToPdf(
       includeFilterPath,
       diagramFilterPath,
       metadata,
+      coverHeaderPath,
     }),
     stdout: "piped",
     stderr: "piped",
   });
 
-  const process = await command.output();
+  const process = await command.output().finally(async () => {
+    if (coverHeaderPath) await Deno.remove(coverHeaderPath).catch(() => {});
+  });
 
   if (!process.success) {
     // Remove the partial PDF file if it exists

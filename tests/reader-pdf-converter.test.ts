@@ -14,6 +14,7 @@ import { join } from "@std/path";
 import {
   buildReaderPandocArgs,
   convertReaderToPdf,
+  coverImageHeader,
   deriveReaderPdfMetadata,
   gitLastCommitDate,
   pandocAvailable,
@@ -130,6 +131,141 @@ Deno.test("buildReaderPandocArgs stuurt titlepage metadata en TOC naar pandoc", 
   );
 });
 
+Deno.test("coverImage uit de frontmatter komt in de metadata en een veilige LaTeX-header", () => {
+  const metadata = deriveReaderPdfMetadata(
+    "---\ntitle: Git\ncoverImage: img/git-branches.png\ncoverAlt: Branches\n---\n",
+    "reader-git.md",
+  );
+  assertEquals(metadata.coverImage, "img/git-branches.png");
+  assertEquals(
+    "coverImage" in deriveReaderPdfMetadata("# Zonder omslag", "reader-x.md"),
+    false,
+  );
+  assertEquals(
+    coverImageHeader(
+      "/repo/6.3.Studentenmateriaal/6.3.2.Readers/img/a_b-c.png",
+    ),
+    "\\newcommand{\\bsocoverimage}{/repo/6.3.Studentenmateriaal/6.3.2.Readers/img/a_b-c.png}\n",
+  );
+  assertEquals(
+    coverImageHeader("C:\\repo\\img\\a.png"),
+    "\\newcommand{\\bsocoverimage}{C:/repo/img/a.png}\n",
+  );
+  for (
+    const unsafe of [
+      "/img/met spatie.png",
+      "/img/100%.png",
+      "/img/a}b.png",
+      "/img/#1.png",
+    ]
+  ) {
+    assertEquals(coverImageHeader(unsafe), null, unsafe);
+  }
+});
+
+Deno.test("buildReaderPandocArgs zet de omslag-header vóór de reader-header", () => {
+  const base = {
+    sourcePath: "/s/reader.md",
+    outputPath: "/o/reader.pdf",
+    resourcePath: "/s",
+    headerPath: "/h/reader-header.tex",
+    includeFilterPath: "/f/include.lua",
+    diagramFilterPath: "/f/diagram.lua",
+    metadata: { title: "T", date: "D" },
+  };
+  const withCover = buildReaderPandocArgs({
+    ...base,
+    coverHeaderPath: "/o/.reader.pdf.cover.tex",
+  });
+  assertEquals(
+    withCover.indexOf("--include-in-header=/o/.reader.pdf.cover.tex") <
+      withCover.indexOf("--include-in-header=/h/reader-header.tex"),
+    true,
+  );
+  assertEquals(
+    buildReaderPandocArgs(base).some((arg) => arg.includes(".cover.tex")),
+    false,
+  );
+});
+
+Deno.test("reader-header toont de omslagafbeelding alleen als die gedefinieerd is", async () => {
+  const header = await Deno.readTextFile("assets/reader-header.tex");
+  assertEquals(header.includes("\\ifdefined\\bsocoverimage"), true);
+  assertEquals(
+    header.includes("keepaspectratio]{\\bsocoverimage}"),
+    true,
+  );
+});
+
+Deno.test({
+  name:
+    "convertReaderToPdf zet coverImage op het voorblad en waarschuwt bij een ontbrekend bestand",
+  ignore: !pandocAvailable(),
+  permissions: { run: true, read: true, write: true, env: true },
+  fn: async () => {
+    await Deno.mkdir("build", { recursive: true });
+    const root = await Deno.makeTempDir({ dir: "build", prefix: "cover-" });
+    try {
+      await Deno.mkdir(join(root, "6.3.Readers", "img"), { recursive: true });
+      await Deno.copyFile(
+        "docs/images/brightspacosaurus.png",
+        join(root, "6.3.Readers", "img", "cover.png"),
+      );
+      const write = (name: string, cover: string) =>
+        Deno.writeTextFile(
+          join(root, "6.3.Readers", name),
+          `---\ntitle: Omslagtest\ncoverImage: ${cover}\n---\n\n## Inhoud\n\nTekst.\n`,
+        );
+      await write("reader-met.md", "img/cover.png");
+      await write("reader-zonder.md", "img/ontbreekt.png");
+      const outputDir = join(root, "out");
+      const warnings: string[] = [];
+      const warn = console.warn;
+      console.warn = (message: string) => warnings.push(message);
+      try {
+        for (const name of ["reader-met.md", "reader-zonder.md"]) {
+          await convertReaderToPdf({
+            sourcePath: join(root, "6.3.Readers", name),
+            outputDir,
+            repoRoot: root,
+          });
+        }
+      } finally {
+        console.warn = warn;
+      }
+      const images = async (pdf: string) => {
+        const output = await new Deno.Command("pdfimages", {
+          args: ["-list", "-f", "1", "-l", "1", join(outputDir, pdf)],
+          stdout: "piped",
+          stderr: "null",
+        }).output().catch(() => null);
+        if (!output?.success) return null;
+        return new TextDecoder().decode(output.stdout).trim().split("\n")
+          .length - 2;
+      };
+      const withCover = await images("reader-met.pdf");
+      if (withCover !== null) {
+        assertEquals(withCover >= 1, true);
+        assertEquals(await images("reader-zonder.pdf"), 0);
+      } else {
+        const size = async (pdf: string) =>
+          (await Deno.stat(join(outputDir, pdf))).size;
+        assertEquals(
+          await size("reader-met.pdf") > await size("reader-zonder.pdf") + 5000,
+          true,
+        );
+      }
+      assertEquals(warnings.length, 1);
+      assertEquals(warnings[0].includes("img/ontbreekt.png"), true);
+      const leftovers = [...Deno.readDirSync(outputDir)].map((e) => e.name)
+        .filter((name) => name.endsWith(".cover.tex"));
+      assertEquals(leftovers, []);
+    } finally {
+      await removeDir(root);
+    }
+  },
+});
+
 Deno.test("reader-header definieert een aparte titlepage voor readers", async () => {
   const header = await Deno.readTextFile("assets/reader-header.tex");
 
@@ -142,7 +278,10 @@ Deno.test("reader-header definieert een aparte titlepage voor readers", async ()
 Deno.test("reader-header rendert vinktekens met DejaVu Sans", async () => {
   const header = await Deno.readTextFile("assets/reader-header.tex");
 
-  assertEquals(header.includes("\\newfontfamily\\symbolfont{DejaVu Sans}"), true);
+  assertEquals(
+    header.includes("\\newfontfamily\\symbolfont{DejaVu Sans}"),
+    true,
+  );
   assertEquals(header.includes("\\newunicodechar{✔}{{\\symbolfont ✔}}"), true);
 });
 
