@@ -11,7 +11,8 @@
 % Pandoc's standaard LaTeX-template zet \maketitle direct voor de inhoudsopgave.
 % Zonder herdefinitie kunnen titel en TOC op dezelfde pagina terechtkomen.
 \makeatletter
-% Een coverImage uit de frontmatter definieert \bsocoverimage (zie reader-pdf-converter.ts).
+% Een coverImage uit de frontmatter definieert \bsocoverimage, en readerCoverLogo
+% uit de config definieert \bsocoverlogo (zie reader-pdf-converter.ts).
 \renewcommand{\maketitle}{%
   \begin{titlepage}
     \centering
@@ -24,6 +25,10 @@
       \includegraphics[width=0.8\textwidth,height=0.45\textheight,keepaspectratio]{\bsocoverimage}\par
     \fi
     \vfill
+    \ifdefined\bsocoverlogo
+      \includegraphics[width=4cm,height=3cm,keepaspectratio]{\bsocoverlogo}\par
+      \vspace{1.5em}
+    \fi
     {\large \@date\par}
   \end{titlepage}
 }

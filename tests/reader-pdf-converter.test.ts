@@ -10,11 +10,18 @@
 
 import { assertEquals } from "@std/assert";
 import fc from "fast-check";
-import { join } from "@std/path";
+import { join, resolve } from "@std/path";
+import { assertThrows } from "@std/assert";
+import {
+  resolveConfig,
+  resolveFromCliOnly,
+  validateConfig,
+} from "../src/config-loader.ts";
 import {
   buildReaderPandocArgs,
   convertReaderToPdf,
   coverImageHeader,
+  coverLogoHeader,
   deriveReaderPdfMetadata,
   gitLastCommitDate,
   pandocAvailable,
@@ -537,5 +544,100 @@ Deno.test({
       ),
       { numRuns: 20 },
     );
+  },
+});
+
+Deno.test("coverLogoHeader defines bsocoverlogo and rejects unsafe paths", () => {
+  assertEquals(
+    coverLogoHeader("/repo/shared/han-logo.png"),
+    "\\newcommand{\\bsocoverlogo}{/repo/shared/han-logo.png}\n",
+  );
+  assertEquals(
+    coverLogoHeader("C:\\repo\\logo.png"),
+    "\\newcommand{\\bsocoverlogo}{C:/repo/logo.png}\n",
+  );
+  for (const unsafe of ["/logo met spatie.png", "/logo%.png", "/a}b.png"]) {
+    assertEquals(coverLogoHeader(unsafe), null, unsafe);
+  }
+});
+
+Deno.test("reader-header shows the cover logo only when it is defined", async () => {
+  const header = await Deno.readTextFile("assets/reader-header.tex");
+  assertEquals(header.includes("\\ifdefined\\bsocoverlogo"), true);
+  assertEquals(header.includes("keepaspectratio]{\\bsocoverlogo}"), true);
+});
+
+Deno.test("readerCoverLogo resolves against the repo root and must be a string", () => {
+  const base = { courseName: "Test", version: "1", sourcesDir: "lessons" };
+  assertEquals(resolveConfig(base, {}, Deno.cwd()).readerCoverLogo, null);
+  assertEquals(
+    resolveConfig({ ...base, readerCoverLogo: "shared/logo.png" }, {}, Deno.cwd())
+      .readerCoverLogo,
+    resolve("shared/logo.png"),
+  );
+  assertEquals(
+    resolveFromCliOnly({ sources: "src" }, Deno.cwd()).readerCoverLogo,
+    null,
+  );
+  assertEquals(
+    validateConfig({ ...base, readerCoverLogo: "shared/logo.png" }),
+    true,
+  );
+  assertThrows(
+    () => validateConfig({ ...base, readerCoverLogo: 42 }),
+    Error,
+    "readerCoverLogo",
+  );
+});
+
+Deno.test({
+  name:
+    "convertReaderToPdf puts the configured logo on the cover and warns when it is missing",
+  ignore: !pandocAvailable(),
+  permissions: { run: true, read: true, write: true, env: true },
+  fn: async () => {
+    await Deno.mkdir("build", { recursive: true });
+    const root = await Deno.makeTempDir({ dir: "build", prefix: "logo-" });
+    try {
+      const logo = join(root, "logo.png");
+      await Deno.copyFile("docs/images/brightspacosaurus.png", logo);
+      const source = join(root, "reader-logo.md");
+      await Deno.writeTextFile(
+        source,
+        "---\ntitle: Logotest\n---\n\n## Inhoud\n\nTekst.\n",
+      );
+      const withLogo = join(root, "met");
+      const withoutLogo = join(root, "zonder");
+      const warnings: string[] = [];
+      const warn = console.warn;
+      console.warn = (message: string) => warnings.push(message);
+      try {
+        await convertReaderToPdf({
+          sourcePath: source,
+          outputDir: withLogo,
+          repoRoot: root,
+          coverLogoPath: logo,
+        });
+        await convertReaderToPdf({
+          sourcePath: source,
+          outputDir: withoutLogo,
+          repoRoot: root,
+          coverLogoPath: join(root, "ontbreekt.png"),
+        });
+      } finally {
+        console.warn = warn;
+      }
+      const size = async (dir: string) =>
+        (await Deno.stat(join(dir, "reader-logo.pdf"))).size;
+      assertEquals(await size(withLogo) > await size(withoutLogo) + 5000, true);
+      assertEquals(warnings.length, 1);
+      assertEquals(warnings[0].includes("readerCoverLogo"), true);
+      assertEquals(
+        [...Deno.readDirSync(withLogo)].some((e) => e.name.endsWith(".cover.tex")),
+        false,
+      );
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
   },
 });

@@ -299,6 +299,7 @@ export async function runPrepare(
             repoRoot,
             courseName: config.courseName,
             courseVersion: config.version,
+            coverLogoPath: config.readerCoverLogo ?? undefined,
           });
           console.log(`  ✓ readers/${result.filename}`);
           succeeded++;

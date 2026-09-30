@@ -140,6 +140,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "version",
     "sourcesDir",
     "readersDir",
+    "readerCoverLogo",
     "assetsDir",
     "outputDir",
     "customCss",
@@ -175,6 +176,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
   // Validate optional string fields
   const optionalStringFields = [
     "readersDir",
+    "readerCoverLogo",
     "assetsDir",
     "outputDir",
     "customCss",
@@ -353,6 +355,11 @@ export function resolveConfig(
     ? resolve(repoRoot, config.readersDir)
     : null;
 
+  // readerCoverLogo: from config only, null if not provided
+  const readerCoverLogo = config.readerCoverLogo
+    ? resolve(repoRoot, config.readerCoverLogo)
+    : null;
+
   // assetsDir: from config only, null if not provided
   const assetsDir = config.assetsDir
     ? resolve(repoRoot, config.assetsDir)
@@ -389,6 +396,7 @@ export function resolveConfig(
   return {
     sourcesDir,
     readersDir,
+    readerCoverLogo,
     assetsDir,
     outputDir,
     courseName: config.courseName,
@@ -434,6 +442,7 @@ export function resolveFromCliOnly(
   return {
     sourcesDir,
     readersDir: null,
+    readerCoverLogo: null,
     assetsDir: null,
     outputDir,
     courseName: "Course",

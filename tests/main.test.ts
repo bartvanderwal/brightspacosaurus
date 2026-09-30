@@ -18,6 +18,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
     repoRoot,
     sourcesDir: join(repoRoot, "lessons"),
     readersDir: join(repoRoot, "readers"),
+    readerCoverLogo: null,
     assetsDir: null,
     outputDir: join(repoRoot, "build", "brightspace"),
     courseName: "Coverage Course",

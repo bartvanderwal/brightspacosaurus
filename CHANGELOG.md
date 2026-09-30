@@ -13,6 +13,7 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 ### Added
 
 - Show `coverImage` from the reader frontmatter on the PDF cover page, between author and date. A missing or unusable image gives a warning and a cover without image.
+- Add `readerCoverLogo` to the configuration: a logo, such as the institution logo, at the bottom of every reader PDF cover page. A missing or unusable logo gives a warning and a cover without logo.
 - Keep the Brightspace content menu in sync after clicking a link to another lesson page: exported pages look up the target topic via the Brightspace LE API with the viewer's session and let Brightspace open it. Without Brightspace, or if the lookup fails, the plain relative link still works (#41). Still needs confirmation after a real Brightspace import.
 
 ### Changed

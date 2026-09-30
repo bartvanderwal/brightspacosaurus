@@ -102,6 +102,8 @@ export interface ReaderConvertOptions {
   courseName?: string;
   /** Cursus-/pakketversie voor het PDF-voorblad. */
   courseVersion?: string;
+  /** Absolute path to a logo shown on every reader cover page. Optional. */
+  coverLogoPath?: string;
 }
 
 /** Resultaat van de reader-Markdown-naar-PDF-conversie. */
@@ -127,6 +129,8 @@ export interface BsoConfig {
   sourcesDir: string;
   /** Bronmap voor readers (relatief aan Repo_Root). Optioneel. */
   readersDir?: string;
+  /** Logo on every reader PDF cover page (relative to Repo_Root). Optional. */
+  readerCoverLogo?: string;
   /** Map met statische assets (relatief aan Repo_Root). Optioneel. */
   assetsDir?: string;
   /** Build-uitvoermap (relatief aan Repo_Root). Standaard: "build/brightspace". */
@@ -191,6 +195,8 @@ export interface ResolvedConfig {
   sourcesDir: string;
   /** Absoluut pad naar de bronmap voor readers. null = overslaan. */
   readersDir: string | null;
+  /** Absolute path to the reader cover logo. null = no logo. */
+  readerCoverLogo: string | null;
   /** Absoluut pad naar de assets-map. null = geen extra assets. */
   assetsDir: string | null;
   /** Absoluut pad naar de build-uitvoermap. */

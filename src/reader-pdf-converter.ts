@@ -103,9 +103,49 @@ const SAFE_LATEX_PATH = /^[A-Za-z0-9._\/:-]+$/;
  * when the path cannot be used safely in LaTeX.
  */
 export function coverImageHeader(imagePath: string): string | null {
-  const normalized = imagePath.replace(/\\/g, "/");
+  return coverAssetHeader("bsocoverimage", imagePath);
+}
+
+/**
+ * LaTeX header that defines `\bsocoverlogo` for the cover page, or null
+ * when the path cannot be used safely in LaTeX.
+ */
+export function coverLogoHeader(logoPath: string): string | null {
+  return coverAssetHeader("bsocoverlogo", logoPath);
+}
+
+function coverAssetHeader(macro: string, path: string): string | null {
+  const normalized = path.replace(/\\/g, "/");
   if (!SAFE_LATEX_PATH.test(normalized)) return null;
-  return `\\newcommand{\\bsocoverimage}{${normalized}}\n`;
+  return `\\newcommand{\\${macro}}{${normalized}}\n`;
+}
+
+/**
+ * Returns the header for an optional cover asset, or null with a warning
+ * when the file is missing or its path is unusable in LaTeX.
+ */
+async function usableCoverAsset(
+  path: string,
+  header: string | null,
+  description: string,
+): Promise<string | null> {
+  let exists = false;
+  try {
+    exists = (await Deno.stat(path)).isFile;
+  } catch {
+    // Reported below.
+  }
+  if (!exists) {
+    console.warn(`⚠ ${description} not found: ${path} — PDF cover without it.`);
+    return null;
+  }
+  if (!header) {
+    console.warn(
+      `⚠ ${description} path contains characters LaTeX cannot use (spaces or special characters): ${path} — PDF cover without it.`,
+    );
+    return null;
+  }
+  return header;
 }
 
 /** Returns the last Git commit date for a source file, or null when unavailable. */
@@ -142,7 +182,7 @@ export function buildReaderPandocArgs(options: {
   includeFilterPath: string;
   diagramFilterPath: string;
   metadata: ReaderPdfMetadata;
-  /** Header defining the cover image; included before the reader header. */
+  /** Header defining the cover image and logo; included before the reader header. */
   coverHeaderPath?: string;
 }): string[] {
   const args = [
@@ -234,29 +274,29 @@ export async function convertReaderToPdf(
     sourceDate,
   });
 
-  // Optional cover image, written as a small header next to the PDF output.
-  let coverHeaderPath: string | undefined;
+  // Optional cover image and logo, written as a small header next to the PDF output.
+  const coverHeaders: string[] = [];
   if (metadata.coverImage) {
     const imagePath = resolve(resourcePath, metadata.coverImage);
-    const header = coverImageHeader(imagePath);
-    let exists = false;
-    try {
-      exists = (await Deno.stat(imagePath)).isFile;
-    } catch {
-      // Reported below.
-    }
-    if (!exists) {
-      console.warn(
-        `⚠ Cover image not found for ${sourceFilename}: ${metadata.coverImage} — PDF gets a cover without image.`,
-      );
-    } else if (!header) {
-      console.warn(
-        `⚠ Cover image path for ${sourceFilename} contains characters LaTeX cannot use (spaces or special characters): ${metadata.coverImage} — PDF gets a cover without image.`,
-      );
-    } else {
-      coverHeaderPath = join(outputDir, `.${pdfFilename}.cover.tex`);
-      await Deno.writeTextFile(coverHeaderPath, header);
-    }
+    const header = await usableCoverAsset(
+      imagePath,
+      coverImageHeader(imagePath),
+      `Cover image for ${sourceFilename}`,
+    );
+    if (header) coverHeaders.push(header);
+  }
+  if (options.coverLogoPath) {
+    const header = await usableCoverAsset(
+      options.coverLogoPath,
+      coverLogoHeader(options.coverLogoPath),
+      "Reader cover logo (readerCoverLogo)",
+    );
+    if (header) coverHeaders.push(header);
+  }
+  let coverHeaderPath: string | undefined;
+  if (coverHeaders.length > 0) {
+    coverHeaderPath = join(outputDir, `.${pdfFilename}.cover.tex`);
+    await Deno.writeTextFile(coverHeaderPath, coverHeaders.join(""));
   }
 
   // Invoke pandoc

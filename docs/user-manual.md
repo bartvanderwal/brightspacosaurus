@@ -135,6 +135,7 @@ The most important fields:
 | `version`              | yes      | Version number (semver), used in the `.imscc` filename and HTML badge                        |
 | `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
+| `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
@@ -519,6 +520,7 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - If a reader conversion fails, BSO reports the file and continues with the remaining readers, but returns a non-zero exit code afterwards.
 - Generated reader PDFs get a mandatory separate cover page before the table of contents. The cover title comes from Markdown frontmatter `title`, otherwise from the first H1, otherwise from the file name. `author`/`auteur`, `date`/`datum` and `version`/`versie` frontmatter are used when present. Without an explicit date, BSO tries the last Git commit date of the reader Markdown file when `git` is available and permitted; otherwise it omits the date and falls back to the configured course name and version. BSO does not insert the current date automatically, so repeated builds stay reproducible.
 - Add a cover image with `coverImage` in the frontmatter, relative to the reader file, for example `coverImage: img/git-branches.png`. The image appears between author and date, scaled to at most 80% of the page width and 45% of its height. Use PNG or JPG, and a path without spaces or LaTeX special characters (`%`, `#`, `{`, `}`). If the file is missing or the path is unusable, BSO prints a warning and builds the cover without image. `coverAlt` may hold a description for editors; the PDF does not use it yet.
+- Add a logo to every reader cover page with `readerCoverLogo` in `brightspacosaurus.config.json`, relative to the repository root, for example `"readerCoverLogo": "shared/han-logo.png"`. The logo appears at the bottom of the cover, above the date, at most 4 cm wide and 3 cm high. The same path rules and warnings apply as for `coverImage`.
 
 BSO includes reader PDFs in the IMSCC package as a webcontent resource under a "Readers" module in the manifest.
 
