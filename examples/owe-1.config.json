@@ -15,5 +15,25 @@
       "6.1.Docentenhandleiding/adr014-onderhoud-branches-opdrachtrepos.md"
     ],
     "outputName": "docentenhandleiding-fusten.pdf"
+  },
+  "teacherDashboard": {
+    "gitlabUrl": "https://gitlab.aimsites.nl",
+    "groupPath": "2026p1-fusten",
+    "subgroups": [
+      "Arnhem",
+      "Nijmegen"
+    ],
+    "repos": [
+      { "prefix": "pod", "label": "POD" },
+      { "prefix": "n1-chuck-a-luck", "label": "N1 Chuck-a-luck" },
+      { "prefix": "n2-ticketfaster-api", "label": "N2 TicketFaster API" },
+      { "prefix": "n2-expense-pro", "label": "N2 Expense Pro" },
+      { "prefix": "n3-ticketfaster-frontend", "label": "N3 TicketFaster frontend" },
+      { "prefix": "n3-expense-pro", "label": "N3 Expense Pro" }
+    ],
+    "teacherUsernames": [],
+    "orangeThresholdPercent": 10,
+    "redThresholdPercent": 50,
+    "requireCommentsForDone": false
   }
 }

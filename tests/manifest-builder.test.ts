@@ -478,3 +478,31 @@ Deno.test("Manifest-titels met meerdere HTML-entities worden correct gedecodeerd
     "Quotes correct single-escaped",
   );
 });
+
+Deno.test("Brightspace-manifest plaatst content/docenten in module_docentenmateriaal met dependencies", () => {
+  const entries: ManifestEntry[] = [
+    {
+      id: "res_content_docenten_voortgangsverkenner_html",
+      title: "Voortgangsverkenner",
+      href: "content/docenten/voortgangsverkenner.html",
+      type: "webcontent",
+      dependencies: [
+        "content/docenten/style.css",
+        "content/docenten/app.js",
+      ],
+    },
+  ];
+
+  const xml = buildManifest("Test Course", entries);
+
+  assertStringIncludes(xml, '<item identifier="module_docentenmateriaal">');
+  assertStringIncludes(xml, "<title>Instructor material (hide after import)</title>");
+  assertStringIncludes(
+    xml,
+    '<item identifier="item_res_content_docenten_voortgangsverkenner_html" identifierref="res_content_docenten_voortgangsverkenner_html">',
+  );
+  assertStringIncludes(xml, "<title>Voortgangsverkenner</title>");
+  assertStringIncludes(xml, '<file href="content/docenten/voortgangsverkenner.html"/>');
+  assertStringIncludes(xml, '<file href="content/docenten/style.css"/>');
+  assertStringIncludes(xml, '<file href="content/docenten/app.js"/>');
+});

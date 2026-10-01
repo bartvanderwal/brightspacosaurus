@@ -424,7 +424,9 @@ include expansion, so every `{@bso-versions}` line outside fenced code becomes a
 Markdown table (or the table follows the first H1). The table contains only
 versions, no build time, so output stays idempotent. The demo Docusaurus
 preprocessor applies the same function; `bso preview` passes path and versions
-via `BSO_PREVIEW_TEACHER_PAGE`. Git dates and the #37 dashboard build on this page.
+via `BSO_PREVIEW_TEACHER_PAGE`.
+
+Teacher progress dashboard (#37): `src/teacher-dashboard-calc.ts` provides pure calculation and threshold logic for student GitLab work items and repository stoplights. When `teacherDashboard` is configured in `brightspacosaurus.config.json`, `runPrepare` in `src/main.ts` generates `content/docenten/voortgangsverkenner.html`, `style.css`, and `app.js` using bundled assets from `assets/teacher-dashboard/`. Cartridge generation in `src/manifest-builder.ts` categorizes content under `content/docenten/` into the instructor module (`module_docentenmateriaal`) with the title "Instructor material (hide after import)", ensuring it can be hidden from students after import. The client SPA executes entirely within the instructor's browser, using in-memory token storage (with browser password manager support), `localStorage` caching with timestamps, selective student refresh, and dynamic DOM recoloring based on interactive threshold sliders.
 
 Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`;
 `src/quiz-config.ts` supplies shared configuration validation/defaults. The QTI

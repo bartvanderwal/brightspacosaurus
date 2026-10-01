@@ -22,7 +22,7 @@ import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
-import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import { loadAssetText, loadPackageVersion, materializeAsset } from "./assets.ts";
 import {
   buildManifest,
   deriveReaderMenuTitle,
@@ -276,6 +276,28 @@ export async function runPrepare(
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
+    }
+
+    // Phase 2b: Teacher Dashboard (Voortgangsverkenner) if configured
+    if (config.teacherDashboard) {
+      const docentenOutputDir = join(contentOutputDir, "docenten");
+      await Deno.mkdir(docentenOutputDir, { recursive: true });
+
+      const htmlTemplate = await loadAssetText("teacher-dashboard/index.html");
+      const cssContent = await loadAssetText("teacher-dashboard/style.css");
+      const jsContent = await loadAssetText("teacher-dashboard/app.js");
+
+      const configJson = JSON.stringify(config.teacherDashboard, null, 2);
+      const injectedHtml = htmlTemplate.replace(
+        /<script id="bso-dashboard-config" type="application\/json">[\s\S]*?<\/script>/,
+        `<script id="bso-dashboard-config" type="application/json">\n${configJson}\n  </script>`,
+      );
+
+      await Deno.writeTextFile(join(docentenOutputDir, "voortgangsverkenner.html"), injectedHtml);
+      await Deno.writeTextFile(join(docentenOutputDir, "style.css"), cssContent);
+      await Deno.writeTextFile(join(docentenOutputDir, "app.js"), jsContent);
+
+      console.log(`  ✓ content/docenten/voortgangsverkenner.html`);
     }
   }
 
@@ -557,17 +579,17 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           ? decodeHtmlEntities(h1Match[1].trim())
           : basename(fullPath, extname(fullPath));
 
-        const imgRegex = /src="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp))"/gi;
+        const assetRegex = /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js))"/gi;
         const dependencies: string[] = [];
-        let imgMatch: RegExpExecArray | null;
-        while ((imgMatch = imgRegex.exec(html)) !== null) {
-          const imgSrc = imgMatch[1];
-          if (!imgSrc.startsWith("http://") && !imgSrc.startsWith("https://")) {
+        let match: RegExpExecArray | null;
+        while ((match = assetRegex.exec(html)) !== null) {
+          const assetSrc = match[1];
+          if (!assetSrc.startsWith("http://") && !assetSrc.startsWith("https://") && !assetSrc.startsWith("#")) {
             // Resolve relative path with respect to the HTML file
             const htmlDir = dirname(fullPath);
-            const imgAbs = resolve(htmlDir, imgSrc);
-            const imgRel = "content/" + relative(contentDir, imgAbs);
-            dependencies.push(imgRel);
+            const assetAbs = resolve(htmlDir, assetSrc);
+            const assetRel = "content/" + relative(contentDir, assetAbs);
+            dependencies.push(assetRel);
           }
         }
 

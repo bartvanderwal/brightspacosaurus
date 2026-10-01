@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voortgangsverkenner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <header class="app-header">
+      <div class="header-content">
+        <h1>Voortgangsverkenner</h1>
+        <p class="subtitle">GitLab work items voortgang per student</p>
+      </div>
+    </header>
+
+    <div class="privacy-notice" role="note">
+      <p>
+        <strong>Privacywaarschuwing:</strong> Gecachte studentgegevens (namen, issue-titels en opmerkingen) zijn persoonsgegevens.
+        Docenten mogen dit dashboard uitsluitend gebruiken voor onderwijsbegeleiding en niet delen met derden.
+      </p>
+    </div>
+
+    <section class="controls-card" aria-label="Authenticatie en Cohort">
+      <form id="token-form" class="token-form" autocomplete="on">
+        <input type="text" id="username" autocomplete="username" style="display:none" aria-hidden="true" readonly>
+        <div class="form-row">
+          <div class="form-group flex-grow">
+            <label for="gitlab-token">GitLab Group Access Token (scope <code>read_api</code>):</label>
+            <div class="input-with-button">
+              <input type="password" id="gitlab-token" autocomplete="current-password" placeholder="Plak hier het group access token..." required>
+              <button type="submit" id="btn-save-token" class="btn btn-primary">Bewaar in sessie</button>
+              <button type="button" id="btn-forget-token" class="btn btn-secondary">Vergeet token</button>
+            </div>
+            <p class="field-hint">
+              Het token wordt alleen in het browsergeheugen bewaard zolang de pagina open staat en nooit opgeslagen in cookies of web storage.
+            </p>
+          </div>
+        </div>
+      </form>
+
+      <div class="cohort-row">
+        <div class="form-group">
+          <label for="subgroup-select">Cohort / Subgroep:</label>
+          <select id="subgroup-select"></select>
+        </div>
+        <div class="action-buttons">
+          <button type="button" id="btn-fetch-all" class="btn btn-primary" disabled>Haal status uit GitLab</button>
+          <button type="button" id="btn-clear-cache" class="btn btn-danger">Wis cache</button>
+        </div>
+        <div class="timestamp-container">
+          <span id="cache-timestamp" class="cache-timestamp">Status: nog niet opgehaald</span>
+        </div>
+      </div>
+
+      <details id="settings-panel" class="settings-panel">
+        <summary>Instellingen &amp; Drempelwaarden (live aanpassen)</summary>
+        <div class="settings-content">
+          <div class="slider-group">
+            <div class="setting-item">
+              <label for="slider-orange">
+                Drempelwaarde Oranje: <strong id="val-orange">10</strong>% niet-groen
+              </label>
+              <input type="range" id="slider-orange" min="0" max="100" value="10">
+              <span class="setting-desc">Vanaf dit percentage onvolledige work items kleurt een repo oranje.</span>
+            </div>
+            <div class="setting-item">
+              <label for="slider-red">
+                Drempelwaarde Rood: <strong id="val-red">50</strong>% niet-groen
+              </label>
+              <input type="range" id="slider-red" min="0" max="100" value="50">
+              <span class="setting-desc">Boven dit percentage onvolledige work items kleurt een repo rood.</span>
+            </div>
+          </div>
+          <div class="checkbox-row">
+            <label class="checkbox-label" for="check-require-comments">
+              <input type="checkbox" id="check-require-comments">
+              <span>Vereis comment(s) op work item voor 100% (groen)</span>
+            </label>
+            <p class="setting-desc">Indien aangevinkt levert het ontbreken van comments de status oranje op ("No comment/details provided in work item").</p>
+          </div>
+          <div class="settings-actions">
+            <button type="button" id="btn-reset-settings" class="btn btn-secondary btn-sm">Herstel standaardwaarden</button>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <div id="status-container" class="status-container" style="display: none;" aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="status-info">
+        <span id="status-message">Bezig met laden...</span>
+        <progress id="progress-bar" value="0" max="100" style="display: none;"></progress>
+      </div>
+    </div>
+
+    <div id="error-banner" class="error-banner" style="display: none;" role="alert"></div>
+
+    <main id="dashboard-container" class="dashboard-container" aria-live="polite">
+      <p class="empty-state">Geen gegevens geladen. Voer een token in en klik op 'Haal status uit GitLab'.</p>
+    </main>
+  </div>
+
+  <!-- Injected by BSO prepare command -->
+  <script id="bso-dashboard-config" type="application/json">
+  {}
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

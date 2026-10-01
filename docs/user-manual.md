@@ -291,6 +291,59 @@ If the default page does not exist, BSO skips it without a message. If a configu
 
 ---
 
+### 4.8 Teacher progress dashboard (Voortgangsverkenner)
+
+When courses use GitLab for student assignments, instructors can monitor student work item progress across student repositories using the built-in **Voortgangsverkenner** (Teacher progress dashboard).
+
+BSO generates this standalone client-side dashboard page at `content/docenten/voortgangsverkenner.html` and packages it into the instructor module (`module_docentenmateriaal`) in `imsmanifest.xml`. After importing the Common Cartridge into Brightspace, instructors keep this module hidden from students.
+
+Configure the dashboard under `teacherDashboard` in `brightspacosaurus.config.json`:
+
+```json
+{
+  "teacherDashboard": {
+    "gitlabUrl": "https://gitlab.aimsites.nl",
+    "groupPath": "2026p1-fusten",
+    "subgroups": ["Arnhem", "Nijmegen"],
+    "repos": [
+      { "prefix": "pod", "label": "POD" },
+      { "prefix": "n1-chuck-a-luck", "label": "N1 Chuck-a-luck" },
+      { "prefix": "n2-ticketfaster-api", "label": "N2 TicketFaster API" },
+      { "prefix": "n2-expense-pro", "label": "N2 Expense Pro" },
+      { "prefix": "n3-ticketfaster-frontend", "label": "N3 TicketFaster frontend" },
+      { "prefix": "n3-expense-pro", "label": "N3 Expense Pro" }
+    ],
+    "teacherUsernames": ["docent1", "docent2"],
+    "orangeThresholdPercent": 10,
+    "redThresholdPercent": 50,
+    "requireCommentsForDone": false
+  }
+}
+```
+
+#### Security and token handling
+
+- The dashboard authenticates against GitLab using a **Group Access Token** (role `Reporter`, scope `read_api`).
+- **No secrets in cartridge:** The token is never written into the configuration or the exported package.
+- **In-memory storage:** The dashboard keeps the token only in browser memory while the page is open. It is never persisted to `localStorage` or `sessionStorage` (preventing other scripts in Brightspace from reading it).
+- **Password manager support:** The token input uses `<input type="password" autocomplete="current-password">` with a hidden username field so instructors can securely store and autofill it via their browser password manager.
+
+#### Progress calculation and stoplight rules
+
+- **Work item stoplight:**
+  - **Green (Done):** Work item is closed or in a done state, with at least one commit by the student referencing the issue (`#<number>`), and non-teacher changes (and comments, if enabled).
+  - **Orange (In Progress / Missing requirements):** Work item is in progress/doing, or marked done without student commits or missing comments when required.
+  - **Red (Todo):** Work item is open or todo without progress.
+  - **Gray (Empty):** The student repository has no work items.
+- **Overall repo stoplight:**
+  Calculated from the percentage of non-green work items compared to thresholds:
+  - `< orangeThresholdPercent` (default 10%) $\to$ **Green**
+  - $\ge orangeThresholdPercent$ and $\le redThresholdPercent$ (default 50%) $\to$ **Orange**
+  - `> redThresholdPercent` $\to$ **Red**
+- **Dynamic overrides:** Instructors can adjust the threshold sliders and toggle the comment requirement directly on the dashboard's Settings tab to dynamically recolor the student overview in real time.
+
+---
+
 ## 5. Workflow: from Markdown to Brightspace
 
 BSO converts quizzes to the QTI format (Question and Test Interoperability). QTI is an open standard from 1EdTech (formerly IMS Global) for exchanging test questions and assessments between systems (1EdTech, n.d.). Brightspace imports QTI files as assessments in the Tests/Quizzes tool, so questions do not have to be retyped by hand.

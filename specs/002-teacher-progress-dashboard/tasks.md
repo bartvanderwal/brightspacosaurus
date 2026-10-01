@@ -47,10 +47,10 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Create accessible dashboard SPA shell in `assets/teacher-dashboard/index.html` with plain-text rendering containers
-- [ ] T008 [P] [US1] Create responsive and accessible styling in `assets/teacher-dashboard/style.css` with semantic color indicators and ARIA support
-- [ ] T009 [US1] Implement student repository aggregation and collapsible view hierarchy in `assets/teacher-dashboard/app.js`
-- [ ] T010 [US1] Implement dashboard asset emission in `src/main.ts` and manifest registration in `src/manifest-builder.ts`
+- [x] T007 [P] [US1] Create accessible dashboard SPA shell in `assets/teacher-dashboard/index.html` with plain-text rendering containers
+- [x] T008 [P] [US1] Create responsive and accessible styling in `assets/teacher-dashboard/style.css` with semantic color indicators and ARIA support
+- [x] T009 [US1] Implement student repository aggregation and collapsible view hierarchy in `assets/teacher-dashboard/app.js`
+- [x] T010 [US1] Implement dashboard asset emission in `src/main.ts` and manifest registration in `src/manifest-builder.ts`
 
 **Checkpoint**: User Story 1 MVP fully functional and testable independently.
 
@@ -64,8 +64,8 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 ### Implementation for User Story 2
 
-- [ ] T011 [US2] Implement ephemeral password manager form with hidden dummy username and in-memory token state in `assets/teacher-dashboard/app.js`
-- [ ] T012 [US2] Implement direct browser GitLab REST API v4 client (`GET /groups/:id/projects`, `/projects/:id/issues`, `/projects/:id/repository/commits`) in `assets/teacher-dashboard/app.js`
+- [x] T011 [US2] Implement ephemeral password manager form with hidden dummy username and in-memory token state in `assets/teacher-dashboard/app.js`
+- [x] T012 [US2] Implement direct browser GitLab REST API v4 client (`GET /groups/:id/projects`, `/projects/:id/issues`, `/projects/:id/repository/commits`) in `assets/teacher-dashboard/app.js`
 
 **Checkpoint**: User Stories 1 AND 2 work together securely with direct API interaction.
 
@@ -79,8 +79,8 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 ### Implementation for User Story 3
 
-- [ ] T013 [US3] Implement `localStorage` cache read/write with schema version and timestamp formatting in `assets/teacher-dashboard/app.js`
-- [ ] T014 [US3] Implement full refresh, single-student refresh ("Ververs deze student"), error isolation per repo, and "Wis cache" actions in `assets/teacher-dashboard/app.js`
+- [x] T013 [US3] Implement `localStorage` cache read/write with schema version and timestamp formatting in `assets/teacher-dashboard/app.js`
+- [x] T014 [US3] Implement full refresh, single-student refresh ("Ververs deze student"), error isolation per repo, and "Wis cache" actions in `assets/teacher-dashboard/app.js`
 
 **Checkpoint**: User Stories 1, 2, and 3 provide an offline-capable, cached experience with selective refresh.
 
@@ -94,8 +94,8 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 ### Implementation for User Story 4
 
-- [ ] T015 [US4] Implement dynamic threshold slider inputs on settings tab with instant live re-coloring in `assets/teacher-dashboard/app.js`
-- [ ] T016 [US4] Implement reset-to-defaults action restoring configured `orangeThresholdPercent` and `redThresholdPercent` in `assets/teacher-dashboard/app.js`
+- [x] T015 [US4] Implement dynamic threshold slider inputs on settings tab with instant live re-coloring in `assets/teacher-dashboard/app.js`
+- [x] T016 [US4] Implement reset-to-defaults action restoring configured `orangeThresholdPercent` and `redThresholdPercent` in `assets/teacher-dashboard/app.js`
 
 **Checkpoint**: User Story 4 allows dynamic recalibration of stoplight sensitivity.
 
@@ -109,9 +109,9 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 ### Implementation for User Story 5
 
-- [ ] T017 [US5] Implement work item commit linking check (`#iid`) and teacher username exclusion filter in `assets/teacher-dashboard/app.js`
-- [ ] T018 [US5] Implement future deadline detection (`due_date` / `milestone.due_date`) for neutral "Not yet due" status in `assets/teacher-dashboard/app.js`
-- [ ] T019 [US5] Implement dynamic checkbox and config option for "Require comment(s) in work item for 100%" with orange fallback in `assets/teacher-dashboard/app.js`
+- [x] T017 [US5] Implement work item commit linking check (`#iid`) and teacher username exclusion filter in `assets/teacher-dashboard/app.js`
+- [x] T018 [US5] Implement future deadline detection (`due_date` / `milestone.due_date`) for neutral "Not yet due" status in `assets/teacher-dashboard/app.js`
+- [x] T019 [US5] Implement dynamic checkbox and config option for "Require comment(s) in work item for 100%" with orange fallback in `assets/teacher-dashboard/app.js`
 
 **Checkpoint**: All user stories functional.
 
@@ -121,6 +121,6 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 **Purpose**: Documentation, examples, and full test suite verification
 
-- [ ] T020 [P] Document `teacherDashboard` configuration, security model, and Brightspace visibility in `docs/user-manual.md` and `docs/software-guidebook.md`
-- [ ] T021 [P] Add example `teacherDashboard` block in `examples/owe-1.config.json`
-- [ ] T022 Execute test suites and verify Definition of Done
+- [x] T020 [P] Document `teacherDashboard` configuration, security model, and Brightspace visibility in `docs/user-manual.md` and `docs/software-guidebook.md`
+- [x] T021 [P] Add example `teacherDashboard` block in `examples/owe-1.config.json`
+- [x] T022 Execute test suites and verify Definition of Done
