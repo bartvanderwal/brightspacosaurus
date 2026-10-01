@@ -456,7 +456,7 @@
     if (!container) return;
 
     if (!data || !data.students || Object.keys(data.students).length === 0) {
-      container.innerHTML = `<p class="empty-state">Geen studenten gevonden in subgroep '${activeSubgroup}'. Klik op 'Haal status uit GitLab' om gegevens op te halen.</p>`;
+      container.innerHTML = `<p class="empty-state">Geen studenten gevonden in subgroep '${escapeHtml(activeSubgroup)}'. Klik op 'Haal status uit GitLab' om gegevens op te halen.</p>`;
       return;
     }
 
