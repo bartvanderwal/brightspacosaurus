@@ -2,8 +2,9 @@
 # https://bartvanderwal.github.io/brightspacosaurus/
 #
 # Runs the fast checks first and deploys only when they pass. Diagrams are
-# rendered by the public Kroki service, which sometimes answers 500; the build
-# is retried, and if it keeps failing the previous deployment stays online.
+# rendered by a Kroki service container with its Mermaid companion, not by the
+# public kroki.io, which sometimes answers 500. If the build fails, the
+# previous deployment stays online.
 name: Demo preview on GitHub Pages
 
 on:
@@ -21,14 +22,23 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      kroki:
+        image: yuzutech/kroki:0.32.1
+        ports:
+          - 8000:8000
+        env:
+          KROKI_MERMAID_HOST: mermaid
+      mermaid:
+        image: yuzutech/kroki-mermaid:0.32.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -54,21 +64,27 @@ jobs:
         working-directory: demo-course-docs
         run: npm ci
 
-      - name: Build the preview (retried for Kroki hiccups)
+      - name: Wait for Kroki (PlantUML and Mermaid)
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -sf -X POST -H "Content-Type: text/plain" --data 'graph TD; A-->B' http://localhost:8000/mermaid/svg > /dev/null; then
+              echo "Kroki with Mermaid is ready."; exit 0
+            fi
+            sleep 2
+          done
+          echo "Kroki did not become ready."; exit 1
+
+      - name: Build the preview
         working-directory: demo-course-docs
         env:
           DOCS_URL: https://bartvanderwal.github.io
           DOCS_BASE_URL: /brightspacosaurus/
+          BSO_KROKI_URL: http://localhost:8000
         run: |
           export BSO_PREVIEW_STATIC_DIR="$GITHUB_WORKSPACE/build/preview-static"
-          for attempt in 1 2 3; do
-            npx docusaurus build && exit 0
-            echo "Build attempt $attempt failed; retrying in 20 s."
-            sleep 20
-          done
-          exit 1
+          npx docusaurus build
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: demo-course-docs/build
 
@@ -83,4 +99,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

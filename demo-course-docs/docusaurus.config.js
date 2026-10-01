@@ -28,7 +28,13 @@ const flashcardOptions = resolveFlashcardsOptions(
     ? JSON.parse(process.env.BSO_PREVIEW_FLASHCARDS_CONFIG)
     : course.flashcards,
 );
-const diagramOptions = resolveDiagramsConfig(course);
+// BSO_KROKI_URL points the build to another Kroki server, for example the
+// Kroki service container in the GitHub Pages workflow.
+const diagramOptions = resolveDiagramsConfig(
+  process.env.BSO_KROKI_URL
+    ? { ...course, diagrams: { ...course.diagrams, krokiUrl: process.env.BSO_KROKI_URL } }
+    : course,
+);
 // `bso preview` passes the selected course's teacher page and versions.
 const teacherPage = process.env.BSO_PREVIEW_TEACHER_PAGE
   ? JSON.parse(process.env.BSO_PREVIEW_TEACHER_PAGE)
