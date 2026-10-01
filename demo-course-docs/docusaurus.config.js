@@ -77,6 +77,28 @@ function remarkTeacherPageTabs() {
   };
 }
 
+// Software guidebook, user manual and ADRs from docs/ (#33). Links that leave
+// docs/ (README, CHANGELOG, source files) point to the file on GitHub.
+const docsDir = path.resolve(__dirname, "../docs");
+const repoRoot = path.resolve(__dirname, "..");
+const githubBlob = "https://github.com/bartvanderwal/brightspacosaurus/blob/main/";
+function remarkRepoLinks() {
+  return (tree, file) => {
+    const visit = (node) => {
+      if (node.type === "link" && node.url && !/^[a-z]+:|^#|^\//i.test(node.url) && file.path) {
+        const [target, hash] = node.url.split("#");
+        const absolute = path.resolve(path.dirname(file.path), target);
+        if (!absolute.startsWith(docsDir + path.sep)) {
+          node.url = githubBlob + path.relative(repoRoot, absolute).split(path.sep).join("/") +
+            (hash ? `#${hash}` : "");
+        }
+      }
+      for (const child of node.children ?? []) visit(child);
+    };
+    visit(tree);
+  };
+}
+
 // Reorders doc items per sidebar level like the Brightspace manifest; categories keep their slots.
 function sortLikeBrightspace(items, titles, positions, firstId) {
   const docs = items.filter((item) => item.type === "doc");
@@ -108,6 +130,11 @@ module.exports = {
   markdown: {
     format: "detect",
     preprocessor: ({ filePath, fileContent }) => {
+      // Guidebook and user manual are not course material: their include
+      // examples must stay literal text.
+      if (path.resolve(filePath).startsWith(path.resolve(__dirname, "../docs") + path.sep)) {
+        return fileContent;
+      }
       const markdown = expandIncludes(
         fileContent,
         path.dirname(filePath),
@@ -124,6 +151,18 @@ module.exports = {
     require.resolve("./src/teacher-tabs-client.js"),
     require.resolve("remark-kroki-a11y/diagramTabs.js"),
   ],
+  plugins: [["@docusaurus/plugin-content-docs", {
+    id: "guidebook",
+    path: "../docs",
+    routeBasePath: "guidebook",
+    include: [
+      "software-guidebook.md",
+      "user-manual.md",
+      "definition-of-done.md",
+      "adr/*.md",
+    ],
+    remarkPlugins: [remarkRepoLinks, [remarkDiagrams, diagramOptions]],
+  }]],
   presets: [["@docusaurus/preset-classic", {
     docs: {
       path: "../examples/demo-course",
@@ -153,7 +192,12 @@ module.exports = {
   themeConfig: {
     navbar: {
       title: "Demo Course",
-      items: [{ to: "/lessons/", label: "Handbook", position: "left" }],
+      items: [
+        { to: "/lessons/", label: "Demo course", position: "left" },
+        { to: "/guidebook/software-guidebook", label: "Software Guidebook", position: "left" },
+        { to: "/guidebook/user-manual", label: "User manual", position: "left" },
+        { href: "https://github.com/bartvanderwal/brightspacosaurus", label: "GitHub", position: "right" },
+      ],
     },
     prism: { additionalLanguages: ["java", "bash"] },
   },

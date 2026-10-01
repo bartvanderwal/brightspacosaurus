@@ -314,7 +314,10 @@ The root configuration selects `examples/demo-course`; its Docusaurus app lives 
 
 The demo course is published as a Docusaurus site at
 [bartvanderwal.github.io/brightspacosaurus](https://bartvanderwal.github.io/brightspacosaurus/),
-as an example of what BSO produces. The workflow `.github/workflows/demo-preview-pages.yml`
+as an example of what BSO produces, together with the
+[Software Guidebook](https://bartvanderwal.github.io/brightspacosaurus/guidebook/software-guidebook),
+the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual) and the ADRs.
+The workflow `.github/workflows/demo-preview-pages.yml`
 rebuilds it after every push to `main` (or by hand via *Run workflow*): it runs lint and
 `deno task test:fast` first and deploys only when they pass.
 
