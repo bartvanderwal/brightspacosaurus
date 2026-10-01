@@ -332,3 +332,12 @@ Deno.test("teacher page directive without teacherDashboard shows a note instead 
   assertEquals(html.includes('<div class="bso-tabs" data-bso-tabs'), false);
   assertStringIncludes(html, "niet geconfigureerd");
 });
+
+Deno.test("the package exports what a course's own Docusaurus needs for the dashboard tabs", async () => {
+  const mod = await import("../src/mod.ts");
+  assertEquals(typeof mod.remarkTeacherDashboard, "function");
+  assertEquals(mod.DASHBOARD_DIRECTIVE, "{@bso-teacher-dashboard}");
+  const exportsMap = JSON.parse(await Deno.readTextFile(new URL("../deno.json", import.meta.url))).exports;
+  assertEquals(exportsMap["./teacher-page"], "./src/teacher-page.ts");
+  assertEquals(exportsMap["./tabs"], "./assets/brightspacosaurus-tabs.js");
+});

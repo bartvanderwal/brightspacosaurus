@@ -354,7 +354,13 @@ Put the directive on its own line in the teacher page (`teacherPage`, default `f
 
 BSO then shows the teacher page with two tabs: **Informatie** (the rest of the page) and **Voortgangsverkenner** (the dashboard in an embedded frame, at full width). Without JavaScript both parts are shown one after the other. The directive only works on the teacher page and needs `teacherDashboard` in the configuration; without it the page shows a short note instead.
 
-The Docusaurus preview shows the same tabs and the same working dashboard (dev/prod parity), so you can test it with your token before importing. `bso preview` writes the dashboard files to `preview-static/` next to the build directory and passes that directory to Docusaurus in `BSO_PREVIEW_STATIC_DIR`. A course with its own Docusaurus configuration needs three additions, as in `demo-course-docs/docusaurus.config.js`: `remarkTeacherDashboard` from `src/teacher-page.ts` as a remark plugin for the teacher page, `staticDirectories` with `BSO_PREVIEW_STATIC_DIR`, and a client module that calls `initializeTabs` from `assets/brightspacosaurus-tabs.js`. Without `bso preview` the directive shows a note how to start it.
+The Docusaurus preview shows the same tabs and the same working dashboard (dev/prod parity), so you can test it with your token before importing. `bso preview` writes the dashboard files to `preview-static/` next to the build directory and passes that directory to Docusaurus in `BSO_PREVIEW_STATIC_DIR`. A course with its own Docusaurus configuration (for example via `npm:@jsr/bartvanderwal__brightspacosaurus`) needs three additions:
+
+- `remarkTeacherDashboard` from `@bartvanderwal/brightspacosaurus/teacher-page` as a remark plugin for the teacher page only, with `src: "/docenten/voortgangsverkenner.html"`;
+- a static directory that contains `docenten/voortgangsverkenner.html`: either `BSO_PREVIEW_STATIC_DIR` when you start the preview with `bso preview`, or the `content` directory of a previous `prepare` (for example `build/brightspace/content`);
+- a client module that imports `@bartvanderwal/brightspacosaurus/tabs` and calls `globalThis.bsoTabs?.initializeTabs(document)` in `onRouteDidUpdate`.
+
+`demo-course-docs/docusaurus.config.js` shows the same setup, loading BSO from source instead of from the package. Without a dashboard URL the directive shows a note.
 
 The dashboard stays a separate file (`docenten/voortgangsverkenner.html`) in the hidden instructor module. Hiding a topic in Brightspace does not necessarily block a direct URL for enrolled students; that is not a data leak, because the page contains no token or student data, only the group name and repository prefixes. Students cannot see other students' work without a token with read access to the course group.
 

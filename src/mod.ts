@@ -49,13 +49,18 @@ export {
 } from "./flashcards.ts";
 export type { FlashcardNode, FlashcardsConfig } from "./flashcards.ts";
 export {
+  DASHBOARD_DIRECTIVE,
   DEFAULT_TEACHER_PAGE,
   insertVersionTable,
+  remarkTeacherDashboard,
   renderVersionTable,
   resolveTeacherPage,
   VERSIONS_DIRECTIVE,
 } from "./teacher-page.ts";
-export type { TeacherPageVersions } from "./teacher-page.ts";
+export type {
+  TeacherDashboardTabsOptions,
+  TeacherPageVersions,
+} from "./teacher-page.ts";
 export { convertQuiz } from "./quiz-converter.ts";
 export { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 export {

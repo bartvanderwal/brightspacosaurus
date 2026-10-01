@@ -1,3 +1,4 @@
+// @ts-self-types="./brightspacosaurus-tabs.d.ts"
 /*
  * Tabs on the teacher page (#37): "Informatie" and "Voortgangsverkenner".
  *

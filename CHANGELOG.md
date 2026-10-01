@@ -8,6 +8,12 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.14.1 - 2026-10-01
+
+### Fixed
+
+- Export what a course's own Docusaurus preview needs for the Voortgangsverkenner tabs: `remarkTeacherDashboard` and `DASHBOARD_DIRECTIVE` from the package root and from the new `./teacher-page` export (runtime-neutral, no Deno APIs), and the tab script as `./tabs`. 0.14.0 only made them available to the demo, which loads BSO from source (#37).
+
 ## 0.14.0 - 2026-10-01
 
 ### Added
