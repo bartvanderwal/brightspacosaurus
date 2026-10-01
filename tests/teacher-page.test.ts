@@ -169,6 +169,7 @@ function testConfig(repoRoot: string, explicit: boolean): ResolvedConfig {
     name: "teacher-course",
     docusaurusDir: null,
     teacherManual: null,
+    teacherDashboard: null,
     quiz: { maxAttempts: 0, shuffleAnswers: false },
     teacherPage: { path: join(sourcesDir, "for-teachers.md"), explicit },
     diagrams: {

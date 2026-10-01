@@ -15,7 +15,7 @@ import {
   isWorkItemCommit,
   type StoplightColor,
   type WorkItemEvaluationResult,
-} from "../src/teacher-dashboard-calc.ts";
+} from "./helpers/dashboard-calc.ts";
 
 // ---------------------------------------------------------------------------
 // Student Identifier Extraction
@@ -123,7 +123,7 @@ Deno.test("evaluateWorkItem: done without student commits is orange", () => {
 
   assertEquals(result.color, "orange");
   assertEquals(result.isDone, false);
-  assertEquals(result.reason, "Done without own student commits");
+  assertEquals(result.reason, "Status done zonder eigen commits");
 });
 
 Deno.test("evaluateWorkItem: done without comments when requireCommentsForDone is true is orange", () => {
@@ -136,7 +136,7 @@ Deno.test("evaluateWorkItem: done without comments when requireCommentsForDone i
 
   assertEquals(result.color, "orange");
   assertEquals(result.isDone, false);
-  assertEquals(result.reason, "No comment/details provided in work item");
+  assertEquals(result.reason, "Status done, maar geen opmerking van de student");
 });
 
 Deno.test("evaluateWorkItem: done without comments when requireCommentsForDone is false is green", () => {
@@ -159,7 +159,7 @@ Deno.test("evaluateWorkItem: status 'doing' or opened with student commits is or
     requireCommentsForDone: false,
   });
   assertEquals(openedWithCommits.color, "orange");
-  assertEquals(openedWithCommits.reason, "Work item in progress (doing)");
+  assertEquals(openedWithCommits.reason, "Status doing");
 
   const scopedDoing = evaluateWorkItem({
     state: "opened",
@@ -186,7 +186,7 @@ Deno.test("evaluateWorkItem: todo with future deadline is gray (neutral)", () =>
 
   assertEquals(result.color, "gray");
   assertEquals(result.isNeutral, true);
-  assertEquals(result.reason, "Not yet due");
+  assertEquals(result.reason, "Deadline nog niet verstreken");
 });
 
 Deno.test("evaluateWorkItem: todo with overdue deadline is red", () => {
@@ -204,7 +204,7 @@ Deno.test("evaluateWorkItem: todo with overdue deadline is red", () => {
 
   assertEquals(result.color, "red");
   assertEquals(result.isNeutral, false);
-  assertEquals(result.reason, "Overdue todo item");
+  assertEquals(result.reason, "Status todo, deadline verstreken");
 });
 
 Deno.test("evaluateWorkItem: todo without deadline is red", () => {
@@ -217,7 +217,7 @@ Deno.test("evaluateWorkItem: todo without deadline is red", () => {
 
   assertEquals(result.color, "red");
   assertEquals(result.isNeutral, false);
-  assertEquals(result.reason, "Todo item not started");
+  assertEquals(result.reason, "Status todo, nog niet begonnen");
 });
 
 // ---------------------------------------------------------------------------
@@ -231,8 +231,8 @@ Deno.test("evaluateRepoStoplight: empty repository or only neutral items is gray
   assertEquals(emptyResult.scorableWorkItems, 0);
 
   const allNeutral: WorkItemEvaluationResult[] = [
-    { color: "gray", reason: "Not yet due", isDone: false, isNeutral: true },
-    { color: "gray", reason: "Not yet due", isDone: false, isNeutral: true },
+    { color: "gray", reason: "Deadline nog niet verstreken", isDone: false, isNeutral: true },
+    { color: "gray", reason: "Deadline nog niet verstreken", isDone: false, isNeutral: true },
   ];
   const neutralResult = evaluateRepoStoplight(allNeutral);
   assertEquals(neutralResult.color, "gray");
@@ -290,7 +290,7 @@ Deno.test("evaluateRepoStoplight: neutral items excluded from calculation denomi
     })),
     ...Array.from({ length: 5 }, () => ({
       color: "gray" as const,
-      reason: "Not yet due",
+      reason: "Deadline nog niet verstreken",
       isDone: false,
       isNeutral: true,
     })),
@@ -340,4 +340,28 @@ Deno.test("Property: evaluateRepoStoplight preserves mathematical bounds and thr
     ),
     { numRuns: 100 },
   );
+});
+
+// ---------------------------------------------------------------------------
+// Single source: the page uses calc.js, app.js has no own copy of the rules
+// ---------------------------------------------------------------------------
+
+Deno.test("dashboard page loads calc.js before app.js and app.js does not redefine the rules", async () => {
+  const { loadAssetText } = await import("../src/assets.ts");
+  const html = await loadAssetText("teacher-dashboard/index.html");
+  const app = await loadAssetText("teacher-dashboard/app.js");
+  const calcAt = html.indexOf('<script src="calc.js">');
+  const appAt = html.indexOf('<script src="app.js">');
+  assertEquals(calcAt >= 0 && calcAt < appAt, true, "calc.js must load before app.js");
+  for (
+    const name of [
+      "extractStudentIdentifier",
+      "isTeacherCommit",
+      "isWorkItemCommit",
+      "evaluateWorkItem",
+      "evaluateRepoStoplight",
+    ]
+  ) {
+    assertEquals(app.includes(`function ${name}(`), false, `app.js must not define ${name}`);
+  }
 });

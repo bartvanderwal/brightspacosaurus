@@ -27,6 +27,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
     name: "coverage-course",
     docusaurusDir: null,
     teacherManual: null,
+    teacherDashboard: null,
     quiz: { maxAttempts: 0, shuffleAnswers: false },
     flashcards: { sectionHeadings: ["Kernbegrippen"] },
     diagrams: {

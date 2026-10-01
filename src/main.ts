@@ -286,6 +286,7 @@ export async function runPrepare(
       const htmlTemplate = await loadAssetText("teacher-dashboard/index.html");
       const cssContent = await loadAssetText("teacher-dashboard/style.css");
       const jsContent = await loadAssetText("teacher-dashboard/app.js");
+      const calcContent = await loadAssetText("teacher-dashboard/calc.js");
 
       const configJson = JSON.stringify(config.teacherDashboard, null, 2);
       const injectedHtml = htmlTemplate.replace(
@@ -295,6 +296,20 @@ export async function runPrepare(
 
       await Deno.writeTextFile(join(docentenOutputDir, "voortgangsverkenner.html"), injectedHtml);
       await Deno.writeTextFile(join(docentenOutputDir, "style.css"), cssContent);
+      await Deno.writeTextFile(join(docentenOutputDir, "calc.js"), calcContent);
+      await Deno.mkdir(join(docentenOutputDir, "vendor"), { recursive: true });
+      for (
+        const vendorFile of [
+          "react.production.min.js",
+          "react-dom.production.min.js",
+          "htm.umd.js",
+        ]
+      ) {
+        await Deno.writeTextFile(
+          join(docentenOutputDir, "vendor", vendorFile),
+          await loadAssetText(`teacher-dashboard/vendor/${vendorFile}`),
+        );
+      }
       await Deno.writeTextFile(join(docentenOutputDir, "app.js"), jsContent);
 
       console.log(`  ✓ content/docenten/voortgangsverkenner.html`);
