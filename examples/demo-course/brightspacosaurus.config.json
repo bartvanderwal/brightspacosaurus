@@ -7,10 +7,36 @@
   "outputDir": "build/brightspace",
   "docusaurusDir": "../../demo-course-docs",
   "flashcards": {
-    "sectionHeadings": ["Core concepts"]
+    "sectionHeadings": [
+      "Core concepts"
+    ]
   },
   "quiz": {
     "maxAttempts": 0,
     "shuffleAnswers": true
+  },
+  "teacherDashboard": {
+    "gitlabUrl": "https://gitlab.example.org",
+    "groupPath": "demo-course",
+    "subgroups": [
+      "class-a",
+      "class-b"
+    ],
+    "repos": [
+      {
+        "prefix": "n1-hello-world",
+        "label": "N1 Hello world"
+      },
+      {
+        "prefix": "n2-todo-api",
+        "label": "N2 Todo API"
+      }
+    ],
+    "teacherUsernames": [
+      "demo-teacher"
+    ],
+    "orangeThresholdPercent": 10,
+    "redThresholdPercent": 50,
+    "requireCommentsForDone": false
   }
 }

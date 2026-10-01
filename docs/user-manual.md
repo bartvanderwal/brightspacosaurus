@@ -352,7 +352,9 @@ Put the directive on its own line in the teacher page (`teacherPage`, default `f
 {@bso-teacher-dashboard}
 ```
 
-BSO then shows the teacher page with two tabs: **Informatie** (the rest of the page) and **Voortgangsverkenner** (the dashboard in an embedded frame, at full width). Without JavaScript both parts are shown one after the other. The directive only works on the teacher page and needs `teacherDashboard` in the configuration; without it the page shows a short note instead. In the Docusaurus preview the directive becomes a note, because the dashboard only works after import in Brightspace.
+BSO then shows the teacher page with two tabs: **Informatie** (the rest of the page) and **Voortgangsverkenner** (the dashboard in an embedded frame, at full width). Without JavaScript both parts are shown one after the other. The directive only works on the teacher page and needs `teacherDashboard` in the configuration; without it the page shows a short note instead.
+
+The Docusaurus preview shows the same tabs and the same working dashboard (dev/prod parity), so you can test it with your token before importing. `bso preview` writes the dashboard files to `preview-static/` next to the build directory and passes that directory to Docusaurus in `BSO_PREVIEW_STATIC_DIR`. A course with its own Docusaurus configuration needs three additions, as in `demo-course-docs/docusaurus.config.js`: `remarkTeacherDashboard` from `src/teacher-page.ts` as a remark plugin for the teacher page, `staticDirectories` with `BSO_PREVIEW_STATIC_DIR`, and a client module that calls `initializeTabs` from `assets/brightspacosaurus-tabs.js`. Without `bso preview` the directive shows a note how to start it.
 
 The dashboard stays a separate file (`docenten/voortgangsverkenner.html`) in the hidden instructor module. Hiding a topic in Brightspace does not necessarily block a direct URL for enrolled students; that is not a data leak, because the page contains no token or student data, only the group name and repository prefixes. Students cannot see other students' work without a token with read access to the course group.
 

@@ -6,9 +6,8 @@ const { remarkFlashcards, resolveFlashcardsOptions } = require(
 const { remarkDiagrams } = require("../src/diagram-renderer.ts");
 const { expandIncludes } = require("../src/includes.ts");
 const {
-  DASHBOARD_PREVIEW_NOTE,
   insertVersionTable,
-  replaceDashboardDirective,
+  remarkTeacherDashboard,
   resolveTeacherPage,
 } = require("../src/teacher-page.ts");
 const {
@@ -57,6 +56,20 @@ const includeHost = {
   warn: console.warn,
 };
 
+// Same tabs as the Brightspace export, on the teacher page only (#37). `bso preview`
+// serves the dashboard files from BSO_PREVIEW_STATIC_DIR; without it the page
+// shows a note how to start the preview with the dashboard.
+const previewStaticDir = process.env.BSO_PREVIEW_STATIC_DIR || "";
+function remarkTeacherPageTabs() {
+  const transform = remarkTeacherDashboard({
+    src: previewStaticDir ? teacherPage.dashboardSrc ?? null : null,
+    note: "Voortgangsverkenner: start de preview met `bso preview` (met teacherDashboard in de configuratie) om hem hier te zien.",
+  });
+  return (tree, file) => {
+    if (file.path && path.resolve(file.path) === teacherPage.path) transform(tree);
+  };
+}
+
 // Reorders doc items per sidebar level like the Brightspace manifest; categories keep their slots.
 function sortLikeBrightspace(items, titles) {
   const docs = items.filter((item) => item.type === "doc");
@@ -91,16 +104,15 @@ module.exports = {
         path.dirname(filePath),
         includeHost,
       );
-      if (path.resolve(filePath) !== teacherPage.path) return markdown;
-      // The Voortgangsverkenner only exists after import in Brightspace (#37).
-      return replaceDashboardDirective(
-        insertVersionTable(markdown, teacherPage),
-        DASHBOARD_PREVIEW_NOTE,
-      ).markdown;
+      return path.resolve(filePath) === teacherPage.path
+        ? insertVersionTable(markdown, teacherPage)
+        : markdown;
     },
   },
+  staticDirectories: previewStaticDir ? [previewStaticDir] : [],
   clientModules: [
     require.resolve("./src/flashcards-client.js"),
+    require.resolve("./src/teacher-tabs-client.js"),
     require.resolve("remark-kroki-a11y/diagramTabs.js"),
   ],
   presets: [["@docusaurus/preset-classic", {
@@ -116,7 +128,7 @@ module.exports = {
           new Map(args.docs.map((doc) => [doc.id, doc.title])),
         ),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
-      remarkPlugins: [[remarkFlashcards, flashcardOptions], [
+      remarkPlugins: [remarkTeacherPageTabs, [remarkFlashcards, flashcardOptions], [
         remarkDiagrams,
         diagramOptions,
       ]],

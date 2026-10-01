@@ -32,13 +32,7 @@ import {
 import { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { expandIncludes, parseIncludeTarget } from "./includes.ts";
-import {
-  DASHBOARD_MARKER,
-  DASHBOARD_NOT_CONFIGURED_NOTE,
-  insertVersionTable,
-  replaceDashboardDirective,
-  wrapTeacherPageTabs,
-} from "./teacher-page.ts";
+import { insertVersionTable, remarkTeacherDashboard } from "./teacher-page.ts";
 
 /** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
@@ -283,6 +277,12 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkDirective)
     .use(remarkFlashcards, options.flashcards);
 
+  if (options.teacherPageVersions) {
+    processor = processor.use(remarkTeacherDashboard, {
+      src: options.teacherDashboardSrc ?? null,
+    });
+  }
+
   if (renderDiagrams && options.diagrams) {
     processor = withDiagramRendering(
       processor,
@@ -365,22 +365,17 @@ export async function convertMarkdown(
 
   const sourceDir = dirname(sourcePath);
   const expandedMarkdown = resolveIncludes(markdown, sourceDir);
-  const withVersions = options.teacherPageVersions
+  const includedMarkdown = options.teacherPageVersions
     ? insertVersionTable(expandedMarkdown, options.teacherPageVersions)
     : expandedMarkdown;
-  // Teacher page: {@bso-teacher-dashboard} becomes tabs with the dashboard (#37).
-  const dashboard = options.teacherPageVersions
-    ? replaceDashboardDirective(
-      withVersions,
-      options.teacherDashboardSrc ? `\n${DASHBOARD_MARKER}\n` : DASHBOARD_NOT_CONFIGURED_NOTE,
-    )
-    : { markdown: withVersions, found: false };
-  if (dashboard.found && !options.teacherDashboardSrc) {
+  if (
+    options.teacherPageVersions && !options.teacherDashboardSrc &&
+    includedMarkdown.includes("{@bso-teacher-dashboard}")
+  ) {
     console.warn(
       `⚠ ${sourcePath}: {@bso-teacher-dashboard} found, but teacherDashboard is not configured.`,
     );
   }
-  const includedMarkdown = dashboard.markdown;
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
   // 1 for content/ plus the page's subdirectories below baseDir.
   const htmlDepth = 1 +
@@ -425,11 +420,8 @@ export async function convertMarkdown(
   copiedImages.push(...materializedDiagrams.imagePaths);
   const title = basename(sourcePath, extname(sourcePath));
   const version = options.version ?? "?";
-  const pageBody = dashboard.found && options.teacherDashboardSrc
-    ? wrapTeacherPageTabs(materializedDiagrams.html, options.teacherDashboardSrc)
-    : materializedDiagrams.html;
   const fullHtml = await wrapHtml(
-    pageBody,
+    materializedDiagrams.html,
     title,
     version,
     options.packageVersion ?? "?",

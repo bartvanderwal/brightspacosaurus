@@ -13,7 +13,8 @@
       // Class selectors: the role attribute text must not appear in every page,
       // because diagram tests check that no tab list is left in lesson HTML.
       const tablist = container.querySelector(".bso-tablist");
-      if (!tablist) return;
+      // Docusaurus calls this after every route change; initialize once.
+      if (!tablist || container.classList.contains("bso-tabs-enhanced")) return;
       const tabs = Array.from(tablist.querySelectorAll("button"));
       const select = function (tab, focus) {
         tabs.forEach(function (t) {

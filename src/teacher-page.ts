@@ -100,84 +100,120 @@ export function insertVersionTable(
 /** Directive that embeds the Voortgangsverkenner on the teacher page (#37). */
 export const DASHBOARD_DIRECTIVE = "{@bso-teacher-dashboard}";
 
-/** Placeholder paragraph the converter turns into the tabbed layout. */
-export const DASHBOARD_MARKER = "BSO-TEACHER-DASHBOARD-PLACEHOLDER";
-
-/**
- * Replaces every `{@bso-teacher-dashboard}` line outside fenced code blocks.
- * Returns the new Markdown and whether a directive was found.
- */
-export function replaceDashboardDirective(
-  markdown: string,
-  replacement: string,
-): { markdown: string; found: boolean } {
-  const lines = markdown.split("\n");
-  let fence: string | null = null;
-  let found = false;
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    const marker = trimmed.match(/^(`{3,}|~{3,})/)?.[1];
-    if (fence) {
-      if (marker && marker[0] === fence[0] && marker.length >= fence.length) {
-        fence = null;
-      }
-      continue;
-    }
-    if (marker) fence = marker;
-    else if (trimmed === DASHBOARD_DIRECTIVE) {
-      lines[i] = replacement;
-      found = true;
-    }
-  }
-  return { markdown: lines.join("\n"), found };
-}
-
-/** Docusaurus preview: the dashboard only works after import in Brightspace. */
-export const DASHBOARD_PREVIEW_NOTE = [
-  "",
-  ":::note[Voortgangsverkenner]",
-  "",
-  "Hier staat na import in Brightspace de Voortgangsverkenner, in een eigen tabblad naast deze informatie. In deze preview is hij niet beschikbaar.",
-  "",
-  ":::",
-  "",
-].join("\n");
-
-/** Brightspace export without `teacherDashboard` in the configuration. */
+/** Shown instead of the tabs when the dashboard cannot be embedded. */
 export const DASHBOARD_NOT_CONFIGURED_NOTE =
-  "> **Voortgangsverkenner:** niet geconfigureerd. Voeg `teacherDashboard` toe aan `brightspacosaurus.config.json`.";
+  "Voortgangsverkenner: niet geconfigureerd. Voeg teacherDashboard toe aan brightspacosaurus.config.json.";
 
-function escapeAttribute(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+/** Options for {@link remarkTeacherDashboard}. */
+export interface TeacherDashboardTabsOptions {
+  /** URL of the dashboard page, relative or absolute; null shows `note`. */
+  src: string | null;
+  /** Text shown when `src` is null. */
+  note?: string;
+}
+
+/** Minimal mdast node shape used by this plugin. */
+interface MdNode {
+  type: string;
+  depth?: number;
+  value?: string;
+  url?: string;
+  children?: MdNode[];
+  data?: { hName?: string; hProperties?: Record<string, unknown> };
+}
+
+function text(value: string): MdNode {
+  return { type: "text", value };
+}
+
+function el(tag: string, properties: Record<string, unknown>, children: MdNode[] = []): MdNode {
+  return { type: "bsoTeacherTabsElement", data: { hName: tag, hProperties: properties }, children };
+}
+
+function isDirective(node: MdNode): boolean {
+  if (node.type !== "paragraph" || node.children?.length !== 1) return false;
+  const only = node.children[0];
+  return only.type === "text" && only.value?.trim() === DASHBOARD_DIRECTIVE;
+}
+
+/** The page title: an H1, or a wrapper around only an H1 (Docusaurus adds a <header>). */
+function isPageTitle(node: MdNode): boolean {
+  if (node.type === "heading") return node.depth === 1;
+  return node.children?.length === 1 && isPageTitle(node.children[0]);
 }
 
 /**
- * Wraps the teacher page body in two tabs: the page itself ("Informatie") and
- * the Voortgangsverkenner in an iframe. The page's first H1 stays above the
- * tabs. Without JavaScript both panels are shown one after the other; the
- * tab script (assets/brightspacosaurus-tabs.js) turns them into tabs.
+ * Remark plugin for the teacher page: `{@bso-teacher-dashboard}` on its own
+ * line turns the page into two tabs, *Informatie* (the rest of the page) and
+ * *Voortgangsverkenner* (the dashboard in an iframe). The first H1 stays above
+ * the tabs. Without JavaScript both panels show one after the other;
+ * assets/brightspacosaurus-tabs.js adds the tab behaviour. Built from
+ * hName/hProperties nodes, so the Brightspace export and the Docusaurus
+ * preview render the same markup (dev/prod parity).
  */
-export function wrapTeacherPageTabs(bodyHtml: string, dashboardSrc: string): string {
-  const withoutMarker = bodyHtml.replace(
-    new RegExp(`<p>\\s*${DASHBOARD_MARKER}\\s*</p>\\n?`, "g"),
-    "",
-  );
-  const h1 = withoutMarker.match(/<h1[^>]*>[\s\S]*?<\/h1>\n?/);
-  const heading = h1 ? h1[0] : "";
-  const info = h1 ? withoutMarker.replace(h1[0], "") : withoutMarker;
-  const src = escapeAttribute(dashboardSrc);
-  return `${heading}<div class="bso-tabs" data-bso-tabs>
-<div class="bso-tablist" role="tablist" aria-label="Docentpagina" hidden>
-<button type="button" role="tab" id="bso-tab-info" aria-controls="bso-panel-info" aria-selected="true">Informatie</button>
-<button type="button" role="tab" id="bso-tab-dashboard" aria-controls="bso-panel-dashboard" aria-selected="false" tabindex="-1">Voortgangsverkenner</button>
-</div>
-<section class="bso-tabpanel" id="bso-panel-info" role="tabpanel" aria-labelledby="bso-tab-info">
-${info}
-</section>
-<section class="bso-tabpanel" id="bso-panel-dashboard" role="tabpanel" aria-labelledby="bso-tab-dashboard">
-<h2 class="bso-tabpanel-title">Voortgangsverkenner</h2>
-<iframe class="bso-dashboard-frame" src="${src}" title="Voortgangsverkenner" loading="lazy"></iframe>
-<p class="bso-dashboard-newtab"><a href="${src}" target="_blank" rel="noopener noreferrer">Open de Voortgangsverkenner in een nieuw tabblad</a></p>
-</section>
-</div>`;
+export function remarkTeacherDashboard(
+  options: TeacherDashboardTabsOptions,
+): (tree: MdNode) => void {
+  return (tree: MdNode) => {
+    const children = tree.children ?? [];
+    const at = children.findIndex(isDirective);
+    if (at < 0) return;
+
+    if (!options.src) {
+      children[at] = {
+        type: "blockquote",
+        children: [{ type: "paragraph", children: [text(options.note ?? DASHBOARD_NOT_CONFIGURED_NOTE)] }],
+      };
+      return;
+    }
+
+    const rest = children.filter((node, i) => i !== at && !isDirective(node));
+    const lead = rest.filter((node) => node.type === "yaml");
+    const h1 = rest.find(isPageTitle);
+    const info = rest.filter((node) => node.type !== "yaml" && node !== h1);
+
+    const tab = (id: string, panel: string, label: string, selected: boolean) =>
+      el("button", {
+        type: "button",
+        role: "tab",
+        id,
+        ariaControls: panel,
+        ariaSelected: selected ? "true" : "false",
+        tabIndex: selected ? 0 : -1,
+      }, [text(label)]);
+
+    const tabs = el("div", { className: ["bso-tabs"], dataBsoTabs: "" }, [
+      el("div", { className: ["bso-tablist"], role: "tablist", ariaLabel: "Docentpagina", hidden: true }, [
+        tab("bso-tab-info", "bso-panel-info", "Informatie", true),
+        tab("bso-tab-dashboard", "bso-panel-dashboard", "Voortgangsverkenner", false),
+      ]),
+      el("section", {
+        className: ["bso-tabpanel"],
+        id: "bso-panel-info",
+        role: "tabpanel",
+        ariaLabelledBy: "bso-tab-info",
+      }, info),
+      el("section", {
+        className: ["bso-tabpanel"],
+        id: "bso-panel-dashboard",
+        role: "tabpanel",
+        ariaLabelledBy: "bso-tab-dashboard",
+      }, [
+        el("h2", { className: ["bso-tabpanel-title"] }, [text("Voortgangsverkenner")]),
+        el("iframe", {
+          className: ["bso-dashboard-frame"],
+          src: options.src,
+          title: "Voortgangsverkenner",
+          loading: "lazy",
+        }),
+        el("p", { className: ["bso-dashboard-newtab"] }, [
+          el("a", { href: options.src, target: "_blank", rel: ["noopener", "noreferrer"] }, [
+            text("Open de Voortgangsverkenner in een nieuw tabblad"),
+          ]),
+        ]),
+      ]),
+    ]);
+
+    tree.children = [...lead, ...(h1 ? [h1] : []), tabs];
+  };
 }

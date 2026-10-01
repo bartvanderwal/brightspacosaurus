@@ -22,7 +22,8 @@ import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
-import { loadAssetBytes, loadAssetText, loadPackageVersion, materializeAsset } from "./assets.ts";
+import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import {
   buildManifest,
   deriveReaderMenuTitle,
@@ -321,54 +322,7 @@ export async function runPrepare(
 
     // Phase 2b: Teacher Dashboard (Voortgangsverkenner) if configured
     if (config.teacherDashboard) {
-      const docentenOutputDir = join(contentOutputDir, "docenten");
-      await Deno.mkdir(docentenOutputDir, { recursive: true });
-
-      const htmlTemplate = await loadAssetText("teacher-dashboard/index.html");
-      const cssContent = await loadAssetText("teacher-dashboard/style.css");
-      const jsContent = await loadAssetText("teacher-dashboard/app.js");
-      const calcContent = await loadAssetText("teacher-dashboard/calc.js");
-
-      const configJson = JSON.stringify(config.teacherDashboard, null, 2);
-      const injectedHtml = htmlTemplate.replace(
-        /<script id="bso-dashboard-config" type="application\/json">[\s\S]*?<\/script>/,
-        `<script id="bso-dashboard-config" type="application/json">\n${configJson}\n  </script>`,
-      );
-
-      await Deno.writeTextFile(join(docentenOutputDir, "voortgangsverkenner.html"), injectedHtml);
-      await Deno.writeTextFile(join(docentenOutputDir, "style.css"), cssContent);
-      await Deno.writeTextFile(join(docentenOutputDir, "calc.js"), calcContent);
-      await Deno.mkdir(join(docentenOutputDir, "vendor"), { recursive: true });
-      await Deno.mkdir(join(docentenOutputDir, "vendor", "fonts"), { recursive: true });
-      for (
-        const fontFile of [
-          "atkinson-hyperlegible-next-latin.woff2",
-          "atkinson-hyperlegible-mono-latin.woff2",
-        ]
-      ) {
-        await Deno.writeFile(
-          join(docentenOutputDir, "vendor", "fonts", fontFile),
-          await loadAssetBytes(`teacher-dashboard/vendor/fonts/${fontFile}`),
-        );
-      }
-      await Deno.writeTextFile(
-        join(docentenOutputDir, "vendor", "fonts", "OFL.txt"),
-        await loadAssetText("teacher-dashboard/vendor/fonts/OFL.txt"),
-      );
-      for (
-        const vendorFile of [
-          "react.production.min.js",
-          "react-dom.production.min.js",
-          "htm.umd.js",
-        ]
-      ) {
-        await Deno.writeTextFile(
-          join(docentenOutputDir, "vendor", vendorFile),
-          await loadAssetText(`teacher-dashboard/vendor/${vendorFile}`),
-        );
-      }
-      await Deno.writeTextFile(join(docentenOutputDir, "app.js"), jsContent);
-
+      await writeTeacherDashboard(join(contentOutputDir, "docenten"), config.teacherDashboard);
       console.log(`  ✓ content/docenten/voortgangsverkenner.html`);
     }
   }
@@ -776,9 +730,19 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     }...`,
   );
 
+  // Dev/prod parity: the preview serves the same dashboard files as the
+  // export, from a static directory next to the build directory, so `pack`
+  // never includes them (#37).
+  let previewStaticDir = "";
+  if (config.teacherDashboard) {
+    previewStaticDir = join(dirname(config.outputDir), "preview-static");
+    await writeTeacherDashboard(join(previewStaticDir, "docenten"), config.teacherDashboard);
+  }
+
   const cmd = new Deno.Command("npm", {
     args: ["start"],
     env: {
+      BSO_PREVIEW_STATIC_DIR: previewStaticDir,
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
       BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({
@@ -786,6 +750,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
         courseName: config.courseName,
         courseVersion: config.version,
         bsoVersion: await loadPackageVersion(),
+        dashboardSrc: config.teacherDashboard ? "/docenten/voortgangsverkenner.html" : null,
       }),
     },
     cwd: config.docusaurusDir,
