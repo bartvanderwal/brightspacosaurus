@@ -163,6 +163,17 @@ async function getContentCss(): Promise<string> {
 }
 
 /**
+ * `sidebar_position` from YAML front matter, as Docusaurus uses it to order a
+ * page in its sidebar. BSO uses the same value for the Brightspace menu.
+ */
+export function readSidebarPosition(markdown: string): number | undefined {
+  const front = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!front) return undefined;
+  const match = front[1].match(/^sidebar_position:\s*["']?(-?\d+(?:\.\d+)?)["']?\s*$/m);
+  return match ? Number(match[1]) : undefined;
+}
+
+/**
  * Wraps the HTML body in a full HTML document with lang="nl", UTF-8,
  * HAN house-style CSS and a Google Fonts link.
  * Optionally a custom CSS file is inlined alongside the default CSS.
@@ -173,6 +184,7 @@ async function wrapHtml(
   version: string,
   packageVersion: string,
   customCssPath?: string,
+  sidebarPosition?: number,
 ): Promise<string> {
   const css = await getContentCss();
   const flashcardScript = await loadAssetText(
@@ -199,7 +211,11 @@ async function wrapHtml(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHtml(title)}</title>
+<title>${escapeHtml(title)}</title>${
+    sidebarPosition === undefined
+      ? ""
+      : `\n<meta name="bso-sidebar-position" content="${sidebarPosition}">`
+  }
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 ${css}${customCssBlock}
@@ -426,6 +442,7 @@ export async function convertMarkdown(
     version,
     options.packageVersion ?? "?",
     options.customCssPath,
+    readSidebarPosition(markdown),
   );
 
   await Deno.writeTextFile(outputPath, fullHtml);

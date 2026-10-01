@@ -7,7 +7,7 @@
  * @module
  */
 
-import type { ManifestEntry } from "./types.ts";
+import type { ManifestEntry, ReadersModuleConfig } from "./types.ts";
 
 /**
  * Escapes XML special characters in a string.
@@ -138,9 +138,24 @@ function moduleLeadPageWeight(entry: ManifestEntry): number {
     : 1;
 }
 
+/** Options for the navigation order. */
+export interface NavigationOptions {
+  /** Href of a page that always comes first in its module (the teacher page). */
+  firstHref?: string;
+}
+
+/** Docusaurus order: pages with a `sidebar_position` first, ascending. */
+function comparePositions(a: ManifestEntry, b: ManifestEntry): number {
+  if (a.position === undefined && b.position === undefined) return 0;
+  if (a.position === undefined) return 1;
+  if (b.position === undefined) return -1;
+  return a.position - b.position;
+}
+
 /** Sorts manifest entries into the navigation order expected in Brightspace. */
 export function sortManifestEntriesForNavigation(
   entries: ManifestEntry[],
+  options: NavigationOptions = {},
 ): ManifestEntry[] {
   return [...entries].sort((a, b) => {
     const groupCompare = naturalCompare(
@@ -149,8 +164,15 @@ export function sortManifestEntriesForNavigation(
     );
     if (groupCompare !== 0) return groupCompare;
 
+    if (options.firstHref && (a.href === options.firstHref) !== (b.href === options.firstHref)) {
+      return a.href === options.firstHref ? -1 : 1;
+    }
+
     const moduleLeadCompare = moduleLeadPageWeight(a) - moduleLeadPageWeight(b);
     if (moduleLeadCompare !== 0) return moduleLeadCompare;
+
+    const positionCompare = comparePositions(a, b);
+    if (positionCompare !== 0) return positionCompare;
 
     const codeCompare = compareNavigationCodes(
       extractNavigationCode(a),
@@ -180,7 +202,18 @@ function moduleTitle(groupLabel: string, groupEntries: ManifestEntry[]): string 
   return index?.title ?? groupLabel;
 }
 
-function buildOrganizationItems(entries: ManifestEntry[]): string {
+function itemXml(entry: ManifestEntry): string {
+  return `        <item identifier="item_${
+    escapeXml(entry.id)
+  }" identifierref="${escapeXml(entry.id)}">
+          <title>${escapeXml(entry.title)}</title>
+        </item>`;
+}
+
+function buildOrganizationItems(
+  entries: ManifestEntry[],
+  readersModule: ReadersModuleConfig,
+): string {
   const groupedEntries = new Map<string, ManifestEntry[]>();
   const readerEntries: ManifestEntry[] = [];
   const ungroupedEntries: ManifestEntry[] = [];
@@ -222,21 +255,20 @@ function buildOrganizationItems(entries: ManifestEntry[]): string {
         /^_|_$/g,
         "",
       );
-    const childItems = sortManifestEntriesForNavigation(groupEntries).map(
-      (entry) => {
-        return `        <item identifier="item_${
-          escapeXml(entry.id)
-        }" identifierref="${escapeXml(entry.id)}">
-          <title>${escapeXml(entry.title)}</title>
-        </item>`;
-      },
-    ).join("\n");
+    // Entries arrive in navigation order (sortManifestEntriesForNavigation).
+    // Readers join the module named by readersModule.slug, after its pages.
+    const holdsReaders = groupLabel === readersModule.slug;
+    const children = holdsReaders ? [...groupEntries, ...readerEntries] : groupEntries;
+    const title = holdsReaders && readersModule.title
+      ? readersModule.title
+      : moduleTitle(groupLabel, groupEntries);
 
     return `      <item identifier="${escapeXml(groupId)}">
-        <title>${escapeXml(moduleTitle(groupLabel, groupEntries))}</title>
-${childItems}
+        <title>${escapeXml(title)}</title>
+${children.map(itemXml).join("\n")}
       </item>`;
   });
+  const readersInGroup = groupedEntries.has(readersModule.slug);
 
   const looseItems = ungroupedEntries.map((entry) => {
     return `      <item identifier="item_${
@@ -246,19 +278,14 @@ ${childItems}
       </item>`;
   });
 
-  // Readers module: all reader PDFs under a single heading
-  const readersModule = readerEntries.length > 0
-    ? [`      <item identifier="module_readers">
-        <title>Readers</title>
-${
-      readerEntries.map((entry) =>
-        `        <item identifier="item_${
-          escapeXml(entry.id)
-        }" identifierref="${escapeXml(entry.id)}">
-          <title>${escapeXml(entry.title)}</title>
-        </item>`
-      ).join("\n")
-    }
+  // Readers module: all reader PDFs under a single heading, unless they joined
+  // a content module above. The default identifier stays "module_readers".
+  const readersItems = readerEntries.length > 0 && !readersInGroup
+    ? [`      <item identifier="module_${
+      escapeXml(readersModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"))
+    }">
+        <title>${escapeXml(readersModule.title ?? "Readers")}</title>
+${readerEntries.map(itemXml).join("\n")}
       </item>`]
     : [];
 
@@ -278,7 +305,7 @@ ${
       </item>`]
     : [];
 
-  return [...groupItems, ...looseItems, ...readersModule, ...docentenItems]
+  return [...groupItems, ...looseItems, ...readersItems, ...docentenItems]
     .join("\n");
 }
 
@@ -290,11 +317,13 @@ ${
  *
  * @param courseTitle - Human-readable course title
  * @param entries - Resource entries (HTML web content + QTI assessments)
+ * @param readersModule - Menu module for reader PDFs (default: separate "Readers")
  * @returns Complete XML string of the manifest
  */
 export function buildManifest(
   courseTitle: string,
   entries: ManifestEntry[],
+  readersModule: ReadersModuleConfig = { slug: "readers", title: null },
 ): string {
   // All entries go into the navigation structure: HTML lessons and QTI quizzes per week.
   // Brightspace imports QTI items both as assessments and as content items in the menu.
@@ -314,7 +343,7 @@ ${fileElements.join("\n")}
     </resource>`;
   }).join("\n");
 
-  const itemsXml = buildOrganizationItems(contentEntries);
+  const itemsXml = buildOrganizationItems(contentEntries, readersModule);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="brightspacosaurus_manifest"

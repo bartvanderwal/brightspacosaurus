@@ -16,6 +16,7 @@ import { join, resolve } from "@std/path";
 import type {
   BsoConfig,
   CliOverrides,
+  ReadersModuleConfig,
   ResolvedConfig,
   ResolvedQuizConfig,
   ResolvedTeacherDashboardConfig,
@@ -142,6 +143,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "version",
     "sourcesDir",
     "readersDir",
+    "readersModule",
     "readerCoverLogo",
     "assetsDir",
     "outputDir",
@@ -234,6 +236,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
   resolveQuizOptions(obj.quiz);
   resolveFlashcardsOptions(obj.flashcards);
   resolveTeacherPage(obj.teacherPage);
+  resolveReadersModule(obj.readersModule);
   if (obj.lint !== undefined) {
     if (
       typeof obj.lint !== "object" || obj.lint === null ||
@@ -619,6 +622,7 @@ export function resolveConfig(
     },
     diagrams: resolveDiagramsConfig(config),
     teacherDashboard: resolveTeacherDashboardConfig(config.teacherDashboard),
+    readersModule: resolveReadersModule(config.readersModule),
     repoRoot,
   };
 }
@@ -662,5 +666,37 @@ export function resolveFromCliOnly(
     diagrams: resolveDiagramsConfig({}),
     teacherDashboard: null,
     repoRoot,
+  };
+}
+
+/**
+ * Validates `readersModule` and fills in the default slug "readers". The slug
+ * is a single folder name, so it can match a content folder in `sourcesDir`.
+ */
+export function resolveReadersModule(value?: unknown): ReadersModuleConfig {
+  if (value === undefined) return { slug: "readers", title: null };
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Field 'readersModule' must be an object with optional 'slug' and 'title'.");
+  }
+  const obj = value as Record<string, unknown>;
+  for (const key of Object.keys(obj)) {
+    if (key !== "slug" && key !== "title") {
+      throw new Error(`Unknown field 'readersModule.${key}'. Allowed: slug, title.`);
+    }
+  }
+  if (
+    obj.slug !== undefined &&
+    (typeof obj.slug !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(obj.slug))
+  ) {
+    throw new Error(
+      "Field 'readersModule.slug' must be a folder name (letters, digits, '.', '_' or '-').",
+    );
+  }
+  if (obj.title !== undefined && (typeof obj.title !== "string" || !obj.title.trim())) {
+    throw new Error("Field 'readersModule.title' must be a non-empty string.");
+  }
+  return {
+    slug: (obj.slug as string | undefined) ?? "readers",
+    title: (obj.title as string | undefined)?.trim() ?? null,
   };
 }

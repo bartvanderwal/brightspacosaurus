@@ -506,3 +506,78 @@ Deno.test("Brightspace-manifest plaatst content/docenten in module_docentenmater
   assertStringIncludes(xml, '<file href="content/docenten/style.css"/>');
   assertStringIncludes(xml, '<file href="content/docenten/app.js"/>');
 });
+
+// ---------------------------------------------------------------------------
+// readersModule, sidebar_position and the teacher page (menu order)
+// ---------------------------------------------------------------------------
+
+function page(href: string, title: string, position?: number): ManifestEntry {
+  return {
+    id: "res_" + href.replace(/[^a-z0-9]/gi, "_"),
+    title,
+    href,
+    type: "webcontent",
+    ...(position === undefined ? {} : { position }),
+  };
+}
+
+const menuEntries = [
+  page("content/algemeen/faq.html", "FAQ", 2),
+  page("content/algemeen/README.html", "Studentenhandleiding", 1),
+  page("content/algemeen/voor-docenten.html", "Voor docenten", 4),
+  page("content/algemeen/index.html", "Algemeen", 0),
+  page("content/week-1/les-1.html", "Les 1"),
+  page("readers/reader-git.pdf", "Reader Git"),
+  page("readers/reader-plantuml.pdf", "Reader PlantUML"),
+];
+
+function moduleTitles(xml: string): string[] {
+  return [...xml.matchAll(/<item identifier="(group_[^"]+|module_[^"]+)">\s*<title>([^<]+)<\/title>/g)]
+    .map((m) => `${m[1]}:${m[2]}`);
+}
+
+function itemOrder(xml: string, moduleId: string): string[] {
+  const start = xml.indexOf(`<item identifier="${moduleId}">`);
+  const block = xml.slice(start, xml.indexOf("\n      </item>", start));
+  return [...block.matchAll(/<item identifier="item_[^"]+" identifierref="[^"]+">\s*<title>([^<]+)<\/title>/g)]
+    .map((m) => m[1]);
+}
+
+Deno.test("by default reader PDFs get their own Readers module", () => {
+  const xml = buildManifest("Cursus", sortManifestEntriesForNavigation(menuEntries));
+  assertEquals(moduleTitles(xml), ["group_algemeen:Algemeen", "group_week_1:week-1", "module_readers:Readers"]);
+});
+
+Deno.test("readersModule with a content folder slug puts the readers in that module, after its pages", () => {
+  const sorted = sortManifestEntriesForNavigation(menuEntries, {
+    firstHref: "content/algemeen/voor-docenten.html",
+  });
+  const xml = buildManifest("Cursus", sorted, { slug: "algemeen", title: "Algemeen" });
+  assertEquals(moduleTitles(xml), ["group_algemeen:Algemeen", "group_week_1:week-1"]);
+  assertEquals(itemOrder(xml, "group_algemeen"), [
+    "Voor docenten",
+    "Algemeen",
+    "Studentenhandleiding",
+    "FAQ",
+    "Reader Git",
+    "Reader PlantUML",
+  ]);
+});
+
+Deno.test("readersModule without a matching folder keeps a separate module with its title", () => {
+  const xml = buildManifest("Cursus", sortManifestEntriesForNavigation(menuEntries), {
+    slug: "naslag",
+    title: "Naslag",
+  });
+  assertEquals(moduleTitles(xml).at(-1), "module_naslag:Naslag");
+});
+
+Deno.test("sidebar_position orders pages like Docusaurus: positioned pages first, ascending", () => {
+  const sorted = sortManifestEntriesForNavigation([
+    page("content/w/b.html", "B"),
+    page("content/w/c.html", "C", 2),
+    page("content/w/a.html", "A"),
+    page("content/w/d.html", "D", 1),
+  ]);
+  assertEquals(sorted.map((e) => e.title), ["D", "C", "A", "B"]);
+});

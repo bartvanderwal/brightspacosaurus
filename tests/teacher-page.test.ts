@@ -341,3 +341,22 @@ Deno.test("the package exports what a course's own Docusaurus needs for the dash
   assertEquals(exportsMap["./teacher-page"], "./src/teacher-page.ts");
   assertEquals(exportsMap["./tabs"], "./assets/brightspacosaurus-tabs.js");
 });
+
+Deno.test("resolveReadersModule defaults to a separate readers module and validates fields", async () => {
+  const { resolveReadersModule } = await import("../src/config-loader.ts");
+  assertEquals(resolveReadersModule(), { slug: "readers", title: null });
+  assertEquals(resolveReadersModule({ slug: "algemeen", title: " Algemeen " }), {
+    slug: "algemeen",
+    title: "Algemeen",
+  });
+  assertThrows(() => resolveReadersModule({ slug: "../x" }), Error, "readersModule.slug");
+  assertThrows(() => resolveReadersModule({ titel: "x" }), Error, "readersModule.titel");
+  assertThrows(() => resolveReadersModule("algemeen"), Error, "must be an object");
+});
+
+Deno.test("readSidebarPosition reads sidebar_position from front matter only", async () => {
+  const { readSidebarPosition } = await import("../src/markdown-converter.ts");
+  assertEquals(readSidebarPosition("---\ntitle: x\nsidebar_position: 2\n---\n# A\n"), 2);
+  assertEquals(readSidebarPosition("---\nsidebar_position: '0'\n---\n"), 0);
+  assertEquals(readSidebarPosition("# A\n\nsidebar_position: 3\n"), undefined);
+});

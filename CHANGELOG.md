@@ -8,6 +8,14 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.15.0 - 2026-10-01
+
+### Added
+
+- `readersModule` in the configuration: put the reader PDFs in a content module, for example `{ "slug": "algemeen", "title": "Algemeen" }`, after that module's pages, instead of a separate "Readers" module. The default stays a separate "Readers" module.
+- The Brightspace menu respects `sidebar_position` from the front matter, as the Docusaurus sidebar does: positioned pages first, ascending.
+- The teacher page always comes first in its module, in the Brightspace menu and in the Docusaurus preview.
+
 ## 0.14.2 - 2026-10-01
 
 ### Changed

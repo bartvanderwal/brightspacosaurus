@@ -72,7 +72,7 @@ function remarkTeacherPageTabs() {
 }
 
 // Reorders doc items per sidebar level like the Brightspace manifest; categories keep their slots.
-function sortLikeBrightspace(items, titles) {
+function sortLikeBrightspace(items, titles, positions, firstId) {
   const docs = items.filter((item) => item.type === "doc");
   const queue = sortManifestEntriesForNavigation(docs.map((item) => ({
     id: item.id,
@@ -81,11 +81,12 @@ function sortLikeBrightspace(items, titles) {
     type: path.basename(item.id).startsWith("quiz-")
       ? "imsqti_xmlv1p2/imscc_xmlv1p3/assessment"
       : "webcontent",
-  }))).map((entry) => docs.find((doc) => doc.id === entry.id));
+    ...(positions.has(item.id) ? { position: positions.get(item.id) } : {}),
+  })), { firstHref: firstId }).map((entry) => docs.find((doc) => doc.id === entry.id));
   return items.map((item) => {
     if (item.type === "doc") return queue.shift();
     if (item.type === "category") {
-      return { ...item, items: sortLikeBrightspace(item.items, titles) };
+      return { ...item, items: sortLikeBrightspace(item.items, titles, positions, firstId) };
     }
     return item;
   });
@@ -128,6 +129,11 @@ module.exports = {
         sortLikeBrightspace(
           await defaultSidebarItemsGenerator(args),
           new Map(args.docs.map((doc) => [doc.id, doc.title])),
+          // Same sidebar_position order as the Brightspace menu.
+          new Map(args.docs.filter((doc) => typeof doc.sidebarPosition === "number")
+            .map((doc) => [doc.id, doc.sidebarPosition])),
+          // The teacher page first in its module, as in the Brightspace menu.
+          args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
         ),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
       remarkPlugins: [remarkTeacherPageTabs, [remarkFlashcards, flashcardOptions], [

@@ -70,6 +70,14 @@ export interface ConvertResult {
 // --- ManifestBuilder ---
 
 /** Een resource-entry in imsmanifest.xml. */
+/** Menu module for the reader PDFs (see BsoConfig.readersModule). */
+export interface ReadersModuleConfig {
+  /** Folder name / identifier part, default "readers". */
+  slug: string;
+  /** Module title; null keeps the folder module's own title or "Readers". */
+  title: string | null;
+}
+
 export interface ManifestEntry {
   /** Unieke identifier voor de resource. */
   id: string;
@@ -81,6 +89,8 @@ export interface ManifestEntry {
   type: "webcontent" | "imsqti_xmlv1p2/imscc_xmlv1p3/assessment";
   /** Relatieve paden naar afhankelijke bestanden (afbeeldingen). */
   dependencies?: string[];
+  /** `sidebar_position` from the page's front matter, as in Docusaurus. */
+  position?: number;
 }
 
 // --- Packer ---
@@ -134,6 +144,12 @@ export interface BsoConfig {
   sourcesDir: string;
   /** Bronmap voor readers (relatief aan Repo_Root). Optioneel. */
   readersDir?: string;
+  /**
+   * Menu module for the reader PDFs. `slug` defaults to "readers" (a separate
+   * module); when a content folder with the same name exists, the readers are
+   * added to that module after its pages. `title` overrides the module title.
+   */
+  readersModule?: { slug?: string; title?: string };
   /** Logo on every reader PDF cover page (relative to Repo_Root). Optional. */
   readerCoverLogo?: string;
   /** Map met statische assets (relatief aan Repo_Root). Optioneel. */
@@ -202,6 +218,8 @@ export interface ResolvedConfig {
   sourcesDir: string;
   /** Absoluut pad naar de bronmap voor readers. null = overslaan. */
   readersDir: string | null;
+  /** Menu module for reader PDFs; absent means the separate "Readers" module. */
+  readersModule?: ReadersModuleConfig;
   /** Absolute path to the reader cover logo. null = no logo. */
   readerCoverLogo: string | null;
   /** Absoluut pad naar de assets-map. null = geen extra assets. */

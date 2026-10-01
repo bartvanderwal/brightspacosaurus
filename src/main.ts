@@ -621,12 +621,16 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           }
         }
 
+        const positionMatch = html.match(
+          /<meta name="bso-sidebar-position" content="(-?\d+(?:\.\d+)?)">/,
+        );
         entries.push({
           id,
           title,
           href: relPath,
           type: "webcontent",
           dependencies,
+          ...(positionMatch ? { position: Number(positionMatch[1]) } : {}),
         });
       }
     }
@@ -685,9 +689,21 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   // They do remain as standalone files in build/brightspace/docenten/ for internal use.
   // There is no instructor landing page: GitLab is the source of truth for instructor material.
 
-  const sortedEntries = sortManifestEntriesForNavigation(entries);
+  // The teacher page always comes first in its module (#37).
+  const teacherPageHref = config.teacherPage
+    ? "content/" +
+      relative(config.sourcesDir, config.teacherPage.path).replace(/\.md$/, ".html")
+        .split(/[\\/]/).join("/")
+    : undefined;
+  const sortedEntries = sortManifestEntriesForNavigation(entries, {
+    firstHref: teacherPageHref,
+  });
 
-  const manifestXml = buildManifest(config.courseName, sortedEntries);
+  const manifestXml = buildManifest(
+    config.courseName,
+    sortedEntries,
+    config.readersModule,
+  );
   await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
   console.log("  ✓ imsmanifest.xml");
 

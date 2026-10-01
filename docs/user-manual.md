@@ -136,6 +136,7 @@ The most important fields:
 | `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
+| `readersModule`        | no       | Menu module for the reader PDFs: `slug` (default `readers`) and `title`; see [8.2](#82-menu-module-and-order) |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
@@ -626,7 +627,7 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - Add a cover image with `coverImage` in the frontmatter, relative to the reader file, for example `coverImage: img/git-branches.png`. The image appears between author and date, scaled to at most 80% of the page width and 45% of its height. Use PNG or JPG, and a path without spaces or LaTeX special characters (`%`, `#`, `{`, `}`). If the file is missing or the path is unusable, BSO prints a warning and builds the cover without image. `coverAlt` may hold a description for editors; the PDF does not use it yet.
 - Add a logo to every reader cover page with `readerCoverLogo` in `brightspacosaurus.config.json`, relative to the repository root, for example `"readerCoverLogo": "shared/han-logo.png"`. The logo appears at the bottom of the cover, above the date, at most 4 cm wide and 3 cm high. The same path rules and warnings apply as for `coverImage`.
 
-BSO includes reader PDFs in the IMSCC package as a webcontent resource under a "Readers" module in the manifest.
+BSO includes reader PDFs in the IMSCC package as webcontent resources. By default they get their own "Readers" module in the menu; see [8.2](#82-menu-module-and-order) to put them in another module.
 
 ### 8.1 Mapping to Brightspace
 
@@ -641,6 +642,28 @@ In Brightspace you can offer the reader PDFs as follows:
 _Figure 9_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
 
 ---
+
+
+### 8.2 Menu module and order
+
+The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name, so a folder `algemeen` comes before `week-1`. The module title is the H1 of the folder's `index.md`, otherwise the folder name.
+
+Within a module BSO orders the pages like the Docusaurus sidebar:
+
+1. the teacher page (`teacherPage`), always first in its module;
+2. the folder's `index.md`;
+3. pages with `sidebar_position` in their front matter, ascending;
+4. the rest by lesson code (for example `1.2`) and title.
+
+Reader PDFs get their own module by default. To put them in a content module instead, after its pages, set `readersModule` to that folder's name:
+
+```json
+"readersModule": { "slug": "algemeen", "title": "Algemeen" }
+```
+
+`title` sets the module title; without it the module keeps the H1 of its `index.md` or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+
+Moving the readers changes the menu structure: after the next import the old "Readers" module stays in Brightspace and you delete it once by hand. The reader topics keep their identifiers.
 
 ## 9. Images in the export
 
