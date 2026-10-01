@@ -200,7 +200,7 @@ Deno.test("prepare fills in versions on the teacher page only", async () => {
       config.teacherPage!.path,
       `# For teachers\n\n${VERSIONS_DIRECTIVE}\n`,
     );
-    await runPrepare(config, false);
+    await runPrepare(config, false, { skipReaders: true });
     const teacherHtml = await Deno.readTextFile(
       join(config.outputDir, "content", "for-teachers.html"),
     );
@@ -224,9 +224,9 @@ Deno.test("prepare fills in versions on the teacher page only", async () => {
 Deno.test("a missing default teacher page is fine, a missing configured one fails", async () => {
   const repoRoot = await tempRepo();
   try {
-    await runPrepare(testConfig(repoRoot, false), false);
+    await runPrepare(testConfig(repoRoot, false), false, { skipReaders: true });
     const error = await assertRejects(
-      () => runPrepare(testConfig(repoRoot, true), false),
+      () => runPrepare(testConfig(repoRoot, true), false, { skipReaders: true }),
       Error,
       "Teacher page not found: lessons/for-teachers.md",
     );

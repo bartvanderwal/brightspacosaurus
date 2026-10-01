@@ -74,6 +74,8 @@ Options:
   --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
   --output <path>    Build directory that also receives the .imscc (overrides config.outputDir)
   --readers-only     Generate reader and instructor PDFs only (skip HTML/QTI conversion)
+  --skip-readers     Skip all PDF generation with pandoc (readers, instructor and user manual);
+                     pre-built PDFs are still copied. Faster local builds and tests
   --version, -v      Show version number
   --help, -h         Show this help
 `;
@@ -105,6 +107,7 @@ export function parseArgs(
   command: string;
   sources: string;
   readersOnly: boolean;
+  skipReaders: boolean;
   output: string;
   config: string;
 } | null {
@@ -117,6 +120,7 @@ export function parseArgs(
 
   let sources = "";
   let readersOnly = false;
+  let skipReaders = false;
   let output = "";
   let config = "";
 
@@ -125,6 +129,8 @@ export function parseArgs(
       sources = args[++i];
     } else if (args[i] === "--readers-only") {
       readersOnly = true;
+    } else if (args[i] === "--skip-readers") {
+      skipReaders = true;
     } else if (args[i] === "--name" && i + 1 < args.length) {
       output = args[++i]; // backwards compat
     } else if (args[i] === "--output" && i + 1 < args.length) {
@@ -134,14 +140,22 @@ export function parseArgs(
     }
   }
 
-  return { command, sources, readersOnly, output, config };
+  return { command, sources, readersOnly, skipReaders, output, config };
 }
 
 /** Runs the `prepare` command using an already resolved configuration. */
+/** Options for `runPrepare` that do not come from the configuration file. */
+export interface PrepareOptions {
+  /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
+  skipReaders?: boolean;
+}
+
 export async function runPrepare(
   config: ResolvedConfig,
   readersOnly: boolean,
+  options: PrepareOptions = {},
 ): Promise<void> {
+  const skipReaders = options.skipReaders ?? false;
   const packageVersion = await loadPackageVersion();
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
@@ -317,7 +331,9 @@ export async function runPrepare(
   }
 
   // Phase 3: Convert reader Markdown to PDF via pandoc
-  if (readerFiles.length > 0) {
+  if (skipReaders && readerFiles.length > 0) {
+    console.log(`Skipping ${readerFiles.length} reader PDF(s) (--skip-readers).`);
+  } else if (readerFiles.length > 0) {
     if (!pandocAvailable()) {
       console.warn(
         "⚠ pandoc not found — reader PDF conversion skipped. Install pandoc: https://pandoc.org/installing.html",
@@ -377,7 +393,7 @@ export async function runPrepare(
   }
 
   // Phase 4: Generate instructor manual as a combined PDF (null → skip without notice)
-  if (config.teacherManual && pandocAvailable()) {
+  if (config.teacherManual && !skipReaders && pandocAvailable()) {
     const dhConfig = config.teacherManual;
     const teacherOutputDir = dhConfig.outputDir;
     await Deno.remove(teacherOutputDir, { recursive: true }).catch(() =>
@@ -457,7 +473,7 @@ export async function runPrepare(
   // and is therefore only meaningful when running from local source. If the
   // user manual source cannot be found as a local file (e.g. from the JSR cache),
   // we silently skip this phase.
-  if (pandocAvailable()) {
+  if (!skipReaders && pandocAvailable()) {
     const teacherOutputDir = config.teacherManual?.outputDir ??
       join(buildDir, "docenten");
 
@@ -849,7 +865,7 @@ async function main(): Promise<void> {
 
   try {
     if (parsed.command === "prepare") {
-      await runPrepare(resolvedConfig, parsed.readersOnly);
+      await runPrepare(resolvedConfig, parsed.readersOnly, { skipReaders: parsed.skipReaders });
     } else if (parsed.command === "pack") {
       await runPack(resolvedConfig);
     } else if (parsed.command === "preview") {

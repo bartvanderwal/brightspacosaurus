@@ -56,7 +56,10 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 - Test runner: Deno's built-in `deno test`.
 - Property-based tests with fast-check (via JSR), at least 100 iterations per property.
 - When making code changes, add or update tests: argument validation, deterministic output, error scenarios.
-- Verify locally with `deno task test` before considering anything "done".
+- While developing, run `deno task test:fast` (under a minute): all tests except the pandoc PDF conversion tests. Tests that call `runPrepare` without testing PDFs pass `{ skipReaders: true }`.
+- Run the full `deno task test` (several minutes, includes `test:pdf`) before considering anything "done" or committing, and when touching reader, instructor-manual or pandoc code.
+- For local builds where PDFs do not matter, use `prepare --skip-readers`: it skips all PDF generation with pandoc (readers, instructor manual, user manual) and still copies pre-built PDFs.
+- Run long test suites in the background and keep working or reporting in the meantime; do not leave the user waiting on a silent foreground run.
 - Follow the project Definition of Done in `docs/definition-of-done.md`, including **80% or higher line coverage**. Also report branch and function coverage, because line coverage alone does not prove both sides of conditional behavior are tested.
 - For security-sensitive or build-wide changes: state what you verified and what you did not.
 

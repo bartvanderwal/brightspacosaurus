@@ -60,6 +60,7 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
       command: "prepare",
       sources: "src",
       readersOnly: true,
+      skipReaders: false,
       output: "out",
       config: "bso.json",
     },
@@ -68,10 +69,44 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
     command: "pack",
     sources: "",
     readersOnly: false,
+    skipReaders: false,
     output: "legacy-name",
     config: "",
   });
+  assertEquals(parseArgs(["prepare", "--skip-readers"])?.skipReaders, true);
   assertEquals(parseArgs(["nope"]), null);
+});
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+Deno.test("runPrepare with skipReaders converts no reader Markdown but still copies pre-built PDFs", async () => {
+  const repoRoot = await Deno.makeTempDir();
+  try {
+    const config = testConfig(repoRoot);
+    await Deno.mkdir(join(config.sourcesDir, "week-1"), { recursive: true });
+    await Deno.mkdir(config.readersDir!, { recursive: true });
+    await Deno.writeTextFile(join(config.sourcesDir, "week-1", "les-1.1.md"), "# Les 1.1\n");
+    await Deno.writeTextFile(join(config.readersDir!, "reader-git.md"), "# Git\n\nTekst.\n");
+    await Deno.writeFile(
+      join(config.readersDir!, "reader-plantuml-essentials.pdf"),
+      new Uint8Array([37, 80, 68, 70]),
+    );
+
+    await runPrepare(config, false, { skipReaders: true });
+
+    const readersOut = join(config.outputDir, "readers");
+    assertEquals(await exists(join(readersOut, "reader-git.pdf")), false);
+    assertEquals(await exists(join(readersOut, "reader-plantuml-essentials.pdf")), true);
+  } finally {
+    await Deno.remove(repoRoot, { recursive: true });
+  }
 });
 
 Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz en reader", async () => {
@@ -97,7 +132,7 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
       new Uint8Array([37, 80, 68, 70]),
     );
 
-    await runPrepare(config, false);
+    await runPrepare(config, false, { skipReaders: true });
     await runPack(config);
 
     const html = await Deno.readTextFile(
@@ -141,7 +176,7 @@ Deno.test("runPrepare readers-only kopieert vooraf gebouwde PDF-readers zonder c
       new Uint8Array([37, 80, 68, 70]),
     );
 
-    await runPrepare(config, true);
+    await runPrepare(config, true, { skipReaders: true });
 
     const copied = await Deno.readFile(
       join(config.outputDir, "readers", "reader-git.pdf"),
