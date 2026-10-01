@@ -8,6 +8,16 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.13.1 - 2026-09-30
+
+### Fixed
+
+- Show `Kopiëren mislukt` on a code-block copy button when copying fails, instead of leaving the button unchanged (#16).
+
+### Changed
+
+- Move the code-block copy button script from an inline string in `markdown-converter.ts` to the asset `brightspacosaurus-copy-button.js`, like the flashcard and navigation scripts, so it can be linted and unit-tested (#16).
+
 ## 0.13.0 - 2026-09-30
 
 ### Added

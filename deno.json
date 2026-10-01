@@ -64,6 +64,7 @@
       "assets/brightspacosaurus.css",
       "assets/brightspacosaurus-flashcards.js",
       "assets/brightspacosaurus-navigation.js",
+      "assets/brightspacosaurus-copy-button.js",
       "assets/reader-header.tex",
       "assets/include-filter.lua",
       "assets/diagram-filter.lua",
