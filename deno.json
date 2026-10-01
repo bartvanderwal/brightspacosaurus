@@ -72,7 +72,8 @@
       "docs/software-guidebook.md",
       "README.md",
       "deno.json",
-      "assets/brightspacosaurus-quizzes.js"
+      "assets/brightspacosaurus-quizzes.js",
+      "assets/teacher-dashboard/"
     ]
   }
 }

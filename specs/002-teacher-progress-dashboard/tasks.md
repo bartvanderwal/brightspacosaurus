@@ -19,8 +19,8 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 **Purpose**: Type definitions and package configuration
 
-- [ ] T001 Define `TeacherDashboardConfig` and `ResolvedTeacherDashboardConfig` types in `src/types.ts`
-- [ ] T002 Register `assets/teacher-dashboard/` in `publish.include` in `deno.json`
+- [x] T001 Define `TeacherDashboardConfig` and `ResolvedTeacherDashboardConfig` types in `src/types.ts`
+- [x] T002 Register `assets/teacher-dashboard/` in `publish.include` in `deno.json`
 
 ---
 
@@ -30,10 +30,10 @@ description: "Task list for Teacher Progress Dashboard implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 [P] Implement `resolveTeacherDashboardConfig()` validation in `src/config-loader.ts` ensuring $0 \le \text{orange} < \text{red} \le 100$
-- [ ] T004 [P] Implement pure stoplight calculation, threshold evaluation, and repository postfix extraction functions in `src/teacher-dashboard-calc.ts`
-- [ ] T005 [P] Implement unit and property-based tests for `src/teacher-dashboard-calc.ts` in `tests/teacher-dashboard-calc.test.ts`
-- [ ] T006 [P] Implement configuration validation tests for `teacherDashboard` in `tests/teacher-dashboard-config.test.ts`
+- [x] T003 [P] Implement `resolveTeacherDashboardConfig()` validation in `src/config-loader.ts` ensuring $0 \le \text{orange} < \text{red} \le 100$
+- [x] T004 [P] Implement pure stoplight calculation, threshold evaluation, and repository postfix extraction functions in `src/teacher-dashboard-calc.ts`
+- [x] T005 [P] Implement unit and property-based tests for `src/teacher-dashboard-calc.ts` in `tests/teacher-dashboard-calc.test.ts`
+- [x] T006 [P] Implement configuration validation tests for `teacherDashboard` in `tests/teacher-dashboard-config.test.ts`
 
 **Checkpoint**: Foundation ready - pure calculation logic and configuration validation tested.
 

@@ -153,6 +153,8 @@ export interface BsoConfig {
   teacherPage?: string;
   /** Optional lint input selection. */
   lint?: LintConfig;
+  /** Configuration for teacher progress dashboard (GitLab work items per student). Optional. */
+  teacherDashboard?: TeacherDashboardConfig;
 }
 
 /** Configuratie voor gegenereerde Brightspace quizzen/toetsen. */
@@ -223,6 +225,8 @@ export interface ResolvedConfig {
   teacherPage?: ResolvedTeacherPageConfig;
   /** Optional lint input selection, with absolute directory paths. */
   lint?: LintConfig;
+  /** Resolved teacher dashboard configuration. null = dashboard not enabled. */
+  teacherDashboard: ResolvedTeacherDashboardConfig | null;
   /** Absoluut pad naar Repo_Root. */
   repoRoot: string;
 }
@@ -266,6 +270,46 @@ export interface ResolvedTeacherPageConfig {
   path: string;
   /** True when set in the configuration; a missing explicit page is an error. */
   explicit: boolean;
+}
+
+/** Repository mapping configuration for teacher dashboard. */
+export interface TeacherDashboardRepoConfig {
+  /** Prefix of the repository name (e.g. "n2-ticketfaster-api"). */
+  prefix: string;
+  /** Human-readable label for the repository in the dashboard (e.g. "N2 TicketFaster API"). */
+  label: string;
+}
+
+/** Configuration for teacher progress dashboard (GitLab work items per student). */
+export interface TeacherDashboardConfig {
+  /** GitLab instance URL. Standaard: "https://gitlab.com". */
+  gitlabUrl?: string;
+  /** GitLab group path (e.g. "2026p1-fusten"). Verplicht. */
+  groupPath: string;
+  /** List of subgroups (e.g. ["Arnhem", "Nijmegen"]). Standaard: []. */
+  subgroups?: string[];
+  /** Repository prefix and label mappings. Standaard: []. */
+  repos?: TeacherDashboardRepoConfig[];
+  /** Usernames of instructors whose commits should be excluded. Standaard: []. */
+  teacherUsernames?: string[];
+  /** Whether comment(s) on work items are required for 100% (groen). Standaard: false. */
+  requireCommentsForDone?: boolean;
+  /** Incomplete percentage threshold for orange status (0..100). Standaard: 10. */
+  orangeThresholdPercent?: number;
+  /** Incomplete percentage threshold for red status (0..100). Standaard: 50. */
+  redThresholdPercent?: number;
+}
+
+/** Resolved teacher dashboard configuration with all defaults applied. */
+export interface ResolvedTeacherDashboardConfig {
+  gitlabUrl: string;
+  groupPath: string;
+  subgroups: string[];
+  repos: TeacherDashboardRepoConfig[];
+  teacherUsernames: string[];
+  requireCommentsForDone: boolean;
+  orangeThresholdPercent: number;
+  redThresholdPercent: number;
 }
 
 /** CLI-argumenten die als override kunnen dienen boven Config_File-waarden. */
