@@ -34,6 +34,11 @@ jobs:
           cache: npm
           cache-dependency-path: demo-course-docs/package-lock.json
 
+      # The Docusaurus config loads BSO modules from src/, whose npm imports
+      # (remark-kroki-a11y, unified, ...) Node resolves from ./node_modules.
+      - name: Install BSO npm dependencies into node_modules
+        run: deno install --node-modules-dir=auto
+
       - name: Lint code and course Markdown
         run: |
           deno lint
