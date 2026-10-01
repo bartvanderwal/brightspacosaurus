@@ -8,6 +8,13 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## Unreleased
+
+### Added
+
+- Voortgangsverkenner (teacher progress dashboard): a page in the instructor module that shows students' progress on GitLab work items, with a tree per class, repo filters, live stoplight thresholds and links to commits, merge requests and work items (#37).
+- The dashboard checks a pasted GitLab token with one light call (listing the class subgroups) and rejects it with a clear message when it is invalid, expired or lacks `Group: Read`; an accepted token can no longer be edited (#37).
+
 ## 0.13.0 - 2026-09-30
 
 ### Added

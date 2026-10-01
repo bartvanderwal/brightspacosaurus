@@ -139,3 +139,5 @@ pre.diff .a { color: var(--ok); } pre.diff .h { color: var(--muted); }
 .mrs ul { margin: 4px 0 0; padding-left: 18px; font-size: var(--step-0); }
 .token-row .btn { white-space: nowrap; }
 td strong { white-space: nowrap; }
+.token-ok { align-self: center; color: var(--ok); font-weight: 600; font-size: var(--step-0); white-space: nowrap; }
+.field .error { margin-top: 4px; max-width: 32rem; }

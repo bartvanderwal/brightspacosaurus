@@ -120,6 +120,32 @@
     return subgroup ? `${config.groupPath}/${subgroup}` : config.groupPath;
   }
 
+  /**
+   * Light trial call when a token is entered: lists the subgroups (classes) of
+   * the course group. A failure means the token is mistyped, expired or lacks
+   * Group: Read, so the page rejects it.
+   */
+  async function checkTokenAndListClasses(token) {
+    try {
+      const groups = await apiGetAll(token, `/groups/${encodeURIComponent(config.groupPath)}/subgroups`);
+      const wanted = config.subgroups.map((s) => s.toLowerCase());
+      const classes = groups
+        .map((g) => g.path)
+        .filter((path) => !wanted.length || wanted.includes(path.toLowerCase()))
+        .sort((a, b) => a.localeCompare(b, "nl"));
+      return classes.length ? classes : [""];
+    } catch (e) {
+      if (e.status === 401) throw new Error("Token geweigerd: ongeldig, verkeerd geplakt of verlopen (401).");
+      if (e.status === 403) {
+        throw new Error(`Token geweigerd: geen leesrecht op groep ${config.groupPath} (403). Geef het token "Group: Read".`);
+      }
+      if (e.status === 404) {
+        throw new Error(`Token geweigerd: groep ${config.groupPath} niet gevonden, of het token heeft er geen toegang toe (404).`);
+      }
+      throw new Error(`Token kon niet gecontroleerd worden: ${e.message || e}`);
+    }
+  }
+
   async function discoverStudents(token, subgroup) {
     const projects = await apiGetAll(
       token,
@@ -522,24 +548,47 @@
 
   // --- Toolbar parts ---
 
-  function TokenField({ token, setToken }) {
+  function TokenField({ token, onAccept, onForget }) {
     const [value, setValue] = useState("");
+    const [checking, setChecking] = useState(false);
+    const [problem, setProblem] = useState("");
     const host = config.gitlabUrl.replace(/^https?:\/\//, "");
-    return html`<form className="field" onSubmit=${(e) => {
+    const submit = async (e) => {
       e.preventDefault();
-      setToken(value.trim());
-    }}>
+      const candidate = value.trim();
+      if (!candidate) return;
+      setChecking(true);
+      setProblem("");
+      try {
+        const classes = await checkTokenAndListClasses(candidate);
+        onAccept(candidate, classes);
+      } catch (err) {
+        setProblem(err.message);
+      } finally {
+        setChecking(false);
+      }
+    };
+    const forget = () => {
+      setValue("");
+      setProblem("");
+      onForget();
+    };
+    return html`<form className="field" onSubmit=${submit}>
       <label className="label" htmlFor="token">GitLab-token (alleen lezen)</label>
       <input type="text" name="username" autoComplete="username" value=${"gitlab-token@" + host} readOnly hidden />
       <div className="token-row">
-        <input id="token" type="password" autoComplete="current-password" placeholder="Plak hier je token"
-          value=${value} onChange=${(e) => setValue(e.target.value)} />
-        <button type="submit" className="btn">${token ? "Actief ✓" : "Gebruik"}</button>
-        ${token ? html`<button type="button" className="btn" onClick=${() => {
-          setToken("");
-          setValue("");
-        }}>Vergeet</button>` : null}
+        <input id="token" type="password" autoComplete="current-password"
+          placeholder=${token ? "Token geaccepteerd" : "Plak hier je token"}
+          value=${token ? "" : value} disabled=${!!token || checking}
+          aria-invalid=${problem ? "true" : undefined} aria-describedby=${problem ? "token-problem" : undefined}
+          onChange=${(e) => setValue(e.target.value)} />
+        ${token
+          ? html`<span className="token-ok">Geaccepteerd ✓</span>
+              <button type="button" className="btn" onClick=${forget}>Vergeet token</button>`
+          : html`<button type="submit" className="btn" disabled=${checking || !value.trim()}>
+              ${checking ? "Controleren…" : "Controleer en gebruik"}</button>`}
       </div>
+      ${problem ? html`<p id="token-problem" className="error" role="alert">${problem}</p>` : null}
     </form>`;
   }
 
@@ -586,9 +635,9 @@
   // --- App ---
 
   function App() {
-    const subgroups = config.subgroups.length ? config.subgroups : [""];
     const [token, setToken] = useState("");
-    const [klas, setKlas] = useState(subgroups[0]);
+    const [subgroups, setSubgroups] = useState([]);
+    const [klas, setKlas] = useState("");
     const [dataByKlas, setDataByKlas] = useState({});
     const [busy, setBusy] = useState(null);
     const [error, setError] = useState("");
@@ -596,8 +645,20 @@
     const [query, setQuery] = useState("");
     const [visible, setVisible] = useState(() => new Set(config.repos.map((r) => r.prefix)));
     const [settings, setSettings] = useState(defaultSettings);
-    const [open, setOpen] = useState(() => new Set([`klas/${subgroups[0]}`]));
-    const [selected, setSelected] = useState(`klas/${subgroups[0]}`);
+    const [open, setOpen] = useState(() => new Set(["klas/"]));
+    const [selected, setSelected] = useState("klas/");
+
+    const acceptToken = (accepted, classes) => {
+      setToken(accepted);
+      setSubgroups(classes);
+      setKlas(classes[0]);
+    };
+    const forgetToken = () => {
+      setToken("");
+      setSubgroups([]);
+      setKlas("");
+      setDataByKlas({});
+    };
 
     const data = dataByKlas[klas];
     const students = useMemo(() => (data ? Object.values(data.students)
@@ -685,7 +746,7 @@
         ${subgroups.length > 1 ? html`<div className="field"><span className="label" id="klas-label">Klas</span>
           <div className="seg" role="group" aria-labelledby="klas-label">${subgroups.map((k) => html`<button key=${k}
             aria-pressed=${k === klas} disabled=${!!busy} onClick=${() => setKlas(k)}>${k}</button>`)}</div></div>` : null}
-        <${TokenField} token=${token} setToken=${setToken} />
+        <${TokenField} token=${token} onAccept=${acceptToken} onForget=${forgetToken} />
       </header>
       <div className="status">
         <span className="note">Studentgegevens staan alleen in het geheugen van deze pagina en verdwijnen bij sluiten.</span>
