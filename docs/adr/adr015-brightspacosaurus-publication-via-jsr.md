@@ -1,123 +1,123 @@
-# ADR 015 — Publicatie van Brightspacosaurus via JSR
+# ADR 015 — Publication of Brightspacosaurus through JSR
 
 ## Status
 
-Geaccepteerd
+Accepted
 
 ## Context
 
-Brightspacosaurus is een CLI-tool en bibliotheek geschreven in TypeScript, draaiend op Deno (zie ADR 008). Om de tool herbruikbaar te maken — zowel als uitvoerbaar script als als importeerbare module — moet er een distributiestrategie worden gekozen.
+Brightspacosaurus is a CLI tool and library written in TypeScript, running on Deno (see ADR 008). To make the tool reusable, both as an executable script and as an importable module, a distribution strategy must be chosen.
 
-De keuze van een pakketregister raakt aan vindbaarheid, versiebeheer, type-informatie, en consistentie met de al gekozen runtime en toolchain.
+The choice of package registry affects discoverability, versioning, type information, and consistency with the runtime and toolchain already chosen.
+
+JSR describes itself as follows: "The JavaScript Registry (JSR) is a modern package registry for JavaScript and TypeScript. JSR works with many runtimes (Node.js, Deno, Bun, browsers, and more) and is backwards compatible with npm." (JSR, n.d.).
 
 ### Criteria
 
-- Native ondersteuning voor Deno zonder een aparte build- of transpilatiestap
-- Automatisch geïndexeerde TypeScript-types (geen `@types`-pakketten nodig)
-- Versiebeheer met changelog-ondersteuning
-- Minimale impedance mismatch met de bestaande Deno-toolchain
-- Geen onnodige koppeling aan een extern platform of vendor
+- Native support for Deno without a separate build or transpilation step
+- Automatically indexed TypeScript types (no `@types` packages needed)
+- Versioning with changelog support
+- Minimal impedance mismatch with the existing Deno toolchain
+- No unnecessary coupling to an external platform or vendor
 
-## Overwogen opties
+## Considered options
 
-### Optie A — npm registry (npmjs.com)
+### Option A — npm registry (npmjs.com)
 
-Publicatie naar de standaard npm-registry, bereikbaar via `npm:brightspacosaurus` in Deno.
+Publish to the standard npm registry, reachable via `npm:brightspacosaurus` in Deno.
 
-**Voordelen:**
+**Pros:**
 
-- Groot bereik; gebruikt door het brede JavaScript/TypeScript-ecosysteem.
-- Bekend bij de meeste ontwikkelaars.
+- Large reach; used by the broad JavaScript/TypeScript ecosystem.
+- Familiar to most developers.
 
-**Nadelen:**
+**Cons:**
 
-- Vereist een build-stap: TypeScript moet worden getranspileerd naar CommonJS en/of ESM, inclusief `package.json` en declaration files.
-- Geen native Deno-ondersteuning; imports werken wel via de `npm:`-specifier, maar de tooling gaat tegen de grain van Deno in.
-- Grotere aanvalsoppervlakte (zie ADR 008): npm is een primair doelwit voor supply chain-aanvallen.
-- Omgekeerd: Deno-specifieke features (permissiemodel, top-level await zonder wrapper) worden niet goed uitgedrukt in een npm-pakket.
+- Requires a build step: TypeScript must be transpiled to CommonJS and/or ESM, including `package.json` and declaration files.
+- No native Deno support; imports work through the `npm:` specifier, but the tooling goes against the grain of Deno.
+- Larger attack surface (see ADR 008): npm is a primary target for supply chain attacks.
+- Conversely, Deno-specific features (permission model, top-level await without a wrapper) are not expressed well in an npm package.
 
-### Optie B — GitHub Packages (npm-compatibel)
+### Option B — GitHub Packages (npm-compatible)
 
-Publicatie naar het npm-compatibele pakketregister van GitHub.
+Publish to GitHub's npm-compatible package registry.
 
-**Voordelen:**
+**Pros:**
 
-- Geïntegreerd met de GitHub-repository; releases en packages zijn gekoppeld.
-- Ondersteunt npm-compatibele installatie.
+- Integrated with the GitHub repository; releases and packages are linked.
+- Supports npm-compatible installation.
 
-**Nadelen:**
+**Cons:**
 
-- Zelfde build-stap vereist als optie A.
-- Authenticatie is verplicht bij installatie, ook voor publieke pakketten — dit bemoeilijkt gebruik door derden.
-- Geen native Deno-ondersteuning.
-- Koppelt de tool sterk aan het GitHub-platform.
+- Same build step required as option A.
+- Authentication is required for installation, even for public packages, which makes use by third parties harder.
+- No native Deno support.
+- Couples the tool strongly to the GitHub platform.
 
-### Optie C — URL-distributie via git-tag
+### Option C — URL distribution through a git tag
 
-Deno ondersteunt imports via HTTPS, waardoor modules direct via een raw URL of een git-tag kunnen worden gedistribueerd, zonder registry.
+Deno supports imports over HTTPS, so modules can be distributed directly through a raw URL or a git tag, without a registry.
 
-**Voordelen:**
+**Pros:**
 
-- Geen externe registry nodig.
-- Werkt native in Deno.
-- Geen extra configuratie of account vereist.
+- No external registry needed.
+- Works natively in Deno.
+- No extra configuration or account required.
 
-**Nadelen:**
+**Cons:**
 
-- Geen gecentraliseerde versie-index; gebruikers moeten de exacte URL of tag kennen.
-- Geen geïndexeerde type-informatie; auto-complete en type-checking werken minder goed.
-- Geen dependency graph-visualisatie of afhankelijkheidsanalyse.
-- deno.land/x (de voorgaande Deno-registry op basis van dit model) is officieel deprecated ten gunste van JSR.
+- No central version index; users must know the exact URL or tag.
+- No indexed type information; auto-complete and type checking work less well.
+- No dependency graph visualization or dependency analysis.
+- deno.land/x (the earlier Deno registry based on this model) is officially deprecated in favor of JSR.
 
-### Optie D — JSR (jsr.io) (gekozen)
+### Option D — JSR (jsr.io) (chosen)
 
-Publicatie naar het JavaScript Registry (JSR), ontwikkeld en beheerd door het Deno-team, maar ontworpen als runtime-agnostisch register voor moderne JavaScript en TypeScript.
+Publish to the JavaScript Registry (JSR), developed and maintained by the Deno team but designed as a runtime-agnostic registry for modern JavaScript and TypeScript.
 
-**Voordelen:**
+**Pros:**
 
-- Native Deno-ondersteuning: `deno publish` publiceert direct vanuit de bestaande `deno.json`, zonder build-stap of extra configuratie.
-- TypeScript-broncode wordt direct gepubliceerd; JSR genereert automatisch declaration files en indexeert types voor documentatie en auto-complete.
-- Versiebeheer met semver, yanking van defecte versies, en een openbare versie-index.
-- Pakket is ook bruikbaar vanuit Node.js, Bun en browsers via de npm-compatibiliteitslaag van JSR — geen lock-in.
-- Kleinere aanvalsoppervlakte dan npm (zie ADR 008): minder pakketten, minder transitieve afhankelijkheden.
-- Geen postinstall-scripts (Deno voert ze niet uit); dit geldt ook voor pakketten die via JSR worden geïnstalleerd.
+- Native Deno support: `deno publish` publishes directly from the existing `deno.json`, without a build step or extra configuration. The command is documented as "Publish the current working directory's package or workspace" (Deno, n.d.).
+- TypeScript source is published directly: "Modules are published to JSR as TypeScript source code. API documentation generation, type declarations for Node-like environments, and transpilation are all handled by JSR." (Deno, 2024).
+- Versioning with semver, yanking of broken versions, and a public version index.
+- The package can also be used from Node.js, Bun and browsers through JSR's npm compatibility layer, so there is no lock-in.
+- Smaller attack surface than npm (see ADR 008): fewer packages, fewer transitive dependencies.
+- No postinstall scripts (Deno does not run them); this also applies to packages installed through JSR.
 
-**Nadelen:**
+**Cons:**
 
-- JSR is jonger dan npm en heeft een kleinere gebruikersbasis.
-- Zoekbaarheid en bekendheid zijn lager dan npm voor ontwikkelaars buiten het Deno-ecosysteem.
-- Vereist een JSR-account en het instellen van een scope (`@scope/brightspacosaurus`).
+- JSR is younger than npm and has a smaller user base.
+- Discoverability and awareness are lower than npm for developers outside the Deno ecosystem.
+- Requires a JSR account and setting up a scope (`@scope/brightspacosaurus`).
 
-## Beslissing
+## Decision
 
-We kiezen voor publicatie via JSR (optie D). JSR is de logische voortzetting van ADR 008: dezelfde argumenten die Deno boven Node.js plaatsen — geen postinstall-scripts, geen `node_modules`, native TypeScript — gelden ook voor JSR boven npm. De tool wordt gepubliceerd als `@soro/brightspacosaurus` op jsr.io.
+We choose publication through JSR (option D). JSR is the logical continuation of ADR 008: the same arguments that put Deno above Node.js (no postinstall scripts, no `node_modules`, native TypeScript) also put JSR above npm. The tool is published as `@soro/brightspacosaurus` on jsr.io. (Correction: it was eventually published as `@bartvanderwal/brightspacosaurus`.)
 
-Publicatie verloopt via `deno publish` in de CI/CD-pipeline, gebaseerd op de bestaande `deno.json`. Er is geen aparte build-stap nodig.
+Publication runs through `deno publish` in the CI/CD pipeline, based on the existing `deno.json`. No separate build step is needed.
 
-### Bewust niet gekozen
+### Deliberately not chosen
 
-- npm registry: vereist een build-stap en introduceert npm-risico's die ADR 008 juist wil vermijden.
-- GitHub Packages: verplichte authenticatie voor publieke pakketten bemoeilijkt gebruik door derden.
-- URL-distributie: geen registry-voordelen (typeindex, versiebeheer, zoekbaarheid); deno.land/x is bovendien deprecated.
+- npm registry: requires a build step and introduces npm risks that ADR 008 aims to avoid.
+- GitHub Packages: mandatory authentication for public packages makes use by third parties harder.
+- URL distribution: no registry benefits (type index, versioning, discoverability); deno.land/x is also deprecated.
 
-## Gevolgen
+## Consequences
 
-Positief:
+Positive:
 
-- Publicatie is volledig geautomatiseerd via `deno publish` zonder transpilatiestap.
-- Gebruikers krijgen automatisch gegenereerde API-documentatie en type-informatie op jsr.io.
-- Het pakket is bruikbaar vanuit Deno, Node.js en Bun zonder aanpassingen.
+- Publication is fully automated through `deno publish` without a transpilation step.
+- Users get automatically generated API documentation and type information on jsr.io.
+- The package can be used from Deno, Node.js and Bun without changes.
 
-Negatief:
+Negative:
 
-- Een JSR-scope (`@soro`) moet worden aangemaakt en beheerd.
-- Ontwikkelaars die uitsluitend npm kennen, moeten wennen aan de JSR-workflow.
-- JSR's kleinere gebruikersbasis betekent dat community-ondersteuning beperkter is dan bij npm.
+- A JSR scope (`@soro`) must be created and managed.
+- Developers who only know npm have to get used to the JSR workflow.
+- JSR's smaller user base means community support is more limited than for npm.
 
-## Bronnen
+## References
 
-- Deno. (z.d.). *JSR: the JavaScript Registry*. https://jsr.io/docs
-
-- Deno. (z.d.). *Publishing packages with deno publish*. https://docs.deno.com/runtime/reference/cli/publish/
-
-- Deno. (2024). *Introducing JSR - the JavaScript Registry*. https://deno.com/blog/jsr_open_beta
+- Deno. (n.d.). *deno publish*. Deno Docs. Retrieved September 30, 2026, from https://docs.deno.com/runtime/reference/cli/publish/
+- Deno. (2024). *Introducing JSR - the JavaScript Registry*. Retrieved September 30, 2026, from https://deno.com/blog/jsr_open_beta
+- JSR. (n.d.). *Introduction to JSR*. Retrieved September 30, 2026, from https://jsr.io/docs

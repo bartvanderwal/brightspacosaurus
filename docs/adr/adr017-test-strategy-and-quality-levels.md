@@ -1,8 +1,8 @@
-# ADR 017 — Teststrategie en kwaliteitsniveaus
+# ADR 017 — Test strategy and quality levels
 
 ## Status
 
-Geaccepteerd
+Accepted
 
 ## Context
 
@@ -18,21 +18,21 @@ New functionality also tends to affect shared rendering paths. Without a deliber
 - Generated output must be tested for deterministic and structural invariants.
 - Brightspace-specific behavior needs an explicit manual import scenario because the real LMS is an external system.
 
-## Overwogen opties
+## Considered options
 
-### Optie A — Alleen unit tests
+### Option A — Unit tests only
 
 Fast and focused, but insufficient for Markdown-to-HTML, CLI, PDF, package and Brightspace behavior.
 
-### Optie B — Alleen end-to-end tests
+### Option B — End-to-end tests only
 
 Close to user behavior, but slow, brittle and difficult to diagnose. Many failures would not identify the responsible transformation.
 
-### Optie C — Layered test pyramid (chosen)
+### Option C — Layered test pyramid (chosen)
 
-Combine unit, property-based, integration, automated end-to-end and manual system tests. Each layer covers a different boundary and gives feedback at an appropriate cost.
+Combine unit, property-based, integration, automated end-to-end and manual system tests. Each layer covers a different boundary and gives feedback at an appropriate cost. This follows the test pyramid, whose essence Vocke (2018) summarizes as: "Write tests with different granularity" and "The more high-level you get the fewer tests you should have".
 
-## Beslissing
+## Decision
 
 Use these test levels:
 
@@ -46,7 +46,7 @@ The durable demo-course is the manual system-test fixture: its Markdown source, 
 
 Every feature change updates the relevant tests and documentation. Architecture, rendering contracts and test-boundary decisions are recorded in the Software Guidebook and relevant design/specification artifacts; contributor expectations are summarized in `CONTRIBUTING.md`.
 
-## Gevolgen
+## Consequences
 
 Positive:
 
@@ -61,7 +61,6 @@ Negative:
 - Manual Brightspace tests remain necessary for LMS-specific behavior.
 - Some end-to-end tests require optional tools such as pandoc or a browser runtime.
 
-## Bronnen
+## References
 
-- Adragna, R. (2016). *Be Your Own Teacher: How to Study with Flashcards*. The Learning Scientists. https://www.learningscientists.org/blog/2016/2/20-1
-- Fowler, M. (2018). *The Practical Test Pyramid*. https://martinfowler.com/articles/practical-test-pyramid.html
+- Vocke, H. (2018, February 26). *The practical test pyramid*. martinfowler.com. Retrieved September 30, 2026, from https://martinfowler.com/articles/practical-test-pyramid.html

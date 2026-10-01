@@ -1,88 +1,105 @@
-# ADR 011 — Rijke inhoud in quizvragen: HTML in QTI mattext
+# ADR 011 — Rich content in quiz questions: HTML in QTI mattext
 
 ## Status
 
-Geaccepteerd
+Accepted
 
 ## Context
 
-Brightspacosaurus genereert QTI 1.2 XML voor import in Brightspace. Quizvragen en antwoordopties bevatten in de bronbestanden (quiz-Markdown) regelmatig rijke inhoud: inline code (backtick-notatie), vetnaam, cursief, en verwijzingen naar technische termen die in monospace weergegeven horen te worden.
+Brightspacosaurus generates QTI 1.2 XML for import into Brightspace. In the source files (quiz Markdown), quiz questions and answer options regularly contain rich content: inline code (backtick notation), bold, italics, and references to technical terms that should be shown in monospace.
 
-Voorbeelden uit de bestaande quizbestanden in `6.3.Studentenmateriaal/`:
+Examples from the existing quiz files in `6.3.Studentenmateriaal/` of the original course repository:
 
-- `` `pom.xml` ``, `` `@Autowired` ``, `` `mvn compile` `` (week 2, Maven-quiz)
-- `` `querySelector(...)` ``, `` `querySelectorAll(...)` `` (week 5, DOM-quiz)
-- `` `findBy...` ``, `` `waitFor(...)` ``, `` `apiClient` `` (week 6, React-testquiz)
-- `` `MSW` ``, `` `Y-statement` `` (week 6, teststrategie-quiz)
+- `` `pom.xml` ``, `` `@Autowired` ``, `` `mvn compile` `` (week 2, Maven quiz)
+- `` `querySelector(...)` ``, `` `querySelectorAll(...)` `` (week 5, DOM quiz)
+- `` `findBy...` ``, `` `waitFor(...)` ``, `` `apiClient` `` (week 6, React testing quiz)
+- `` `MSW` ``, `` `Y-statement` `` (week 6, test strategy quiz)
 
-Geen van de huidige quizbestanden bevat fenced code blocks (meerdere regels code) of afbeeldingen. Inline code is echter al aanwezig in vrijwel alle quizreeksen vanaf week 2.
+None of the current quiz files contains fenced code blocks (multi-line code) or images. Inline code, however, already appears in almost every quiz series from week 2 onwards.
 
-De bestaande handmatig gegenereerde QTI XML (bijv. `quiz-2.2-di-qti.xml`) gebruikt `texttype="text/html"` in `mattext`-elementen, maar converteert de Markdown-bronnen naar platte tekst — backticks worden gestript zonder HTML-equivalent. Dit betekent dat technische termen als `` `@Autowired` `` in Brightspace als gewone tekst verschijnen, zonder monospace-opmaak.
+The existing hand-made QTI XML (e.g. `quiz-2.2-di-qti.xml`) uses `texttype="text/html"` in `mattext` elements, but converts the Markdown sources to plain text: backticks are stripped without an HTML equivalent. As a result, technical terms such as `` `@Autowired` `` appear in Brightspace as ordinary text, without monospace formatting.
 
-### Wat Brightspace accepteert in QTI mattext
+### What Brightspace accepts in QTI mattext
 
-Het QTI 1.2-formaat ondersteunt `texttype="text/html"` in `<mattext>`-elementen. Brightspace rendert de HTML-inhoud van deze velden. Dit is bevestigd door de bestaande referentie-exports: alle vraag- en antwoordteksten zijn al als HTML-escaped HTML opgeslagen.
+The QTI 1.2 information model defines the `texttype` attribute of `<mattext>` as "The type of text to be displayed.", in MIME format, with "Default set as "text/plain"." (IMS Global Learning Consortium, 2002). `text/html` is therefore a valid value. Brightspace renders the HTML content of these fields. The existing reference exports confirm this: all question and answer texts are already stored as HTML-escaped HTML.
 
-Ondersteunde HTML-elementen in Brightspace QTI-inhoud:
+HTML elements supported in Brightspace QTI content:
 
-| Element | Gebruik | Status |
+| Element | Use | Status |
 |---|---|---|
-| `<strong>` | Vetgedrukt | Ondersteund |
-| `<em>` | Cursief | Ondersteund |
-| `<code>` | Inline code (monospace) | Ondersteund |
-| `<pre><code>` | Codeblok (meerdere regels) | Ondersteund |
-| `<img src="...">` | Afbeelding (pad relatief aan QTI-bestand) | Ondersteund, afbeelding moet in IMSCC-pakket zitten |
-| Inline SVG | Vectordiagram | Waarschijnlijk gestript door Brightspace HTML-sanitizer; niet aanbevolen |
+| `<strong>` | Bold | Supported |
+| `<em>` | Italics | Supported |
+| `<code>` | Inline code (monospace) | Supported |
+| `<pre><code>` | Code block (multiple lines) | Supported |
+| `<img src="...">` | Image (path relative to the QTI file) | Supported; the image must be in the IMSCC package |
+| Inline SVG | Vector diagram | Probably stripped by the Brightspace HTML sanitizer; not recommended |
 
-Voor diagrammen (Mermaid, PlantUML) is de aanbevolen aanpak: pre-renderen naar PNG of SVG-bestand, bundelen in het IMSCC-pakket, en refereren via `<img src="...">`.
+For diagrams (Mermaid, PlantUML) the recommended approach is to pre-render them to a PNG or SVG file, bundle it in the IMSCC package, and reference it through `<img src="...">`.
 
 ### Criteria
 
-- Inline code in quizvragen moet als monospace worden weergegeven in Brightspace
-- De unified-pipeline (remark → rehype) kan Markdown in vraag- en antwoordteksten omzetten naar HTML
-- QTI `mattext` met `texttype="text/html"` ondersteunt HTML-inhoud in Brightspace
-- Toekomstige quizvragen kunnen codeblokken of diagrammen bevatten
+- Inline code in quiz questions must be shown in monospace in Brightspace
+- The unified pipeline (remark → rehype) can convert Markdown in question and answer texts to HTML
+- QTI `mattext` with `texttype="text/html"` supports HTML content in Brightspace
+- Future quiz questions may contain code blocks or diagrams
 
-## Beslissing
+## Considered options
 
-Brightspacosaurus converteert de tekst van quizvragen en antwoordopties via de unified-pipeline (remark → rehype → rehype-stringify) naar HTML voordat deze als HTML-escaped inhoud in `<mattext texttype="text/html">` wordt geplaatst.
+### Option A — Plain text (existing situation)
 
-Dit betekent:
+Keep converting question and answer texts to plain text, as the hand-made QTI files do.
 
-- Inline code (`` `code` ``) → `<code>code</code>` → correct weergegeven als monospace in Brightspace
-- Vetgedrukt (`**tekst**`) → `<strong>tekst</strong>`
-- Cursief (`*tekst*`) → `<em>tekst</em>`
+**Pros:** simple; no dependence on how Brightspace sanitizes HTML.
+
+**Cons:** technical terms lose their monospace formatting; code blocks and images are impossible.
+
+### Option B — HTML through the unified pipeline (chosen)
+
+Convert question and answer texts to HTML with the same unified pipeline as lesson pages, and place the result in `<mattext texttype="text/html">`.
+
+**Pros:** correct formatting; one pipeline for lessons and quizzes; room for code blocks and images.
+
+**Cons:** the quiz converter depends on the Markdown pipeline; Brightspace's sanitizer determines what survives.
+
+## Decision
+
+Brightspacosaurus converts the text of quiz questions and answer options to HTML through the unified pipeline (remark → rehype → rehype-stringify) before placing it as HTML-escaped content in `<mattext texttype="text/html">`.
+
+This means:
+
+- Inline code (`` `code` ``) → `<code>code</code>` → shown correctly as monospace in Brightspace
+- Bold (`**text**`) → `<strong>text</strong>`
+- Italics (`*text*`) → `<em>text</em>`
 - Fenced code blocks (` ```java ... ``` `) → `<pre><code class="language-java">...</code></pre>`
-- Afbeeldingen (`![alt](pad.png)`) → `<img src="pad.png" alt="alt">` + afbeelding bundelen in IMSCC
+- Images (`![alt](path.png)`) → `<img src="path.png" alt="alt">` + bundle the image in the IMSCC
 
-De HTML-inhoud wordt HTML-escaped opgeslagen in het XML-attribuut, conform de bestaande referentie-exports.
+The HTML content is stored HTML-escaped in the XML, in line with the existing reference exports.
 
-### Huidige situatie vs. gewenste situatie
+### Current versus desired situation
 
-De bestaande handmatig gegenereerde QTI-bestanden converteren Markdown naar platte tekst. Brightspacosaurus verbetert dit door de unified-pipeline te gebruiken voor vraag- en antwoordteksten, zodat technische termen correct als monospace worden weergegeven.
+The existing hand-made QTI files convert Markdown to plain text. Brightspacosaurus improves on this by using the unified pipeline for question and answer texts, so technical terms are shown correctly in monospace.
 
-### Beperkingen
+### Limitations
 
-- Inline SVG wordt waarschijnlijk gestript door Brightspace. Diagrammen moeten als PNG/SVG-bestand worden gebundeld en via `<img>` worden gerefereerd.
-- Brightspace's HTML-sanitizer kan sommige HTML-elementen of attributen verwijderen. Bij twijfel: testen in een Brightspace-testomgeving (zie taak 13 in het implementatieplan).
-- Syntaxiskleuring van codeblokken (via CSS-klassen) werkt alleen als Brightspace de bijbehorende CSS laadt. Brightspace laadt geen externe stylesheets uit het IMSCC-pakket voor QTI-inhoud. Codeblokken zijn leesbaar maar zonder kleuring.
+- Inline SVG is probably stripped by Brightspace. Diagrams must be bundled as PNG/SVG files and referenced through `<img>`.
+- Brightspace's HTML sanitizer may remove some HTML elements or attributes. When in doubt: test in a Brightspace test environment (see task 13 in the implementation plan).
+- Syntax highlighting of code blocks (through CSS classes) only works if Brightspace loads the corresponding CSS. Brightspace does not load external stylesheets from the IMSCC package for QTI content. Code blocks are readable but not highlighted.
 
-## Gevolgen
+## Consequences
 
-Positief:
+Positive:
 
-- Technische termen in quizvragen worden correct als monospace weergegeven.
-- De unified-pipeline wordt consistent gebruikt voor zowel lesinhoud als quizinhoud.
-- Toekomstige uitbreidingen (codeblokken, diagrammen) zijn mogelijk zonder architectuurwijziging.
+- Technical terms in quiz questions are shown correctly in monospace.
+- The unified pipeline is used consistently for both lesson content and quiz content.
+- Future extensions (code blocks, diagrams) are possible without an architecture change.
 
-Negatief:
+Negative:
 
-- De QuizConverter moet de unified-pipeline aanroepen voor vraag- en antwoordteksten, niet alleen voor de structuur.
-- Syntaxiskleuring van codeblokken is niet beschikbaar in Brightspace QTI-inhoud.
+- The quiz converter must call the unified pipeline for question and answer texts, not only for the structure.
+- Syntax highlighting of code blocks is not available in Brightspace QTI content.
 
-## Bronnen
+## References
 
-- IMS Global. (z.d.). *IMS Question & Test Interoperability Specification, Version 1.2*. Geraadpleegd op 10 mei 2026, van https://www.imsglobal.org/question/qtiv1p2/qtiASI.html
-  - Definieert het `<mattext>`-element met het `texttype`-attribuut. De specificatie beschrijft `texttype="text/html"` als geldige waarde, waarmee HTML-inhoud in vraag- en antwoordteksten is toegestaan.
-- D2L. (z.d.). *Import a course package*. Geraadpleegd op 10 mei 2026, van https://documentation.brightspace.com/EN/le/course_administration/instructor/import_course_package.htm
-  - Beschrijft het importproces voor Common Cartridge-pakketten in Brightspace, inclusief QTI-assessments. De bestaande referentie-exports in deze repository (bijv. `quiz-2.2-di-qti.xml`) zijn eerder succesvol geïmporteerd en bevestigen dat `texttype="text/html"` in de praktijk wordt ondersteund.
+- D2L. (n.d.). *Import, export, or copy course components*. Brightspace Community. Retrieved September 30, 2026, from https://community.d2l.com/brightspace/kb/articles/16771-import-export-or-copy-course-components
+  - Describes the import of course packages, including quizzes: "From the Import Course Package dialog, select Upload and choose your file." The existing reference exports in the original course repository (e.g. `quiz-2.2-di-qti.xml`) were imported successfully and confirm that `texttype="text/html"` is supported in practice.
+- IMS Global Learning Consortium. (2002). *IMS Question & Test Interoperability: ASI information model specification* (Version 1.2). Retrieved September 30, 2026, from https://www.imsglobal.org/question/qtiv1p2/imsqti_asi_infov1p2.html

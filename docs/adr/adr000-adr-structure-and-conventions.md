@@ -1,70 +1,75 @@
-# ADR 000 — ADR-structuur en -conventies
+# ADR 000 — ADR structure and conventions
 
 ## Status
 
-Geaccepteerd
+Accepted
 
 ## Context
 
-We gebruiken Architecture Decision Records (ADR's) om ontwerpkeuzes vast te leggen. Het oorspronkelijke ADR-formaat van Nygard (2011) kent vier secties: Context, Decision, Status en Consequences. Wij breiden dit uit met twee secties: Options (overwogen alternatieven) en Bronnen (APA-referenties).
+We use Architecture Decision Records (ADRs) to record design decisions. Nygard's original ADR format has four main sections besides the title: Context, Decision, Status and Consequences (Nygard, 2011). We extend it with two sections: Considered options (alternatives that were weighed) and References (APA references).
 
-Diverse ADR-templates (waaronder MADR) voegen een aparte H2-sectie "Decision Drivers" toe. Dit leidt tot wildgroei in secties en maakt de structuur minder voorspelbaar. De criteria die een keuze sturen horen bij de probleemschets — dus bij Context.
+Nygard describes the purpose of the consequences section as follows: "This section describes the resulting context, after applying the decision. All consequences should be listed here, not just the "positive" ones." (Nygard, 2011).
 
-### Criteria voor deze meta-keuze
+Several ADR templates (including MADR) add a separate H2 section "Decision Drivers". This leads to a proliferation of sections and makes the structure less predictable. The criteria that drive a decision belong to the problem statement, and therefore to Context.
 
-- Voorspelbare structuur: elke ADR heeft dezelfde H2-secties
-- Traceerbaarheid: criteria zijn vindbaar zonder een aparte sectie
-- Compatibiliteit met Nygard's oorspronkelijke formaat
-- Ruimte voor APA-bronvermelding (conform AGENTS.md)
+### Criteria for this meta-decision
 
-## Beslissing
+- Predictable structure: every ADR has the same H2 sections
+- Traceability: criteria can be found without a separate section
+- Compatibility with Nygard's original format
+- Room for APA references (per AGENTS.md)
 
-Elke ADR heeft precies zes H2-secties, in deze volgorde:
+## Considered options
 
-1. `## Status` — Voorgesteld / Geaccepteerd / Vervangen / Ingetrokken
-2. `## Context` — Probleemschets, achtergrond, en criteria (als H3 `### Criteria` of inline)
-3. `## Overwogen opties` — Alternatieven met voor- en nadelen
-4. `## Beslissing` — De gekozen optie met onderbouwing
-5. `## Gevolgen` — Positieve en negatieve consequenties
-6. `## Bronnen` — APA-referenties
+### Option A — MADR template with Decision Drivers as H2
 
-De sectie "Decision Drivers" bestaat niet als H2. Criteria die de keuze sturen worden opgenomen in Context, eventueel onder een H3 `### Criteria`.
+The Markdown Any Decision Records template (Zdun et al.) adds "Decision Drivers" as a separate H2.
 
-### Naamgeving
+**Pros:** widely used in open-source projects.
 
-- Bestandsnaam: `adrNNN-korte-beschrijving.md` (drie cijfers, kebab-case)
-- H1-titel: `# ADR NNN — Korte beschrijving`
+**Cons:** an extra section that overlaps with Context; less predictable when some ADRs use it and others do not.
 
-## Overwogen opties
+### Option B — Nygard + Considered options + References (chosen)
 
-### Optie A — MADR-template met Decision Drivers als H2
+Nygard's four sections supplemented with "Considered options" and "References". Criteria are part of Context.
 
-Het Markdown Any Decision Records-template (Zdun et al.) voegt "Decision Drivers" toe als aparte H2.
+**Pros:** compact, predictable, no overlap.
 
-**Voordelen:** breed gebruikt in open-source projecten.
+**Cons:** differs from MADR; existing ADRs have to be adjusted.
 
-**Nadelen:** extra sectie die overlap heeft met Context; minder voorspelbaar wanneer sommige ADR's het wel en andere het niet gebruiken.
+## Decision
 
-### Optie B — Nygard + Options + Bronnen (gekozen)
+Every ADR has exactly six H2 sections, in this order:
 
-Nygard's vier secties aangevuld met "Overwogen opties" en "Bronnen". Criteria als onderdeel van Context.
+1. `## Status` — Proposed / Accepted / Superseded / Withdrawn
+2. `## Context` — Problem statement, background and criteria (as H3 `### Criteria` or inline)
+3. `## Considered options` — Alternatives with pros and cons
+4. `## Decision` — The chosen option with its rationale
+5. `## Consequences` — Positive and negative consequences
+6. `## References` — APA references
 
-**Voordelen:** compact, voorspelbaar, geen overlap.
+The "Decision Drivers" section does not exist as an H2. Criteria that drive the decision are included in Context, optionally under an H3 `### Criteria`.
 
-**Nadelen:** wijkt af van MADR; bestaande ADR's moeten worden aangepast.
+Claims in an ADR are supported by sources that were actually read. Each reference is cited in the text, preferably with a literal quote rather than a paraphrase, so that a reader can check the claim against the source.
 
-## Gevolgen
+### Naming
 
-Positief:
+- File name: `adrNNN-short-description.md` (three digits, kebab-case)
+- H1 title: `# ADR NNN — Short description`
+- ADRs are written in English.
 
-- Elke ADR heeft een voorspelbare structuur; reviewers weten waar ze wat vinden.
-- Geen verwarring over waar criteria thuishoren.
+## Consequences
 
-Negatief:
+Positive:
 
-- Bestaande ADR's (001–013) moeten worden aangepast: "Decision Drivers" verplaatsen naar Context als H3.
-- De filmfestival-submodule heeft eigen ADR's met dezelfde afwijking; die vallen buiten scope van deze ADR (eigen repo, eigen conventies).
+- Every ADR has a predictable structure; reviewers know where to find what.
+- No confusion about where criteria belong.
 
-## Bronnen
+Negative:
 
-- Nygard, M. (2011). *Documenting Architecture Decisions*. Geraadpleegd op 20 mei 2026, van https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
+- Existing ADRs (001–013) had to be adjusted: "Decision Drivers" moved to Context as an H3.
+- The film festival submodule has its own ADRs with the same deviation; they are outside the scope of this ADR (separate repository, separate conventions).
+
+## References
+
+- Nygard, M. (2011, November 15). *Documenting architecture decisions*. Cognitect. Retrieved September 30, 2026, from https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
