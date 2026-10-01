@@ -8,7 +8,7 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
-## Unreleased
+## 0.14.0 - 2026-10-01
 
 ### Added
 
@@ -18,6 +18,17 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 - The Voortgangsverkenner bundles its fonts instead of loading them from Google Fonts, so it makes no requests to third parties besides GitLab (#37).
 - `prepare --skip-readers` skips all PDF generation with pandoc (readers, instructor manual, user manual) and still copies pre-built PDFs.
 - `deno task test:fast` runs all tests except the pandoc PDF tests (under a minute instead of several); `deno task test:pdf` runs only those.
+
+## 0.13.1 - 2026-10-01
+
+### Fixed
+
+- Report an unknown command explicitly instead of only printing the help text: `bso foo` now prints `Unknown command 'foo'.` and a pointer to `bso --help` on stderr and exits with code 1. A `--help` after an unknown command no longer hides the error (#36).
+- Show `Kopiëren mislukt` on a code-block copy button when copying fails, instead of leaving the button unchanged (#16).
+
+### Changed
+
+- Move the code-block copy button script from an inline string in `markdown-converter.ts` to the asset `brightspacosaurus-copy-button.js`, like the flashcard and navigation scripts, so it can be linted and unit-tested (#16).
 
 ## 0.13.0 - 2026-09-30
 

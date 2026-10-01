@@ -1,120 +1,119 @@
-# ADR 010 — unified (remark/rehype) voor Markdown→HTML-conversie in Brightspacosaurus
+# ADR 010 — unified (remark/rehype) for Markdown-to-HTML conversion in Brightspacosaurus
 
 ## Status
 
-Geaccepteerd (herzien mei 2026)
+Accepted (revised May 2026)
 
 ## Context
 
-Brightspacosaurus moet Markdown-bronbestanden omzetten naar HTML die importeerbaar is in Brightspace via een Common Cartridge-pakket. Brightspace accepteert in geïmporteerde content uitsluitend HTML en CSS — JavaScript wordt niet uitgevoerd. Dit beperkt de keuze van conversietools: de output moet statische, zelfstandige HTML zijn zonder runtime-afhankelijkheden.
+Brightspacosaurus must convert Markdown source files to HTML that can be imported into Brightspace through a Common Cartridge package. Brightspace accepts only HTML and CSS in imported content; JavaScript is not executed. This limits the choice of conversion tools: the output must be static, self-contained HTML without runtime dependencies.
 
-Tegelijkertijd gebruiken we Docusaurus als lokale preview-tool (zie ADR 009). Docusaurus gebruikt intern de unified-stack (remark voor Markdown-parsing, rehype voor HTML-transformatie; Docusaurus, z.d.-b). Dev/prod parity — dezelfde Markdown op dezelfde manier parsen in beide omgevingen — is een expliciet ontwerpprincipe.
+At the same time we use Docusaurus as a local preview tool (see ADR 009 in the original course repository). Docusaurus compiles Markdown with MDX: "The MDX compiler transforms Markdown files to React components" (Docusaurus, n.d.-a). Its plugin system is the unified ecosystem; the Docusaurus documentation lists as a typical use case "Using existing remark plugins or rehype plugins" (Docusaurus, n.d.-b). Dev/prod parity (parsing the same Markdown in the same way in both environments) is an explicit design principle.
 
-### Herziening mei 2026
+### Revision May 2026
 
-De oorspronkelijke ADR koos voor unified via JSR (`jsr:@unified/...`). In de praktijk bleek JSR geen volwaardige unified-stack te bieden: de kernpakketten (`unified`, `remark-parse`, `remark-rehype`, `rehype-stringify`) zijn alleen beschikbaar via npm, niet via JSR. Als tijdelijke oplossing werd `marked` geïmplementeerd via `npm:marked`.
+The original ADR chose unified via JSR (`jsr:@unified/...`). In practice JSR did not offer a complete unified stack: the core packages (`unified`, `remark-parse`, `remark-rehype`, `rehype-stringify`) are only available via npm, not via JSR. As a temporary solution `marked` was implemented via `npm:marked`.
 
-Dit leidde tot twee problemen:
+This led to two problems:
 
-1. **Pariteitsrisico**: `marked` gebruikt een andere parser dan Docusaurus (remark/micromark). Subtiele parsing-verschillen zijn mogelijk.
-2. **Beperkte uitbreidbaarheid**: `marked` heeft een renderer/extension API, maar geen volwaardige AST-plugin-architectuur. Voor rijke inhoud in quizvragen (code-blokken, diagrammen, geneste opmaak in vraag- en antwoordteksten) is een plugin-gebaseerde pipeline nodig.
+1. **Parity risk**: `marked` uses a different parser than Docusaurus (remark/micromark). Subtle parsing differences are possible.
+2. **Limited extensibility**: `marked` has a renderer/extension API, but no full AST plugin architecture. Rich content in quiz questions (code blocks, diagrams, nested formatting in question and answer texts) needs a plugin-based pipeline.
 
-Omdat zowel `marked` als `unified` via `npm:` worden geladen, vervalt het JSR-voordeel voor beide opties. De keuze valt daarmee terug op inhoudelijke criteria: pariteit en uitbreidbaarheid.
+Because both `marked` and `unified` are loaded via `npm:`, the JSR advantage disappears for both options. The choice therefore falls back to content criteria: parity and extensibility.
 
 ### Criteria
 
-- Brightspace voert geen JavaScript uit in geïmporteerde content; alleen HTML en CSS zijn toegestaan
-- Dev/prod parity: de lokale preview (Docusaurus) en de Brightspace-export moeten dezelfde Markdown op dezelfde manier parsen
-- Uitbreidbaarheid: plugins voor afbeeldingsverwerking, QTI-sectie-filtering, diagramrendering (Mermaid/PlantUML), en rijke inhoud in quizvragen (code-blokken, opmaak in vraag- en antwoordteksten)
-- De conversie moet draaien in Deno; beide opties zijn beschikbaar via `npm:`
-- JSR biedt geen volwaardige Markdown-conversiepipeline
+- Brightspace does not execute JavaScript in imported content; only HTML and CSS are allowed
+- Dev/prod parity: the local preview (Docusaurus) and the Brightspace export must parse the same Markdown in the same way
+- Extensibility: plugins for image handling, QTI section filtering, diagram rendering (Mermaid/PlantUML), and rich content in quiz questions (code blocks, formatting in question and answer texts)
+- The conversion must run in Deno; both options are available via `npm:`
+- JSR offers no complete Markdown conversion pipeline
 
-## Overwogen opties
+## Considered options
 
-### Optie A — Docusaurus-converter hergebruiken
+### Option A — Reuse the Docusaurus converter
 
-De `@docusaurus/mdx-loader` direct aanroepen voor HTML-generatie.
+Call `@docusaurus/mdx-loader` directly to generate HTML.
 
-**Voordelen:**
+**Pros:**
 
-- Maximale pariteit met de lokale preview.
+- Maximum parity with the local preview.
 
-**Nadelen:**
+**Cons:**
 
-- Produceert React-componenten (JSX), geen statische HTML. Vereist een React-renderpass om HTML te krijgen.
-- Diep verweven met het Docusaurus-ecosysteem (bundler, routing, theme-systeem). Niet los aan te roepen. Docusaurus gebruikt momenteel webpack als standaardbundler, met Rspack als opt-in via "Docusaurus Faster" (stabiel vanaf v3.10; Docusaurus, 2025). Vite is geen onderdeel van de Docusaurus-roadmap.
-- Vereist Node.js; draait niet in Deno.
-- De React-output bevat JavaScript dat Brightspace niet uitvoert.
+- Produces React components (JSX), not static HTML. Requires a React render pass to get HTML.
+- Deeply entangled with the Docusaurus ecosystem (bundler, routing, theme system); it cannot be called on its own. Docusaurus currently uses webpack as its default bundler, with Rspack as an opt-in through "Docusaurus Faster" (stable since v3.10; Docusaurus, 2025). Vite is not part of the Docusaurus roadmap.
+- Requires Node.js; does not run in Deno.
+- The React output contains JavaScript that Brightspace does not execute.
 
-### Optie B — unified (remark-parse → remark-rehype → rehype-stringify) via `npm:` (gekozen)
+### Option B — unified (remark-parse → remark-rehype → rehype-stringify) via `npm:` (chosen)
 
-Dezelfde parsing-stack die Docusaurus onder de motorkap gebruikt, maar zonder de MDX/React-laag.
+The same parsing stack that Docusaurus uses under the hood, but without the MDX/React layer.
 
-**Voordelen:**
+**Pros:**
 
-- Produceert statische HTML zonder JavaScript — direct bruikbaar in Brightspace.
-- Dezelfde Markdown-parser (micromark/remark) als Docusaurus; parsing-gedrag is identiek.
-- Draait in Deno via `npm:`-compatibiliteitslaag.
-- Plugin-architectuur: uitbreidbaar met transformaties (afbeeldingspaden aanpassen, QTI-secties filteren, diagramrendering, rijke inhoud in quizvragen). Unified beschrijft zichzelf als "an interface for processing content with syntax trees" (Unified, z.d.), wat deze uitbreidbaarheid mogelijk maakt.
-- Geen runtime-afhankelijkheden in de output.
+- Produces static HTML without JavaScript, directly usable in Brightspace.
+- The same Markdown parser (micromark/remark) as Docusaurus; parsing behavior is identical.
+- Runs in Deno via the `npm:` compatibility layer.
+- Plugin architecture: extensible with transformations (adjusting image paths, filtering QTI sections, diagram rendering, rich content in quiz questions). Its README describes unified as follows: "unified is an interface for processing content with syntax trees" (Wormer, n.d.), which is what enables this extensibility.
+- No runtime dependencies in the output.
 
-**Nadelen:**
+**Cons:**
 
-- Styling-pariteit met Docusaurus moet apart worden gerealiseerd via CSS in de HTML-output.
-- Navigatie en sidebar zijn Brightspace's verantwoordelijkheid via het manifest.
-- Geladen via `npm:`, niet via JSR; de supply chain-voordelen van JSR gelden hier niet (zie ADR 008 voor de bredere afweging).
+- Styling parity with Docusaurus must be achieved separately through CSS in the HTML output.
+- Navigation and sidebar are Brightspace's responsibility through the manifest.
+- Loaded via `npm:`, not via JSR; the supply chain advantages of JSR do not apply here (see ADR 008 for the broader trade-off).
 
-### Optie C — marked via `npm:`
+### Option C — marked via `npm:`
 
-Lichtgewicht Markdown→HTML-converter.
+Lightweight Markdown-to-HTML converter.
 
-**Voordelen:**
+**Pros:**
 
-- Eenvoudig, snel, weinig afhankelijkheden.
-- Was al geïmplementeerd als tijdelijke oplossing.
+- Simple, fast, few dependencies.
+- Was already implemented as a temporary solution.
 
-**Nadelen:**
+**Cons:**
 
-- Andere parser dan Docusaurus; subtiele parsing-verschillen mogelijk (dev/prod parity risico).
-- Beperkte plugin-architectuur; onvoldoende voor rijke inhoud in quizvragen (code-blokken, diagrammen, geneste opmaak).
-- Snelheidsvoordeel ten opzichte van unified is irrelevant bij build-time gebruik.
-- Ook via `npm:` geladen; geen voordeel ten opzichte van unified op het gebied van supply chain.
+- Different parser than Docusaurus; subtle parsing differences are possible (dev/prod parity risk).
+- Limited plugin architecture; insufficient for rich content in quiz questions (code blocks, diagrams, nested formatting).
+- Its speed advantage over unified is irrelevant for build-time use.
+- Also loaded via `npm:`; no supply chain advantage over unified.
 
-## Beslissing
+## Decision
 
-We kiezen voor unified via `npm:` (optie B). De parsing-laag is identiek aan wat Docusaurus gebruikt (remark/micromark), waardoor Markdown op dezelfde manier wordt geïnterpreteerd in de lokale preview en in de Brightspace-export. Het verschil zit in de rendering-laag: Docusaurus rendert naar React-componenten (met JavaScript), Brightspacosaurus rendert naar statische HTML (zonder JavaScript) — precies wat Brightspace vereist.
+We choose unified via `npm:` (option B). The parsing layer is identical to what Docusaurus uses (remark/micromark), so Markdown is interpreted the same way in the local preview and in the Brightspace export. The difference lies in the rendering layer: Docusaurus renders to React components (with JavaScript), Brightspacosaurus renders to static HTML (without JavaScript), which is exactly what Brightspace requires.
 
-De plugin-architectuur van unified is noodzakelijk voor de geplande uitbreidingen: diagramrendering (Mermaid/PlantUML via Kroki), QTI-sectie-filtering, en rijke inhoud in quizvragen (code-blokken en opmaak in vraag- en antwoordteksten).
+The unified plugin architecture is required for the planned extensions: diagram rendering (Mermaid/PlantUML via Kroki), QTI section filtering, and rich content in quiz questions (code blocks and formatting in question and answer texts).
 
-### Bewust niet gekozen
+### Deliberately not chosen
 
-- Docusaurus-converter, omdat de output React/JavaScript bevat dat Brightspace niet uitvoert, en omdat het niet los van het Docusaurus-ecosysteem draait.
-- marked, vanwege het risico op parsing-verschillen met de lokale preview, beperkte uitbreidbaarheid voor rijke quizinhoud, en geen voordeel ten opzichte van unified op het gebied van supply chain (beide via `npm:`).
+- The Docusaurus converter, because its output contains React/JavaScript that Brightspace does not execute, and because it does not run outside the Docusaurus ecosystem.
+- marked, because of the risk of parsing differences with the local preview, limited extensibility for rich quiz content, and no supply chain advantage over unified (both via `npm:`).
 
-### JSR-beschikbaarheid
+### JSR availability
 
-Er is geen JSR-native Markdown-conversiepipeline beschikbaar die vergelijkbaar is met unified of marked. De keuze is daarmee beperkt tot `npm:`-pakketten. De supply chain-overwegingen uit ADR 008 (geen postinstall-scripts, permissiemodel) gelden onverminderd voor `npm:`-pakketten in Deno.
+No JSR-native Markdown conversion pipeline comparable to unified or marked is available. The choice is therefore limited to `npm:` packages. The supply chain considerations from ADR 008 (no postinstall scripts, permission model) apply equally to `npm:` packages in Deno.
 
-## Gevolgen
+## Consequences
 
-Positief:
+Positive:
 
-- Eén Markdown-parser voor beide output-paden (Docusaurus en Brightspace); parsing-bugs worden op beide plekken zichtbaar.
-- Statische HTML-output zonder JavaScript; direct importeerbaar in Brightspace.
-- Plugin-architectuur maakt toekomstige transformaties (diagramrendering, quiz-integratie met rijke inhoud) eenvoudig toe te voegen.
+- One Markdown parser for both output paths (Docusaurus and Brightspace); parsing bugs become visible in both places.
+- Static HTML output without JavaScript; directly importable into Brightspace.
+- The plugin architecture makes future transformations (diagram rendering, quiz integration with rich content) easy to add.
 
-Negatief:
+Negative:
 
-- Visuele pariteit tussen Docusaurus en Brightspace moet via CSS worden gerealiseerd; dit is een iteratief proces.
-- Navigatiestructuur in Brightspace wordt bepaald door het `imsmanifest.xml`, niet door de converter.
-- `npm:`-afhankelijkheden brengen supply chain-risico's mee; zie ADR 008 voor mitigaties (versiepinning, dependency cooldown).
+- Visual parity between Docusaurus and Brightspace must be achieved through CSS; this is an iterative process.
+- The navigation structure in Brightspace is determined by `imsmanifest.xml`, not by the converter.
+- `npm:` dependencies bring supply chain risks; see ADR 008 for mitigations (version pinning, dependency cooldown).
 
-## Bronnen
+## References
 
-- Unified. (z.d.). *unified — interface for processing content with syntax trees*. Geraadpleegd op 10 mei 2026, van https://unifiedjs.com/
-  - Geciteerd bij de keuze voor unified (optie B, plugin-architectuur): "unified is an interface for processing content with syntax trees" — de kern van de uitbreidbaarheid die de plugin-architectuur mogelijk maakt.
-- Docusaurus. (z.d.-b). *Markdown Features*. Geraadpleegd op 10 mei 2026, van https://docusaurus.io/docs/markdown-features
-  - Bevestigt dat Docusaurus intern remark/rehype gebruikt voor Markdown-verwerking, wat de pariteitsredenering in de Context-sectie onderbouwt: "Docusaurus uses remark and rehype under the hood."
-- Docusaurus. (2025). *Docusaurus 3.10*. Geraadpleegd op 10 mei 2026, van https://docusaurus.io/blog/releases/3.10
-  - Over de bundler-keuze: "Docusaurus Faster lets you opt in for our modernized build infrastructure. This includes Rspack, SWC, LightningCSS, and other optimizations." en "In #11802, we marked Docusaurus Faster as stable." — Docusaurus stapt over op Rspack (niet Vite) als vervanging van webpack.
-- D2L. (z.d.). *Import a course package*. Geraadpleegd op 10 mei 2026, van https://documentation.brightspace.com/EN/le/course_administration/instructor/import_course_package.htm
+- D2L. (n.d.). *Import, export, or copy course components*. Brightspace Community. Retrieved September 30, 2026, from https://community.d2l.com/brightspace/kb/articles/16771-import-export-or-copy-course-components
+- Docusaurus. (n.d.-a). *Markdown features*. Retrieved September 30, 2026, from https://docusaurus.io/docs/markdown-features
+- Docusaurus. (n.d.-b). *MDX plugins*. Retrieved September 30, 2026, from https://docusaurus.io/docs/markdown-features/plugins
+- Docusaurus. (2025). *Docusaurus 3.10*. Retrieved September 30, 2026, from https://docusaurus.io/blog/releases/3.10
+  - On the bundler choice: "Docusaurus Faster lets you opt in for our modernized build infrastructure." and "we marked Docusaurus Faster as stable."
+- Wormer, T. (n.d.). *unified* [Computer software]. GitHub. Retrieved September 30, 2026, from https://github.com/unifiedjs/unified

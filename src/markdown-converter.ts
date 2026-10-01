@@ -169,58 +169,6 @@ async function getContentCss(): Promise<string> {
 }
 
 /**
- * Inline script that adds a copy button to every code block. No external
- * dependencies or user-controlled data are involved, so inlining is safe.
- *
- * Issue: #16
- */
-const COPY_BUTTON_SCRIPT = `<script>
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('pre code').forEach(function (codeBlock) {
-    var pre = codeBlock.parentElement;
-    if (!pre || pre.dataset.bsoCopyWrapped) return;
-    pre.dataset.bsoCopyWrapped = 'true';
-
-    var wrapper = document.createElement('div');
-    wrapper.className = 'bso-code-wrapper';
-    pre.parentNode.insertBefore(wrapper, pre);
-    wrapper.appendChild(pre);
-
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'bso-copy-btn';
-    btn.textContent = 'Kopieer';
-    btn.setAttribute('aria-label', 'Kopieer code');
-    btn.addEventListener('click', function () {
-      var text = codeBlock.innerText;
-      var showCopied = function () {
-        btn.textContent = 'Gekopieerd!';
-        setTimeout(function () { btn.textContent = 'Kopieer'; }, 1500);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(showCopied, function () {});
-      } else {
-        var textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-          document.execCommand('copy');
-          showCopied();
-        } catch (_err) {
-          // Clipboard unavailable — leave button as-is
-        }
-        document.body.removeChild(textarea);
-      }
-    });
-    wrapper.appendChild(btn);
-  });
-});
-</script>`;
-
-/**
  * Wraps the HTML body in a full HTML document with lang="nl", UTF-8,
  * HAN house-style CSS and a Google Fonts link.
  * Optionally a custom CSS file is inlined alongside the default CSS.
@@ -240,6 +188,9 @@ async function wrapHtml(
     "brightspacosaurus-navigation.js",
   );
   const tabsScript = await loadAssetText("brightspacosaurus-tabs.js");
+  const copyButtonScript = await loadAssetText(
+    "brightspacosaurus-copy-button.js",
+  );
   let customCssBlock = "";
   if (customCssPath) {
     try {
@@ -278,7 +229,7 @@ ${css}${customCssBlock}
 <div class="brightspace-content">
 ${body}
 </div>
-${COPY_BUTTON_SCRIPT}
+<script>${copyButtonScript}</script>
 <script>${flashcardScript}</script>
 <script>${navigationScript}</script>
 <script>${tabsScript}</script>

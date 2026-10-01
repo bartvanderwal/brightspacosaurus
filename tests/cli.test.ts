@@ -5,7 +5,7 @@
  * Eigenschap 6: Foutuitvoer volgt het juiste kanaal en exitcode
  */
 
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve, join } from "@std/path";
 
 const MAIN_PATH = resolve(new URL(".", import.meta.url).pathname, "..", "src", "main.ts");
@@ -39,11 +39,29 @@ Deno.test("Eigenschap 6: geen argumenten geeft usage naar stderr en exitcode 1",
   assertEquals(result.stderr.includes("Usage:"), true, "stderr moet usage bevatten");
 });
 
-Deno.test("Eigenschap 6: ongeldig commando geeft usage naar stderr en exitcode 1", async () => {
-  // Feature: brightspacosaurus, Eigenschap 6: Foutuitvoer volgt het juiste kanaal en exitcode
-  const result = await runCli(["onzin"]);
-  assertEquals(result.code, 1, "Exitcode moet 1 zijn bij ongeldig commando");
-  assertEquals(result.stderr.includes("Usage:"), true, "stderr moet usage bevatten");
+Deno.test("Issue #36: onbekend commando geeft expliciete fout naar stderr en exitcode 1", async () => {
+  // Verzonnen commandnaam, zodat nieuwe commands deze regressietest niet ongeldig maken.
+  const result = await runCli(["verzonnen-cmd"]);
+  assertEquals(result.code, 1, "Exitcode moet 1 zijn bij onbekend commando");
+  assertEquals(
+    result.stderr,
+    "Unknown command 'verzonnen-cmd'.\nRun 'bso --help' for available commands.\n",
+  );
+  assertEquals(result.stdout, "", "stdout moet leeg zijn; er wordt geen actie uitgevoerd");
+});
+
+Deno.test("Issue #36: --help na onbekend commando vervangt de foutmelding niet", async () => {
+  const result = await runCli(["verzonnen-cmd", "--help"]);
+  assertEquals(result.code, 1);
+  assertStringIncludes(result.stderr, "Unknown command 'verzonnen-cmd'.");
+  assertEquals(result.stdout, "");
+});
+
+Deno.test("Issue #36: -h geeft usage naar stdout en exitcode 0", async () => {
+  const result = await runCli(["-h"]);
+  assertEquals(result.code, 0);
+  assertStringIncludes(result.stdout, "Usage:");
+  assertEquals(result.stderr.includes("Unknown command"), false);
 });
 
 Deno.test("--version geeft versienummer naar stdout en exitcode 0", async () => {
