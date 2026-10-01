@@ -98,6 +98,20 @@ function printUsage(
   }
 }
 
+/** Subcommands the CLI accepts as first argument. */
+const COMMANDS = ["prepare", "pack", "preview", "lint"];
+
+/**
+ * Returns the error text for an unknown subcommand, or null when the first
+ * argument is a known command, an option or absent.
+ */
+export function unknownCommandMessage(args: string[]): string | null {
+  const command = args[0];
+  if (command === undefined || command.startsWith("-")) return null;
+  if (COMMANDS.includes(command)) return null;
+  return `Unknown command '${command}'.\nRun 'bso --help' for available commands.`;
+}
+
 /** Parses Brightspacosaurus CLI arguments for the supported subcommands. */
 export function parseArgs(
   args: string[],
@@ -111,7 +125,7 @@ export function parseArgs(
   if (args.length === 0) return null;
 
   const command = args[0];
-  if (!["prepare", "pack", "preview", "lint"].includes(command)) {
+  if (!COMMANDS.includes(command)) {
     return null;
   }
 
@@ -736,6 +750,14 @@ export async function runLint(config: ResolvedConfig): Promise<void> {
 async function main(): Promise<void> {
   const args = Deno.args;
   const version = await loadPackageVersion();
+
+  // Unknown command → explicit error plus a pointer to --help, exit 1.
+  // Checked first, so --help or --version never hide the error.
+  const unknown = unknownCommandMessage(args);
+  if (unknown) {
+    console.error(unknown);
+    Deno.exit(1);
+  }
 
   // Version and help intents are handled before command parsing.
   // --version / -v → version to stdout, exit 0.

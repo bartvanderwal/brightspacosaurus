@@ -6,6 +6,7 @@ import {
   buildUsage,
   decodeHtmlEntities,
   parseArgs,
+  unknownCommandMessage,
   runPack,
   runPrepare,
   runPreview,
@@ -71,6 +72,19 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
     config: "",
   });
   assertEquals(parseArgs(["nope"]), null);
+});
+
+Deno.test("unknownCommandMessage names only unknown non-option commands (#36)", () => {
+  assertEquals(
+    unknownCommandMessage(["verzonnen-cmd", "--sources", "x"]),
+    "Unknown command 'verzonnen-cmd'.\nRun 'bso --help' for available commands.",
+  );
+  for (const command of ["prepare", "pack", "preview", "lint"]) {
+    assertEquals(unknownCommandMessage([command]), null);
+  }
+  assertEquals(unknownCommandMessage([]), null);
+  assertEquals(unknownCommandMessage(["--help"]), null);
+  assertEquals(unknownCommandMessage(["-v"]), null);
 });
 
 Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz en reader", async () => {
