@@ -2,10 +2,21 @@
  * Asset loader that works both locally (file://) and from the JSR cache (https://).
  *
  * Assets are published to JSR (see publish.include in deno.json).
- * We use import.meta.resolve() to determine the asset URL and fetch() to
+ * We resolve the asset URL relative to this module (new URL(…, import.meta.url))
+ * and use fetch() to
  * load the content — fetch works with file://, https:// and jsr: URLs, unlike
  * Deno.readTextFile() which only accepts local files.
  */
+
+/**
+ * URL of an asset, relative to this module. `new URL(…, import.meta.url)`
+ * behaves like `import.meta.resolve` for relative paths, but JSR does not try
+ * to rewrite it at publish time, so a dynamic asset name gives no
+ * "unanalyzable import.meta.resolve" warning.
+ */
+function assetUrl(assetName: string): string {
+  return new URL(`../assets/${assetName}`, import.meta.url).href;
+}
 
 /** Cache for loaded asset content (per asset name, once per process). */
 const _assetCache = new Map<string, string>();
@@ -19,7 +30,7 @@ export async function loadAssetText(assetName: string): Promise<string> {
   const cached = _assetCache.get(assetName);
   if (cached !== undefined) return cached;
 
-  const url = import.meta.resolve(`../assets/${assetName}`);
+  const url = assetUrl(assetName);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Cannot load asset: ${assetName} (${url}) — status ${response.status}`);
@@ -35,7 +46,7 @@ export async function loadAssetText(assetName: string): Promise<string> {
  * @param assetName File name relative to the assets/ directory
  */
 export async function loadAssetBytes(assetName: string): Promise<Uint8Array> {
-  const url = import.meta.resolve(`../assets/${assetName}`);
+  const url = assetUrl(assetName);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Cannot load asset: ${assetName} (${url}) — status ${response.status}`);
@@ -63,7 +74,7 @@ export async function materializeAsset(assetName: string): Promise<string> {
 /**
  * Reads the package version from deno.json (works locally and from the JSR cache).
  *
- * Uses the same import.meta.resolve() + fetch() approach as loadAssetText, so it
+ * Uses a static import.meta.resolve() (which JSR can analyze) + fetch(), like loadAssetText, so it
  * works with file://, https:// and jsr: URLs. deno.json is included in
  * publish.include, so it is available from the JSR cache.
  *

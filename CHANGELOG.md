@@ -8,6 +8,12 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.14.2 - 2026-10-01
+
+### Changed
+
+- Resolve bundled asset URLs with `new URL(…, import.meta.url)` instead of a dynamic `import.meta.resolve`, so `deno publish` no longer warns about an unanalyzable `import.meta.resolve`. Behaviour is unchanged.
+
 ## 0.14.1 - 2026-10-01
 
 ### Fixed

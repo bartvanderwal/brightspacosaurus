@@ -31,7 +31,7 @@ Bundled assets (in `assets/`) must NEVER be loaded via `import.meta.url` + `Deno
 
 Use `src/assets.ts` instead:
 
-- `loadAssetText(name)` — loads text content via `import.meta.resolve()` + `fetch()` (works with `file://`, `https://` and `jsr:`).
+- `loadAssetText(name)` — loads text content via `new URL(…, import.meta.url)` + `fetch()` (works with `file://`, `https://` and `jsr:`). `loadAssetBytes(name)` does the same for binary assets such as fonts.
 - `materializeAsset(name)` — writes an asset to a temporary file and returns the path. Needed for external tools such as pandoc that require an actual file path (`--include-in-header`, `--lua-filter`).
 
 Every new asset must also be included in `publish.include` in `deno.json`, otherwise it is not available from JSR.
