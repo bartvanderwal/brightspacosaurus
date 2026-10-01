@@ -12,7 +12,7 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 **Key features:**
 
 - 📝 **Course material as Markdown** — versionable, diffable, AI-editor-friendly; no lock-in to Brightspace's editor.
-- ⚡ **Docusaurus preview** — run `bso preview` for a live, hot-reloading dev server so you can check formatting, links, code blocks and diagrams before ever touching Brightspace.
+- ⚡ **Docusaurus preview** — run `bso preview` for a live, hot-reloading dev server so you can check formatting, links, code blocks and diagrams before ever touching Brightspace. See the demo course online: [bartvanderwal.github.io/brightspacosaurus](https://bartvanderwal.github.io/brightspacosaurus/).
 - ✅ **Native quizzes** — Markdown quiz files (`quiz-` prefix) are converted to QTI 1.2 and imported as functional Brightspace quizzes, not static pages.
 - 📊 **Diagrams-as-code** — PlantUML and Mermaid fenced code blocks render automatically to accessible images via Kroki, with source and descriptions kept alongside for accessibility.
 - 📄 **Reader PDFs** — Markdown readers (`reader-` prefix) are converted to downloadable PDFs via pandoc.
@@ -309,6 +309,20 @@ bso preview
 The root configuration selects `examples/demo-course`; its Docusaurus app lives in
 `demo-course-docs`. To preview with the local CLI source, use
 `deno task demo:preview`. You can also run `bso preview` from `examples/demo-course`.
+
+#### Online demo preview
+
+The demo course is published as a Docusaurus site at
+[bartvanderwal.github.io/brightspacosaurus](https://bartvanderwal.github.io/brightspacosaurus/),
+as an example of what BSO produces. The workflow `.github/workflows/demo-preview-pages.yml`
+rebuilds it after every push to `main` (or by hand via *Run workflow*): it runs lint and
+`deno task test:fast` first and deploys only when they pass.
+
+The online preview shows the same pages, flashcards, quizzes, diagrams and teacher-page tabs as
+the Brightspace export, but it is not a Brightspace test: the course menu, quiz scoring, hidden
+modules and topic navigation only behave as intended after importing the `.imscc` into a
+Brightspace sandbox. The demo's Voortgangsverkenner points to a fictitious GitLab server, so it
+loads but cannot fetch data.
 
 If your installed `bso` only permits running pandoc, reinstall it with npm permission:
 

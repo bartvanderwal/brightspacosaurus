@@ -60,9 +60,10 @@ const includeHost = {
 // serves the dashboard files from BSO_PREVIEW_STATIC_DIR; without it the page
 // shows a note how to start the preview with the dashboard.
 const previewStaticDir = process.env.BSO_PREVIEW_STATIC_DIR || "";
+const baseUrl = process.env.DOCS_BASE_URL || "/";
 function remarkTeacherPageTabs() {
   const transform = remarkTeacherDashboard({
-    src: previewStaticDir ? teacherPage.dashboardSrc ?? null : null,
+    src: previewStaticDir ? `${baseUrl}docenten/voortgangsverkenner.html` : null,
     note: "Voortgangsverkenner: start de preview met `bso preview` (met teacherDashboard in de configuratie) om hem hier te zien.",
   });
   return (tree, file) => {
@@ -93,8 +94,9 @@ function sortLikeBrightspace(items, titles) {
 module.exports = {
   title: "Demo Course Preview",
   tagline: "Preview for Brightspacosaurus demo course",
-  url: "http://localhost:3000",
-  baseUrl: "/",
+  // GitHub Pages sets these (see .github/workflows/demo-preview-pages.yml).
+  url: process.env.DOCS_URL || "http://localhost:3000",
+  baseUrl,
   onBrokenLinks: "throw",
   markdown: {
     format: "detect",
