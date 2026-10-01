@@ -291,6 +291,104 @@ If the default page does not exist, BSO skips it without a message. If a configu
 
 ---
 
+### 4.8 Teacher progress dashboard (Voortgangsverkenner)
+
+When courses use GitLab for student assignments, instructors can monitor student work item progress across student repositories using the built-in **Voortgangsverkenner** (Teacher progress dashboard).
+
+BSO generates this standalone client-side dashboard page at `content/docenten/voortgangsverkenner.html` and packages it into the instructor module (`module_docentenmateriaal`) in `imsmanifest.xml`. After importing the Common Cartridge into Brightspace, instructors keep this module hidden from students.
+
+Configure the dashboard under `teacherDashboard` in `brightspacosaurus.config.json`:
+
+```json
+{
+  "teacherDashboard": {
+    "gitlabUrl": "https://gitlab.aimsites.nl",
+    "groupPath": "2026p1-fusten",
+    "subgroups": ["Arnhem", "Nijmegen"],
+    "repos": [
+      { "prefix": "pod", "label": "POD" },
+      { "prefix": "n1-chuck-a-luck", "label": "N1 Chuck-a-luck" },
+      { "prefix": "n2-ticketfaster-api", "label": "N2 TicketFaster API" },
+      { "prefix": "n2-expense-pro", "label": "N2 Expense Pro" },
+      { "prefix": "n3-ticketfaster-frontend", "label": "N3 TicketFaster frontend" },
+      { "prefix": "n3-expense-pro", "label": "N3 Expense Pro" }
+    ],
+    "teacherUsernames": ["docent1", "docent2"],
+    "orangeThresholdPercent": 10,
+    "redThresholdPercent": 50,
+    "requireCommentsForDone": false
+  }
+}
+```
+
+#### Security and token handling
+
+- The dashboard authenticates against GitLab with a **fine-grained personal access token** with read-only permissions. A classic token with scope `read_api` also works, but grants far more than the dashboard needs.
+- **No secrets in cartridge:** The token is never written into the configuration or the exported package.
+- **In-memory storage:** The dashboard keeps the token only in browser memory while the page is open. It is never persisted to `localStorage` or `sessionStorage` (preventing other scripts in Brightspace from reading it).
+- **Password manager support:** The token input uses `<input type="password" autocomplete="current-password">` with a hidden username field so instructors can securely store and autofill it via their browser password manager.
+
+#### Creating the access token
+
+Create a fine-grained personal access token in GitLab under **User settings → Personal access tokens → Generate token**:
+
+1. Under **Group and project access**, choose **Only specific group or projects that I'm a member of** and select the course group (for example `2026p1-fusten`). The token then covers its subgroups and projects, and nothing else.
+2. Grant **Read** permissions only, in three categories:
+   - **Project Planning**: `Work Item: Read` (issues and their comments) and `Label: Read`. Without this category every repository shows "Token mist leesrechten voor deze repo (403)".
+   - **Repository**: only `Commit: Read` and `Merge Request: Read`. Merge requests are shown when they are linked to a work item, with their commits. The dashboard reads commit titles, authors and links to match commits to work items (`#<iid>` in the message) and to link to them. It never reads file contents, so `Code: Read`, branches, tags and the other repository permissions are not needed. Without `Commit: Read` the dashboard finds no commits, so finished work items turn orange; the repository view then shows a warning.
+   - **Groups**: only `Group: Read`, to list the projects in each subgroup.
+3. Do not grant member permissions. The dashboard links repositories to students by project name, not by membership, so it does not need to read member data.
+4. Choose a short expiry date, for example the end of the course period.
+
+![GitLab fine-grained personal access token for the Voortgangsverkenner, limited to the course group with read-only permissions](images/gitlab-fine-grained-token-voortgangsverkenner.png)
+
+The screenshot shows a working token for FUSTEN. It grants more read permissions than the minimum listed above (need to know); the minimum is `Work Item: Read`, `Label: Read`, `Merge Request: Read`, `Commit: Read` and `Group: Read`. That minimum is derived from the API calls the dashboard makes and still has to be confirmed with a token that has only these permissions.
+
+#### Showing the dashboard on the teacher page
+
+Put the directive on its own line in the teacher page (`teacherPage`, default `for-teachers.md`):
+
+```markdown
+{@bso-teacher-dashboard}
+```
+
+BSO then shows the teacher page with two tabs: **Informatie** (the rest of the page) and **Voortgangsverkenner** (the dashboard in an embedded frame, at full width). Without JavaScript both parts are shown one after the other. The directive only works on the teacher page and needs `teacherDashboard` in the configuration; without it the page shows a short note instead.
+
+The Docusaurus preview shows the same tabs and the same working dashboard (dev/prod parity), so you can test it with your token before importing. `bso preview` writes the dashboard files to `preview-static/` next to the build directory and passes that directory to Docusaurus in `BSO_PREVIEW_STATIC_DIR`. A course with its own Docusaurus configuration needs three additions, as in `demo-course-docs/docusaurus.config.js`: `remarkTeacherDashboard` from `src/teacher-page.ts` as a remark plugin for the teacher page, `staticDirectories` with `BSO_PREVIEW_STATIC_DIR`, and a client module that calls `initializeTabs` from `assets/brightspacosaurus-tabs.js`. Without `bso preview` the directive shows a note how to start it.
+
+The dashboard stays a separate file (`docenten/voortgangsverkenner.html`) in the hidden instructor module. Hiding a topic in Brightspace does not necessarily block a direct URL for enrolled students; that is not a data leak, because the page contains no token or student data, only the group name and repository prefixes. Students cannot see other students' work without a token with read access to the course group.
+
+The dashboard ships its own fonts (Atkinson Hyperlegible, SIL OFL 1.1) and libraries, so it makes no requests to third parties besides your GitLab server.
+
+#### Using the dashboard
+
+1. Open **Voortgangsverkenner** in the hidden instructor module, paste the token and choose **Gebruik**.
+2. Choose the class and **Haal status uit GitLab**. The class overview shows a stoplight per student and per repository, with the share of green work items and a distribution bar.
+3. Use **Toon repo's** to show only the repositories of the current assignment level, for example only the `n3-` repositories. Switch all on (**Alles aan**) to look back at earlier work.
+4. Tick **Alleen aandacht nodig** to hide students, repositories and work items that are green or not yet due.
+5. Open a student, repository and work item in the tree on the left. The work item shows its linked commits and merge requests; each link opens the commit, the merge request changes or the work item in GitLab in a new tab.
+6. Adjust the thresholds under **Instellingen stoplicht**; colours update immediately. The defaults come from the configuration.
+
+All fetched data stays in the page's memory and disappears when you close it. Use **Ververs deze student** to update one student without fetching the whole class again.
+
+![Voortgangsverkenner class overview with fictitious students](images/voortgangsverkenner-klasoverzicht.png)
+
+#### Progress calculation and stoplight rules
+
+- **Work item stoplight:**
+  - **Green (Done):** Work item is closed or in a done state, with at least one commit by the student referencing the issue (`#<number>`), and non-teacher changes (and comments, if enabled).
+  - **Orange (In Progress / Missing requirements):** Work item is in progress/doing, or marked done without student commits or missing comments when required.
+  - **Red (Todo):** Work item is open or todo without progress.
+  - **Gray (Empty):** The student repository has no work items.
+- **Overall repo stoplight:**
+  Calculated from the percentage of non-green work items compared to thresholds:
+  - `< orangeThresholdPercent` (default 10%) $\to$ **Green**
+  - $\ge orangeThresholdPercent$ and $\le redThresholdPercent$ (default 50%) $\to$ **Orange**
+  - `> redThresholdPercent` $\to$ **Red**
+- **Dynamic overrides:** Instructors can adjust the threshold sliders and toggle the comment requirement directly on the dashboard's Settings tab to dynamically recolor the student overview in real time.
+
+---
+
 ## 5. Workflow: from Markdown to Brightspace
 
 BSO converts quizzes to the QTI format (Question and Test Interoperability). QTI is an open standard from 1EdTech (formerly IMS Global) for exchanging test questions and assessments between systems (1EdTech, n.d.). Brightspace imports QTI files as assessments in the Tests/Quizzes tool, so questions do not have to be retyped by hand.
@@ -338,7 +436,7 @@ deno task pack
 
 `prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive in the same build directory, for example `build/brightspace/cursus.v1.0.0.imscc`: the name comes from `name`/`courseName` and the postfix from the course `version` in the config.
 
-With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build.
+With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build. With `--skip-readers` you do the opposite: BSO skips all PDF generation with pandoc (readers, instructor manual and user manual) and still copies pre-built PDFs. That makes local builds and tests much faster when the PDFs are not what you are checking.
 
 For fast author feedback, use `bso preview` when `docusaurusDir` is configured. This starts the Docusaurus development server for the course repository, so most content and formatting issues can be caught locally before creating and importing a new `.imscc` package.
 

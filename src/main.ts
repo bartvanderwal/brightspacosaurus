@@ -23,6 +23,7 @@ import { convertQuiz } from "./quiz-converter.ts";
 import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import {
   buildManifest,
   deriveReaderMenuTitle,
@@ -74,6 +75,8 @@ Options:
   --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
   --output <path>    Build directory that also receives the .imscc (overrides config.outputDir)
   --readers-only     Generate reader and instructor PDFs only (skip HTML/QTI conversion)
+  --skip-readers     Skip all PDF generation with pandoc (readers, instructor and user manual);
+                     pre-built PDFs are still copied. Faster local builds and tests
   --version, -v      Show version number
   --help, -h         Show this help
 `;
@@ -119,6 +122,7 @@ export function parseArgs(
   command: string;
   sources: string;
   readersOnly: boolean;
+  skipReaders: boolean;
   output: string;
   config: string;
 } | null {
@@ -131,6 +135,7 @@ export function parseArgs(
 
   let sources = "";
   let readersOnly = false;
+  let skipReaders = false;
   let output = "";
   let config = "";
 
@@ -139,6 +144,8 @@ export function parseArgs(
       sources = args[++i];
     } else if (args[i] === "--readers-only") {
       readersOnly = true;
+    } else if (args[i] === "--skip-readers") {
+      skipReaders = true;
     } else if (args[i] === "--name" && i + 1 < args.length) {
       output = args[++i]; // backwards compat
     } else if (args[i] === "--output" && i + 1 < args.length) {
@@ -148,14 +155,32 @@ export function parseArgs(
     }
   }
 
-  return { command, sources, readersOnly, output, config };
+  return { command, sources, readersOnly, skipReaders, output, config };
 }
 
 /** Runs the `prepare` command using an already resolved configuration. */
+/**
+ * URL of the Voortgangsverkenner relative to the teacher page's HTML, or null
+ * when `teacherDashboard` is not configured (#37).
+ */
+function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): string | null {
+  if (!config.teacherDashboard) return null;
+  const pageDir = dirname(relative(config.sourcesDir, teacherPagePath));
+  return relative(pageDir, join("docenten", "voortgangsverkenner.html")).split(/[\\/]/).join("/");
+}
+
+/** Options for `runPrepare` that do not come from the configuration file. */
+export interface PrepareOptions {
+  /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
+  skipReaders?: boolean;
+}
+
 export async function runPrepare(
   config: ResolvedConfig,
   readersOnly: boolean,
+  options: PrepareOptions = {},
 ): Promise<void> {
+  const skipReaders = options.skipReaders ?? false;
   const packageVersion = await loadPackageVersion();
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
@@ -245,6 +270,9 @@ export async function runPrepare(
             bsoVersion: packageVersion,
           }
           : undefined,
+        teacherDashboardSrc: mdFile === teacherPage?.path
+          ? teacherDashboardSrc(config, mdFile)
+          : undefined,
       });
       const relPath = relative(contentOutputDir, result.outputPath);
       console.log(`  ✓ ${relPath}`);
@@ -291,10 +319,18 @@ export async function runPrepare(
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
     }
+
+    // Phase 2b: Teacher Dashboard (Voortgangsverkenner) if configured
+    if (config.teacherDashboard) {
+      await writeTeacherDashboard(join(contentOutputDir, "docenten"), config.teacherDashboard);
+      console.log(`  ✓ content/docenten/voortgangsverkenner.html`);
+    }
   }
 
   // Phase 3: Convert reader Markdown to PDF via pandoc
-  if (readerFiles.length > 0) {
+  if (skipReaders && readerFiles.length > 0) {
+    console.log(`Skipping ${readerFiles.length} reader PDF(s) (--skip-readers).`);
+  } else if (readerFiles.length > 0) {
     if (!pandocAvailable()) {
       console.warn(
         "⚠ pandoc not found — reader PDF conversion skipped. Install pandoc: https://pandoc.org/installing.html",
@@ -354,7 +390,7 @@ export async function runPrepare(
   }
 
   // Phase 4: Generate instructor manual as a combined PDF (null → skip without notice)
-  if (config.teacherManual && pandocAvailable()) {
+  if (config.teacherManual && !skipReaders && pandocAvailable()) {
     const dhConfig = config.teacherManual;
     const teacherOutputDir = dhConfig.outputDir;
     await Deno.remove(teacherOutputDir, { recursive: true }).catch(() =>
@@ -434,7 +470,7 @@ export async function runPrepare(
   // and is therefore only meaningful when running from local source. If the
   // user manual source cannot be found as a local file (e.g. from the JSR cache),
   // we silently skip this phase.
-  if (pandocAvailable()) {
+  if (!skipReaders && pandocAvailable()) {
     const teacherOutputDir = config.teacherManual?.outputDir ??
       join(buildDir, "docenten");
 
@@ -571,17 +607,17 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           ? decodeHtmlEntities(h1Match[1].trim())
           : basename(fullPath, extname(fullPath));
 
-        const imgRegex = /src="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp))"/gi;
+        const assetRegex = /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js|woff2))"/gi;
         const dependencies: string[] = [];
-        let imgMatch: RegExpExecArray | null;
-        while ((imgMatch = imgRegex.exec(html)) !== null) {
-          const imgSrc = imgMatch[1];
-          if (!imgSrc.startsWith("http://") && !imgSrc.startsWith("https://")) {
+        let match: RegExpExecArray | null;
+        while ((match = assetRegex.exec(html)) !== null) {
+          const assetSrc = match[1];
+          if (!assetSrc.startsWith("http://") && !assetSrc.startsWith("https://") && !assetSrc.startsWith("#")) {
             // Resolve relative path with respect to the HTML file
             const htmlDir = dirname(fullPath);
-            const imgAbs = resolve(htmlDir, imgSrc);
-            const imgRel = "content/" + relative(contentDir, imgAbs);
-            dependencies.push(imgRel);
+            const assetAbs = resolve(htmlDir, assetSrc);
+            const assetRel = "content/" + relative(contentDir, assetAbs);
+            dependencies.push(assetRel);
           }
         }
 
@@ -694,9 +730,19 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     }...`,
   );
 
+  // Dev/prod parity: the preview serves the same dashboard files as the
+  // export, from a static directory next to the build directory, so `pack`
+  // never includes them (#37).
+  let previewStaticDir = "";
+  if (config.teacherDashboard) {
+    previewStaticDir = join(dirname(config.outputDir), "preview-static");
+    await writeTeacherDashboard(join(previewStaticDir, "docenten"), config.teacherDashboard);
+  }
+
   const cmd = new Deno.Command("npm", {
     args: ["start"],
     env: {
+      BSO_PREVIEW_STATIC_DIR: previewStaticDir,
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
       BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({
@@ -704,6 +750,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
         courseName: config.courseName,
         courseVersion: config.version,
         bsoVersion: await loadPackageVersion(),
+        dashboardSrc: config.teacherDashboard ? "/docenten/voortgangsverkenner.html" : null,
       }),
     },
     cwd: config.docusaurusDir,
@@ -834,7 +881,7 @@ async function main(): Promise<void> {
 
   try {
     if (parsed.command === "prepare") {
-      await runPrepare(resolvedConfig, parsed.readersOnly);
+      await runPrepare(resolvedConfig, parsed.readersOnly, { skipReaders: parsed.skipReaders });
     } else if (parsed.command === "pack") {
       await runPack(resolvedConfig);
     } else if (parsed.command === "preview") {

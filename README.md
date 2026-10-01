@@ -249,6 +249,7 @@ Options:
   --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
   --output <path>    Build directory that also receives the .imscc (overrides config.outputDir)
   --readers-only     Generate reader and instructor PDFs only
+  --skip-readers     Skip PDF generation with pandoc (faster local builds)
 ```
 
 CLI arguments always take precedence over values from the configuration file.

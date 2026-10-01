@@ -26,6 +26,8 @@ BSO bridges that gap. It takes the Markdown that already lives in Git and produc
 | remark-kroki-a11y                                                  | Unified (remark) plugin for rendering PlantUML and Mermaid diagrams to accessible HTML with disclosure controls and natural-language descriptions.                                                                                                                                                                                                                                                                                                                                                       |
 | Kroki                                                              | Diagram rendering service (default public https://kroki.io; can be self-hosted for CI/offline builds). Renders diagram source to PNG, SVG, or base64-embedded images over HTTP.                                                                                                                                                                                                                                                                                                                          |
 | pandoc                                                             | External CLI tool used for PDF generation (readers, instructor manual), invoked via `--allow-run=pandoc`. Optional; skipped gracefully when absent.                                                                                                                                                                                                                                                                                                                                                      |
+| Instructor | Hides the instructor module after import and opens the **Voortgangsverkenner** (teacher progress dashboard, #37) in Brightspace to follow student progress on GitLab work items. Pastes a personal read-only GitLab token into the page for each session. |
+| GitLab REST API | Runtime data source for the Voortgangsverkenner only: projects per class subgroup, work items, their comments and commits. Called directly from the instructor's browser; BSO itself never calls it during `prepare` or `pack`. |
 
 ### System context
 
@@ -81,6 +83,44 @@ Key points:
 - **Configuration**: The diagram service endpoint and output mode are set in `brightspacosaurus.config.json` (optional; documented defaults apply).
 - **Accessibility**: Every diagram includes an accessible name and (when possible) a natural-language description. Disclosure controls (source, description) use native `<details>` elements that work without client-side JavaScript, because diagram accessibility must not depend on scripts inside Brightspace topic content. This is a requirement for diagram disclosure specifically, not a blanket no-JS rule for the whole page: other, unrelated progressive-enhancement scripts may be added elsewhere (e.g. a copy-to-clipboard button on code blocks) as long as they degrade gracefully when Brightspace blocks scripts.
 - **Error handling**: The build can be configured to fail strictly (stop on any diagram error) or fall back gracefully (warn, retain source block, continue). See Section 6 "Software Architecture" for the error classification strategy.
+
+### Voortgangsverkenner in context
+
+The Voortgangsverkenner (teacher progress dashboard, #37) is the first BSO output that talks to an external system **at runtime**. BSO only generates the page during `prepare`, with the `teacherDashboard` settings from `brightspacosaurus.config.json` embedded. Everything else happens in the instructor's browser: the page calls the GitLab REST API with a token the instructor pastes in. There is no BSO back end and no proxy.
+
+```plantuml
+@startuml
+!include <C4/C4_Context>
+
+Person(instructor, "Instructor", "Follows the progress of a class on GitLab work items, from inside the Brightspace course.")
+Person(author, "Course author", "Configures teacherDashboard (GitLab URL, group, subgroups, repo prefixes, thresholds) in brightspacosaurus.config.json.")
+
+System(bso, "Brightspacosaurus CLI", "«Deno» Generates the Voortgangsverkenner page (HTML, CSS, JS) into the instructor module of the .imscc during prepare.")
+System(dashboard, "Voortgangsverkenner", "«client-side page in the instructor's browser» Lists students per class, their assignment repos, work items and linked commits, with stoplights.")
+System_Ext(brightspace, "Brightspace / D2L", "«LMS» Hosts the page in the hidden instructor module after import.")
+System_Ext(gitlab, "GitLab REST API", "«e.g. gitlab.aimsites.nl /api/v4» Projects, work items (issues), notes and commits of the student repos in the course group.")
+
+Rel(author, bso, "configures and runs prepare/pack")
+Rel(bso, brightspace, "page is imported into, as part of the .imscc", "manual import")
+Rel(brightspace, dashboard, "serves the page to")
+Rel(instructor, dashboard, "opens, pastes a read-only token into, filters and clicks through")
+Rel(dashboard, gitlab, "reads projects, work items, notes and commits from", "HTTPS, PRIVATE-TOKEN header")
+Rel(dashboard, gitlab, "links to commits, merge requests and work items in", "new tab")
+
+SHOW_LEGEND()
+@enduml
+```
+
+#### Use case: follow class progress
+
+| | |
+|---|---|
+| **Actor** | Instructor |
+| **Goal** | See which students lag behind on the work items of the current assignment level, and open their concrete work. |
+| **Precondition** | The course package is imported, the instructor module is hidden from students, and the instructor has a fine-grained, read-only GitLab token for the course group (see the user manual). |
+| **Main flow** | 1. The instructor opens the Voortgangsverkenner in the instructor module. 2. The instructor pastes the token; the browser's password manager may fill it in. 3. The instructor chooses a class (subgroup) and the repo levels to show, for example only `n3-`. 4. The page fetches projects, work items, notes and commits and shows a stoplight per student, per repo and per work item. 5. The instructor clicks a commit, merge request or work item; it opens in GitLab in a new tab. |
+| **Alternative flows** | 2a. The token lacks a permission: the page reports which repo failed and why, and shows the other repos. 3a. The instructor enables all levels to look back at earlier assignments. 4a. The instructor refreshes a single student instead of the whole class. |
+| **Postcondition** | No token or student data is stored by BSO or in the course package. |
 
 ---
 
@@ -177,6 +217,19 @@ Diagram errors are categorized as `kroki-unreachable`, `invalid-source`, or `inv
 - **Single source of truth.** Markdown in Git is authoritative. Every artifact (HTML, QTI, PDF, manifest, `.imscc`) is generated and never hand-edited. Brightspace is a distribution channel, not the store of record.
 - **Config-driven, no hardcoded paths.** Nothing project-specific lives in the code; it all comes from `brightspacosaurus.config.json` or CLI arguments.
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
+
+### Security principles for runtime integrations
+
+These apply to the Voortgangsverkenner and to any future page that calls an external API from Brightspace (for example GitHub instead of GitLab).
+
+- **No secrets in the package or config.** Students can reach the HTML of hidden topics, so tokens never go into `brightspacosaurus.config.json` or the `.imscc`. The instructor pastes the token at runtime.
+- **Token only in memory.** The page keeps the token in a variable while it is open; never in `localStorage`, `sessionStorage` or a cookie. All course HTML in Brightspace shares one origin, so any script in other course content could read web storage.
+- **Least privilege.** A fine-grained personal access token, limited to the course group, with read permissions only for what the page calls (work items, labels, merge requests, commits, group). No `Code: Read`: the page links to commits and merge requests in GitLab instead of reading file contents. No write permissions and no member permissions.
+- **Data minimisation.** The page reads only what it shows. Students are linked to repos by project name, not by reading member lists.
+- **Untrusted data is text.** Titles, names, comments and commit messages from GitLab are rendered as text, never as HTML, to prevent XSS inside Brightspace.
+- **No back end, no proxy.** The browser talks to GitLab directly, so the token never passes through a server we would have to secure and maintain.
+- **Links to concrete work open in a new tab** with `rel="noopener"`, so GitLab pages cannot control the Brightspace page.
+- **Student data only in memory too.** Fetched progress data is kept in memory and disappears when the page closes, for the same reason as the token.
 
 ---
 
@@ -424,7 +477,9 @@ include expansion, so every `{@bso-versions}` line outside fenced code becomes a
 Markdown table (or the table follows the first H1). The table contains only
 versions, no build time, so output stays idempotent. The demo Docusaurus
 preprocessor applies the same function; `bso preview` passes path and versions
-via `BSO_PREVIEW_TEACHER_PAGE`. Git dates and the #37 dashboard build on this page.
+via `BSO_PREVIEW_TEACHER_PAGE`.
+
+Teacher progress dashboard (#37): `assets/teacher-dashboard/calc.js` is the single source of the pure calculation and threshold logic for student GitLab work items and repository stoplights. The page loads it as a classic script before `app.js`; the tests evaluate the same file through `tests/helpers/dashboard-calc.ts`, so they exercise the code that runs in the browser. The user interface in `app.js` is React 18 with htm (tagged templates instead of JSX), the same stack as the clickable prototype in owe-1, so no build step is needed. React, ReactDOM and htm are vendored in `assets/teacher-dashboard/vendor/` with pinned versions and SHA-256 hashes (see the README there) instead of loaded from a CDN, so the page in Brightspace runs no third-party code fetched at runtime. The fonts (Atkinson Hyperlegible Next and Mono, SIL OFL 1.1) are bundled too, so the dashboard makes no requests to third parties. The directive `{@bso-teacher-dashboard}` on the teacher page is handled by one remark plugin, `remarkTeacherDashboard` in `src/teacher-page.ts`, which both the Brightspace converter and the Docusaurus preview use (dev/prod parity, like `remarkFlashcards`). It wraps the page in two tabs, *Informatie* and *Voortgangsverkenner*, built from `hName`/`hProperties` nodes rather than raw HTML, with the dashboard in an `iframe` so its React app and CSS stay separate from the lesson page and the topic navigation script; `assets/brightspacosaurus-tabs.js` adds the tab behaviour in both environments, and without JavaScript both panels show one after the other. `src/teacher-dashboard.ts` writes the dashboard files; `prepare` writes them into the instructor module and `preview` into a static directory of the Docusaurus preview, so the preview runs the same dashboard. When `teacherDashboard` is configured in `brightspacosaurus.config.json`, `runPrepare` in `src/main.ts` generates `content/docenten/voortgangsverkenner.html`, `style.css`, `calc.js`, `app.js` and `vendor/` using bundled assets from `assets/teacher-dashboard/`. Cartridge generation in `src/manifest-builder.ts` categorizes content under `content/docenten/` into the instructor module (`module_docentenmateriaal`) with the title "Instructor material (hide after import)", ensuring it can be hidden from students after import. The client SPA executes entirely within the instructor's browser, keeping the token and all fetched data in memory only (with browser password manager support for the token), with selective student refresh, repo filters per assignment level and live threshold settings.
 
 Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`;
 `src/quiz-config.ts` supplies shared configuration validation/defaults. The QTI

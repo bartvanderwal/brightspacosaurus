@@ -18,7 +18,9 @@ import type {
   CliOverrides,
   ResolvedConfig,
   ResolvedQuizConfig,
+  ResolvedTeacherDashboardConfig,
   ResolvedTeacherManualConfig,
+  TeacherDashboardConfig,
 } from "./types.ts";
 
 /** Allowed values for the `diagrams.output` field. */
@@ -152,6 +154,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "flashcards",
     "teacherPage",
     "lint",
+    "teacherDashboard",
   ]);
   for (const field of Object.keys(obj)) {
     if (!allowedTopLevelFields.has(field)) {
@@ -308,6 +311,174 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
   }
 
+  // Validate teacherDashboard if it is present
+  if (obj.teacherDashboard !== undefined) {
+    if (
+      typeof obj.teacherDashboard !== "object" ||
+      obj.teacherDashboard === null ||
+      Array.isArray(obj.teacherDashboard)
+    ) {
+      throw new Error(
+        "Field 'teacherDashboard' must be an object.",
+      );
+    }
+
+    const td = obj.teacherDashboard as Record<string, unknown>;
+    const allowedTdFields = new Set([
+      "gitlabUrl",
+      "groupPath",
+      "subgroups",
+      "repos",
+      "teacherUsernames",
+      "requireCommentsForDone",
+      "orangeThresholdPercent",
+      "redThresholdPercent",
+    ]);
+
+    for (const key of Object.keys(td)) {
+      if (!allowedTdFields.has(key)) {
+        throw new Error(
+          `Unknown configuration field 'teacherDashboard.${key}'.`,
+        );
+      }
+    }
+
+    // Required: groupPath
+    if (typeof td.groupPath !== "string" || td.groupPath.trim() === "") {
+      throw new Error(
+        "Field 'teacherDashboard.groupPath' must be a non-empty string.",
+      );
+    }
+    const trimmedGroupPath = td.groupPath.trim();
+    if (trimmedGroupPath.startsWith("/") || trimmedGroupPath.endsWith("/")) {
+      throw new Error(
+        "Field 'teacherDashboard.groupPath' must not contain leading or trailing slashes.",
+      );
+    }
+
+    // Required: subgroups
+    if (!Array.isArray(td.subgroups) || td.subgroups.length === 0) {
+      throw new Error(
+        "Field 'teacherDashboard.subgroups' must be a non-empty array of strings.",
+      );
+    }
+    for (const sg of td.subgroups) {
+      if (typeof sg !== "string" || sg.trim() === "") {
+        throw new Error(
+          "All items in 'teacherDashboard.subgroups' must be non-empty strings.",
+        );
+      }
+    }
+
+    // Required: repos
+    if (!Array.isArray(td.repos) || td.repos.length === 0) {
+      throw new Error(
+        "Field 'teacherDashboard.repos' must be a non-empty array of repository objects.",
+      );
+    }
+    for (const r of td.repos) {
+      if (typeof r !== "object" || r === null || Array.isArray(r)) {
+        throw new Error(
+          "All items in 'teacherDashboard.repos' must be objects with 'prefix' and 'label'.",
+        );
+      }
+      const repoObj = r as Record<string, unknown>;
+      if (typeof repoObj.prefix !== "string" || repoObj.prefix.trim() === "") {
+        throw new Error(
+          "Field 'prefix' in 'teacherDashboard.repos' must be a non-empty string.",
+        );
+      }
+      if (typeof repoObj.label !== "string" || repoObj.label.trim() === "") {
+        throw new Error(
+          "Field 'label' in 'teacherDashboard.repos' must be a non-empty string.",
+        );
+      }
+    }
+
+    // Optional: gitlabUrl
+    if (td.gitlabUrl !== undefined) {
+      if (typeof td.gitlabUrl !== "string") {
+        throw new Error(
+          "Field 'teacherDashboard.gitlabUrl' must be a string if provided.",
+        );
+      }
+      try {
+        new URL(td.gitlabUrl);
+      } catch {
+        throw new Error(
+          `Field 'teacherDashboard.gitlabUrl' must be a valid URL: '${td.gitlabUrl}'.`,
+        );
+      }
+    }
+
+    // Optional: teacherUsernames
+    if (td.teacherUsernames !== undefined) {
+      if (!Array.isArray(td.teacherUsernames)) {
+        throw new Error(
+          "Field 'teacherDashboard.teacherUsernames' must be an array of strings if provided.",
+        );
+      }
+      for (const u of td.teacherUsernames) {
+        if (typeof u !== "string") {
+          throw new Error(
+            "All items in 'teacherDashboard.teacherUsernames' must be strings.",
+          );
+        }
+      }
+    }
+
+    // Optional: requireCommentsForDone
+    if (
+      td.requireCommentsForDone !== undefined &&
+      typeof td.requireCommentsForDone !== "boolean"
+    ) {
+      throw new Error(
+        "Field 'teacherDashboard.requireCommentsForDone' must be a boolean if provided.",
+      );
+    }
+
+    // Optional: orangeThresholdPercent
+    if (td.orangeThresholdPercent !== undefined) {
+      if (
+        typeof td.orangeThresholdPercent !== "number" ||
+        Number.isNaN(td.orangeThresholdPercent) ||
+        td.orangeThresholdPercent < 0 ||
+        td.orangeThresholdPercent > 100
+      ) {
+        throw new Error(
+          "Field 'teacherDashboard.orangeThresholdPercent' must be a number between 0 and 100.",
+        );
+      }
+    }
+
+    // Optional: redThresholdPercent
+    if (td.redThresholdPercent !== undefined) {
+      if (
+        typeof td.redThresholdPercent !== "number" ||
+        Number.isNaN(td.redThresholdPercent) ||
+        td.redThresholdPercent < 0 ||
+        td.redThresholdPercent > 100
+      ) {
+        throw new Error(
+          "Field 'teacherDashboard.redThresholdPercent' must be a number between 0 and 100.",
+        );
+      }
+    }
+
+    // Relative threshold constraint: 0 <= orange < red <= 100
+    const effOrange = td.orangeThresholdPercent !== undefined
+      ? (td.orangeThresholdPercent as number)
+      : 10;
+    const effRed = td.redThresholdPercent !== undefined
+      ? (td.redThresholdPercent as number)
+      : 50;
+    if (effOrange >= effRed) {
+      throw new Error(
+        `Field 'teacherDashboard.orangeThresholdPercent' (${effOrange}) must be strictly less than 'teacherDashboard.redThresholdPercent' (${effRed}).`,
+      );
+    }
+  }
+
   return true;
 }
 
@@ -326,6 +497,36 @@ const DEFAULT_QUIZ_CONFIG = resolveQuizOptions();
 
 function resolveQuizConfig(config: BsoConfig): ResolvedQuizConfig {
   return resolveQuizOptions(config.quiz);
+}
+
+/**
+ * Resolves teacher dashboard configuration with default values.
+ * Returns null if the dashboard is not configured.
+ */
+export function resolveTeacherDashboardConfig(
+  dashboard?: TeacherDashboardConfig,
+): ResolvedTeacherDashboardConfig | null {
+  if (!dashboard) {
+    return null;
+  }
+
+  return {
+    gitlabUrl: dashboard.gitlabUrl?.trim() || "https://gitlab.com",
+    groupPath: dashboard.groupPath.trim(),
+    subgroups: dashboard.subgroups ? dashboard.subgroups.map((s) => s.trim()) : [],
+    repos: dashboard.repos
+      ? dashboard.repos.map((r) => ({
+        prefix: r.prefix.trim(),
+        label: r.label.trim(),
+      }))
+      : [],
+    teacherUsernames: dashboard.teacherUsernames
+      ? dashboard.teacherUsernames.map((u) => u.trim())
+      : [],
+    requireCommentsForDone: dashboard.requireCommentsForDone ?? false,
+    orangeThresholdPercent: dashboard.orangeThresholdPercent ?? 10,
+    redThresholdPercent: dashboard.redThresholdPercent ?? 50,
+  };
 }
 
 /**
@@ -417,6 +618,7 @@ export function resolveConfig(
         : config.lint?.includeDirs?.map((dir) => resolve(repoRoot, dir)),
     },
     diagrams: resolveDiagramsConfig(config),
+    teacherDashboard: resolveTeacherDashboardConfig(config.teacherDashboard),
     repoRoot,
   };
 }
@@ -458,6 +660,7 @@ export function resolveFromCliOnly(
       explicit: false,
     },
     diagrams: resolveDiagramsConfig({}),
+    teacherDashboard: null,
     repoRoot,
   };
 }

@@ -178,7 +178,7 @@ Deno.test("#35 shuffle settings survive prepare and pack with deterministic answ
         {},
         root,
       );
-      await runPrepare(config, false);
+      await runPrepare(config, false, { skipReaders: true });
       await runPack(config);
       const zip = await JSZip.loadAsync(
         await Deno.readFile(join(config.outputDir, "quiz.v1.0.imscc")),

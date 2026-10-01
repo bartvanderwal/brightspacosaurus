@@ -12,10 +12,13 @@ import {
   validateConfig,
 } from "../src/config-loader.ts";
 import { runPrepare } from "../src/main.ts";
+import { convertMarkdown } from "../src/markdown-converter.ts";
 import { loadPackageVersion } from "../src/assets.ts";
 import {
+  DASHBOARD_DIRECTIVE,
   DEFAULT_TEACHER_PAGE,
   insertVersionTable,
+  remarkTeacherDashboard,
   renderVersionTable,
   resolveTeacherPage,
   VERSIONS_DIRECTIVE,
@@ -169,6 +172,7 @@ function testConfig(repoRoot: string, explicit: boolean): ResolvedConfig {
     name: "teacher-course",
     docusaurusDir: null,
     teacherManual: null,
+    teacherDashboard: null,
     quiz: { maxAttempts: 0, shuffleAnswers: false },
     teacherPage: { path: join(sourcesDir, "for-teachers.md"), explicit },
     diagrams: {
@@ -199,7 +203,7 @@ Deno.test("prepare fills in versions on the teacher page only", async () => {
       config.teacherPage!.path,
       `# For teachers\n\n${VERSIONS_DIRECTIVE}\n`,
     );
-    await runPrepare(config, false);
+    await runPrepare(config, false, { skipReaders: true });
     const teacherHtml = await Deno.readTextFile(
       join(config.outputDir, "content", "for-teachers.html"),
     );
@@ -223,9 +227,9 @@ Deno.test("prepare fills in versions on the teacher page only", async () => {
 Deno.test("a missing default teacher page is fine, a missing configured one fails", async () => {
   const repoRoot = await tempRepo();
   try {
-    await runPrepare(testConfig(repoRoot, false), false);
+    await runPrepare(testConfig(repoRoot, false), false, { skipReaders: true });
     const error = await assertRejects(
-      () => runPrepare(testConfig(repoRoot, true), false),
+      () => runPrepare(testConfig(repoRoot, true), false, { skipReaders: true }),
       Error,
       "Teacher page not found: lessons/for-teachers.md",
     );
@@ -233,4 +237,98 @@ Deno.test("a missing default teacher page is fine, a missing configured one fail
   } finally {
     await Deno.remove(repoRoot, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// {@bso-teacher-dashboard}: Voortgangsverkenner in tabs on the teacher page (#37)
+// ---------------------------------------------------------------------------
+
+async function renderTabs(markdown: string, src: string | null): Promise<string> {
+  const { unified } = await import("unified");
+  const remarkParse = (await import("remark-parse")).default;
+  const remarkRehype = (await import("remark-rehype")).default;
+  const rehypeStringify = (await import("rehype-stringify")).default;
+  return String(
+    await unified().use(remarkParse).use(remarkTeacherDashboard, { src })
+      .use(remarkRehype).use(rehypeStringify).process(markdown),
+  );
+}
+
+Deno.test("remarkTeacherDashboard keeps the H1 above two tabs and embeds the dashboard", async () => {
+  const html = await renderTabs(
+    `# Voor docenten\n\nInfo\n\n${DASHBOARD_DIRECTIVE}\n\nMeer\n`,
+    "docenten/voortgangsverkenner.html",
+  );
+  assertEquals(html.startsWith("<h1>Voor docenten</h1>"), true);
+  assertEquals(html.includes(DASHBOARD_DIRECTIVE), false);
+  assertStringIncludes(html, '<div class="bso-tablist" role="tablist" aria-label="Docentpagina" hidden>');
+  assertStringIncludes(html, ">Informatie</button>");
+  assertStringIncludes(html, ">Voortgangsverkenner</button>");
+  assertStringIncludes(html, '<iframe class="bso-dashboard-frame" src="docenten/voortgangsverkenner.html"');
+  assertStringIncludes(html, 'target="_blank" rel="noopener noreferrer"');
+  const infoPanel = html.slice(html.indexOf('id="bso-panel-info"'), html.indexOf('id="bso-panel-dashboard"'));
+  assertStringIncludes(infoPanel, "<p>Info</p>");
+  assertStringIncludes(infoPanel, "<p>Meer</p>");
+});
+
+Deno.test("remarkTeacherDashboard leaves code blocks and pages without the directive alone", async () => {
+  const fenced = await renderTabs(`# A\n\n\`\`\`text\n${DASHBOARD_DIRECTIVE}\n\`\`\`\n`, "x.html");
+  assertEquals(fenced.includes("bso-tabs"), false);
+  assertStringIncludes(fenced, DASHBOARD_DIRECTIVE);
+  assertEquals((await renderTabs("# A\n\nTekst\n", "x.html")).includes("bso-tabs"), false);
+});
+
+Deno.test("remarkTeacherDashboard keeps a wrapped page title (Docusaurus <header>) above the tabs", () => {
+  const tree = {
+    type: "root",
+    children: [
+      { type: "mdxJsxFlowElement", children: [{ type: "heading", depth: 1, children: [{ type: "text", value: "Titel" }] }] },
+      { type: "paragraph", children: [{ type: "text", value: DASHBOARD_DIRECTIVE }] },
+      { type: "paragraph", children: [{ type: "text", value: "Info" }] },
+    ],
+  };
+  remarkTeacherDashboard({ src: "x.html" })(tree);
+  assertEquals(tree.children[0].type, "mdxJsxFlowElement");
+  assertEquals(tree.children.length, 2);
+});
+
+Deno.test("remarkTeacherDashboard shows a note without a dashboard URL", async () => {
+  const html = await renderTabs(`# A\n\n${DASHBOARD_DIRECTIVE}\n`, null);
+  assertEquals(html.includes("bso-tabs"), false);
+  assertStringIncludes(html, "<blockquote>");
+  assertStringIncludes(html, "niet geconfigureerd");
+});
+
+async function convertTeacherPage(markdown: string, src: string | null) {
+  const root = await Deno.makeTempDir();
+  try {
+    const sourcePath = join(root, "voor-docenten.md");
+    await Deno.writeTextFile(sourcePath, markdown);
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir: join(root, "out"),
+      repoRoot: root,
+      teacherPageVersions: { courseName: "Cursus", courseVersion: "1.0.0", bsoVersion: "0.0.0" },
+      teacherDashboardSrc: src,
+    });
+    return await Deno.readTextFile(result.outputPath);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+}
+
+Deno.test("teacher page with the directive gets tabs and the tab script", async () => {
+  const html = await convertTeacherPage(
+    `# Voor docenten\n\n${DASHBOARD_DIRECTIVE}\n\nUitleg.\n`,
+    "docenten/voortgangsverkenner.html",
+  );
+  assertStringIncludes(html, '<div class="bso-tabs" data-bso-tabs');
+  assertStringIncludes(html, 'src="docenten/voortgangsverkenner.html"');
+  assertStringIncludes(html, "initializeTabs");
+});
+
+Deno.test("teacher page directive without teacherDashboard shows a note instead of tabs", async () => {
+  const html = await convertTeacherPage(`# Voor docenten\n\n${DASHBOARD_DIRECTIVE}\n`, null);
+  assertEquals(html.includes('<div class="bso-tabs" data-bso-tabs'), false);
+  assertStringIncludes(html, "niet geconfigureerd");
 });

@@ -8,6 +8,17 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.14.0 - 2026-10-01
+
+### Added
+
+- Voortgangsverkenner (teacher progress dashboard): a page in the instructor module that shows students' progress on GitLab work items, with a tree per class, repo filters, live stoplight thresholds and links to commits, merge requests and work items (#37).
+- The dashboard checks a pasted GitLab token with one light call (listing the class subgroups) and rejects it with a clear message when it is invalid, expired or lacks `Group: Read`; an accepted token can no longer be edited (#37).
+- `{@bso-teacher-dashboard}` on the teacher page shows the Voortgangsverkenner in a second tab next to the page's information, at full width. The Docusaurus preview shows the same tabs and a working dashboard, served by `bso preview` (#37).
+- The Voortgangsverkenner bundles its fonts instead of loading them from Google Fonts, so it makes no requests to third parties besides GitLab (#37).
+- `prepare --skip-readers` skips all PDF generation with pandoc (readers, instructor manual, user manual) and still copies pre-built PDFs.
+- `deno task test:fast` runs all tests except the pandoc PDF tests (under a minute instead of several); `deno task test:pdf` runs only those.
+
 ## 0.13.1 - 2026-10-01
 
 ### Fixed

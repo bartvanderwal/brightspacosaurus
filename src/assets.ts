@@ -30,6 +30,20 @@ export async function loadAssetText(assetName: string): Promise<string> {
 }
 
 /**
+ * Loads the binary content of an asset (for example a font) from the assets/
+ * directory. Works with file://, https:// and jsr: URLs, like loadAssetText.
+ * @param assetName File name relative to the assets/ directory
+ */
+export async function loadAssetBytes(assetName: string): Promise<Uint8Array> {
+  const url = import.meta.resolve(`../assets/${assetName}`);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Cannot load asset: ${assetName} (${url}) — status ${response.status}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+/**
  * Materializes an asset to a temporary local file and returns the path.
  * Needed for external tools such as pandoc that require an actual file path on disk
  * (--include-in-header, --lua-filter) and do not accept a URL or stdin content.

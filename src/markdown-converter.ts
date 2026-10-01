@@ -32,7 +32,7 @@ import {
 import { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { expandIncludes, parseIncludeTarget } from "./includes.ts";
-import { insertVersionTable } from "./teacher-page.ts";
+import { insertVersionTable, remarkTeacherDashboard } from "./teacher-page.ts";
 
 /** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
@@ -181,6 +181,7 @@ async function wrapHtml(
   const navigationScript = await loadAssetText(
     "brightspacosaurus-navigation.js",
   );
+  const tabsScript = await loadAssetText("brightspacosaurus-tabs.js");
   const copyButtonScript = await loadAssetText(
     "brightspacosaurus-copy-button.js",
   );
@@ -225,6 +226,7 @@ ${body}
 <script>${copyButtonScript}</script>
 <script>${flashcardScript}</script>
 <script>${navigationScript}</script>
+<script>${tabsScript}</script>
 </body>
 </html>`;
 }
@@ -274,6 +276,12 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkGfm)
     .use(remarkDirective)
     .use(remarkFlashcards, options.flashcards);
+
+  if (options.teacherPageVersions) {
+    processor = processor.use(remarkTeacherDashboard, {
+      src: options.teacherDashboardSrc ?? null,
+    });
+  }
 
   if (renderDiagrams && options.diagrams) {
     processor = withDiagramRendering(
@@ -360,6 +368,14 @@ export async function convertMarkdown(
   const includedMarkdown = options.teacherPageVersions
     ? insertVersionTable(expandedMarkdown, options.teacherPageVersions)
     : expandedMarkdown;
+  if (
+    options.teacherPageVersions && !options.teacherDashboardSrc &&
+    includedMarkdown.includes("{@bso-teacher-dashboard}")
+  ) {
+    console.warn(
+      `⚠ ${sourcePath}: {@bso-teacher-dashboard} found, but teacherDashboard is not configured.`,
+    );
+  }
   const cleanedMarkdown = stripQtiSections(includedMarkdown);
   // 1 for content/ plus the page's subdirectories below baseDir.
   const htmlDepth = 1 +
