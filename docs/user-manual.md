@@ -323,10 +323,39 @@ Configure the dashboard under `teacherDashboard` in `brightspacosaurus.config.js
 
 #### Security and token handling
 
-- The dashboard authenticates against GitLab using a **Group Access Token** (role `Reporter`, scope `read_api`).
+- The dashboard authenticates against GitLab with a **fine-grained personal access token** with read-only permissions. A classic token with scope `read_api` also works, but grants far more than the dashboard needs.
 - **No secrets in cartridge:** The token is never written into the configuration or the exported package.
 - **In-memory storage:** The dashboard keeps the token only in browser memory while the page is open. It is never persisted to `localStorage` or `sessionStorage` (preventing other scripts in Brightspace from reading it).
 - **Password manager support:** The token input uses `<input type="password" autocomplete="current-password">` with a hidden username field so instructors can securely store and autofill it via their browser password manager.
+
+#### Creating the access token
+
+Create a fine-grained personal access token in GitLab under **User settings → Personal access tokens → Generate token**:
+
+1. Under **Group and project access**, choose **Only specific group or projects that I'm a member of** and select the course group (for example `2026p1-fusten`). The token then covers its subgroups and projects, and nothing else.
+2. Grant **Read** permissions only, in three categories:
+   - **Project Planning**: `Work Item: Read` (issues and their comments) and `Label: Read`. Without this category every repository shows "Token mist leesrechten voor deze repo (403)".
+   - **Repository**: only `Commit: Read` and `Merge Request: Read`. Merge requests are shown when they are linked to a work item, with their commits. The dashboard reads commit titles, authors and links to match commits to work items (`#<iid>` in the message) and to link to them. It never reads file contents, so `Code: Read`, branches, tags and the other repository permissions are not needed. Without `Commit: Read` the dashboard finds no commits, so finished work items turn orange; the repository view then shows a warning.
+   - **Groups**: only `Group: Read`, to list the projects in each subgroup.
+3. Do not grant member permissions. The dashboard links repositories to students by project name, not by membership, so it does not need to read member data.
+4. Choose a short expiry date, for example the end of the course period.
+
+![GitLab fine-grained personal access token for the Voortgangsverkenner, limited to the course group with read-only permissions](images/gitlab-fine-grained-token-voortgangsverkenner.png)
+
+The screenshot shows a working token for FUSTEN. It grants more read permissions than the minimum listed above (need to know); the minimum is `Work Item: Read`, `Label: Read`, `Merge Request: Read`, `Commit: Read` and `Group: Read`. That minimum is derived from the API calls the dashboard makes and still has to be confirmed with a token that has only these permissions.
+
+#### Using the dashboard
+
+1. Open **Voortgangsverkenner** in the hidden instructor module, paste the token and choose **Gebruik**.
+2. Choose the class and **Haal status uit GitLab**. The class overview shows a stoplight per student and per repository, with the share of green work items and a distribution bar.
+3. Use **Toon repo's** to show only the repositories of the current assignment level, for example only the `n3-` repositories. Switch all on (**Alles aan**) to look back at earlier work.
+4. Tick **Alleen aandacht nodig** to hide students, repositories and work items that are green or not yet due.
+5. Open a student, repository and work item in the tree on the left. The work item shows its linked commits and merge requests; each link opens the commit, the merge request changes or the work item in GitLab in a new tab.
+6. Adjust the thresholds under **Instellingen stoplicht**; colours update immediately. The defaults come from the configuration.
+
+All fetched data stays in the page's memory and disappears when you close it. Use **Ververs deze student** to update one student without fetching the whole class again.
+
+![Voortgangsverkenner class overview with fictitious students](images/voortgangsverkenner-klasoverzicht.png)
 
 #### Progress calculation and stoplight rules
 
