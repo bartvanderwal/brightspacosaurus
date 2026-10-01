@@ -11,12 +11,12 @@
 (function (root) {
   "use strict";
 
-  var FALLBACK_LE_VERSION = "1.67";
-  var TIMEOUT_MS = 4000;
+  const FALLBACK_LE_VERSION = "1.67";
+  const TIMEOUT_MS = 4000;
 
   /** Org unit id from the Brightspace viewer URL or the topic file URL. */
   function orgUnitFrom(topPath, framePath) {
-    var match = /\/d2l\/le\/(?:content|lessons)\/(\d+)(?:\/|$)/.exec(
+    let match = /\/d2l\/le\/(?:content|lessons)\/(\d+)(?:\/|$)/.exec(
       topPath || "",
     );
     if (match) return match[1];
@@ -26,7 +26,7 @@
 
   /** Comparable path: no origin, query or hash; decoded and lowercase. */
   function topicPath(url) {
-    var path = String(url || "").replace(/^[a-z]+:\/\/[^/]+/i, "")
+    let path = String(url || "").replace(/^[a-z]+:\/\/[^/]+/i, "")
       .split(/[?#]/)[0];
     try {
       path = decodeURIComponent(path);
@@ -38,17 +38,17 @@
 
   /** First topic (depth-first, in menu order) whose file URL is targetPath. */
   function findTopicId(toc, targetPath) {
-    var wanted = topicPath(targetPath);
+    const wanted = topicPath(targetPath);
     function search(modules) {
-      for (var i = 0; i < (modules || []).length; i++) {
-        var module = modules[i];
-        var topics = module.Topics || [];
-        for (var j = 0; j < topics.length; j++) {
+      for (let i = 0; i < (modules || []).length; i++) {
+        const module = modules[i];
+        const topics = module.Topics || [];
+        for (let j = 0; j < topics.length; j++) {
           if (topics[j].Url && topicPath(topics[j].Url) === wanted) {
             return topics[j].TopicId;
           }
         }
-        var nested = search(module.Modules);
+        const nested = search(module.Modules);
         if (nested != null) return nested;
       }
       return null;
@@ -69,7 +69,7 @@
       event.defaultPrevented || event.button !== 0 || event.metaKey ||
       event.ctrlKey || event.shiftKey || event.altKey
     ) return false;
-    var target = link.getAttribute("target");
+    const target = link.getAttribute("target");
     if (target && target !== "_self") return false;
     if (link.hasAttribute("download")) return false;
     if (link.origin !== location.origin) return false;
@@ -88,12 +88,12 @@
   if (typeof document === "undefined" || root.bsoTopicNavigationActive) return;
   root.bsoTopicNavigationActive = true;
 
-  var tocRequests = {};
+  const tocRequests = {};
 
   function getJson(url) {
-    var headers = { Accept: "application/json" };
+    const headers = { Accept: "application/json" };
     try {
-      var token = root.localStorage.getItem("XSRF.Token");
+      const token = root.localStorage.getItem("XSRF.Token");
       if (token) headers["X-Csrf-Token"] = token;
     } catch (_error) {
       // Storage can be unavailable; the request may still succeed.
@@ -126,12 +126,12 @@
   }
 
   document.addEventListener("click", function (event) {
-    var link = event.target && event.target.closest &&
+    const link = event.target && event.target.closest &&
       event.target.closest("a[href]");
     if (!link || !isLessonLinkClick(event, link, root.location)) return;
 
-    var top;
-    var topPath;
+    let top;
+    let topPath;
     try {
       top = root.top;
       if (!top || top === root) return;
@@ -139,23 +139,23 @@
     } catch (_error) {
       return; // Cross-origin parent: not inside Brightspace.
     }
-    var orgUnitId = orgUnitFrom(topPath, root.location.pathname);
+    const orgUnitId = orgUnitFrom(topPath, root.location.pathname);
     if (!orgUnitId) return;
 
     event.preventDefault();
-    var href = link.href;
-    var done = false;
+    const href = link.href;
+    let done = false;
     function go(url, win) {
       if (done) return;
       done = true;
       win.location.href = url;
     }
-    var timer = setTimeout(function () {
+    const timer = setTimeout(function () {
       go(href, root);
     }, TIMEOUT_MS);
     loadToc(orgUnitId).then(function (toc) {
       clearTimeout(timer);
-      var topicId = findTopicId(toc, link.pathname);
+      const topicId = findTopicId(toc, link.pathname);
       if (topicId == null) go(href, root);
       else go(viewUrl(topPath, orgUnitId, topicId), top);
     }).catch(function () {
