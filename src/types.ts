@@ -52,6 +52,11 @@ export interface ConvertOptions {
   flashcards?: FlashcardsConfig;
   /** Set for the teacher page only: versions filled in at `{@bso-versions}`. */
   teacherPageVersions?: TeacherPageVersions;
+  /**
+   * Teacher page only: relative URL of the Voortgangsverkenner for
+   * `{@bso-teacher-dashboard}`, or null when `teacherDashboard` is not configured.
+   */
+  teacherDashboardSrc?: string | null;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */

@@ -458,3 +458,60 @@ article.markdown details[open] summary {
   outline: 3px solid var(--han-red);
   outline-offset: 2px;
 }
+
+/* Teacher page tabs: information and Voortgangsverkenner (#37). */
+.bso-tablist {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--han-code-border);
+  margin: 1rem 0;
+}
+
+.bso-tablist [role="tab"] {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.4rem 1rem;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: none;
+  color: var(--han-muted);
+  cursor: pointer;
+}
+
+.bso-tablist [role="tab"][aria-selected="true"] {
+  border-color: var(--han-code-border);
+  background: var(--han-white);
+  color: var(--han-ink);
+  margin-bottom: -2px;
+  border-bottom: 2px solid var(--han-white);
+}
+
+.bso-tablist [role="tab"]:focus-visible {
+  outline: 2px solid var(--han-red);
+  outline-offset: 2px;
+}
+
+.bso-tabs-enhanced .bso-tabpanel-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.bso-dashboard-frame {
+  width: 100%;
+  min-height: 85vh;
+  border: 1px solid var(--han-code-border);
+  border-radius: 8px;
+}
+
+.bso-dashboard-newtab {
+  font-size: 0.9rem;
+}
+
+/* The dashboard needs the full width; the information tab keeps the reading width. */
+.brightspace-content:has(#bso-panel-dashboard:not([hidden])) {
+  max-width: none;
+}

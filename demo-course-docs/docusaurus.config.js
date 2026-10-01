@@ -6,7 +6,9 @@ const { remarkFlashcards, resolveFlashcardsOptions } = require(
 const { remarkDiagrams } = require("../src/diagram-renderer.ts");
 const { expandIncludes } = require("../src/includes.ts");
 const {
+  DASHBOARD_PREVIEW_NOTE,
   insertVersionTable,
+  replaceDashboardDirective,
   resolveTeacherPage,
 } = require("../src/teacher-page.ts");
 const {
@@ -89,9 +91,12 @@ module.exports = {
         path.dirname(filePath),
         includeHost,
       );
-      return path.resolve(filePath) === teacherPage.path
-        ? insertVersionTable(markdown, teacherPage)
-        : markdown;
+      if (path.resolve(filePath) !== teacherPage.path) return markdown;
+      // The Voortgangsverkenner only exists after import in Brightspace (#37).
+      return replaceDashboardDirective(
+        insertVersionTable(markdown, teacherPage),
+        DASHBOARD_PREVIEW_NOTE,
+      ).markdown;
     },
   },
   clientModules: [

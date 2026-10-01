@@ -1,3 +1,19 @@
+/* Fonts are bundled in vendor/fonts (SIL OFL 1.1), not loaded from Google Fonts. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("vendor/fonts/atkinson-hyperlegible-next-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("vendor/fonts/atkinson-hyperlegible-mono-latin.woff2") format("woff2");
+}
+
 /* Voortgangsverkenner (#37), based on the owe-1 prototype. Layout: werkbalk bovenaan, daaronder verkenner-boom (links) en detailpaneel (rechts); op telefoonbreedte gestapeld. */
 :root {
   --bg: #f4f6fa;

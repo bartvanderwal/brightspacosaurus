@@ -22,7 +22,7 @@ import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
-import { loadAssetText, loadPackageVersion, materializeAsset } from "./assets.ts";
+import { loadAssetBytes, loadAssetText, loadPackageVersion, materializeAsset } from "./assets.ts";
 import {
   buildManifest,
   deriveReaderMenuTitle,
@@ -144,6 +144,16 @@ export function parseArgs(
 }
 
 /** Runs the `prepare` command using an already resolved configuration. */
+/**
+ * URL of the Voortgangsverkenner relative to the teacher page's HTML, or null
+ * when `teacherDashboard` is not configured (#37).
+ */
+function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): string | null {
+  if (!config.teacherDashboard) return null;
+  const pageDir = dirname(relative(config.sourcesDir, teacherPagePath));
+  return relative(pageDir, join("docenten", "voortgangsverkenner.html")).split(/[\\/]/).join("/");
+}
+
 /** Options for `runPrepare` that do not come from the configuration file. */
 export interface PrepareOptions {
   /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
@@ -245,6 +255,9 @@ export async function runPrepare(
             bsoVersion: packageVersion,
           }
           : undefined,
+        teacherDashboardSrc: mdFile === teacherPage?.path
+          ? teacherDashboardSrc(config, mdFile)
+          : undefined,
       });
       const relPath = relative(contentOutputDir, result.outputPath);
       console.log(`  ✓ ${relPath}`);
@@ -312,6 +325,22 @@ export async function runPrepare(
       await Deno.writeTextFile(join(docentenOutputDir, "style.css"), cssContent);
       await Deno.writeTextFile(join(docentenOutputDir, "calc.js"), calcContent);
       await Deno.mkdir(join(docentenOutputDir, "vendor"), { recursive: true });
+      await Deno.mkdir(join(docentenOutputDir, "vendor", "fonts"), { recursive: true });
+      for (
+        const fontFile of [
+          "atkinson-hyperlegible-next-latin.woff2",
+          "atkinson-hyperlegible-mono-latin.woff2",
+        ]
+      ) {
+        await Deno.writeFile(
+          join(docentenOutputDir, "vendor", "fonts", fontFile),
+          await loadAssetBytes(`teacher-dashboard/vendor/fonts/${fontFile}`),
+        );
+      }
+      await Deno.writeTextFile(
+        join(docentenOutputDir, "vendor", "fonts", "OFL.txt"),
+        await loadAssetText("teacher-dashboard/vendor/fonts/OFL.txt"),
+      );
       for (
         const vendorFile of [
           "react.production.min.js",
@@ -610,7 +639,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           ? decodeHtmlEntities(h1Match[1].trim())
           : basename(fullPath, extname(fullPath));
 
-        const assetRegex = /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js))"/gi;
+        const assetRegex = /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js|woff2))"/gi;
         const dependencies: string[] = [];
         let match: RegExpExecArray | null;
         while ((match = assetRegex.exec(html)) !== null) {

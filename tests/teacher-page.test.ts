@@ -12,10 +12,15 @@ import {
   validateConfig,
 } from "../src/config-loader.ts";
 import { runPrepare } from "../src/main.ts";
+import { convertMarkdown } from "../src/markdown-converter.ts";
 import { loadPackageVersion } from "../src/assets.ts";
 import {
+  DASHBOARD_DIRECTIVE,
+  DASHBOARD_MARKER,
   DEFAULT_TEACHER_PAGE,
   insertVersionTable,
+  replaceDashboardDirective,
+  wrapTeacherPageTabs,
   renderVersionTable,
   resolveTeacherPage,
   VERSIONS_DIRECTIVE,
@@ -234,4 +239,71 @@ Deno.test("a missing default teacher page is fine, a missing configured one fail
   } finally {
     await Deno.remove(repoRoot, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// {@bso-teacher-dashboard}: Voortgangsverkenner in tabs on the teacher page (#37)
+// ---------------------------------------------------------------------------
+
+Deno.test("replaceDashboardDirective replaces the directive outside code blocks only", () => {
+  const md = `# Docenten\n\n${DASHBOARD_DIRECTIVE}\n\n\`\`\`text\n${DASHBOARD_DIRECTIVE}\n\`\`\`\n`;
+  const result = replaceDashboardDirective(md, "X");
+  assertEquals(result.found, true);
+  assertEquals(result.markdown, `# Docenten\n\nX\n\n\`\`\`text\n${DASHBOARD_DIRECTIVE}\n\`\`\`\n`);
+  assertEquals(replaceDashboardDirective("# Geen\n", "X").found, false);
+});
+
+Deno.test("wrapTeacherPageTabs keeps the H1 above two tabs and embeds the dashboard", () => {
+  const body = `<h1>Voor docenten</h1>\n<p>Info</p>\n<p>${DASHBOARD_MARKER}</p>\n<p>Meer</p>`;
+  const html = wrapTeacherPageTabs(body, "docenten/voortgangsverkenner.html");
+  assertEquals(html.startsWith("<h1>Voor docenten</h1>"), true);
+  assertEquals(html.includes(DASHBOARD_MARKER), false);
+  assertStringIncludes(html, 'role="tablist"');
+  assertStringIncludes(html, ">Informatie</button>");
+  assertStringIncludes(html, ">Voortgangsverkenner</button>");
+  assertStringIncludes(html, '<iframe class="bso-dashboard-frame" src="docenten/voortgangsverkenner.html"');
+  assertStringIncludes(html, 'target="_blank" rel="noopener noreferrer"');
+  const infoPanel = html.slice(html.indexOf('id="bso-panel-info"'), html.indexOf('id="bso-panel-dashboard"'));
+  assertStringIncludes(infoPanel, "<p>Info</p>");
+  assertStringIncludes(infoPanel, "<p>Meer</p>");
+});
+
+Deno.test("wrapTeacherPageTabs escapes the dashboard URL in attributes", () => {
+  const html = wrapTeacherPageTabs("<p>x</p>", 'a"b.html');
+  assertStringIncludes(html, 'src="a&quot;b.html"');
+});
+
+async function convertTeacherPage(markdown: string, src: string | null) {
+  const root = await Deno.makeTempDir();
+  try {
+    const sourcePath = join(root, "voor-docenten.md");
+    await Deno.writeTextFile(sourcePath, markdown);
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir: join(root, "out"),
+      repoRoot: root,
+      teacherPageVersions: { courseName: "Cursus", courseVersion: "1.0.0", bsoVersion: "0.0.0" },
+      teacherDashboardSrc: src,
+    });
+    return await Deno.readTextFile(result.outputPath);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+}
+
+Deno.test("teacher page with the directive gets tabs and the tab script", async () => {
+  const html = await convertTeacherPage(
+    `# Voor docenten\n\n${DASHBOARD_DIRECTIVE}\n\nUitleg.\n`,
+    "docenten/voortgangsverkenner.html",
+  );
+  assertStringIncludes(html, '<div class="bso-tabs" data-bso-tabs>');
+  assertStringIncludes(html, 'src="docenten/voortgangsverkenner.html"');
+  assertStringIncludes(html, "initializeTabs");
+  assertEquals(html.includes(DASHBOARD_MARKER), false);
+});
+
+Deno.test("teacher page directive without teacherDashboard shows a note instead of tabs", async () => {
+  const html = await convertTeacherPage(`# Voor docenten\n\n${DASHBOARD_DIRECTIVE}\n`, null);
+  assertEquals(html.includes('<div class="bso-tabs" data-bso-tabs>'), false);
+  assertStringIncludes(html, "niet geconfigureerd");
 });

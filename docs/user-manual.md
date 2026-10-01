@@ -344,6 +344,20 @@ Create a fine-grained personal access token in GitLab under **User settings → 
 
 The screenshot shows a working token for FUSTEN. It grants more read permissions than the minimum listed above (need to know); the minimum is `Work Item: Read`, `Label: Read`, `Merge Request: Read`, `Commit: Read` and `Group: Read`. That minimum is derived from the API calls the dashboard makes and still has to be confirmed with a token that has only these permissions.
 
+#### Showing the dashboard on the teacher page
+
+Put the directive on its own line in the teacher page (`teacherPage`, default `for-teachers.md`):
+
+```markdown
+{@bso-teacher-dashboard}
+```
+
+BSO then shows the teacher page with two tabs: **Informatie** (the rest of the page) and **Voortgangsverkenner** (the dashboard in an embedded frame, at full width). Without JavaScript both parts are shown one after the other. The directive only works on the teacher page and needs `teacherDashboard` in the configuration; without it the page shows a short note instead. In the Docusaurus preview the directive becomes a note, because the dashboard only works after import in Brightspace.
+
+The dashboard stays a separate file (`docenten/voortgangsverkenner.html`) in the hidden instructor module. Hiding a topic in Brightspace does not necessarily block a direct URL for enrolled students; that is not a data leak, because the page contains no token or student data, only the group name and repository prefixes. Students cannot see other students' work without a token with read access to the course group.
+
+The dashboard ships its own fonts (Atkinson Hyperlegible, SIL OFL 1.1) and libraries, so it makes no requests to third parties besides your GitLab server.
+
 #### Using the dashboard
 
 1. Open **Voortgangsverkenner** in the hidden instructor module, paste the token and choose **Gebruik**.
