@@ -8,13 +8,22 @@ This guidebook follows the structure of Simon Brown's [Software Guidebook](https
 
 ## 1. Context
 
-### The problem
+This chapter describes the world around BSO: the problem it solves, who uses it and which systems it works with. Read it first if you are new to the project.
+
+- **1.1** The problem
+- **1.2** Actors and external systems
+- **1.3** System context
+- **1.4** A note on "import" vs "export"
+- **1.5** Diagram rendering in context
+- **1.6** Voortgangsverkenner in context
+
+### 1.1 The problem
 
 Course authors want a single source of truth for their material. Keeping content as Markdown in Git gives them version control, review workflows, diffs, and reuse. Brightspace (the target LMS) offers none of that: its authoring surface is a WYSIWYG editor where content is re-typed by hand. Re-authoring material directly in Brightspace is error-prone, not reviewable, and drifts away from the source over time.
 
 BSO bridges that gap. It takes the Markdown that already lives in Git and produces a Common Cartridge package that Brightspace can import — so the author edits in one place (Git) and publishes to another (Brightspace) with a repeatable build step.
 
-### Actors and external systems
+### 1.2 Actors and external systems
 
 | Actor / System                                                     | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,7 +38,7 @@ BSO bridges that gap. It takes the Markdown that already lives in Git and produc
 | Instructor | Hides the instructor module after import and opens the **Voortgangsverkenner** (teacher progress dashboard, #37) in Brightspace to follow student progress on GitLab work items. Pastes a personal read-only GitLab token into the page for each session. |
 | GitLab REST API | Runtime data source for the Voortgangsverkenner only: projects per class subgroup, work items, their comments and commits. Called directly from the instructor's browser; BSO itself never calls it during `prepare` or `pack`. |
 
-### System context
+### 1.3 System context
 
 ```plantuml
 @startuml
@@ -65,7 +74,7 @@ SHOW_LEGEND()
 
 > Rendered via Kroki (`https://kroki.io/plantuml/svg/...`) using the [C4-PlantUML](https://github.com/plantuml-stdlib/C4-PlantUML) standard library, consistent with how BSO itself renders PlantUML/Mermaid diagrams for course content.
 
-### A note on "import" vs "export"
+### 1.4 A note on "import" vs "export"
 
 The terminology can be confusing because it depends on the vantage point:
 
@@ -74,7 +83,7 @@ The terminology can be confusing because it depends on the vantage point:
 
 Throughout this guidebook: _export_ refers to BSO writing the package, _import_ refers to loading it into Brightspace. BSO never imports; it only exports.
 
-### Diagram rendering in context
+### 1.5 Diagram rendering in context
 
 As of version 0.8.0, BSO integrates **diagram rendering** as a core feature of the `prepare` command. When a lesson Markdown file contains PlantUML or Mermaid fenced blocks, BSO uses `remark-kroki-a11y` to render them to accessible HTML during the build. This happens only for **lesson content** (standard `.md` files converted to HTML topics); **quiz questions** follow a different path (see [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)).
 
@@ -84,7 +93,7 @@ Key points:
 - **Accessibility**: Every diagram includes an accessible name and (when possible) a natural-language description. Disclosure controls (source, description) use native `<details>` elements that work without client-side JavaScript, because diagram accessibility must not depend on scripts inside Brightspace topic content. This is a requirement for diagram disclosure specifically, not a blanket no-JS rule for the whole page: other, unrelated progressive-enhancement scripts may be added elsewhere (e.g. a copy-to-clipboard button on code blocks) as long as they degrade gracefully when Brightspace blocks scripts.
 - **Error handling**: The build can be configured to fail strictly (stop on any diagram error) or fall back gracefully (warn, retain source block, continue). See Section 6 "Software Architecture" for the error classification strategy.
 
-### Voortgangsverkenner in context
+### 1.6 Voortgangsverkenner in context
 
 The Voortgangsverkenner (teacher progress dashboard, #37) is the first BSO output that talks to an external system **at runtime**. BSO only generates the page during `prepare`, with the `teacherDashboard` settings from `brightspacosaurus.config.json` embedded. Everything else happens in the instructor's browser: the page calls the GitLab REST API with a token the instructor pastes in. There is no BSO back end and no proxy.
 
@@ -111,7 +120,7 @@ SHOW_LEGEND()
 @enduml
 ```
 
-#### Use case: follow class progress
+#### 1.6.1 Use case: follow class progress
 
 | | |
 |---|---|
@@ -126,9 +135,16 @@ SHOW_LEGEND()
 
 ## 2. Functional Overview
 
+This chapter describes what BSO does from the author's point of view: the two commands, how source files are classified and how the build is configured.
+
+- **2.1** `prepare` — Markdown to build artifacts
+- **2.2** `pack` — build directory to `.imscc`
+- **2.3** File classification by prefix
+- **2.4** Configuration
+
 BSO exposes two commands (see the [README](../README.md) for full CLI usage).
 
-### `prepare` — Markdown to build artifacts
+### 2.1 `prepare` — Markdown to build artifacts
 
 Scans the configured source directory and writes conversion output into the build directory (`outputDir`, default `build/brightspace`):
 
@@ -140,11 +156,11 @@ Scans the configured source directory and writes conversion output into the buil
 
 During lesson conversion, PlantUML and Mermaid fenced blocks are rendered by `remark-kroki-a11y` through a Kroki-compatible HTTP endpoint. The optional `diagrams` config controls the endpoint (`krokiUrl`, default `https://kroki.io`), output mode (`img-html-base64` by default), and error policy (`failOnError`, default `true`). In strict mode the build fails on invalid diagram metadata, invalid source, or unreachable Kroki. In fallback mode BSO warns, keeps the original fenced block, and continues.
 
-### `pack` — build directory to `.imscc`
+### 2.2 `pack` — build directory to `.imscc`
 
 Generates `imsmanifest.xml` from the build output and packages everything into a `.imscc` archive (a ZIP under the hood). If `prepare` has not run yet, `pack` runs it first.
 
-### File classification by prefix
+### 2.3 File classification by prefix
 
 `source-scanner.ts` classifies files by name, not by content:
 
@@ -159,7 +175,7 @@ Generates `imsmanifest.xml` from the build output and packages everything into a
 
 Instructor answer keys are deliberately skipped so answers never leak into a student-facing package.
 
-### Configuration
+### 2.4 Configuration
 
 All project-specific behaviour comes from `brightspacosaurus.config.json`, never from the source code. The required fields are `courseName`, `version`, and `sourcesDir`; the rest (readers, assets, output directory, custom CSS, instructor manual) are optional with sensible defaults. CLI arguments override config values. See the [README configuration section](../README.md#configuration) for the full field reference.
 
@@ -167,35 +183,46 @@ All project-specific behaviour comes from `brightspacosaurus.config.json`, never
 
 ## 3. Quality Attributes
 
-### Reproducibility and determinism
+This chapter lists the quality attributes BSO is designed for and how the design supports each of them.
+
+- **3.1** Reproducibility and determinism
+- **3.2** Security by design
+- **3.3** Portability
+- **3.4** Maintainability
+- **3.5** Accessibility by design
+- **3.6** Error resilience
+
+### 3.1 Reproducibility and determinism
 
 Commands are idempotent: running `prepare`/`pack` repeatedly on the same input produces byte-identical output. Archive entries use deterministic file ordering (manifest entries are sorted; scanned files are sorted). This keeps `.imscc` output stable and diff-friendly across builds and CI runs.
 
 Manifest navigation order is also deterministic and intentionally mirrors the authored lesson structure. BSO groups content and quiz entries by their first output subdirectory (for example `week-6`) and then sorts entries within that group by a natural lesson/quiz code extracted from the title or file name. When a lesson page and quiz share the same code, the lesson HTML (`webcontent`) appears before the QTI quiz item. This produces Brightspace menu sequences such as `Les 6.1` → `Quiz 6.1` → `Les 6.2` → `Quiz 6.2`, without course-specific manifest cleanup scripts. See GitHub issue #22.
 
-### Security by design
+### 3.2 Security by design
 
 BSO runs on Deno, which requires explicit permission grants (`--allow-read`, `--allow-write`, `--allow-run=pandoc`, `--allow-env`). There are no automatic postinstall scripts, which removes a common supply-chain attack vector. Publishing via JSR keeps the distribution surface small. See [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md).
 
-### Portability
+### 3.3 Portability
 
 The tool is location-independent: it uses `Deno.cwd()` as the repository root, so it works regardless of where the BSO code itself lives. It runs identically from local source (`file://`) or from the JSR cache (`https://`), and is npm-compatible through Deno's compatibility layer.
 
-### Maintainability
+### 3.4 Maintainability
 
 The core is a set of small, single-responsibility modules under `src/`, each doing one conversion step. Behaviour is config-driven, so adapting the tool to a new course means editing JSON, not code.
 
-### Accessibility by design
+### 3.5 Accessibility by design
 
 Brightspace topic content can support custom JavaScript, but BSO does not treat it as a dependable accessibility mechanism. D2L documents a multi-page content-topic pattern where course designers include JavaScript in HTML content topics; the same article notes that this requires an advanced course designer (D2L, n.d.-i). Separately, D2L community documentation says script-capable content may be sandboxed in a secure iframe depending on course configuration. BSO therefore keeps diagram source and natural-language descriptions available through native `<details>/<summary>` controls, independent of whether scripts run. Rendered images and inline SVGs receive deterministic ARIA relationships to the generated description where available. This is an accessibility intent and implementation constraint, not a blanket WCAG conformance claim; representative Brightspace pages still need manual assistive-technology verification.
 
-### Error resilience
+### 3.6 Error resilience
 
 Diagram errors are categorized as `kroki-unreachable`, `invalid-source`, or `invalid-parameter`. Static authoring issues are detected before contacting Kroki; render-time failures from `remark-kroki-a11y` are wrapped as `DiagramError`. Strict mode fails fast with source-file context. Fallback mode logs an actionable warning and keeps the original code block in the generated page so authors can still publish non-diagram content when they choose that policy.
 
 ---
 
 ## 4. Constraints
+
+This chapter lists the fixed constraints the design has to work within: runtime, distribution, Brightspace and external tools. The table below gives each constraint and its consequence.
 
 | Constraint                                | Detail                                                                                                                                                                               |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -213,12 +240,16 @@ Diagram errors are categorized as `kroki-unreachable`, `invalid-source`, or `inv
 
 ## 5. Principles
 
+This chapter lists the principles that guide design decisions, from configuration to security. The list below applies to all of BSO; section 5.1 adds the principles for integrations that call an external API at runtime.
+
+- **5.1** Security principles for runtime integrations
+
 - **Convention over configuration.** Sensible defaults everywhere; only three fields are required. The build directory, output name, and instructor-manual location all derive from defaults unless overridden.
 - **Single source of truth.** Markdown in Git is authoritative. Every artifact (HTML, QTI, PDF, manifest, `.imscc`) is generated and never hand-edited. Brightspace is a distribution channel, not the store of record.
 - **Config-driven, no hardcoded paths.** Nothing project-specific lives in the code; it all comes from `brightspacosaurus.config.json` or CLI arguments.
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
 
-### Security principles for runtime integrations
+### 5.1 Security principles for runtime integrations
 
 These apply to the Voortgangsverkenner and to any future page that calls an external API from Brightspace (for example GitHub instead of GitLab).
 
@@ -235,7 +266,15 @@ These apply to the Voortgangsverkenner and to any future page that calls an exte
 
 ## 6. Software Architecture
 
-### Container diagram
+This chapter describes the architecture of BSO in C4 terms, from containers to components, and how data and configuration flow through the build.
+
+- **6.1** Container diagram
+- **6.2** Module structure
+- **6.3** Component diagram
+- **6.4** Data flow
+- **6.5** Config resolution pipeline
+
+### 6.1 Container diagram
 
 BSO has a single container: the CLI process itself. There is no server, no database, and no persistent runtime — the whole system runs on one device (the author's machine or a CI runner) for the duration of one `prepare`/`pack` invocation.
 
@@ -264,7 +303,7 @@ SHOW_LEGEND()
 @enduml
 ```
 
-### Module structure
+### 6.2 Module structure
 
 The core lives under `src/`, split by conversion responsibility:
 
@@ -286,7 +325,7 @@ The core lives under `src/`, split by conversion responsibility:
 | `types.ts`                | Shared TypeScript interfaces.                                                                                       |
 | `mod.ts`                  | Barrel export for library use via JSR.                                                                              |
 
-### Component diagram
+### 6.3 Component diagram
 
 Components inside the single `Brightspacosaurus CLI` container:
 
@@ -340,7 +379,7 @@ SHOW_LEGEND()
 @enduml
 ```
 
-### Data flow
+### 6.4 Data flow
 
 **`prepare`:** resolve config → scan sources → for each classified file run the matching converter (HTML / QTI / PDF) into the build directory → copy referenced images.
 
@@ -348,7 +387,7 @@ SHOW_LEGEND()
 
 **`pack`:** ensure `prepare` output exists (run it if not) → scan build output for HTML, QTI and reader PDFs → sort manifest entries by module/week and natural lesson/quiz code → write `imsmanifest.xml` → ZIP the build directory into `<name>.v<version>.imscc`.
 
-### Config resolution pipeline
+### 6.5 Config resolution pipeline
 
 Config loading is a four-step pipeline in `config-loader.ts`:
 
@@ -367,13 +406,22 @@ When no config file exists but `--sources` is given, `resolveFromCliOnly` produc
 
 ## 7. Code
 
-### Conventions
+This chapter describes code-level conventions and solutions that are not visible in the architecture diagrams but matter when you change the code.
+
+- **7.1** Conventions
+- **7.2** Asset loading (JSR-safe)
+- **7.3** Path handling
+- **7.4** HTML entity handling
+- **7.5** Diagram rendering and error classification
+- **7.6** Syntax highlighting
+
+### 7.1 Conventions
 
 - **Idempotent commands** — repeated runs on identical input yield identical output. `prepare` clears its output subdirectories before regenerating.
 - **stderr / stdout discipline** — progress goes to `stdout`; errors and warnings go to `stderr`.
 - **Exit codes** — `0` success; `1` general/config error; `2` source directory not found; `3` path escapes the repo root, or reader PDF conversion failed. Errors carry an optional `exitCode` that `main.ts` honours.
 
-### Asset loading (JSR-safe)
+### 7.2 Asset loading (JSR-safe)
 
 Bundled assets in `assets/` are **never** loaded with `import.meta.url` + `Deno.readTextFile()`. That works locally (`file://`) but fails from the JSR cache with _"Must be a file URL"_, because JSR serves modules over `https://`.
 
@@ -384,15 +432,15 @@ Bundled assets in `assets/` are **never** loaded with `import.meta.url` + `Deno.
 
 Every new asset must also be added to `publish.include` in `deno.json`, otherwise it is missing from the JSR package.
 
-### Path handling
+### 7.3 Path handling
 
 `convertMarkdown` takes a `baseDir` option. Passing `sourcesDir` as the base flattens deep source directory structures so that manifest grouping uses the correct subdirectory (e.g. `week-1`) rather than the full nested path from the repo root.
 
-### HTML entity handling
+### 7.4 HTML entity handling
 
 Page titles for the manifest are extracted from the generated HTML (the `<h1>`). rehype has already escaped that HTML (`&amp;`, `&#x26;`, etc.). Because `manifest-builder.ts` escapes again when writing XML, titles are first decoded with `decodeHtmlEntities` — handling named and numeric (hex and decimal) entities — to avoid double-escaping (e.g. `&amp;` becoming `&amp;amp;`).
 
-### Diagram rendering and error classification
+### 7.5 Diagram rendering and error classification
 
 `diagram-renderer.ts` adds two remark steps before Markdown is converted to HTML. First, it walks mdast code blocks and adds missing diagram metadata: `imgType` follows the fence language and `imgTitle` comes from the nearest preceding heading, falling back to a stable positional title. Second, it registers `remark-kroki-a11y` with options from `diagram-config.ts`.
 
@@ -400,7 +448,7 @@ Page titles for the manifest are extracted from the generated HTML (the `<h1>`).
 
 `diagram-validation.ts` detects offline authoring issues before a Kroki request is made: unsupported diagram declarations, unknown fence options, non-local `src=`, empty diagram blocks, and inconsistent option values. Rendering failures are wrapped in `DiagramError` with category `kroki-unreachable`, `invalid-source`, or `invalid-parameter`. The resolved `diagrams.failOnError` setting decides whether that error fails the build or becomes a warning plus original-code fallback.
 
-### Syntax highlighting
+### 7.6 Syntax highlighting
 
 The HTML export highlights fenced code blocks at build time with `rehype-prism-plus` (issue #28). It emits the same Prism token classes (`token keyword`, `token comment`, ...) as the Docusaurus preview, so visual parity only needs CSS and Brightspace pages need no runtime JavaScript. Languages Prism does not know stay plain code (`ignoreMissing`).
 
@@ -410,7 +458,19 @@ This relies on Docusaurus currently using Prism; BSO imports nothing from Docusa
 
 ## 8. Design Decisions
 
-### Preview/output parity
+This chapter summarises the main design decisions and links to the full Architecture Decision Records (ADRs). Section 8.1 explains the most pervasive one: the preview must show the same output as Brightspace.
+
+- **8.1** Preview/output parity
+- **8.2** Deno over Node.js
+- **8.3** unified (remark / rehype) for Markdown → HTML
+- **8.4** Rich content in quiz questions
+- **8.5** Reader PDF conversion via pandoc
+- **8.6** Publication via JSR
+- **8.7** Asset loading via fetch + materialize for JSR compatibility
+- **8.8** Diagram rendering via remark-kroki-a11y
+- **8.9** Config file over convention-only
+
+### 8.1 Preview/output parity
 
 The Docusaurus preview and the Brightspace/IMSCC export are two render targets for the same Markdown source. Every author-visible feature — lessons, quizzes, links, includes, diagrams, flashcards and accessibility behavior — should work in both Docusaurus and Brightspace and remain usable and visually coherent after Brightspace import.
 
@@ -523,37 +583,37 @@ The shared implementation contracts belong with the relevant components and asse
 
 The significant architectural decisions are recorded as Architecture Decision Records in the [ADR index](adr/README.md).
 
-### Deno over Node.js — [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
+### 8.2 Deno over Node.js — [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
 
 **Context:** the tool runs in CI with repository and build-process access, making supply-chain security a first-class concern. **Decision:** use Deno as the runtime. **Rationale:** Deno's explicit permission model limits file access to declared paths, and it does not run postinstall scripts automatically — closing a well-known npm supply-chain vector.
 
-### unified (remark / rehype) for Markdown → HTML — [ADR 010](adr/adr010-brightspacosaurus-unified-markdown-pipeline.md)
+### 8.3 unified (remark / rehype) for Markdown → HTML — [ADR 010](adr/adr010-brightspacosaurus-unified-markdown-pipeline.md)
 
 **Context:** Markdown must convert to clean, standalone HTML with GFM, frontmatter and rich content. **Decision:** use the unified pipeline (remark-parse, remark-gfm, remark-frontmatter, remark-rehype, rehype-stringify). **Rationale:** a well-established, composable, plugin-driven pipeline with predictable output.
 
-### Rich content in quiz questions — [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)
+### 8.4 Rich content in quiz questions — [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)
 
 **Context:** quiz questions need more than plain text (code, formatting). **Decision:** support rich content in quiz Markdown when converting to QTI. **Rationale:** questions stay authored in Markdown while producing valid QTI 1.2 for Brightspace.
 
-### Reader PDF conversion via pandoc — [ADR 014](adr/adr014-brightspacosaurus-reader-pdf-conversion.md)
+### 8.5 Reader PDF conversion via pandoc — [ADR 014](adr/adr014-brightspacosaurus-reader-pdf-conversion.md)
 
 **Context:** readers and the instructor manual need print-quality PDF output. **Decision:** convert reader Markdown to PDF via pandoc with a xelatex/lualatex engine, a custom LaTeX header and Lua filters. **Rationale:** pandoc gives high-quality typesetting; PDF generation is optional and skipped when pandoc is absent, so the core build never hard-depends on it.
 
 Reader PDFs use a mandatory separate cover page ('voorblad', AIM Controle Kaart) before the table of contents. BSO derives deterministic cover metadata from reader frontmatter, the first H1, the configured course name, the configured version and, when `git` is available and permitted, the last commit date of the reader Markdown file. It deliberately does not inject the current date automatically because repeated builds must remain reproducible.
 
-### Publication via JSR — [ADR 015](adr/adr015-brightspacosaurus-publication-via-jsr.md)
+### 8.6 Publication via JSR — [ADR 015](adr/adr015-brightspacosaurus-publication-via-jsr.md)
 
 **Context:** the tool should be reusable both as an executable CLI and as an importable library. **Decision:** publish to JSR as `@bartvanderwal/brightspacosaurus`. **Rationale:** native Deno support with no separate build step, automatically indexed TypeScript types, versioning, and minimal impedance mismatch with the toolchain.
 
-### Asset loading via fetch + materialize for JSR compatibility — _(new; GitHub issue #5)_
+### 8.7 Asset loading via fetch + materialize for JSR compatibility — _(new; GitHub issue #5)_
 
 **Context:** bundled assets were loaded with `import.meta.url` + `Deno.readTextFile()`. This works from local source (`file://`) but fails from the JSR cache with _"Must be a file URL"_, because JSR serves modules over `https://`. **Decision:** introduce `src/assets.ts` with `loadAssetText` (`import.meta.resolve()` + `fetch()`) for text assets, and `materializeAsset` (write to a temp file) for external tools such as pandoc that require a real file path. **Rationale:** `fetch` works uniformly across `file://`, `https://` and `jsr:`; temp-file materialization bridges the gap for external processes that cannot read URLs. See GitHub issue #5.
 
-### Diagram rendering via remark-kroki-a11y — [ADR 016](adr/adr016-diagram-rendering-via-remark-kroki-a11y.md)
+### 8.8 Diagram rendering via remark-kroki-a11y — [ADR 016](adr/adr016-diagram-rendering-via-remark-kroki-a11y.md)
 
 **Context:** lesson HTML needs PlantUML/Mermaid rendering and accessibility support, while Brightspace topic content cannot safely assume custom JavaScript is available or allowed. **Decision:** run `remark-kroki-a11y` in-process, share one option mapper with preview, adapt provider HTML to native Brightspace disclosures, and keep offline validation reusable. **Rationale:** keeps rendering and natural-language descriptions in one upstream provider while giving BSO deterministic no-JS output and strict/fallback error policy.
 
-### Config file over convention-only — _(brightspacosaurus-generiek spec)_
+### 8.9 Config file over convention-only — _(brightspacosaurus-generiek spec)_
 
 **Context:** the original tool was convention-based and tied to one specific course's directory layout. **Decision:** move to a config-driven, generic tool where all project specifics live in `brightspacosaurus.config.json`. **Rationale:** decouples the tool from any single course, making it reusable and publishable. See `.kiro/specs/brightspacosaurus-generiek/`.
 
@@ -561,7 +621,13 @@ Reader PDFs use a mandatory separate cover page ('voorblad', AIM Controle Kaart)
 
 ## 9. Deployment
 
-### Distribution via JSR
+This chapter describes how BSO is distributed and used: from JSR, in CI pipelines and in the manual import into Brightspace.
+
+- **9.1** Distribution via JSR
+- **9.2** CI pipeline usage
+- **9.3** Manual import step
+
+### 9.1 Distribution via JSR
 
 ```sh
 # As a library
@@ -577,7 +643,7 @@ deno install --allow-read --allow-write --allow-run=pandoc,git --allow-env --all
 
 BSO is also usable from Node.js projects through Deno's npm-compatibility layer.
 
-### CI pipeline usage
+### 9.2 CI pipeline usage
 
 A typical GitLab CI job runs `prepare` + `pack` and publishes the resulting `.imscc` as a build artifact:
 
@@ -594,7 +660,7 @@ build-imscc:
       - build/**/*.imscc
 ```
 
-### Manual import step
+### 9.3 Manual import step
 
 The final step — importing the `.imscc` into a Brightspace course — remains manual (Import/Export/Copy Components in Brightspace). See the [user manual](user-manual.md) and the README's Brightspace import section for the walkthrough and additive-import caveats.
 
@@ -602,7 +668,13 @@ The final step — importing the `.imscc` into a Brightspace course — remains 
 
 ## 10. Decision Log / Changelog
 
-### Architecture Decision Records
+This chapter describes where decisions and changes are recorded: the ADRs, versioning and the history of the specifications.
+
+- **10.1** Architecture Decision Records
+- **10.2** Versioning
+- **10.3** Spec history
+
+### 10.1 Architecture Decision Records
 
 The [`docs/adr/`](adr/README.md) directory is the running decision log:
 
@@ -615,11 +687,11 @@ The [`docs/adr/`](adr/README.md) directory is the running decision log:
 | [015](adr/adr015-brightspacosaurus-publication-via-jsr.md) | Publication via JSR. |
 | [016](adr/adr016-diagram-rendering-via-remark-kroki-a11y.md) | Diagram rendering via remark-kroki-a11y with no-JS Brightspace adaptation. |
 
-### Versioning
+### 10.2 Versioning
 
 The version lives in `deno.json` and follows semver (patch for bugfixes, minor for features on the current `0.x` line). The version is bumped in the same change as the corresponding feature or fix so the JSR publication stays correct. Significant behavioural changes are captured as ADRs and tracked as GitHub issues (for example, the JSR asset-loading fix under issue #5).
 
-### Spec history
+### 10.3 Spec history
 
 Design and requirements history lives in two Kiro specs:
 
