@@ -1,3 +1,7 @@
+---
+date: 2026-09-06
+---
+
 # Reader: Testing Basics
 
 {@include: [Learning goals](../partials/learning-goals.md)}

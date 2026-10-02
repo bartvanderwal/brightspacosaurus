@@ -33,6 +33,9 @@ jobs:
         image: yuzutech/kroki-mermaid:0.32.1
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history: reader covers show the date of the last change from Git.
+          fetch-depth: 0
 
       - uses: denoland/setup-deno@v2
         with:
