@@ -7,18 +7,32 @@
 <p align="center"><em>Out with the BS, in with the Markdown.</em><br>
 If you prefer MD over BS ;) 🦕</p>
 
+<p align="center">
+  🌐 <a href="https://bartvanderwal.github.io/brightspacosaurus/">Demo course (online)</a> ·
+  📐 <a href="https://bartvanderwal.github.io/brightspacosaurus/guidebook/software-guidebook/">Software Guidebook</a> ·
+  📖 <a href="https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/">User manual</a> ·
+  📦 <a href="https://jsr.io/@bartvanderwal/brightspacosaurus">JSR</a>
+</p>
+
 Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. It was created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design. He and other colleagues were using a markdown-based approach and publishing through Docusaurus for course materials. This dropped WYSIWYG, but allowed including code previews with syntax highlighting, adding UML diagrams with diagrams-as-code tools like PlantUML and Mermaid, and even programmable parts like quizzes, using React/MD. They also preferred Git versionable, diffable files, and also having the modern option of AI-enhancement in the editor. This is of course impossible in Brightspace itself where the presence of direct student information makes access of LLM's unwanted/unacceptable.
 
 **Key features:**
 
-- 📝 **Course material as Markdown** — versionable, diffable, AI-editor-friendly; no lock-in to Brightspace's editor.
-- ⚡ **Docusaurus preview** — run `bso preview` for a live, hot-reloading dev server so you can check formatting, links, code blocks and diagrams before ever touching Brightspace. See the demo course online: [bartvanderwal.github.io/brightspacosaurus](https://bartvanderwal.github.io/brightspacosaurus/).
-- ✅ **Native quizzes** — Markdown quiz files (`quiz-` prefix) are converted to QTI 1.2 and imported as functional Brightspace quizzes, not static pages.
-- 📊 **Diagrams-as-code** — PlantUML and Mermaid fenced code blocks render automatically to accessible images via Kroki, with source and descriptions kept alongside for accessibility.
-- 📄 **Reader PDFs** — Markdown readers (`reader-` prefix) are converted to downloadable PDFs via pandoc.
-- 💻 **Code blocks with a copy button** — fenced code blocks (any language) get a one-click copy-to-clipboard button in the generated Brightspace pages, and color syntax highlighting at build time (Prism, the same token classes as the Docusaurus preview; no runtime JavaScript needed).
+- 📝 **[Course material as Markdown](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#course-material-as-markdown)** — versionable, diffable, AI-editor-friendly
+- ✅ **[Native quizzes](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#native-quizzes)** — Markdown becomes scored Brightspace quizzes (QTI)
+- 📊 **[Diagrams-as-code](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#diagrams-as-code)** — accessible PlantUML and Mermaid diagrams
+- ⚡ **[Docusaurus preview](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#docusaurus-preview)** — check everything before you import
+- 🚦 **[Student progress from GitLab](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#student-progress-from-gitlab-voortgangsverkenner)** — work items, commits and comments per student, as a stoplight
+- 📄 **[Reader PDFs](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#reader-pdfs)** — reference material as PDF with a cover page
+- 🃏 **[Flashcards](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#flashcards-for-core-concepts)** — core concepts as interactive cards
+- 👩‍🏫 **[Teacher-only page](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#teacher-only-page)** — which version is in Brightspace, plus the progress dashboard
+- 💻 **[Code blocks](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#code-blocks-with-a-copy-button)** — syntax highlighting and a copy button
+- 🔎 **[`bso lint`](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#bso-lint)** — check authoring rules before export
+- 🧭 **[Configurable menu order](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#configurable-menu-order)** — folders, `sidebar_position` and `readersModule`
 
-📖 See the user manual (`docs/user-manual.md`) for the data model and Brightspace import process, and the Software Guidebook (`docs/software-guidebook.md`) for the architecture and design decisions.
+Each feature is explained, with a page that shows it, in the [online demo course](https://bartvanderwal.github.io/brightspacosaurus/lessons/features).
+
+📖 See the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/) for the data model and Brightspace import process, and the [Software Guidebook](https://bartvanderwal.github.io/brightspacosaurus/guidebook/software-guidebook/) for the architecture and design decisions (sources in `docs/`).
 
 > 🤖 Brightspacosaurus was built with substantial help from AI coding assistants, but with human-in-the-loop. See [About: building this with AI](#about-building-this-with-ai) for the full story.
 
