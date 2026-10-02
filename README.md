@@ -16,19 +16,19 @@ If you prefer MD over BS ;) 🦕</p>
 
 Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. It was created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design. He and other colleagues were using a markdown-based approach and publishing through Docusaurus for course materials. This dropped WYSIWYG, but allowed including code previews with syntax highlighting, adding UML diagrams with diagrams-as-code tools like PlantUML and Mermaid, and even programmable parts like quizzes, using React/MD. They also preferred Git versionable, diffable files, and also having the modern option of AI-enhancement in the editor. This is of course impossible in Brightspace itself where the presence of direct student information makes access of LLM's unwanted/unacceptable.
 
-**Key features:**
+**What you can do with it:**
 
-- 📝 **[Course material as Markdown](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#course-material-as-markdown)** — versionable, diffable, AI-editor-friendly
-- ✅ **[Native quizzes](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#native-quizzes)** — Markdown becomes scored Brightspace quizzes (QTI)
-- 📊 **[Diagrams-as-code](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#diagrams-as-code)** — accessible PlantUML and Mermaid diagrams
-- ⚡ **[Docusaurus preview](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#docusaurus-preview)** — check everything before you import
-- 🚦 **[Student progress from GitLab](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#student-progress-from-gitlab-voortgangsverkenner)** — work items, commits and comments per student, as a stoplight
-- 📄 **[Reader PDFs](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#reader-pdfs)** — reference material as PDF with a cover page
-- 🃏 **[Flashcards](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#flashcards-for-core-concepts)** — core concepts as interactive cards
-- 👩‍🏫 **[Teacher-only page](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#teacher-only-page)** — which version is in Brightspace, plus the progress dashboard
-- 💻 **[Code blocks](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#code-blocks-with-a-copy-button)** — syntax highlighting and a copy button
-- 🔎 **[`bso lint`](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#bso-lint)** — check authoring rules before export
-- 🧭 **[Configurable menu order](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#configurable-menu-order)** — folders, `sidebar_position` and `readersModule`
+- 📝 **[Write course material in Markdown](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#course-material-as-markdown)** — versionable, diffable and AI-editor-friendly
+- ✅ **[Build quizzes for student self-testing](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#native-quizzes)** — Markdown becomes scored Brightspace quizzes (QTI)
+- 📊 **[Include diagrams as code](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#diagrams-as-code)** — accessible PlantUML and Mermaid diagrams
+- ⚡ **[Preview everything before importing](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#docusaurus-preview)** — a live Docusaurus site from the same Markdown
+- 🚦 **[Check student progress through GitLab](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#student-progress-from-gitlab-voortgangsverkenner)** — work items, commits and comments per student, as a stoplight
+- 📄 **[Publish readers as PDF](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#reader-pdfs)** — reference material with a cover page
+- 🃏 **[Practise core concepts with flashcards](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#flashcards-for-core-concepts)** — term/definition lists become interactive cards
+- 👩‍🏫 **[See which version is in Brightspace](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#teacher-only-page)** — on a teacher-only page that also hosts the progress dashboard
+- 💻 **[Include code blocks in lesson material](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#code-blocks-with-a-copy-button)** — with syntax highlighting and a copy button
+- 🔎 **[Check authoring rules before export](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#bso-lint)** — with `bso lint`
+- 🧭 **[Set the menu order](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#configurable-menu-order)** — with folders, `sidebar_position` and `readersModule`
 
 Each feature is explained, with a page that shows it, in the [online demo course](https://bartvanderwal.github.io/brightspacosaurus/lessons/features).
 
