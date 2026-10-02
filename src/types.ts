@@ -119,6 +119,10 @@ export interface ReaderConvertOptions {
   courseVersion?: string;
   /** Absolute path to a logo shown on every reader cover page. Optional. */
   coverLogoPath?: string;
+  /** Language of the cover labels (from `diagrams.locale`), default "nl". */
+  /** Start every chapter on a new page (`readerChapterNewPage`), default true. */
+  chapterNewPage?: boolean;
+  locale?: "nl" | "en";
 }
 
 /** Resultaat van de reader-Markdown-naar-PDF-conversie. */
@@ -150,6 +154,8 @@ export interface BsoConfig {
    * added to that module after its pages. `title` overrides the module title.
    */
   readersModule?: { slug?: string; title?: string };
+  /** Start every chapter of a reader PDF on a new page (default true). */
+  readerChapterNewPage?: boolean;
   /** Logo on every reader PDF cover page (relative to Repo_Root). Optional. */
   readerCoverLogo?: string;
   /** Map met statische assets (relatief aan Repo_Root). Optioneel. */
@@ -220,6 +226,8 @@ export interface ResolvedConfig {
   readersDir: string | null;
   /** Menu module for reader PDFs; absent means the separate "Readers" module. */
   readersModule?: ReadersModuleConfig;
+  /** Start every chapter of a reader PDF on a new page; absent means true. */
+  readerChapterNewPage?: boolean;
   /** Absolute path to the reader cover logo. null = no logo. */
   readerCoverLogo: string | null;
   /** Absoluut pad naar de assets-map. null = geen extra assets. */

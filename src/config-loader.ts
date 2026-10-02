@@ -144,6 +144,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "sourcesDir",
     "readersDir",
     "readersModule",
+    "readerChapterNewPage",
     "readerCoverLogo",
     "assetsDir",
     "outputDir",
@@ -237,6 +238,9 @@ export function validateConfig(config: unknown): config is BsoConfig {
   resolveFlashcardsOptions(obj.flashcards);
   resolveTeacherPage(obj.teacherPage);
   resolveReadersModule(obj.readersModule);
+  if (obj.readerChapterNewPage !== undefined && typeof obj.readerChapterNewPage !== "boolean") {
+    throw new Error("Field 'readerChapterNewPage' must be true or false.");
+  }
   if (obj.lint !== undefined) {
     if (
       typeof obj.lint !== "object" || obj.lint === null ||
@@ -623,6 +627,7 @@ export function resolveConfig(
     diagrams: resolveDiagramsConfig(config),
     teacherDashboard: resolveTeacherDashboardConfig(config.teacherDashboard),
     readersModule: resolveReadersModule(config.readersModule),
+    readerChapterNewPage: config.readerChapterNewPage ?? true,
     repoRoot,
   };
 }

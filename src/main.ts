@@ -350,6 +350,8 @@ export async function runPrepare(
             courseName: config.courseName,
             courseVersion: config.version,
             coverLogoPath: config.readerCoverLogo ?? undefined,
+            locale: config.diagrams.locale,
+            chapterNewPage: config.readerChapterNewPage ?? true,
           });
           console.log(`  ✓ readers/${result.filename}`);
           succeeded++;

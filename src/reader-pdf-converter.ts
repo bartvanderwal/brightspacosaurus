@@ -17,8 +17,10 @@ export interface ReaderPdfMetadata {
   title: string;
   /** Optional author or course name shown on the cover page. */
   author?: string;
-  /** Date/version line shown on the cover page. */
+  /** Date and version as one line (PDF metadata). */
   date: string;
+  /** Cover lines: original date, last change and version, labelled per locale. */
+  coverLines: string[];
   /** Cover image path from `coverImage`, relative to the reader file. */
   coverImage?: string;
 }
@@ -63,36 +65,87 @@ function extractFirstHeading(content: string): string | null {
   return match ? match[1].trim() : null;
 }
 
-/** Derives reader PDF cover metadata from frontmatter, headings and fallbacks. */
+/** Cover labels per locale (`diagrams.locale`). */
+const COVER_LABELS = {
+  nl: {
+    original: "Oorspronkelijke datum",
+    updated: "Laatste wijziging",
+    date: "Datum",
+    version: "Versie",
+  },
+  en: {
+    original: "Original date",
+    updated: "Last updated",
+    date: "Date",
+    version: "Version",
+  },
+} as const;
+
+/**
+ * Derives reader PDF cover metadata from frontmatter, headings and fallbacks.
+ *
+ * Dates: the original date comes from `date`/`datum`; the last change from
+ * Git (`sourceDate`), else from `updated`/`bijgewerkt`. Two different dates
+ * give two lines; equal dates, or only one, give one line.
+ */
 export function deriveReaderPdfMetadata(
   content: string,
   filename: string,
   options: Pick<ReaderConvertOptions, "courseName" | "courseVersion"> & {
     sourceDate?: string | null;
+    locale?: "nl" | "en";
   } = {},
 ): ReaderPdfMetadata {
+  const labels = COVER_LABELS[options.locale ?? "nl"];
   const title = extractFrontmatterValue(content, "title") ??
     extractFirstHeading(content) ??
     humanizeReaderTitle(filename);
   const author = extractFrontmatterValue(content, "author") ??
     extractFrontmatterValue(content, "auteur") ??
     options.courseName;
-  const dateParts = [
-    extractFrontmatterValue(content, "date") ??
-      extractFrontmatterValue(content, "datum") ??
-      options.sourceDate,
-    extractFrontmatterValue(content, "version") ??
-      extractFrontmatterValue(content, "versie") ??
-      (options.courseVersion ? `Versie ${options.courseVersion}` : null),
-  ].filter((part): part is string => Boolean(part));
+  const original = extractFrontmatterValue(content, "date") ??
+    extractFrontmatterValue(content, "datum");
+  const updated = options.sourceDate ??
+    extractFrontmatterValue(content, "updated") ??
+    extractFrontmatterValue(content, "bijgewerkt");
+  const version = extractFrontmatterValue(content, "version") ??
+    extractFrontmatterValue(content, "versie") ??
+    (options.courseVersion ? `${labels.version} ${options.courseVersion}` : null);
+
+  const coverLines: string[] = [];
+  if (original && updated && original !== updated) {
+    coverLines.push(`${labels.original}: ${original}`, `${labels.updated}: ${updated}`);
+  } else if (original) {
+    coverLines.push(`${labels.date}: ${original}`);
+  } else if (updated) {
+    coverLines.push(`${labels.updated}: ${updated}`);
+  }
+  if (version) coverLines.push(version);
 
   const coverImage = extractFrontmatterValue(content, "coverImage");
   return {
     title,
     author: author ?? undefined,
-    date: dateParts.join(" - "),
+    date: coverLines.join(" - "),
+    coverLines,
     ...(coverImage ? { coverImage } : {}),
   };
+}
+
+/** Escapes text for use in LaTeX (cover lines). */
+function escapeLatex(text: string): string {
+  return text.replace(/[\\&%$#_{}~^]/g, (char) => {
+    if (char === "\\") return "\\textbackslash{}";
+    if (char === "~") return "\\textasciitilde{}";
+    if (char === "^") return "\\textasciicircum{}";
+    return `\\${char}`;
+  });
+}
+
+/** LaTeX header that defines `\bsocoverdates` with one cover line per row. */
+export function coverDatesHeader(lines: string[]): string | null {
+  if (lines.length === 0) return null;
+  return `\\newcommand{\\bsocoverdates}{${lines.map(escapeLatex).join("\\\\ ")}}\n`;
 }
 
 /** Characters LaTeX can take literally in an \includegraphics path. */
@@ -154,6 +207,15 @@ export async function gitLastCommitDate(
   repoRoot: string,
 ): Promise<string | null> {
   try {
+    // In a shallow clone (CI with GIT_DEPTH) the last commit that touched the
+    // file may be missing, or replaced by a too recent one: use no Git date.
+    const shallow = await new Deno.Command("git", {
+      args: ["-C", repoRoot, "rev-parse", "--is-shallow-repository"],
+      stdout: "piped",
+      stderr: "null",
+    }).output();
+    if (new TextDecoder().decode(shallow.stdout).trim() === "true") return null;
+
     const command = new Deno.Command("git", {
       args: ["-C", repoRoot, "log", "-1", "--format=%cs", "--", sourcePath],
       stdout: "piped",
@@ -181,6 +243,8 @@ export function buildReaderPandocArgs(options: {
   headerPath: string;
   includeFilterPath: string;
   diagramFilterPath: string;
+  /** Lua filter that starts every chapter on a new page; omitted when disabled. */
+  chapterFilterPath?: string;
   metadata: ReaderPdfMetadata;
   /** Header defining the cover image and logo; included before the reader header. */
   coverHeaderPath?: string;
@@ -208,6 +272,9 @@ export function buildReaderPandocArgs(options: {
     `--include-in-header=${options.headerPath}`,
     `--lua-filter=${options.includeFilterPath}`,
     `--lua-filter=${options.diagramFilterPath}`,
+    ...(options.chapterFilterPath
+      ? [`--lua-filter=${options.chapterFilterPath}`]
+      : []),
     "--syntax-highlighting=tango",
     "--toc",
   ];
@@ -266,16 +333,22 @@ export async function convertReaderToPdf(
   const headerPath = await materializeAsset("reader-header.tex");
   const includeFilterPath = await materializeAsset("include-filter.lua");
   const diagramFilterPath = await materializeAsset("diagram-filter.lua");
+  const chapterFilterPath = options.chapterNewPage === false
+    ? undefined
+    : await materializeAsset("chapter-filter.lua");
   const sourceContent = await Deno.readTextFile(sourcePath);
   const sourceDate = await gitLastCommitDate(sourcePath, options.repoRoot);
   const metadata = deriveReaderPdfMetadata(sourceContent, sourceFilename, {
     courseName: options.courseName,
     courseVersion: options.courseVersion,
     sourceDate,
+    locale: options.locale,
   });
 
   // Optional cover image and logo, written as a small header next to the PDF output.
   const coverHeaders: string[] = [];
+  const datesHeader = coverDatesHeader(metadata.coverLines);
+  if (datesHeader) coverHeaders.push(datesHeader);
   if (metadata.coverImage) {
     const imagePath = resolve(resourcePath, metadata.coverImage);
     const header = await usableCoverAsset(
@@ -308,6 +381,7 @@ export async function convertReaderToPdf(
       headerPath,
       includeFilterPath,
       diagramFilterPath,
+      chapterFilterPath,
       metadata,
       coverHeaderPath,
     }),

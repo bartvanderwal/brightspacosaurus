@@ -8,6 +8,17 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.16.0 - 2026-10-02
+
+### Added
+
+- Every chapter of a reader PDF starts on a new page: a Lua filter puts a page break before each heading of the chapter level (the highest heading level, or the next one when the highest occurs only once as a title). Turn it off with `readerChapterNewPage: false`. Manual `\clearpage` lines in readers are no longer needed (#53).
+- Reader PDF covers show both the original date (`date`/`datum`) and the date of the last change, each on its own line. The last change comes from Git (the last commit that touched the reader), with `updated`/`bijgewerkt` from the front matter as fallback; equal dates give one line. Labels follow `diagrams.locale` (nl/en).
+
+### Changed
+
+- In a shallow Git clone, BSO no longer uses the Git date for readers, because it may be missing or too recent; it falls back to `updated`.
+
 ## 0.15.0 - 2026-10-01
 
 ### Added

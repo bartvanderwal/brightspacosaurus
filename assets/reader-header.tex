@@ -29,7 +29,7 @@
       \includegraphics[width=4cm,height=3cm,keepaspectratio]{\bsocoverlogo}\par
       \vspace{1.5em}
     \fi
-    {\large \@date\par}
+    {\large \ifdefined\bsocoverdates\bsocoverdates\else\@date\fi\par}
   \end{titlepage}
 }
 \makeatother

@@ -22,6 +22,7 @@ import {
   convertReaderToPdf,
   coverImageHeader,
   coverLogoHeader,
+  coverDatesHeader,
   deriveReaderPdfMetadata,
   gitLastCommitDate,
   pandocAvailable,
@@ -70,7 +71,8 @@ Deno.test("deriveReaderPdfMetadata gebruikt frontmatter voor verplicht voorblad"
   assertEquals(metadata, {
     title: "Reader PlantUML essentials",
     author: "Bart van der Wal",
-    date: "2026-09-14 - 0.8.2",
+    date: "Datum: 2026-09-14 - 0.8.2",
+    coverLines: ["Datum: 2026-09-14", "0.8.2"],
   });
 });
 
@@ -85,6 +87,7 @@ Deno.test("deriveReaderPdfMetadata gebruikt H1 en cursusversie als fallback", ()
     title: "Geheugenmodellen",
     author: "OWE 1",
     date: "Versie 2.1.0",
+    coverLines: ["Versie 2.1.0"],
   });
 });
 
@@ -98,7 +101,8 @@ Deno.test("deriveReaderPdfMetadata gebruikt Git-datum als datumfallback", () => 
   assertEquals(metadata, {
     title: "Geheugenmodellen",
     author: "OWE 1",
-    date: "2026-09-14 - Versie 2.1.0",
+    date: "Laatste wijziging: 2026-09-14 - Versie 2.1.0",
+    coverLines: ["Laatste wijziging: 2026-09-14", "Versie 2.1.0"],
   });
 });
 
@@ -125,6 +129,7 @@ Deno.test("buildReaderPandocArgs stuurt titlepage metadata en TOC naar pandoc", 
       title: "Reader Test",
       author: "OWE 1",
       date: "Versie 2.1.0",
+      coverLines: ["Versie 2.1.0"],
     },
   });
 
@@ -178,7 +183,7 @@ Deno.test("buildReaderPandocArgs zet de omslag-header vóór de reader-header", 
     headerPath: "/h/reader-header.tex",
     includeFilterPath: "/f/include.lua",
     diagramFilterPath: "/f/diagram.lua",
-    metadata: { title: "T", date: "D" },
+    metadata: { title: "T", date: "D", coverLines: [] },
   };
   const withCover = buildReaderPandocArgs({
     ...base,
@@ -639,5 +644,149 @@ Deno.test({
     } finally {
       await Deno.remove(root, { recursive: true });
     }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Original date and last change on the cover page
+// ---------------------------------------------------------------------------
+
+const withDate = "---\ndate: 2026-05-15\n---\n# Reader\n";
+
+Deno.test("cover shows the original date and the Git date of the last change on two lines", () => {
+  const metadata = deriveReaderPdfMetadata(withDate, "reader-x.md", {
+    courseVersion: "0.4.0",
+    sourceDate: "2026-10-01",
+  });
+  assertEquals(metadata.coverLines, [
+    "Oorspronkelijke datum: 2026-05-15",
+    "Laatste wijziging: 2026-10-01",
+    "Versie 0.4.0",
+  ]);
+});
+
+Deno.test("cover shows one date line when both dates are equal", () => {
+  const metadata = deriveReaderPdfMetadata(withDate, "reader-x.md", { sourceDate: "2026-05-15" });
+  assertEquals(metadata.coverLines, ["Datum: 2026-05-15"]);
+});
+
+Deno.test("without a Git date the last change falls back to updated in the front matter", () => {
+  const metadata = deriveReaderPdfMetadata(
+    "---\ndatum: 2026-05-15\nupdated: 2026-09-20\n---\n# R\n",
+    "reader-x.md",
+    { sourceDate: null },
+  );
+  assertEquals(metadata.coverLines, ["Oorspronkelijke datum: 2026-05-15", "Laatste wijziging: 2026-09-20"]);
+});
+
+Deno.test("cover labels follow the locale", () => {
+  const metadata = deriveReaderPdfMetadata(withDate, "reader-x.md", {
+    courseVersion: "1.0.0",
+    sourceDate: "2026-10-01",
+    locale: "en",
+  });
+  assertEquals(metadata.coverLines, ["Original date: 2026-05-15", "Last updated: 2026-10-01", "Version 1.0.0"]);
+});
+
+Deno.test("coverDatesHeader escapes LaTeX and puts each line on its own row", () => {
+  assertEquals(coverDatesHeader([]), null);
+  assertEquals(
+    coverDatesHeader(["Datum: 2026-05-15", "v1_2 & 100%"]),
+    "\\newcommand{\\bsocoverdates}{Datum: 2026-05-15\\\\ v1\\_2 \\& 100\\%}\n",
+  );
+});
+
+Deno.test("the reader header prints \\bsocoverdates on the cover when defined", async () => {
+  const header = await Deno.readTextFile(new URL("../assets/reader-header.tex", import.meta.url));
+  assertEquals(header.includes("\\ifdefined\\bsocoverdates\\bsocoverdates\\else\\@date\\fi"), true);
+});
+
+Deno.test("gitLastCommitDate ignores a shallow clone", async () => {
+  const root = await Deno.makeTempDir();
+  const git = (cwd: string, ...args: string[]) =>
+    new Deno.Command("git", { args, cwd, stdout: "null", stderr: "null" }).output();
+  try {
+    const origin = join(root, "origin");
+    await Deno.mkdir(origin);
+    await git(origin, "init", "-q");
+    await Deno.writeTextFile(join(origin, "reader-x.md"), "# R\n");
+    await git(origin, "add", ".");
+    await git(origin, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "x");
+    await git(root, "clone", "-q", "--depth", "1", "--no-local", origin, "shallow");
+    const shallow = join(root, "shallow");
+    assertEquals(await gitLastCommitDate(join(shallow, "reader-x.md"), shallow), null);
+    assertEquals(typeof await gitLastCommitDate(join(origin, "reader-x.md"), origin), "string");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Every chapter on a new page (#53)
+// ---------------------------------------------------------------------------
+
+const pandocBase = {
+  sourcePath: "/tmp/r.md",
+  outputPath: "/tmp/r.pdf",
+  resourcePath: "/tmp",
+  headerPath: "/tmp/h.tex",
+  includeFilterPath: "/tmp/i.lua",
+  diagramFilterPath: "/tmp/d.lua",
+  metadata: { title: "T", date: "", coverLines: [] },
+};
+
+Deno.test("buildReaderPandocArgs adds the chapter filter after the other filters, only when given", () => {
+  const withFilter = buildReaderPandocArgs({ ...pandocBase, chapterFilterPath: "/tmp/c.lua" });
+  const filters = withFilter.filter((arg) => arg.startsWith("--lua-filter="));
+  assertEquals(filters.at(-1), "--lua-filter=/tmp/c.lua");
+  assertEquals(buildReaderPandocArgs(pandocBase).includes("--lua-filter=/tmp/c.lua"), false);
+});
+
+Deno.test("readerChapterNewPage must be a boolean", () => {
+  assertThrows(
+    () => validateConfig({ courseName: "C", version: "1", sourcesDir: "s", readerChapterNewPage: "nee" }),
+    Error,
+    "readerChapterNewPage",
+  );
+});
+
+async function latexWithChapterFilter(markdown: string): Promise<string> {
+  const { materializeAsset } = await import("../src/assets.ts");
+  const filter = await materializeAsset("chapter-filter.lua");
+  const cmd = new Deno.Command("pandoc", {
+    args: ["-f", "markdown", "-t", "latex", `--lua-filter=${filter}`],
+    stdin: "piped",
+    stdout: "piped",
+  }).spawn();
+  const writer = cmd.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(markdown));
+  await writer.close();
+  return new TextDecoder().decode((await cmd.output()).stdout);
+}
+
+Deno.test({
+  name: "chapter filter breaks before each ## chapter under a single # title, not before the title",
+  ignore: !pandocAvailable(),
+  fn: async () => {
+    const latex = await latexWithChapterFilter(
+      "# Titel\n\nIntro.\n\n## 1. Inleiding\n\nA\n\n```md\n## geen kop\n```\n\n## Bronnen\n\nB\n",
+    );
+    const lines = latex.split("\n").filter((line) => /clearpage|section\{/.test(line));
+    assertEquals(lines.map((line) => line.replace(/\\label\{[^}]*\}/, "")), [
+      "\\section{Titel}",
+      "\\clearpage",
+      "\\subsection{1. Inleiding}",
+      "\\clearpage",
+      "\\subsection{Bronnen}",
+    ]);
+  },
+});
+
+Deno.test({
+  name: "chapter filter breaks before each # chapter when # occurs more than once",
+  ignore: !pandocAvailable(),
+  fn: async () => {
+    const latex = await latexWithChapterFilter("# A\n\nx\n\n## Sub\n\n# B\n\ny\n");
+    assertEquals((latex.match(/\\clearpage/g) ?? []).length, 2);
   },
 });
