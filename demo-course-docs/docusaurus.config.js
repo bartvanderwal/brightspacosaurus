@@ -77,6 +77,38 @@ function remarkTeacherPageTabs() {
   };
 }
 
+// Readers are PDFs in Brightspace. When the preview has the built PDF (in
+// BSO_PREVIEW_STATIC_DIR/readers), the reader page starts with a link to it;
+// the web version below is the second option (phone, Ctrl+F).
+function remarkReaderPdfLink() {
+  return (tree, file) => {
+    if (!previewStaticDir || !file.path) return;
+    const name = path.basename(file.path, ".md");
+    if (!name.startsWith("reader-")) return;
+    if (!fs.existsSync(path.join(previewStaticDir, "readers", `${name}.pdf`))) return;
+    const text = (value) => ({ type: "text", value });
+    const note = {
+      type: "blockquote",
+      children: [{
+        type: "paragraph",
+        children: [
+          text("📄 "),
+          { type: "strong", children: [text("This reader is a PDF in Brightspace: ")] },
+          {
+            type: "link",
+            // pathname:// keeps Docusaurus from routing a static file.
+            url: `pathname://${baseUrl}readers/${name}.pdf`,
+            children: [text(`download ${name}.pdf`)],
+          },
+          text(". Below is the same text as a web page, easier to read on a phone and to search."),
+        ],
+      }],
+    };
+    const firstHeading = tree.children.findIndex((node) => node.type === "heading");
+    tree.children.splice(firstHeading + 1, 0, note);
+  };
+}
+
 // Software guidebook, user manual and ADRs from docs/ (#33). Links that leave
 // docs/ (README, CHANGELOG, source files) point to the file on GitHub.
 const docsDir = path.resolve(__dirname, "../docs");
@@ -181,7 +213,7 @@ module.exports = {
           args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
         ),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
-      remarkPlugins: [remarkTeacherPageTabs, [remarkFlashcards, flashcardOptions], [
+      remarkPlugins: [remarkTeacherPageTabs, remarkReaderPdfLink, [remarkFlashcards, flashcardOptions], [
         remarkDiagrams,
         diagramOptions,
       ]],

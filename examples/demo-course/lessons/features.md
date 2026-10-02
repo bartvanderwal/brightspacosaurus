@@ -59,7 +59,7 @@ Turn it on: a `teacherDashboard` block in the configuration and `{@bso-teacher-d
 
 Readers (`reader-` prefix) become downloadable PDFs via pandoc, with a separate cover page: title, version, an optional cover image and an institution logo.
 
-See it in the demo: [Lesson 2.2: Readers and PDF](week-2/lesson-2-readers-and-pdf.md).
+See it in the demo: the reader [Testing basics](../readers/reader-testing-basics.md) starts with a link to its PDF, and [Lesson 2.2: Readers and PDF](week-2/lesson-2-readers-and-pdf.md) explains how readers work.
 
 Turn it on: put `reader-….md` files in `"readersDir": "readers/"`; optional `"readerCoverLogo": "shared/logo.png"`. Needs pandoc. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#8-readers-reference-material-as-pdf).
 

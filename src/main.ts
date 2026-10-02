@@ -751,10 +751,23 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   // Dev/prod parity: the preview serves the same dashboard files as the
   // export, from a static directory next to the build directory, so `pack`
   // never includes them (#37).
+  // Reader PDFs from an earlier `prepare` are served too, so reader pages can
+  // link to the PDF as in Brightspace.
+  const staticDir = join(dirname(config.outputDir), "preview-static");
   let previewStaticDir = "";
   if (config.teacherDashboard) {
-    previewStaticDir = join(dirname(config.outputDir), "preview-static");
-    await writeTeacherDashboard(join(previewStaticDir, "docenten"), config.teacherDashboard);
+    previewStaticDir = staticDir;
+    await writeTeacherDashboard(join(staticDir, "docenten"), config.teacherDashboard);
+  }
+  try {
+    for await (const entry of Deno.readDir(join(config.outputDir, "readers"))) {
+      if (!entry.isFile || !entry.name.endsWith(".pdf")) continue;
+      await Deno.mkdir(join(staticDir, "readers"), { recursive: true });
+      await Deno.copyFile(join(config.outputDir, "readers", entry.name), join(staticDir, "readers", entry.name));
+      previewStaticDir = staticDir;
+    }
+  } catch {
+    // No reader PDFs built yet: reader pages show only the web version.
   }
 
   const cmd = new Deno.Command("npm", {

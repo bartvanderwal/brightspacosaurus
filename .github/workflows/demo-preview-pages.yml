@@ -60,10 +60,6 @@ jobs:
       - name: Voortgangsverkenner files for the preview
         run: deno run --config deno.json --allow-read --allow-write=build demo-course-docs/write-dashboard-static.ts build/preview-static
 
-      - name: Install Docusaurus
-        working-directory: demo-course-docs
-        run: npm ci
-
       - name: Wait for Kroki (PlantUML and Mermaid)
         run: |
           for attempt in $(seq 1 30); do
@@ -73,6 +69,25 @@ jobs:
             sleep 2
           done
           echo "Kroki did not become ready."; exit 1
+
+      # Readers are PDFs in Brightspace; the demo shows those PDFs too.
+      - name: Install pandoc 3.9 and LuaLaTeX
+        run: |
+          curl -fsSL -o /tmp/pandoc.deb https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-amd64.deb
+          sudo apt-get update -q
+          sudo apt-get install -y -q /tmp/pandoc.deb texlive-luatex texlive-latex-recommended \
+            texlive-latex-extra texlive-fonts-recommended lmodern fonts-dejavu-core
+
+      - name: Build the reader PDFs
+        run: |
+          jq '.diagrams.krokiUrl = "http://localhost:8000"' brightspacosaurus.config.json > build/pages-config.json
+          deno run -A src/main.ts prepare --readers-only --config build/pages-config.json
+          mkdir -p build/preview-static/readers
+          cp build/brightspace/readers/*.pdf build/preview-static/readers/
+
+      - name: Install Docusaurus
+        working-directory: demo-course-docs
+        run: npm ci
 
       - name: Build the preview
         working-directory: demo-course-docs
