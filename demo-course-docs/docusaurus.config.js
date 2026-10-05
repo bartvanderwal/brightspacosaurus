@@ -87,6 +87,7 @@ function remarkReaderPdfLink() {
     if (!name.startsWith("reader-")) return;
     if (!fs.existsSync(path.join(previewStaticDir, "readers", `${name}.pdf`))) return;
     const text = (value) => ({ type: "text", value });
+    const pdfUrl = `${baseUrl}readers/${name}.pdf`;
     const note = {
       type: "blockquote",
       children: [{
@@ -97,15 +98,32 @@ function remarkReaderPdfLink() {
           {
             type: "link",
             // pathname:// keeps Docusaurus from routing a static file.
-            url: `pathname://${baseUrl}readers/${name}.pdf`,
+            url: `pathname://${pdfUrl}`,
             children: [text(`download ${name}.pdf`)],
           },
-          text(". Below is the same text as a web page, easier to read on a phone and to search."),
+          text(". Above is the PDF itself; below is the same text as a web page, easier to read on a phone and to search."),
         ],
       }],
     };
+    // PDF first: the real PDF is embedded in the page. Browsers that cannot
+    // show it inline (most phones) get the download link instead.
+    const attr = (attrName, value) => ({ type: "mdxJsxAttribute", name: attrName, value });
+    const viewer = {
+      type: "mdxJsxFlowElement",
+      name: "object",
+      attributes: [
+        attr("data", pdfUrl),
+        attr("type", "application/pdf"),
+        attr("width", "100%"),
+        attr("height", "800"),
+      ],
+      children: [{
+        type: "paragraph",
+        children: [{ type: "link", url: `pathname://${pdfUrl}`, children: [text(`Download ${name}.pdf`)] }],
+      }],
+    };
     const firstHeading = tree.children.findIndex((node) => node.type === "heading");
-    tree.children.splice(firstHeading + 1, 0, note);
+    tree.children.splice(firstHeading + 1, 0, viewer, note);
   };
 }
 

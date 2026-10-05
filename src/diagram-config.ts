@@ -16,8 +16,7 @@ const DEFAULT_DIAGRAM_CONFIG: ResolvedDiagramConfig = {
 
 /**
  * Resolves the optional `diagrams` config, filling in defaults for any
- * missing field. `locale` is not (yet) a user-facing config field and always
- * defaults to "nl".
+ * missing field.
  */
 export function resolveDiagramsConfig(
   config: Pick<BsoConfig, "diagrams">,
@@ -27,7 +26,7 @@ export function resolveDiagramsConfig(
     krokiUrl: d?.krokiUrl ?? DEFAULT_DIAGRAM_CONFIG.krokiUrl,
     output: d?.output ?? DEFAULT_DIAGRAM_CONFIG.output,
     failOnError: d?.failOnError ?? DEFAULT_DIAGRAM_CONFIG.failOnError,
-    locale: DEFAULT_DIAGRAM_CONFIG.locale,
+    locale: d?.locale ?? DEFAULT_DIAGRAM_CONFIG.locale,
   };
 }
 

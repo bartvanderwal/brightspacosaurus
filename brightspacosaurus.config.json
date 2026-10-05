@@ -6,6 +6,9 @@
   "readersDir": "examples/demo-course/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "demo-course-docs",
+  "diagrams": {
+    "locale": "en"
+  },
   "flashcards": {
     "sectionHeadings": [
       "Core concepts"

@@ -125,6 +125,7 @@ Deno.test("buildReaderPandocArgs stuurt titlepage metadata en TOC naar pandoc", 
     headerPath: "/tmp/reader-header.tex",
     includeFilterPath: "/tmp/include-filter.lua",
     diagramFilterPath: "/tmp/diagram-filter.lua",
+    sectionNumberFilterPath: "/tmp/section-number-filter.lua",
     metadata: {
       title: "Reader Test",
       author: "OWE 1",
@@ -137,6 +138,8 @@ Deno.test("buildReaderPandocArgs stuurt titlepage metadata en TOC naar pandoc", 
   assertEquals(args.includes("--metadata=author:OWE 1"), true);
   assertEquals(args.includes("--metadata=date:Versie 2.1.0"), true);
   assertEquals(args.includes("--toc"), true);
+  assertEquals(args.includes("--number-sections"), true);
+  assertEquals(args.includes("lang=nl"), true);
   assertEquals(
     args.includes("--include-in-header=/tmp/reader-header.tex"),
     true,
@@ -183,6 +186,7 @@ Deno.test("buildReaderPandocArgs zet de omslag-header vóór de reader-header", 
     headerPath: "/h/reader-header.tex",
     includeFilterPath: "/f/include.lua",
     diagramFilterPath: "/f/diagram.lua",
+    sectionNumberFilterPath: "/tmp/section-number-filter.lua",
     metadata: { title: "T", date: "D", coverLines: [] },
   };
   const withCover = buildReaderPandocArgs({
@@ -732,6 +736,7 @@ const pandocBase = {
   headerPath: "/tmp/h.tex",
   includeFilterPath: "/tmp/i.lua",
   diagramFilterPath: "/tmp/d.lua",
+  sectionNumberFilterPath: "/tmp/section-number-filter.lua",
   metadata: { title: "T", date: "", coverLines: [] },
 };
 
@@ -788,5 +793,74 @@ Deno.test({
   fn: async () => {
     const latex = await latexWithChapterFilter("# A\n\nx\n\n## Sub\n\n# B\n\ny\n");
     assertEquals((latex.match(/\\clearpage/g) ?? []).length, 2);
+  },
+});
+
+Deno.test("buildReaderPandocArgs zet de documenttaal uit de locale", () => {
+  const args = buildReaderPandocArgs({
+    sourcePath: "s.md",
+    outputPath: "o.pdf",
+    resourcePath: ".",
+    headerPath: "h.tex",
+    includeFilterPath: "i.lua",
+    diagramFilterPath: "d.lua",
+    sectionNumberFilterPath: "n.lua",
+    locale: "en",
+    metadata: { title: "T", date: "", coverLines: [] },
+  });
+  assertEquals(args.includes("lang=en"), true);
+  assertEquals(args.includes("lang=nl"), false);
+});
+
+Deno.test("diagrams.locale must be nl or en", () => {
+  assertThrows(
+    () => validateConfig({ courseName: "C", version: "1", sourcesDir: "s", diagrams: { locale: "de" } }),
+    Error,
+    "diagrams.locale",
+  );
+  validateConfig({ courseName: "C", version: "1", sourcesDir: "s", diagrams: { locale: "en" } });
+});
+
+async function latexWithSectionNumbers(markdown: string, title: string): Promise<string> {
+  const { materializeAsset } = await import("../src/assets.ts");
+  const filter = await materializeAsset("section-number-filter.lua");
+  const cmd = new Deno.Command("pandoc", {
+    args: ["-f", "markdown", "-t", "latex", `--metadata=title:${title}`, `--lua-filter=${filter}`],
+    stdin: "piped",
+    stdout: "piped",
+  }).spawn();
+  const writer = cmd.stdin.getWriter();
+  await writer.write(new TextEncoder().encode(markdown));
+  await writer.close();
+  return new TextDecoder().decode((await cmd.output()).stdout);
+}
+
+const headings = (latex: string) =>
+  latex.split("\n").filter((line) => /section\*?\{/.test(line)).map((line) => line.replace(/\\label\{[^}]*\}/, ""));
+
+Deno.test({
+  name: "section numbers: a single title equal to the cover title is dropped and chapters move up",
+  ignore: !pandocAvailable(),
+  fn: async () => {
+    const latex = await latexWithSectionNumbers("# Titel\n\n## Een\n\n### Sub\n\n## Twee\n", "Titel");
+    assertEquals(headings(latex), ["\\section{Een}", "\\subsection{Sub}", "\\section{Twee}"]);
+  },
+});
+
+Deno.test({
+  name: "section numbers: a single title that differs from the cover title stays, unnumbered",
+  ignore: !pandocAvailable(),
+  fn: async () => {
+    const latex = await latexWithSectionNumbers("# Anders\n\n## Een\n", "Titel");
+    assertEquals(headings(latex), ["\\section*{Anders}", "\\section{Een}"]);
+  },
+});
+
+Deno.test({
+  name: "section numbers: several top-level headings keep their levels",
+  ignore: !pandocAvailable(),
+  fn: async () => {
+    const latex = await latexWithSectionNumbers("# A\n\n## Sub\n\n# B\n", "Titel");
+    assertEquals(headings(latex), ["\\section{A}", "\\subsection{Sub}", "\\section{B}"]);
   },
 });

@@ -705,6 +705,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
     config.courseName,
     sortedEntries,
     config.readersModule,
+    { module: config.teacherDashboard?.module ?? null, teacherPageHref },
   );
   await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
   console.log("  ✓ imsmanifest.xml");

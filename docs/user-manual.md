@@ -2,7 +2,8 @@
 
 Publication pipeline for course material from Git to Brightspace
 
-_Author(s)_: Bart van der Wal _Version_: 1.0
+- *_*Author(s)*: Bart van der Wal
+- *Version*: 1.0
 
 ## 1. Introduction
 
@@ -136,6 +137,7 @@ The most important fields:
 | `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
+| `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner) |
 | `readersModule`        | no       | Menu module for the reader PDFs: `slug` (default `readers`) and `title`; see [8.2](#82-menu-module-and-order) |
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
@@ -144,6 +146,7 @@ The most important fields:
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
 | `diagrams.krokiUrl`    | no       | Kroki endpoint for PlantUML/Mermaid rendering (default `https://kroki.io`)                   |
 | `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
+| `diagrams.locale`      | no       | Language of generated labels: diagram UI and reader PDF cover and document language (`nl` or `en`, default `nl`) |
 | `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
 | `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.4](#44-core-concept-flashcards) |
 | `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.7](#47-teacher-page) |
@@ -257,7 +260,7 @@ By default, lint scans `sourcesDir`, `readersDir` and their linked Markdown incl
 
 These paths are relative to the current working directory and replace the default source/reader inputs. They must remain inside the project root. `bso lint --sources lessons/week-1` overrides the selection. Linked includes are always checked as dependencies.
 
-For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (27 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-with-all-lint-issues/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout. An installed CLI older than 0.11.2 does not know `lint.includeDirs`, and one older than 0.12.0 rejects `teacherPage`.
+For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (28 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-with-all-lint-issues/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout.
 
 ### 4.6 Links between lesson pages
 
@@ -298,6 +301,14 @@ If the default page does not exist, BSO skips it without a message. If a configu
 When courses use GitLab for student assignments, instructors can monitor student work item progress across student repositories using the built-in **Voortgangsverkenner** (Teacher progress dashboard).
 
 BSO generates this standalone client-side dashboard page at `content/docenten/voortgangsverkenner.html` and packages it into the instructor module (`module_docentenmateriaal`) in `imsmanifest.xml`. After importing the Common Cartridge into Brightspace, instructors keep this module hidden from students.
+
+To avoid an extra module in the menu, put the dashboard in a content module with `teacherDashboard.module`, for example the module that holds the teacher page. The dashboard then comes directly after the teacher page and the "Instructor material (hide after import)" module is no longer created:
+
+```json
+"teacherDashboard": { "module": { "slug": "algemeen" }, ... }
+```
+
+`slug` is the folder name in `sourcesDir`, the same form as `readersModule`; the optional `title` sets the module title. If no content folder has that name, BSO creates a separate module with that title (or the slug). Without `module` nothing changes. Like the teacher page, instructors set the dashboard item to hidden from students after import. The dashboard shows no data without a GitLab token, so this is no data leak, but it avoids confusion.
 
 Configure the dashboard under `teacherDashboard` in `brightspacosaurus.config.json`:
 
@@ -666,6 +677,8 @@ Reader PDFs get their own module by default. To put them in a content module ins
 ```
 
 `title` sets the module title; without it the module keeps the H1 of its `index.md` or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+
+The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 
 Moving the readers changes the menu structure: after the next import the old "Readers" module stays in Brightspace and you delete it once by hand. The reader topics keep their identifiers.
 

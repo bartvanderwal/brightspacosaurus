@@ -210,9 +210,18 @@ function itemXml(entry: ManifestEntry): string {
         </item>`;
 }
 
+/** Where the Voortgangsverkenner goes in the menu (see `teacherDashboard.module`). */
+export interface DashboardPlacement {
+  /** Content module that holds the dashboard; null keeps the separate instructor module. */
+  module: ReadersModuleConfig | null;
+  /** Manifest href of the teacher page; the dashboard comes directly after it. */
+  teacherPageHref?: string;
+}
+
 function buildOrganizationItems(
   entries: ManifestEntry[],
   readersModule: ReadersModuleConfig,
+  dashboard: DashboardPlacement = { module: null },
 ): string {
   const groupedEntries = new Map<string, ManifestEntry[]>();
   const readerEntries: ManifestEntry[] = [];
@@ -258,9 +267,18 @@ function buildOrganizationItems(
     // Entries arrive in navigation order (sortManifestEntriesForNavigation).
     // Readers join the module named by readersModule.slug, after its pages.
     const holdsReaders = groupLabel === readersModule.slug;
-    const children = holdsReaders ? [...groupEntries, ...readerEntries] : groupEntries;
+    const holdsDashboard = groupLabel === dashboard.module?.slug;
+    let pages = groupEntries;
+    if (holdsDashboard) {
+      // The dashboard comes directly after the teacher page, or first without one.
+      const at = groupEntries.findIndex((entry) => entry.href === dashboard.teacherPageHref);
+      pages = [...groupEntries.slice(0, at + 1), ...docentenEntries, ...groupEntries.slice(at + 1)];
+    }
+    const children = holdsReaders ? [...pages, ...readerEntries] : pages;
     const title = holdsReaders && readersModule.title
       ? readersModule.title
+      : holdsDashboard && dashboard.module?.title
+      ? dashboard.module.title
       : moduleTitle(groupLabel, groupEntries);
 
     return `      <item identifier="${escapeXml(groupId)}">
@@ -289,10 +307,20 @@ ${readerEntries.map(itemXml).join("\n")}
       </item>`]
     : [];
 
-  // Instructor module: set to "Do not display" after import in Brightspace
-  const docentenItems = docentenEntries.length > 0
-    ? [`      <item identifier="module_docentenmateriaal">
-        <title>Instructor material (hide after import)</title>
+  // Instructor module: set to "Do not display" after import in Brightspace.
+  // With teacherDashboard.module the items go into a content module instead;
+  // when no folder has that name, they get a module of that name.
+  const dashboardModule = dashboard.module;
+  const dashboardInGroup = dashboardModule ? groupedEntries.has(dashboardModule.slug) : false;
+  const docentenItems = docentenEntries.length > 0 && !dashboardInGroup
+    ? [`      <item identifier="module_${
+      dashboardModule
+        ? escapeXml("dashboard_" + dashboardModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"))
+        : "docentenmateriaal"
+    }">
+        <title>${
+      escapeXml(dashboardModule ? dashboardModule.title ?? dashboardModule.slug : "Instructor material (hide after import)")
+    }</title>
 ${
       docentenEntries.map((entry) =>
         `        <item identifier="item_${
@@ -318,12 +346,14 @@ ${
  * @param courseTitle - Human-readable course title
  * @param entries - Resource entries (HTML web content + QTI assessments)
  * @param readersModule - Menu module for reader PDFs (default: separate "Readers")
+ * @param dashboard - Menu placement of the Voortgangsverkenner (default: separate instructor module)
  * @returns Complete XML string of the manifest
  */
 export function buildManifest(
   courseTitle: string,
   entries: ManifestEntry[],
   readersModule: ReadersModuleConfig = { slug: "readers", title: null },
+  dashboard: DashboardPlacement = { module: null },
 ): string {
   // All entries go into the navigation structure: HTML lessons and QTI quizzes per week.
   // Brightspace imports QTI items both as assessments and as content items in the menu.
@@ -343,7 +373,7 @@ ${fileElements.join("\n")}
     </resource>`;
   }).join("\n");
 
-  const itemsXml = buildOrganizationItems(contentEntries, readersModule);
+  const itemsXml = buildOrganizationItems(contentEntries, readersModule, dashboard);
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="brightspacosaurus_manifest"

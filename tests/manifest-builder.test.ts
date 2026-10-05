@@ -581,3 +581,66 @@ Deno.test("sidebar_position orders pages like Docusaurus: positioned pages first
   ]);
   assertEquals(sorted.map((e) => e.title), ["D", "C", "A", "B"]);
 });
+
+// ---------------------------------------------------------------------------
+// teacherDashboard.module (#55)
+// ---------------------------------------------------------------------------
+
+const dashboardEntry = page("content/docenten/voortgangsverkenner.html", "Voortgangsverkenner");
+const teacherPageHref = "content/algemeen/voor-docenten.html";
+
+Deno.test("without teacherDashboard.module the dashboard keeps its own instructor module", () => {
+  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry], { firstHref: teacherPageHref });
+  const xml = buildManifest("Cursus", sorted);
+  assertEquals(moduleTitles(xml).at(-1), "module_docentenmateriaal:Instructor material (hide after import)");
+  assertEquals(itemOrder(xml, "module_docentenmateriaal"), ["Voortgangsverkenner"]);
+});
+
+Deno.test("teacherDashboard.module puts the dashboard directly after the teacher page and drops the instructor module", () => {
+  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry], { firstHref: teacherPageHref });
+  const xml = buildManifest("Cursus", sorted, { slug: "readers", title: null }, {
+    module: { slug: "algemeen", title: null },
+    teacherPageHref,
+  });
+  assertEquals(moduleTitles(xml), ["group_algemeen:Algemeen", "group_week_1:week-1", "module_readers:Readers"]);
+  assertEquals(itemOrder(xml, "group_algemeen"), [
+    "Voor docenten",
+    "Voortgangsverkenner",
+    "Algemeen",
+    "Studentenhandleiding",
+    "FAQ",
+  ]);
+  assertEquals(xml.includes("docentenmateriaal"), false);
+});
+
+Deno.test("teacherDashboard.module and readersModule can share one module: dashboard after the teacher page, readers last", () => {
+  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry], { firstHref: teacherPageHref });
+  const xml = buildManifest("Cursus", sorted, { slug: "algemeen", title: null }, {
+    module: { slug: "algemeen", title: null },
+    teacherPageHref,
+  });
+  assertEquals(itemOrder(xml, "group_algemeen"), [
+    "Voor docenten",
+    "Voortgangsverkenner",
+    "Algemeen",
+    "Studentenhandleiding",
+    "FAQ",
+    "Reader Git",
+    "Reader PlantUML",
+  ]);
+});
+
+Deno.test("teacherDashboard.module without a matching folder makes a module of that name instead of the instructor module", () => {
+  const xml = buildManifest("Cursus", sortManifestEntriesForNavigation([...menuEntries, dashboardEntry]), {
+    slug: "readers",
+    title: null,
+  }, { module: { slug: "docenten-info", title: "Docenten" } });
+  assertEquals(moduleTitles(xml).at(-1), "module_dashboard_docenten_info:Docenten");
+  assertEquals(xml.includes("docentenmateriaal"), false);
+});
+
+Deno.test("teacherDashboard.module without a teacher page in that module puts the dashboard first", () => {
+  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry]);
+  const xml = buildManifest("Cursus", sorted, undefined, { module: { slug: "week-1", title: null } });
+  assertEquals(itemOrder(xml, "group_week_1"), ["Voortgangsverkenner", "Les 1"]);
+});

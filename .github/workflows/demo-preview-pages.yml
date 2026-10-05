@@ -56,6 +56,7 @@ jobs:
         run: |
           deno lint
           deno task lint:demo
+          deno task lint:docs
 
       - name: Fast tests (without pandoc PDFs)
         run: deno task test:fast

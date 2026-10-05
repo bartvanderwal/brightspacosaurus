@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -31,6 +31,7 @@
     "demo:preview": "deno run --allow-read --allow-write=build --allow-env --allow-run=npm src/main.ts preview",
     "lint:course": "deno run --allow-read --allow-env src/main.ts lint",
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
+    "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs",
     "lint:issues": "cd examples/demo-course-with-all-lint-issues && deno run --config ../../deno.json --allow-read --allow-env ../../src/main.ts lint"
   },
   "fmt": {
@@ -76,6 +77,7 @@
       "assets/include-filter.lua",
       "assets/diagram-filter.lua",
       "assets/chapter-filter.lua",
+      "assets/section-number-filter.lua",
       "CHANGELOG.md",
       "docs/user-manual.md",
       "docs/software-guidebook.md",

@@ -134,3 +134,25 @@ Deno.test("resolveConfig applies correct default values for teacherDashboard", (
   assertEquals(resolved.teacherDashboard?.redThresholdPercent, 50);
   assertEquals(resolved.teacherDashboard?.requireCommentsForDone, false);
 });
+
+Deno.test("teacherDashboard.module is validated like readersModule, with a required slug", () => {
+  const td = (module: unknown) => baseConfig({ groupPath: "g", subgroups: ["A"], repos: [{ prefix: "p", label: "P" }], module });
+  assertEquals(validateConfig(td({ slug: "algemeen" })), true);
+  assertEquals(validateConfig(td({ slug: "algemeen", title: "Algemeen" })), true);
+  assertThrows(() => validateConfig(td({ title: "Algemeen" })), Error, "teacherDashboard.module.slug");
+  assertThrows(() => validateConfig(td({ slug: "../x" })), Error, "teacherDashboard.module.slug");
+  assertThrows(() => validateConfig(td({ slug: "a", titel: "x" })), Error, "teacherDashboard.module.titel");
+  assertThrows(() => validateConfig(td("algemeen")), Error, "teacherDashboard.module");
+});
+
+Deno.test("resolveConfig: teacherDashboard.module defaults to null and resolves slug and title", () => {
+  const resolve = (module?: { slug: string; title?: string }) =>
+    resolveConfig({
+      courseName: "C",
+      version: "1",
+      sourcesDir: "s",
+      teacherDashboard: { groupPath: "g", ...(module ? { module } : {}) },
+    }, {}, REPO_ROOT).teacherDashboard?.module;
+  assertEquals(resolve(), null);
+  assertEquals(resolve({ slug: "algemeen", title: " Algemeen " }), { slug: "algemeen", title: "Algemeen" });
+});

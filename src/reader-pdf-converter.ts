@@ -243,6 +243,10 @@ export function buildReaderPandocArgs(options: {
   headerPath: string;
   includeFilterPath: string;
   diagramFilterPath: string;
+  /** Lua filter that numbers chapters and sections. */
+  sectionNumberFilterPath: string;
+  /** Document language, from `diagrams.locale`; default "nl". */
+  locale?: "nl" | "en";
   /** Lua filter that starts every chapter on a new page; omitted when disabled. */
   chapterFilterPath?: string;
   metadata: ReaderPdfMetadata;
@@ -258,7 +262,7 @@ export function buildReaderPandocArgs(options: {
     "-V",
     "geometry:margin=2.5cm",
     "-V",
-    "lang=nl",
+    `lang=${options.locale ?? "nl"}`,
     metadataArg("title", options.metadata.title),
     ...(options.metadata.author
       ? [metadataArg("author", options.metadata.author)]
@@ -272,10 +276,12 @@ export function buildReaderPandocArgs(options: {
     `--include-in-header=${options.headerPath}`,
     `--lua-filter=${options.includeFilterPath}`,
     `--lua-filter=${options.diagramFilterPath}`,
+    `--lua-filter=${options.sectionNumberFilterPath}`,
     ...(options.chapterFilterPath
       ? [`--lua-filter=${options.chapterFilterPath}`]
       : []),
     "--syntax-highlighting=tango",
+    "--number-sections",
     "--toc",
   ];
 
@@ -333,6 +339,7 @@ export async function convertReaderToPdf(
   const headerPath = await materializeAsset("reader-header.tex");
   const includeFilterPath = await materializeAsset("include-filter.lua");
   const diagramFilterPath = await materializeAsset("diagram-filter.lua");
+  const sectionNumberFilterPath = await materializeAsset("section-number-filter.lua");
   const chapterFilterPath = options.chapterNewPage === false
     ? undefined
     : await materializeAsset("chapter-filter.lua");
@@ -381,6 +388,8 @@ export async function convertReaderToPdf(
       headerPath,
       includeFilterPath,
       diagramFilterPath,
+      sectionNumberFilterPath,
+      locale: options.locale,
       chapterFilterPath,
       metadata,
       coverHeaderPath,

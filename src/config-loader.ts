@@ -316,6 +316,14 @@ export function validateConfig(config: unknown): config is BsoConfig {
         "Field 'diagrams.failOnError' must be a boolean if it is provided.",
       );
     }
+
+    if (
+      diagrams.locale !== undefined &&
+      diagrams.locale !== "nl" &&
+      diagrams.locale !== "en"
+    ) {
+      throw new Error("Field 'diagrams.locale' must be \"nl\" or \"en\".");
+    }
   }
 
   // Validate teacherDashboard if it is present
@@ -340,6 +348,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
       "requireCommentsForDone",
       "orangeThresholdPercent",
       "redThresholdPercent",
+      "module",
     ]);
 
     for (const key of Object.keys(td)) {
@@ -472,6 +481,17 @@ export function validateConfig(config: unknown): config is BsoConfig {
       }
     }
 
+    // Optional: module
+    if (td.module !== undefined) {
+      if (typeof td.module !== "object" || td.module === null || Array.isArray(td.module)) {
+        throw new Error("Field 'teacherDashboard.module' must be an object with 'slug' and optional 'title'.");
+      }
+      if ((td.module as Record<string, unknown>).slug === undefined) {
+        throw new Error("Field 'teacherDashboard.module.slug' is required when 'teacherDashboard.module' is set.");
+      }
+      resolveModule(td.module, "teacherDashboard.module");
+    }
+
     // Relative threshold constraint: 0 <= orange < red <= 100
     const effOrange = td.orangeThresholdPercent !== undefined
       ? (td.orangeThresholdPercent as number)
@@ -533,6 +553,7 @@ export function resolveTeacherDashboardConfig(
     requireCommentsForDone: dashboard.requireCommentsForDone ?? false,
     orangeThresholdPercent: dashboard.orangeThresholdPercent ?? 10,
     redThresholdPercent: dashboard.redThresholdPercent ?? 50,
+    module: dashboard.module ? resolveModule(dashboard.module, "teacherDashboard.module") : null,
   };
 }
 
@@ -679,14 +700,19 @@ export function resolveFromCliOnly(
  * is a single folder name, so it can match a content folder in `sourcesDir`.
  */
 export function resolveReadersModule(value?: unknown): ReadersModuleConfig {
+  return resolveModule(value, "readersModule");
+}
+
+/** Validates a menu module setting (`readersModule`, `teacherDashboard.module`). */
+function resolveModule(value: unknown, field: string): ReadersModuleConfig {
   if (value === undefined) return { slug: "readers", title: null };
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("Field 'readersModule' must be an object with optional 'slug' and 'title'.");
+    throw new Error(`Field '${field}' must be an object with optional 'slug' and 'title'.`);
   }
   const obj = value as Record<string, unknown>;
   for (const key of Object.keys(obj)) {
     if (key !== "slug" && key !== "title") {
-      throw new Error(`Unknown field 'readersModule.${key}'. Allowed: slug, title.`);
+      throw new Error(`Unknown field '${field}.${key}'. Allowed: slug, title.`);
     }
   }
   if (
@@ -694,11 +720,11 @@ export function resolveReadersModule(value?: unknown): ReadersModuleConfig {
     (typeof obj.slug !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(obj.slug))
   ) {
     throw new Error(
-      "Field 'readersModule.slug' must be a folder name (letters, digits, '.', '_' or '-').",
+      `Field '${field}.slug' must be a folder name (letters, digits, '.', '_' or '-').`,
     );
   }
   if (obj.title !== undefined && (typeof obj.title !== "string" || !obj.title.trim())) {
-    throw new Error("Field 'readersModule.title' must be a non-empty string.");
+    throw new Error(`Field '${field}.title' must be a non-empty string.`);
   }
   return {
     slug: (obj.slug as string | undefined) ?? "readers",

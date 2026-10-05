@@ -8,6 +8,19 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.17.0 - 2026-10-05
+
+### Added
+
+- `teacherDashboard.module`: put the Voortgangsverkenner in a content module, directly after the teacher page, instead of in its own "Instructor material (hide after import)" module, which is then no longer created. Same form as `readersModule` (`{ "slug": "algemeen", "title": "Algemeen" }`). Without the option nothing changes (#55).
+- Reader PDFs number their chapters and sections (1, 1.1, ...). A single top-level title that repeats the cover title is dropped from the body.
+- `diagrams.locale` (`nl` or `en`, default `nl`) is now a configuration field. It sets the language of the diagram labels, the reader PDF cover labels and the PDF document language.
+- `bso lint` rule `metadata-fields-one-line`: warns when `_Label_: value` or `**Label:** value` fields end up in one paragraph and render on one line. `deno task lint:docs` checks the documentation.
+
+### Changed
+
+- In the online demo, a reader page starts with the embedded PDF; the web version follows below it.
+
 ## 0.16.0 - 2026-10-02
 
 ### Added

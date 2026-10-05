@@ -203,6 +203,8 @@ export interface DiagramsConfig {
   output?: "img-html-base64" | "inline-svg" | "img-base64" | "object-base64";
   /** Build laten falen bij een diagramfout. Standaard: true. */
   failOnError?: boolean;
+  /** Language of the generated labels (diagram UI, reader PDF cover and document language). Standaard: "nl". */
+  locale?: "nl" | "en";
 }
 
 /** Configuration for instructor manual PDF generation. */
@@ -329,6 +331,11 @@ export interface TeacherDashboardConfig {
   orangeThresholdPercent?: number;
   /** Incomplete percentage threshold for red status (0..100). Standaard: 50. */
   redThresholdPercent?: number;
+  /**
+   * Content module (folder name in `sourcesDir`) that holds the dashboard, directly after
+   * the teacher page. Without it the dashboard gets its own "Instructor material" module.
+   */
+  module?: { slug: string; title?: string };
 }
 
 /** Resolved teacher dashboard configuration with all defaults applied. */
@@ -341,6 +348,8 @@ export interface ResolvedTeacherDashboardConfig {
   requireCommentsForDone: boolean;
   orangeThresholdPercent: number;
   redThresholdPercent: number;
+  /** Content module for the dashboard; null keeps the separate "Instructor material" module. */
+  module: ReadersModuleConfig | null;
 }
 
 /** CLI-argumenten die als override kunnen dienen boven Config_File-waarden. */
