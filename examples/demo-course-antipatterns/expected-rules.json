@@ -26,5 +26,7 @@
   "lessons/quizzes/quiz-duplicate-answer.md": "quiz-duplicate-answer",
   "lessons/quizzes/quiz-answer-syntax.md": "quiz-answer-syntax",
   "lessons/quizzes/quiz-option-syntax.md": "quiz-option-syntax",
+  "lessons/metadata/hard-wrapped-lines.md": "hard-wrapped-lines",
+  "lessons/metadata/lesson-frontmatter.md": "lesson-frontmatter",
   "lessons/metadata/metadata-fields-one-line.md": "metadata-fields-one-line"
 }

@@ -402,7 +402,7 @@ deno task lint:demo    # 0 errors, 0 warnings (exit 0)
 deno task lint:issues  # 24 errors, 3 warnings (expected exit 1)
 ```
 
-The [antipattern course](examples/demo-course-with-all-lint-issues/README.md) has
+The [antipattern course](examples/demo-course-antipatterns/README.md) has
 its own config and one lesson per linter rule. Automated tests verify exactly one
 diagnostic per lesson and require the regular demo to stay clean. These tasks use
 the checkout; an installed `bso` pinned to 0.11.1 must be updated after 0.11.2 is

@@ -45,6 +45,11 @@ export interface LintResult {
 export interface LintOptions {
   /** Headings whose content must consist solely of term/definition lists. */
   flashcards?: FlashcardsConfig;
+  /**
+   * The file is a lesson page (not a reader, quiz or include), where YAML
+   * frontmatter is not processed.
+   */
+  lessonFile?: boolean;
 }
 
 interface Node {
@@ -126,8 +131,42 @@ function inspectMarkdown(
     );
   }
 
+  // Frontmatter only drives reader covers and Docusaurus; a lesson page shows it as text.
+  const frontmatter = tree.children?.[0];
+  if (options.lessonFile && frontmatter?.type === "yaml") {
+    report(
+      frontmatter,
+      "lesson-frontmatter",
+      "YAML frontmatter is only used in readers and is not processed in lesson pages. Put the title as '# heading' and remove the rest.",
+      "warning",
+    );
+  }
+
+  // Text wrapped at a fixed column (editor or tool wrap) gives noisy diffs and
+  // breaks AI-assisted editing; the output does not change, since Markdown
+  // renders a single line break as a space. Intentional breaks (two trailing
+  // spaces or a backslash) do not count.
+  function checkHardWrap(paragraph: Node): void {
+    const { start, end } = paragraph.position!;
+    if (end.line - start.line < 2) return;
+    const wrapped = lines.slice(start.line - 1, end.line - 1).map((line) =>
+      /( {2,}|\\)$/.test(line) ? 0 : line.trim().length
+    );
+    if (wrapped.some((length) => length < 50)) return;
+    if (Math.max(...wrapped) - Math.min(...wrapped) > 25) return;
+    report(
+      paragraph,
+      "hard-wrapped-lines",
+      "This paragraph looks wrapped at a fixed column. Write each paragraph on one line and let the editor wrap it.",
+      "warning",
+    );
+  }
+
   function walk(node: Node, containers: Node[] = []): void {
-    if (node.type === "paragraph") checkMetadataFields(node);
+    if (node.type === "paragraph") {
+      checkMetadataFields(node);
+      checkHardWrap(node);
+    }
     if (["code", "html", "yaml"].includes(node.type)) {
       for (
         let i = node.position!.start.line;
@@ -243,14 +282,19 @@ function inspectMarkdown(
           children[end].depth! <= heading.depth!)
       ) end++;
       const content = children.slice(index + 1, end);
-      const invalid = content.find((child) => !isFlashcardList(child));
+      // Both syntaxes are valid: term/definition bullet lists and ::::flashcards sets.
+      const isDirectiveSet = (child: Node) =>
+        child.type === "containerDirective" && child.name === "flashcards";
+      const invalid = content.find((child) =>
+        !isFlashcardList(child) && !isDirectiveSet(child)
+      );
       if (invalid || content.length === 0) {
         report(
           invalid ?? heading,
           "flashcard-section-content",
           `Section '${
             nodeText(heading)
-          }' must contain only unordered lists of non-empty 'term: definition' items. Move prose, subheadings and other content outside this section.`,
+          }' must contain flashcards: either unordered lists of non-empty 'term: definition' items or a ::::flashcards set. Move prose, subheadings and other content outside this section.`,
           "warning",
         );
       }
@@ -329,6 +373,7 @@ export function lintMarkdown(
 /** Check configured lessons/readers/quizzes and their linked include files offline. */
 export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   const files = new Set<string>();
+  const lessonFiles = new Set<string>();
   for (
     const dir of new Set(
       (config.lint?.includeDirs ?? [config.sourcesDir, config.readersDir])
@@ -339,6 +384,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       sourcesDir: dir,
       repoRoot: config.repoRoot,
     });
+    for (const file of scan.markdownFiles) lessonFiles.add(file);
     for (
       const file of [
         ...scan.markdownFiles,
@@ -354,6 +400,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     visited.add(file);
     const result = inspectMarkdown(await Deno.readTextFile(file), file, {
       flashcards: config.flashcards,
+      lessonFile: lessonFiles.has(file),
     });
     diagnostics.push(...result.diagnostics);
     for (const include of result.includes) {
@@ -399,12 +446,34 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   return { filesChecked: visited.size, diagnostics };
 }
 
-/** Format an editor-friendly, one-line diagnostic. */
+/** Color only on a terminal, never with `NO_COLOR` set (https://no-color.org) or `TERM=dumb`. */
+export function shouldColorLint(
+  isTerminal: boolean,
+  env: { get(name: string): string | undefined },
+): boolean {
+  return isTerminal && !env.get("NO_COLOR") && env.get("TERM") !== "dumb";
+}
+
+const SEVERITY_COLORS: Record<string, string> = {
+  error: "\x1b[31m", // red
+  warning: "\x1b[38;5;166m", // dark orange
+};
+
+/**
+ * Format an editor-friendly, one-line diagnostic. With `color`, only the
+ * severity word is colored, so the `path:line:col` prefix stays clickable and
+ * the message stays readable.
+ */
 export function formatLintDiagnostic(
   diagnostic: LintDiagnostic,
   repoRoot: string,
+  color = false,
 ): string {
+  const code = color ? SEVERITY_COLORS[diagnostic.severity] : undefined;
+  const severity = code
+    ? `${code}${diagnostic.severity}\x1b[0m`
+    : diagnostic.severity;
   return `${
     relative(repoRoot, diagnostic.sourceFile)
-  }:${diagnostic.line}:${diagnostic.column}: ${diagnostic.severity} ${diagnostic.rule}: ${diagnostic.message}`;
+  }:${diagnostic.line}:${diagnostic.column}: ${severity} ${diagnostic.rule}: ${diagnostic.message}`;
 }

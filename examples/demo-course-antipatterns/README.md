@@ -1,30 +1,25 @@
-# Course with all lint issues
+# Antipatterns course
 
-This intentionally invalid course is a regression fixture, separate from the clean
-[demo course](../demo-course). Each lesson triggers exactly one diagnostic, and
-each rule occurs in exactly one lesson. Do not publish this course to students.
+This is a deliberately wrong course that triggers every `bso lint` rule exactly once. It is a test fixture for the linter, not a course to import or show to students. The clean counterpart is the [demo course](../demo-course).
+
+This intentionally invalid course is a regression fixture.  Each lesson triggers exactly one diagnostic, and each rule occurs in exactly one lesson. Do not publish this course to students.
 
 Run from the repository root with the local development version:
 
 ```sh
-deno task lint:demo    # 18 Markdown files, 0 errors, 0 warnings; exit 0
-deno task lint:issues  # 28 Markdown files, 24 errors, 4 warnings; exit 1 (expected)
+deno task lint:demo    # 20 Markdown files, 0 errors, 0 warnings; exit 0
+deno task lint:issues  # 30 Markdown files, 24 errors, 6 warnings; exit 1 (expected)
 ```
 
-An installed `bso` pinned to 0.11.1 does not recognize `flashcards` or `lint`.
-Use these local tasks until 0.11.2 is published and installed.
-
-This course has its own `brightspacosaurus.config.json`. Paths are relative to the
-working directory. To use the installed CLI after updating it:
+This course has its own `brightspacosaurus.config.json`. Paths are relative to the working directory. To use the installed CLI after updating it:
 
 ```sh
-cd examples/demo-course-with-all-lint-issues
+cd examples/demo-course-antipatterns
 bso lint
 bso lint --sources lessons/diagrams  # 5 errors, 0 warnings; exit 1 (expected)
 ```
 
-`lint.includeDirs` selects one or more folders recursively instead of the default
-source/reader folders. For example:
+`lint.includeDirs` selects one or more folders recursively instead of the default source/reader folders. For example:
 
 ```json
 {
@@ -34,14 +29,9 @@ source/reader folders. For example:
 }
 ```
 
-`--sources` overrides that selection with a single directory. Included Markdown
-files are still followed as dependencies, including those outside the selected
-folders but inside the project root.
+`--sources` overrides that selection with a single directory. Included Markdown files are still followed as dependencies, including those outside the selected folders but inside the project root.
 
-The automated tests compare emitted diagnostics with `expected-rules.json` and
-require one diagnostic per file, with no duplicates or unexpected diagnostics.
-When adding a linter rule, add its focused lesson here and update that manifest.
-Tests also require the ordinary demo course to remain free of diagnostics.
+The automated tests compare emitted diagnostics with `expected-rules.json` and require one diagnostic per file, with no duplicates or unexpected diagnostics. When adding a linter rule, add its focused lesson here and update that manifest. Tests also require the ordinary demo course to remain free of diagnostics.
 
 ## Diagnostic catalogue
 
@@ -74,4 +64,6 @@ Tests also require the ordinary demo course to remain free of diagnostics.
 | `quiz-duplicate-answer` | error | [quiz-duplicate-answer.md](lessons/quizzes/quiz-duplicate-answer.md) |
 | `quiz-answer-syntax` | error | [quiz-answer-syntax.md](lessons/quizzes/quiz-answer-syntax.md) |
 | `quiz-option-syntax` | error | [quiz-option-syntax.md](lessons/quizzes/quiz-option-syntax.md) |
+| `hard-wrapped-lines` | warning | [hard-wrapped-lines.md](lessons/metadata/hard-wrapped-lines.md) |
+| `lesson-frontmatter` | warning | [lesson-frontmatter.md](lessons/metadata/lesson-frontmatter.md) |
 | `metadata-fields-one-line` | warning | [metadata-fields-one-line.md](lessons/metadata/metadata-fields-one-line.md) |

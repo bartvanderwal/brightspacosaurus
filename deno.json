@@ -32,7 +32,7 @@
     "lint:course": "deno run --allow-read --allow-env src/main.ts lint",
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
     "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs",
-    "lint:issues": "cd examples/demo-course-with-all-lint-issues && deno run --config ../../deno.json --allow-read --allow-env ../../src/main.ts lint"
+    "lint:issues": "cd examples/demo-course-antipatterns && deno run --config ../../deno.json --allow-read --allow-env ../../src/main.ts lint"
   },
   "fmt": {
     "proseWrap": "never",

@@ -250,6 +250,12 @@ For Docusaurus preview parity and implementation details, see the [Software Guid
 
 `bso lint` checks flashcards, includes, diagrams and quiz authoring without building or contacting external services. It reports `file:line:column`, severity and rule. Errors return exit code 1; warnings alone return 0.
 
+The `error` or `warning` word is colored (red and dark orange) only when stderr is a terminal, `NO_COLOR` is not set and `TERM` is not `dumb`; in a pipe or log the output stays plain. Only that word is colored, so `file:line:column` stays clickable. When there are diagnostics, one blank line precedes the summary line `Checked N Markdown files: X errors, Y warnings.`
+
+`lesson-frontmatter` (warning) reports a YAML frontmatter block at the top of a lesson file. BSO uses frontmatter only for readers (`title`, `author`, `version`, `date`, `updated`, `coverImage`, `coverAlt`); it is not processed in lesson pages. Put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
+
+`hard-wrapped-lines` (warning) reports a paragraph that looks wrapped at a fixed column: three or more lines that are all at least 50 characters long and differ by at most 25 characters. Markdown renders such line breaks as spaces, so the output does not change, but diffs get noisy and AI-assisted editing has to rewrap text. Write each paragraph on one line and let the editor wrap it. Breaks that end in two spaces or a backslash are intentional and ignored.
+
 By default, lint scans `sourcesDir`, `readersDir` and their linked Markdown includes. To select only specific folders or subfolders, add this fragment to your configuration:
 
 ```json
@@ -262,7 +268,7 @@ By default, lint scans `sourcesDir`, `readersDir` and their linked Markdown incl
 
 These paths are relative to the current working directory and replace the default source/reader inputs. They must remain inside the project root. `bso lint --sources lessons/week-1` overrides the selection. Linked includes are always checked as dependencies.
 
-For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (28 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-with-all-lint-issues/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout.
+For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (28 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-antipatterns/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout.
 
 ### 4.6 Links between lesson pages
 
@@ -451,13 +457,13 @@ deno task pack
 
 `prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive in the same build directory, for example `build/brightspace/cursus.v1.0.0.imscc`: the name comes from `name`/`courseName` and the postfix from the course `version` in the config.
 
+`imsmanifest.xml` records how the package was made: the LOM description holds the BSO version, course name and course version, for example `Brightspacosaurus 0.18.0; course: Demo Course; course version: 0.10.0`. Read it without Brightspace with `unzip -p cursus.v1.0.0.imscc imsmanifest.xml`. No build time is written by default, so repeated builds stay identical; set `SOURCE_DATE_EPOCH` (seconds since 1970) to add `built: <ISO 8601 time>`.
+
 With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build. With `--skip-readers` you do the opposite: BSO skips all PDF generation with pandoc (readers, instructor manual and user manual) and still copies pre-built PDFs. That makes local builds and tests much faster when the PDFs are not what you are checking.
 
 For fast author feedback, use `bso preview` when `docusaurusDir` is configured. This starts the Docusaurus development server for the course repository, so most content and formatting issues can be caught locally before creating and importing a new `.imscc` package.
 
 ### 5.2 Import behavior: additive with overwrite option
-
-`imsmanifest.xml` records how the package was made: the LOM description holds the BSO version, course name and course version, for example `Brightspacosaurus 0.18.0; course: Demo Course; course version: 0.10.0`. Read it without Brightspace with `unzip -p cursus.v1.0.0.imscc imsmanifest.xml`. No build time is written by default, so repeated builds stay identical; set `SOURCE_DATE_EPOCH` (seconds since 1970) to add `built: <ISO 8601 time>`.
 
 Brightspace import is additive by default for content modules and quizzes: a new import adds items but does not automatically delete or overwrite existing modules or quizzes. Duplicate imports lead to duplicate items.
 
@@ -630,6 +636,7 @@ Readers (for example memory models, class diagrams, PlantUML or Git explanations
 
 The Source Scanner classifies files with the `reader-` prefix as reader files. BSO converts them to PDF via pandoc with xelatex or lualatex as the PDF engine. Some properties:
 
+- Reader PDFs use the DejaVu fonts when installed (on macOS: `brew install --cask font-dejavu`). Without DejaVu, BSO falls back to the TeX Gyre fonts that ship with TeX Live, and the check mark `✔` to Menlo, Noto Sans Symbols2 or Symbola if present. If none has that glyph, the PDF still builds, with a LaTeX warning and a missing check mark.
 - If pandoc is not available, BSO logs a warning and skips the reader PDF conversion without aborting the build.
 - Pandoc's `--resource-path` is set to the directory of the source file, so that relative image references are resolved correctly.
 - If a reader conversion fails, BSO reports the file and continues with the remaining readers, but returns a non-zero exit code afterwards.
@@ -638,7 +645,6 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - Every chapter starts on a new page. The chapter level is the highest heading level in the reader; when that level occurs only once, as a title above `##` chapters, the next level counts. Headings in code blocks are ignored, and a manual `\clearpage` before a chapter gives no blank page, so you can remove those from your readers. Turn it off with `"readerChapterNewPage": false`.
 - In CI with a shallow clone (for example GitLab's `GIT_DEPTH`) the last commit that touched a file may be missing, or replaced by a later one. BSO detects a shallow clone and then ignores the Git date, falling back to `updated`. For the real date in CI, fetch the full history (`GIT_DEPTH: 0`) for the job that builds the readers.
 - Add a cover image with `coverImage` in the frontmatter, relative to the reader file, for example `coverImage: img/git-branches.png`. The image appears between author and date, scaled to at most 80% of the page width and 45% of its height. Use PNG or JPG, and a path without spaces or LaTeX special characters (`%`, `#`, `{`, `}`). If the file is missing or the path is unusable, BSO prints a warning and builds the cover without image. `coverAlt` may hold a description for editors; the PDF does not use it yet.
-- Reader PDFs use the DejaVu fonts when installed (on macOS: `brew install --cask font-dejavu`). Without DejaVu, BSO falls back to the TeX Gyre fonts that ship with TeX Live, and the check mark `✔` to Menlo, Noto Sans Symbols2 or Symbola if present. If none has that glyph, the PDF still builds, with a LaTeX warning and a missing check mark.
 - Add a logo to every reader cover page with `readerCoverLogo` in `brightspacosaurus.config.json`, relative to the repository root, for example `"readerCoverLogo": "shared/han-logo.png"`. The logo appears at the bottom of the cover, above the date, at most 4 cm wide and 3 cm high. The same path rules and warnings apply as for `coverImage`.
 
 BSO includes reader PDFs in the IMSCC package as webcontent resources. By default they get their own "Readers" module in the menu; see [8.2](#82-menu-module-and-order) to put them in another module.

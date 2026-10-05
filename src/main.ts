@@ -7,7 +7,11 @@
  * @module
  */
 
-import { formatLintDiagnostic, lintCourse } from "./course-linter.ts";
+import {
+  formatLintDiagnostic,
+  lintCourse,
+  shouldColorLint,
+} from "./course-linter.ts";
 import {
   basename,
   dirname,
@@ -26,11 +30,11 @@ import { loadPackageVersion, materializeAsset } from "./assets.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import {
   buildManifest,
+  buildTimeFromEnv,
   deriveReaderMenuTitle,
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
-  buildTimeFromEnv,
 import type { ManifestEntry, ResolvedConfig } from "./types.ts";
 import {
   EXAMPLE_CONFIG,
@@ -707,16 +711,16 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
     sortedEntries,
     config.readersModule,
     { module: config.teacherDashboard?.module ?? null, teacherPageHref },
-  );
-  await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
-  console.log("  ✓ imsmanifest.xml");
-
     {
       bsoVersion: await loadPackageVersion(),
       courseName: config.courseName,
       courseVersion: config.version,
       buildTime: buildTimeFromEnv(),
     },
+  );
+  await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
+  console.log("  ✓ imsmanifest.xml");
+
   // Pack
   console.log("Packaging into .imscc...");
   await pack({ sourceDir: buildDir, outputPath });
@@ -811,9 +815,12 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
 /** Report authoring diagnostics without generating course output. */
 export async function runLint(config: ResolvedConfig): Promise<void> {
   const result = await lintCourse(config);
+  const color = shouldColorLint(Deno.stderr.isTerminal(), Deno.env);
   for (const diagnostic of result.diagnostics) {
-    console.error(formatLintDiagnostic(diagnostic, config.repoRoot));
+    console.error(formatLintDiagnostic(diagnostic, config.repoRoot, color));
   }
+  // A blank line separates the diagnostics from the summary.
+  if (result.diagnostics.length) console.log();
   const errors =
     result.diagnostics.filter((diagnostic) => diagnostic.severity === "error")
       .length;

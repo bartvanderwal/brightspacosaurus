@@ -29,6 +29,6 @@ deno task test
 deno task demo
 ```
 
-Run `deno task lint:demo` for the clean course and `deno task lint:issues` for the deliberately invalid course (expected exit 1). Every new lint rule needs one focused lesson and an entry in `examples/demo-course-with-all-lint-issues/expected-rules.json`; the regression test requires exactly one diagnostic per lesson.
+Run `deno task lint:demo` for the clean course and `deno task lint:issues` for the deliberately invalid course (expected exit 1). Every new lint rule needs one focused lesson and an entry in `examples/demo-course-antipatterns/expected-rules.json`; the regression test requires exactly one diagnostic per lesson.
 
 The demo build is a durable manual regression fixture. Import its generated `.imscc` into a Brightspace sandbox when a change affects generated HTML, links, JavaScript, assets, navigation, quizzes or PDFs.

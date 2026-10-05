@@ -10,6 +10,7 @@ import {
   formatLintDiagnostic,
   lintCourse,
   lintMarkdown,
+  shouldColorLint,
 } from "../src/course-linter.ts";
 import {
   loadConfig,
@@ -83,6 +84,33 @@ Deno.test("lint shares quiz validation and formats source locations for editors"
     "quiz-test.md:2:1: error quiz-answer: Question 2:",
   );
   assertEquals(lintMarkdown(source.replace("Z", "a"), "quiz-test.md"), []);
+});
+
+Deno.test("lint output colors only the severity word, and only when asked", () => {
+  const warning = {
+    severity: "warning" as const,
+    rule: "flashcard-section-content",
+    message: "m",
+    sourceFile: "/repo/a.md",
+    line: 3,
+    column: 1,
+  };
+  assertEquals(
+    formatLintDiagnostic(warning, "/repo"),
+    "a.md:3:1: warning flashcard-section-content: m",
+  );
+  assertEquals(
+    formatLintDiagnostic(warning, "/repo", true),
+    "a.md:3:1: \x1b[38;5;166mwarning\x1b[0m flashcard-section-content: m",
+  );
+  assertEquals(
+    formatLintDiagnostic(
+      { ...warning, severity: "error" as const },
+      "/repo",
+      true,
+    ),
+    "a.md:3:1: \x1b[31merror\x1b[0m flashcard-section-content: m",
+  );
 });
 
 Deno.test("lint follows includes once, checks readers and reports missing, unsafe and cyclic targets", async () => {
@@ -390,7 +418,7 @@ Deno.test("clean demo has no diagnostics and antipattern demo has exactly one fi
     Deno.cwd(),
   );
   assertEquals((await lintCourse(clean)).diagnostics, []);
-  const root = resolve("examples/demo-course-with-all-lint-issues");
+  const root = resolve("examples/demo-course-antipatterns");
   const config = resolveConfig(
     await loadConfig(join(root, "brightspacosaurus.config.json")),
     {},
@@ -422,13 +450,13 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
     const [cwd, args, code, summary] of [
       [Deno.cwd(), [], 0, "0 errors, 0 warnings"],
       [
-        resolve("examples/demo-course-with-all-lint-issues"),
+        resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "24 errors, 4 warnings",
+        "24 errors, 6 warnings",
       ],
       [
-        resolve("examples/demo-course-with-all-lint-issues"),
+        resolve("examples/demo-course-antipatterns"),
         ["--sources", "lessons/diagrams"],
         1,
         "5 errors, 0 warnings",
@@ -465,4 +493,126 @@ Deno.test("lint warns when 'Label: value' metadata fields run together in one pa
   assertEquals(rules("_Author_: A\n\n_Version_: 1\n"), []);
   assertEquals(rules("**Manual test:** links and includes.\n"), []);
   assertEquals(rules("```\n_Author_: A\n_Version_: 1\n```\n"), []);
+});
+
+Deno.test("lint warns about frontmatter in lesson files only", async () => {
+  const front = "---\ntitle: Lesson\nsidebar_position: 1\n---\n\n# Lesson\n";
+  const lesson = (source: string) =>
+    lintMarkdown(source, "lesson.md", { lessonFile: true });
+  const [issue] = lesson(front);
+  assertEquals(issue.rule, "lesson-frontmatter");
+  assertEquals(issue.severity, "warning");
+  assertEquals([issue.line, issue.column], [1, 1]);
+  // Not a lesson (reader, include or single-file check), no frontmatter, or an example.
+  assertEquals(lintMarkdown(front, "reader-demo.md"), []);
+  assertEquals(lesson("# Lesson\n"), []);
+  assertEquals(lesson("# Lesson\n\n---\ntitle: x\n---\n"), []);
+  assertEquals(lesson("```yaml\n---\ntitle: x\n---\n```\n"), []);
+
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(join(root, "lessons"));
+    await Deno.mkdir(join(root, "readers"));
+    await Deno.writeTextFile(join(root, "lessons", "a.md"), front);
+    await Deno.writeTextFile(join(root, "readers", "reader-a.md"), front);
+    const result = await lintCourse(resolveConfig(
+      {
+        courseName: "Lint",
+        version: "1",
+        sourcesDir: "lessons",
+        readersDir: "readers",
+      },
+      {},
+      root,
+    ));
+    assertEquals(
+      result.diagnostics.map((d) => [relative(root, d.sourceFile), d.rule]),
+      [["lessons/a.md", "lesson-frontmatter"]],
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("CLI lint puts one blank line before the summary only when there are diagnostics", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const run = async () => {
+      const output = await new Deno.Command(Deno.execPath(), {
+        args: [
+          "run",
+          "--config",
+          resolve("deno.json"),
+          "--allow-read",
+          "--allow-env",
+          resolve("src/main.ts"),
+          "lint",
+          "--sources",
+          ".",
+        ],
+        cwd: root,
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
+      return {
+        stdout: new TextDecoder().decode(output.stdout),
+        stderr: new TextDecoder().decode(output.stderr),
+      };
+    };
+    await Deno.writeTextFile(join(root, "lesson.md"), "::::flashcards\n::::");
+    const withWarning = await run();
+    assertStringIncludes(withWarning.stderr, "warning flashcard-empty-set");
+    assertEquals(withWarning.stderr.includes("\x1b["), false); // piped: no color
+    assertEquals(withWarning.stdout, "\nChecked 1 Markdown files: 0 errors, 1 warnings.\n");
+    await Deno.writeTextFile(join(root, "lesson.md"), valid);
+    assertEquals((await run()).stdout, "Checked 1 Markdown files: 0 errors, 0 warnings.\n");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("lint colors only on a terminal without NO_COLOR and TERM=dumb", () => {
+  const env = (vars: Record<string, string>) => ({ get: (k: string) => vars[k] });
+  assertEquals(shouldColorLint(true, env({ TERM: "xterm-256color" })), true);
+  assertEquals(shouldColorLint(true, env({})), true);
+  assertEquals(shouldColorLint(false, env({ TERM: "xterm" })), false);
+  assertEquals(shouldColorLint(true, env({ NO_COLOR: "1" })), false);
+  assertEquals(shouldColorLint(true, env({ TERM: "dumb" })), false);
+});
+
+Deno.test("lint accepts both flashcard syntaxes in a flashcard section and warns when neither is used", () => {
+  const options = { flashcards: { sectionHeadings: ["Kernbegrippen"] } };
+  const rules = (source: string, opts = options) =>
+    lintMarkdown(source, "lesson.md", opts).map((issue) => issue.rule);
+  assertEquals(rules("## Kernbegrippen\n\n- request: Message.\n"), []);
+  assertEquals(rules(`## Kernbegrippen\n\n${valid}\n`), []);
+  assertEquals(rules("## Kernbegrippen\n\nOnly prose.\n"), ["flashcard-section-content"]);
+  assertEquals(rules("## Kernbegrippen\n"), ["flashcard-section-content"]);
+  // Without configuration the default heading 'Core concepts' (any case) is checked.
+  assertEquals(rules("## core CONCEPTS\n\nOnly prose.\n", {} as typeof options), ["flashcard-section-content"]);
+  assertEquals(rules(`## Core concepts\n\n${valid}\n`, {} as typeof options), []);
+});
+
+Deno.test("lint warns about paragraphs hard-wrapped at a fixed column", () => {
+  const rules = (source: string) =>
+    lintMarkdown(source, "doc.md").map((issue) => issue.rule);
+  const wrapped = [
+    "This paragraph is wrapped at a fixed column, the way some editors",
+    "and tools break long lines. Markdown renders the line breaks as",
+    "spaces, so readers see no difference in the output at all.",
+  ].join("\n");
+  assertEquals(rules(wrapped), ["hard-wrapped-lines"]);
+  assertEquals(rules(`- item ${wrapped.replaceAll("\n", "\n  ")}\n`), ["hard-wrapped-lines"]);
+  // One line, two lines, short lines, uneven lines and code are fine.
+  assertEquals(rules(wrapped.replaceAll("\n", " ")), []);
+  assertEquals(rules(wrapped.split("\n").slice(0, 2).join("\n")), []);
+  assertEquals(rules("Short line one\nshort line two\nshort line three"), []);
+  assertEquals(rules(`${"x".repeat(100)}\n${"y".repeat(60)}\nend`), []);
+  assertEquals(rules("```\n" + wrapped + "\n```"), []);
+  // Intentional breaks (two trailing spaces or a backslash) are not wrapping.
+  assertEquals(rules(wrapped.replaceAll("\n", "  \n")), []);
+  assertEquals(rules(wrapped.replaceAll("\n", "\\\n")), []);
+  const [issue] = lintMarkdown(wrapped, "doc.md");
+  assertEquals(issue.severity, "warning");
+  assertEquals(issue.line, 1);
 });

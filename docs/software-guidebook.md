@@ -619,7 +619,7 @@ empty sections, prose, subheadings, code and invalid lists produce one
 `flashcard-section-content` warning per affected section. List validation is
 shared with the renderer. Rendering preserves content even when lint warns.
 
-The separate `examples/demo-course-with-all-lint-issues` course contains 27
+The separate `examples/demo-course-antipatterns` course contains 30
 minimal lessons and an expected-rule manifest. Integration tests require exactly
 one diagnostic per lesson and unique rules across all lessons; the regular demo
 must emit none. Invalid directive nesting and malformed quiz answer keys report
