@@ -337,6 +337,37 @@ ${
     .join("\n");
 }
 
+/** Build details written to the manifest, so a package shows how it was made (issue #56). */
+export interface BuildInfo {
+  bsoVersion: string;
+  courseName: string;
+  courseVersion: string;
+  /** ISO 8601 build time; omitted by default to keep builds reproducible. */
+  buildTime?: string;
+}
+
+/**
+ * Build time as ISO 8601 from `SOURCE_DATE_EPOCH` (seconds), or `undefined`
+ * when unset or invalid. Without it no time is written, so repeated builds of
+ * the same input give identical output.
+ */
+export function buildTimeFromEnv(
+  epoch: string | undefined = Deno.env.get("SOURCE_DATE_EPOCH"),
+): string | undefined {
+  if (!epoch || !/^\d+$/.test(epoch)) return undefined;
+  return new Date(Number(epoch) * 1000).toISOString();
+}
+
+/** One-line description in `key: value` form, readable with `unzip -p pkg.imscc imsmanifest.xml`. */
+export function formatBuildInfo(info: BuildInfo): string {
+  return [
+    `Brightspacosaurus ${info.bsoVersion}`,
+    `course: ${info.courseName}`,
+    `course version: ${info.courseVersion}`,
+    ...(info.buildTime ? [`built: ${info.buildTime}`] : []),
+  ].join("; ");
+}
+
 /**
  * Generates a valid imsmanifest.xml based on the course title and resource entries.
  *
@@ -347,6 +378,7 @@ ${
  * @param entries - Resource entries (HTML web content + QTI assessments)
  * @param readersModule - Menu module for reader PDFs (default: separate "Readers")
  * @param dashboard - Menu placement of the Voortgangsverkenner (default: separate instructor module)
+ * @param buildInfo - BSO version, course version and optional build time, written as the LOM description
  * @returns Complete XML string of the manifest
  */
 export function buildManifest(
@@ -354,6 +386,7 @@ export function buildManifest(
   entries: ManifestEntry[],
   readersModule: ReadersModuleConfig = { slug: "readers", title: null },
   dashboard: DashboardPlacement = { module: null },
+  buildInfo?: BuildInfo,
 ): string {
   // All entries go into the navigation structure: HTML lessons and QTI quizzes per week.
   // Brightspace imports QTI items both as assessments and as content items in the menu.
@@ -391,7 +424,16 @@ ${fileElements.join("\n")}
           <lomimscc:string language="nl-NL">${
     escapeXml(courseTitle)
   }</lomimscc:string>
-        </lomimscc:title>
+        </lomimscc:title>${
+    buildInfo
+      ? `
+        <lomimscc:description>
+          <lomimscc:string language="en">${
+        escapeXml(formatBuildInfo(buildInfo))
+      }</lomimscc:string>
+        </lomimscc:description>`
+      : ""
+  }
       </lomimscc:general>
     </lomimscc:lom>
   </metadata>

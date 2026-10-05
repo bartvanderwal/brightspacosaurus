@@ -30,6 +30,7 @@ import {
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
+  buildTimeFromEnv,
 import type { ManifestEntry, ResolvedConfig } from "./types.ts";
 import {
   EXAMPLE_CONFIG,
@@ -710,6 +711,12 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
   console.log("  ✓ imsmanifest.xml");
 
+    {
+      bsoVersion: await loadPackageVersion(),
+      courseName: config.courseName,
+      courseVersion: config.version,
+      buildTime: buildTimeFromEnv(),
+    },
   // Pack
   console.log("Packaging into .imscc...");
   await pack({ sourceDir: buildDir, outputPath });

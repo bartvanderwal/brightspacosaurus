@@ -9,7 +9,9 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import fc from "fast-check";
 import {
   buildManifest,
+  buildTimeFromEnv,
   deriveReaderMenuTitle,
+  formatBuildInfo,
   sortManifestEntriesForNavigation,
 } from "../src/manifest-builder.ts";
 import type { ManifestEntry } from "../src/types.ts";
@@ -643,4 +645,42 @@ Deno.test("teacherDashboard.module without a teacher page in that module puts th
   const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry]);
   const xml = buildManifest("Cursus", sorted, undefined, { module: { slug: "week-1", title: null } });
   assertEquals(itemOrder(xml, "group_week_1"), ["Voortgangsverkenner", "Les 1"]);
+});
+
+Deno.test("manifest records BSO version, course name and version, and is deterministic", () => {
+  const info = {
+    bsoVersion: "0.18.0",
+    courseName: "Demo & Co <1>",
+    courseVersion: "1.2.3",
+  };
+  const xml = buildManifest("Demo", [], undefined, undefined, info);
+  assertStringIncludes(
+    xml,
+    "Brightspacosaurus 0.18.0; course: Demo &amp; Co &lt;1&gt;; course version: 1.2.3",
+  );
+  assertEquals(xml.includes("built:"), false);
+  assertEquals(buildManifest("Demo", [], undefined, undefined, info), xml);
+  assertEquals(buildManifest("Demo", []).includes("description"), false);
+});
+
+Deno.test("manifest includes the build time when given", () => {
+  const info = {
+    bsoVersion: "0.18.0",
+    courseName: "Demo",
+    courseVersion: "1",
+    buildTime: "2026-10-05T12:00:00.000Z",
+  };
+  assertStringIncludes(formatBuildInfo(info), "built: 2026-10-05T12:00:00.000Z");
+  assertStringIncludes(
+    buildManifest("Demo", [], undefined, undefined, info),
+    "built: 2026-10-05T12:00:00.000Z",
+  );
+});
+
+Deno.test("buildTimeFromEnv converts SOURCE_DATE_EPOCH and ignores bad values", () => {
+  assertEquals(buildTimeFromEnv("0"), "1970-01-01T00:00:00.000Z");
+  assertEquals(buildTimeFromEnv("1780000000"), "2026-05-28T20:26:40.000Z");
+  assertEquals(buildTimeFromEnv(undefined), undefined);
+  assertEquals(buildTimeFromEnv(""), undefined);
+  assertEquals(buildTimeFromEnv("yesterday"), undefined);
 });
