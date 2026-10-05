@@ -50,5 +50,5 @@ After importing `build/brightspace/demo-course.v0.10.0.imscc` into Brightspace:
 11. Open an imported quiz and confirm **Randomize answer order** is enabled (the demo sets `quiz.shuffleAnswers: true`). Take an attempt, select the known correct answer and verify its score. Repeat with `quiz.shuffleAnswers: false` in a separate test course to confirm fixed ordering.
 12. Preview the same quiz in Docusaurus: answer identities and scoring stay correct after shuffling; **New attempt** resets answers. Preview feedback is local and does not store grades.
 
-Run `deno task lint:course` from the repository root before exporting. The browser
+Run `deno task lint:demo` from the repository root before exporting. The browser
 parity tests are described in [the preview README](../../demo-course-docs/README.md).

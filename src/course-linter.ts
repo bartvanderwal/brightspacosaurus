@@ -39,6 +39,10 @@ export interface LintResult {
   filesChecked: number;
   /** Diagnostics ordered by file, line, column and rule. */
   diagnostics: LintDiagnostic[];
+  /** Scanned directories (relative to the repository root) and their Markdown file counts. */
+  directories: { dir: string; files: number }[];
+  /** Files checked only because another file includes them. */
+  includedFiles: number;
 }
 
 /** Options shared by single-file and course linting. */
@@ -374,6 +378,7 @@ export function lintMarkdown(
 export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   const files = new Set<string>();
   const lessonFiles = new Set<string>();
+  const directories: LintResult["directories"] = [];
   for (
     const dir of new Set(
       (config.lint?.includeDirs ?? [config.sourcesDir, config.readersDir])
@@ -385,6 +390,11 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       repoRoot: config.repoRoot,
     });
     for (const file of scan.markdownFiles) lessonFiles.add(file);
+    directories.push({
+      dir: relative(config.repoRoot, dir) || ".",
+      files: scan.markdownFiles.length + scan.quizFiles.length +
+        scan.readerFiles.length,
+    });
     for (
       const file of [
         ...scan.markdownFiles,
@@ -443,7 +453,26 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   }
   for (const file of [...files].sort()) await check(file);
   diagnostics.sort(compareDiagnostics);
-  return { filesChecked: visited.size, diagnostics };
+  return {
+    filesChecked: visited.size,
+    diagnostics,
+    directories,
+    includedFiles: visited.size - files.size,
+  };
+}
+
+/** Lines that say what a lint run scanned, so the file count is not a mystery. */
+export function formatLintScope(result: LintResult): string[] {
+  const count = (n: number) => `${n} Markdown file${n === 1 ? "" : "s"}`;
+  return [
+    "Scanning:",
+    ...result.directories.map(({ dir, files }) =>
+      `  ${dir}/ (${count(files)})`
+    ),
+    ...(result.includedFiles
+      ? [`  + ${result.includedFiles} linked include file${result.includedFiles === 1 ? "" : "s"}`]
+      : []),
+  ];
 }
 
 /** Color only on a terminal, never with `NO_COLOR` set (https://no-color.org) or `TERM=dumb`. */

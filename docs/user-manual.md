@@ -248,7 +248,7 @@ For Docusaurus preview parity and implementation details, see the [Software Guid
 
 ### 4.5 Linting course material
 
-`bso lint` checks flashcards, includes, diagrams and quiz authoring without building or contacting external services. It reports `file:line:column`, severity and rule. Errors return exit code 1; warnings alone return 0.
+`bso lint` applies developer best practices to course material: it checks flashcards, includes, diagrams, quiz authoring and source hygiene (frontmatter in lessons, hard-wrapped paragraphs) before you export, without building or contacting external services, so mistakes surface in your editor or CI instead of after the Brightspace import. It starts by saying which directories and how many files it scanned. It reports `file:line:column`, severity and rule. Errors return exit code 1; warnings alone return 0.
 
 The `error` or `warning` word is colored (red and dark orange) only when stderr is a terminal, `NO_COLOR` is not set and `TERM` is not `dumb`; in a pipe or log the output stays plain. Only that word is colored, so `file:line:column` stays clickable. When there are diagnostics, one blank line precedes the summary line `Checked N Markdown files: X errors, Y warnings.`
 
@@ -268,7 +268,7 @@ By default, lint scans `sourcesDir`, `readersDir` and their linked Markdown incl
 
 These paths are relative to the current working directory and replace the default source/reader inputs. They must remain inside the project root. `bso lint --sources lessons/week-1` overrides the selection. Linked includes are always checked as dependencies.
 
-For the repository's regression examples, run `deno task lint:demo` (no diagnostics) and `deno task lint:issues` (28 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-antipatterns/README.md) has its own configuration and exactly one file for each linter rule. These local tasks use the source checkout.
+For the repository's regression examples, run `bso lint` in `examples/demo-course` (no diagnostics) and in `examples/demo-course-antipatterns` (30 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-antipatterns/README.md) has its own configuration and exactly one file for each linter rule. `bso lint` starts with the directories and file counts it scanned.
 
 ### 4.6 Links between lesson pages
 

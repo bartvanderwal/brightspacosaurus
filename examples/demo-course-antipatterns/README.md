@@ -2,22 +2,23 @@
 
 This is a deliberately wrong course that triggers every `bso lint` rule exactly once. It is a test fixture for the linter, not a course to import or show to students. The clean counterpart is the [demo course](../demo-course).
 
-This intentionally invalid course is a regression fixture.  Each lesson triggers exactly one diagnostic, and each rule occurs in exactly one lesson. Do not publish this course to students.
+This intentionally invalid course is a regression fixture. Each lesson triggers exactly one diagnostic, and each rule occurs in exactly one lesson. Do not publish this course to students.
 
-Run from the repository root with the local development version:
-
-```sh
-deno task lint:demo    # 20 Markdown files, 0 errors, 0 warnings; exit 0
-deno task lint:issues  # 30 Markdown files, 24 errors, 6 warnings; exit 1 (expected)
-```
-
-This course has its own `brightspacosaurus.config.json`. Paths are relative to the working directory. To use the installed CLI after updating it:
+Run `bso lint` in this folder: it uses the configuration of the current directory, so here it checks this course (30 Markdown files, 24 errors, 6 warnings; exit 1 is expected) and in `examples/demo-course` it checks the clean course (0 errors, 0 warnings).
 
 ```sh
 cd examples/demo-course-antipatterns
 bso lint
 bso lint --sources lessons/diagrams  # 5 errors, 0 warnings; exit 1 (expected)
 ```
+
+Before a new version is published, use the checkout instead of the installed `bso`. From the repository root, once:
+
+```sh
+deno install -A -g -f -n bso-local --config deno.json src/main.ts
+```
+
+Then run `bso-local lint` in this folder. The output starts with the directories and file counts it scanned.
 
 `lint.includeDirs` selects one or more folders recursively instead of the default source/reader folders. For example:
 

@@ -8,6 +8,7 @@ import { join, relative, resolve } from "@std/path";
 import fc from "fast-check";
 import {
   formatLintDiagnostic,
+  formatLintScope,
   lintCourse,
   lintMarkdown,
   shouldColorLint,
@@ -364,6 +365,11 @@ Deno.test("lint directory selection is validated, recursive, deduplicated and ov
     assertEquals(await lintCourse(resolved), {
       filesChecked: 1,
       diagnostics: [],
+      directories: [
+        { dir: "lessons/good", files: 1 },
+        { dir: "lessons/good/nested", files: 1 },
+      ],
+      includedFiles: 0,
     });
     assertEquals(
       (await lintCourse(resolveConfig(base, {}, root))).diagnostics.length,
@@ -563,9 +569,15 @@ Deno.test("CLI lint puts one blank line before the summary only when there are d
     const withWarning = await run();
     assertStringIncludes(withWarning.stderr, "warning flashcard-empty-set");
     assertEquals(withWarning.stderr.includes("\x1b["), false); // piped: no color
-    assertEquals(withWarning.stdout, "\nChecked 1 Markdown files: 0 errors, 1 warnings.\n");
+    assertEquals(
+      withWarning.stdout,
+      "Scanning:\n  ./ (1 Markdown file)\n\nChecked 1 Markdown files: 0 errors, 1 warnings.\n",
+    );
     await Deno.writeTextFile(join(root, "lesson.md"), valid);
-    assertEquals((await run()).stdout, "Checked 1 Markdown files: 0 errors, 0 warnings.\n");
+    assertEquals(
+      (await run()).stdout,
+      "Scanning:\n  ./ (1 Markdown file)\nChecked 1 Markdown files: 0 errors, 0 warnings.\n",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -615,4 +627,36 @@ Deno.test("lint warns about paragraphs hard-wrapped at a fixed column", () => {
   const [issue] = lintMarkdown(wrapped, "doc.md");
   assertEquals(issue.severity, "warning");
   assertEquals(issue.line, 1);
+});
+
+Deno.test("lint says what it scanned: directories, file counts and linked includes", () => {
+  const base = { filesChecked: 0, diagnostics: [] };
+  assertEquals(
+    formatLintScope({
+      ...base,
+      directories: [
+        { dir: "lessons", files: 28 },
+        { dir: "readers", files: 1 },
+      ],
+      includedFiles: 2,
+    }),
+    [
+      "Scanning:",
+      "  lessons/ (28 Markdown files)",
+      "  readers/ (1 Markdown file)",
+      "  + 2 linked include files",
+    ],
+  );
+  assertEquals(
+    formatLintScope({
+      ...base,
+      directories: [{ dir: "lessons", files: 3 }],
+      includedFiles: 1,
+    }).at(-1),
+    "  + 1 linked include file",
+  );
+  assertEquals(
+    formatLintScope({ ...base, directories: [], includedFiles: 0 }),
+    ["Scanning:"],
+  );
 });

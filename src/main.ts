@@ -9,6 +9,7 @@
 
 import {
   formatLintDiagnostic,
+  formatLintScope,
   lintCourse,
   shouldColorLint,
 } from "./course-linter.ts";
@@ -816,6 +817,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
 export async function runLint(config: ResolvedConfig): Promise<void> {
   const result = await lintCourse(config);
   const color = shouldColorLint(Deno.stderr.isTerminal(), Deno.env);
+  for (const line of formatLintScope(result)) console.log(line);
   for (const diagnostic of result.diagnostics) {
     console.error(formatLintDiagnostic(diagnostic, config.repoRoot, color));
   }

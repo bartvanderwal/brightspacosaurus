@@ -89,9 +89,9 @@ Turn it on: nothing to configure; every fenced code block with a language gets i
 
 ## `bso lint`
 
-Checks BSO-specific authoring rules before you export: include syntax, diagram sources and quiz answers.
+Lints your course material like code, so you apply developer best practices to course development: broken includes, wrong quiz answer keys, diagram and flashcard mistakes, stray frontmatter in lessons and paragraphs hard-wrapped at a fixed column are reported with `file:line:column` before you export. It runs offline and says which folders it scanned.
 
-Turn it on: run `bso lint` in the course repository.
+Turn it on: run `bso lint` in the course repository, or in CI (the GitHub Pages workflow of this demo does).
 
 See it in the user manual: [Linting course material](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#45-linting-course-material).
 

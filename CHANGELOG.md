@@ -8,6 +8,21 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.18.0 - 2026-10-05
+
+### Added
+
+- `bso lint` starts with the directories and file counts it scanned, colors the `error` and `warning` word on a terminal (not with `NO_COLOR`, `TERM=dumb` or a pipe) and puts a blank line before the summary.
+- `bso lint` rules `lesson-frontmatter` (YAML frontmatter in a lesson file) and `hard-wrapped-lines` (paragraphs wrapped at a fixed column). Flashcard sections now also accept a `::::flashcards` set.
+- `imsmanifest.xml` records the BSO version, course name and course version in the LOM description, and a build time when `SOURCE_DATE_EPOCH` is set.
+- The README has a Documentation section with the role of each kind of documentation, and the demo folders explain how they differ.
+
+### Changed
+
+- Flashcard lists under a heading render as a compact bulleted list; `::::flashcards` sets keep the card style. The Show/Hide definitions button follows `diagrams.locale`.
+- Reader PDFs fall back to TeX Gyre fonts when DejaVu is not installed.
+- `examples/demo-course-with-all-lint-issues` is now `examples/demo-course-antipatterns`; the `lint:issues` and `lint:course` tasks are gone, run `bso lint` in the course folder instead.
+
 ## 0.17.0 - 2026-10-05
 
 ### Added

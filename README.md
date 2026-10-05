@@ -27,7 +27,7 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 - 🃏 **[Practise core concepts with flashcards](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#flashcards-for-core-concepts)** — term/definition lists become interactive cards
 - 👩‍🏫 **[See which version is in Brightspace](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#teacher-only-page)** — on a teacher-only page that also hosts the progress dashboard
 - 💻 **[Include code blocks in lesson material](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#code-blocks-with-a-copy-button)** — with syntax highlighting and a copy button
-- 🔎 **[Check authoring rules before export](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#bso-lint)** — with `bso lint`
+- 🔎 **[Lint your course material like code](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#bso-lint)** — `bso lint` catches broken includes, wrong quiz answer keys, diagram and flashcard mistakes, stray frontmatter and hard-wrapped text before students (or Brightspace) do
 - 🧭 **[Set the menu order](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#configurable-menu-order)** — with folders, `sidebar_position` and `readersModule`
 
 Each feature is explained, with a page that shows it, in the [online demo course](https://bartvanderwal.github.io/brightspacosaurus/lessons/features).
@@ -365,20 +365,20 @@ deno install -g -f --allow-read --allow-write --allow-net --allow-env --allow-ru
 ```sh
 bso lint
 bso lint --sources path/to/lessons
-# Use the local development version before publishing/installing the new release:
-deno task lint:course
+# Use the local development version before publishing/installing the new release
+# (install once with: deno install -A -g -f -n bso-local --config deno.json src/main.ts):
+bso-local lint
 ```
 
-This complements Quickmark/Markdown style linting with BSO-specific checks:
-flashcard nesting and content, include syntax/targets/cycles, diagram declarations,
-and valid quiz answer keys. It checks the configured lessons, quizzes, readers and
-linked include files without rendering, network requests or writing build output.
-Diagnostics go to stderr as `file:line:column: error|warning rule: message`; the
-summary goes to stdout. Exit code `1` means authoring errors; warnings alone return
-`0`. Invalid configuration or inaccessible source directories also fail the command.
-For configured `flashcards.sectionHeadings`, lint warns unless the section contains
-only complete unordered `term: definition` lists. Put introductions before the
-heading or in another section. Conversion still preserves invalid content.
+`bso lint` brings developer best practices to course material: you check content the way you check code, before it ships. It runs offline and read-only on your lessons, quizzes, readers and linked includes, and starts by saying what it scanned. It catches problems that otherwise only show up after the Brightspace import, or never:
+
+- **Broken references:** include syntax, missing, unsafe or cyclic include targets.
+- **Quizzes:** missing, duplicate or unmatched answer keys, empty prompts and options.
+- **Diagrams as code:** unsupported languages, empty diagrams, bad fence options and sources.
+- **Flashcards:** nesting, incomplete cards, and flashcard sections without any flashcards.
+- **Source hygiene:** YAML frontmatter in lesson files, fields that run together on one line, and paragraphs hard-wrapped at a fixed column, which make diffs noisy and AI-assisted editing harder.
+
+Diagnostics go to stderr as `file:line:column: error|warning rule: message`, with the severity colored on a terminal; the summary goes to stdout. Exit code `1` means authoring errors, warnings alone return `0`, so it fits in CI (see the GitHub Pages workflow). It complements Quickmark/Markdown style linting. Invalid configuration or inaccessible source directories also fail the command. Flashcard sections under `flashcards.sectionHeadings` (default `Core concepts`) warn unless they hold complete `term: definition` bullet lists or a `::::flashcards` set; conversion still preserves other content.
 
 Limit linting to selected directories with this optional config fragment:
 
@@ -395,18 +395,11 @@ The directories are scanned recursively, replacing the usual `sourcesDir` and
 inside the project root. `--sources` overrides this selection with one directory.
 Linked includes are still checked as dependencies even outside the selected folders.
 
-Two local regression commands separate clean content from deliberate errors:
-
-```sh
-deno task lint:demo    # 0 errors, 0 warnings (exit 0)
-deno task lint:issues  # 24 errors, 3 warnings (expected exit 1)
-```
+`bso lint` uses the configuration of the current directory and starts with the directories and file counts it scanned. Run it in `examples/demo-course` for the clean course (0 errors, 0 warnings) and in `examples/demo-course-antipatterns` for the deliberately invalid one (24 errors, 6 warnings, exit 1).
 
 The [antipattern course](examples/demo-course-antipatterns/README.md) has
 its own config and one lesson per linter rule. Automated tests verify exactly one
-diagnostic per lesson and require the regular demo to stay clean. These tasks use
-the checkout; an installed `bso` pinned to 0.11.1 must be updated after 0.11.2 is
-published before it recognizes the new `flashcards` and `lint` fields.
+diagnostic per lesson and require the regular demo to stay clean.
 
 ## Importing into Brightspace
 

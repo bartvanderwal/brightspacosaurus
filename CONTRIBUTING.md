@@ -29,6 +29,6 @@ deno task test
 deno task demo
 ```
 
-Run `deno task lint:demo` for the clean course and `deno task lint:issues` for the deliberately invalid course (expected exit 1). Every new lint rule needs one focused lesson and an entry in `examples/demo-course-antipatterns/expected-rules.json`; the regression test requires exactly one diagnostic per lesson.
+`deno task lint` is Deno's TypeScript linter and has nothing to do with course material; BSO's own check is `bso lint`. Run `deno task lint:demo` for the clean course. For the deliberately invalid course, run `bso lint` in `examples/demo-course-antipatterns` (expected exit 1); before a release is published, install the checkout once with `deno install -A -g -f -n bso-local --config deno.json src/main.ts` and use `bso-local lint`. Every new lint rule needs one focused lesson and an entry in `examples/demo-course-antipatterns/expected-rules.json`; the regression test requires exactly one diagnostic per lesson.
 
 The demo build is a durable manual regression fixture. Import its generated `.imscc` into a Brightspace sandbox when a change affects generated HTML, links, JavaScript, assets, navigation, quizzes or PDFs.

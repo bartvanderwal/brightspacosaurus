@@ -38,6 +38,7 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 
 ## Engineering conventions
 
+- **Easy to use, hard to make.** The effort belongs in the tool, not with the user, as long as the feature is valuable to end users. Prefer one command that does the right thing in context (for example `bso lint` follows the configuration of the current directory and says what it scanned) over several specialized commands, flags or settings. Support both of two reasonable syntaxes instead of adding a setting to choose. Do not add configuration for a choice BSO can make itself.
 - Commands are idempotent: repeated execution on the same input produces identical output.
 - Fail fast with useful error messages to `stderr`; progress to `stdout`.
 - Deterministic file ordering when creating archives.
