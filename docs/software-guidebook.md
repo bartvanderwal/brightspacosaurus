@@ -65,7 +65,7 @@ Rel(kroki, kroki_plugin, "returns a rendered PNG, SVG, or base64-embedded image 
 Rel(bso, pandoc, "shells out to for PDF generation", "optional, --allow-run=pandoc")
 Rel(bso, author, "delivers the generated .imscc package to")
 Rel(author, brightspace, "manually imports the .imscc into — integrally (whole course) or selectively (individual components), the latter able to overwrite existing items")
-Rel(brightspace, student, "delivers imported course content, quizzes and accessible diagrams to")
+Rel_D(student, brightspace, "opens course content, uses quizzes and accessible (UML or other) diagrams in")
 Rel(jsr, bso, "distributes the published tool to authors and CI pipelines", "optional")
 
 SHOW_LEGEND()
@@ -468,7 +468,7 @@ This chapter summarises the main design decisions and links to the full Architec
 - **8.6** Publication via JSR
 - **8.7** Asset loading via fetch + materialize for JSR compatibility
 - **8.8** Diagram rendering via remark-kroki-a11y
-- **8.9** Config file over convention-only
+- **8.9** Convention over configuration, with a config file for overrides
 
 ### 8.1 Preview/output parity
 
@@ -585,37 +585,53 @@ The significant architectural decisions are recorded as Architecture Decision Re
 
 ### 8.2 Deno over Node.js — [ADR 008](adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md)
 
-**Context:** the tool runs in CI with repository and build-process access, making supply-chain security a first-class concern. **Decision:** use Deno as the runtime. **Rationale:** Deno's explicit permission model limits file access to declared paths, and it does not run postinstall scripts automatically — closing a well-known npm supply-chain vector.
+- **Context:** the tool runs in CI with repository and build-process access, making supply-chain security a first-class concern.
+- **Decision:** use Deno as the runtime.
+- **Rationale:** Deno's explicit permission model limits file access to declared paths, and it does not run postinstall scripts automatically — closing a well-known npm supply-chain vector.
 
 ### 8.3 unified (remark / rehype) for Markdown → HTML — [ADR 010](adr/adr010-brightspacosaurus-unified-markdown-pipeline.md)
 
-**Context:** Markdown must convert to clean, standalone HTML with GFM, frontmatter and rich content. **Decision:** use the unified pipeline (remark-parse, remark-gfm, remark-frontmatter, remark-rehype, rehype-stringify). **Rationale:** a well-established, composable, plugin-driven pipeline with predictable output.
+- **Context:** Markdown must convert to clean, standalone HTML with GFM, frontmatter and rich content.
+- **Decision:** use the unified pipeline (remark-parse, remark-gfm, remark-frontmatter, remark-rehype, rehype-stringify).
+- **Rationale:** a well-established, composable, plugin-driven pipeline with predictable output.
 
 ### 8.4 Rich content in quiz questions — [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)
 
-**Context:** quiz questions need more than plain text (code, formatting). **Decision:** support rich content in quiz Markdown when converting to QTI. **Rationale:** questions stay authored in Markdown while producing valid QTI 1.2 for Brightspace.
+- **Context:** quiz questions need more than plain text (code, formatting).
+- **Decision:** support rich content in quiz Markdown when converting to QTI.
+- **Rationale:** questions stay authored in Markdown while producing valid QTI 1.2 for Brightspace.
 
 ### 8.5 Reader PDF conversion via pandoc — [ADR 014](adr/adr014-brightspacosaurus-reader-pdf-conversion.md)
 
-**Context:** readers and the instructor manual need print-quality PDF output. **Decision:** convert reader Markdown to PDF via pandoc with a xelatex/lualatex engine, a custom LaTeX header and Lua filters. **Rationale:** pandoc gives high-quality typesetting; PDF generation is optional and skipped when pandoc is absent, so the core build never hard-depends on it.
+- **Context:** readers and the instructor manual need print-quality PDF output.
+- **Decision:** convert reader Markdown to PDF via pandoc with a xelatex/lualatex engine, a custom LaTeX header and Lua filters.
+- **Rationale:** pandoc gives high-quality typesetting; PDF generation is optional and skipped when pandoc is absent, so the core build never hard-depends on it.
 
 Reader PDFs use a mandatory separate cover page ('voorblad', AIM Controle Kaart) before the table of contents. BSO derives deterministic cover metadata from reader frontmatter, the first H1, the configured course name, the configured version and, when `git` is available and permitted, the last commit date of the reader Markdown file. It deliberately does not inject the current date automatically because repeated builds must remain reproducible.
 
 ### 8.6 Publication via JSR — [ADR 015](adr/adr015-brightspacosaurus-publication-via-jsr.md)
 
-**Context:** the tool should be reusable both as an executable CLI and as an importable library. **Decision:** publish to JSR as `@bartvanderwal/brightspacosaurus`. **Rationale:** native Deno support with no separate build step, automatically indexed TypeScript types, versioning, and minimal impedance mismatch with the toolchain.
+- **Context:** the tool should be reusable both as an executable CLI and as an importable library.
+- **Decision:** publish to JSR as `@bartvanderwal/brightspacosaurus`.
+- **Rationale:** native Deno support with no separate build step, automatically indexed TypeScript types, versioning, and minimal impedance mismatch with the toolchain.
 
 ### 8.7 Asset loading via fetch + materialize for JSR compatibility — _(new; GitHub issue #5)_
 
-**Context:** bundled assets were loaded with `import.meta.url` + `Deno.readTextFile()`. This works from local source (`file://`) but fails from the JSR cache with _"Must be a file URL"_, because JSR serves modules over `https://`. **Decision:** introduce `src/assets.ts` with `loadAssetText` (`import.meta.resolve()` + `fetch()`) for text assets, and `materializeAsset` (write to a temp file) for external tools such as pandoc that require a real file path. **Rationale:** `fetch` works uniformly across `file://`, `https://` and `jsr:`; temp-file materialization bridges the gap for external processes that cannot read URLs. See GitHub issue #5.
+- **Context:** bundled assets were loaded with `import.meta.url` + `Deno.readTextFile()`. This works from local source (`file://`) but fails from the JSR cache with _"Must be a file URL"_, because JSR serves modules over `https://`.
+- **Decision:** introduce `src/assets.ts` with `loadAssetText` (`import.meta.resolve()` + `fetch()`) for text assets, and `materializeAsset` (write to a temp file) for external tools such as pandoc that require a real file path.
+- **Rationale:** `fetch` works uniformly across `file://`, `https://` and `jsr:`; temp-file materialization bridges the gap for external processes that cannot read URLs. See GitHub issue #5.
 
 ### 8.8 Diagram rendering via remark-kroki-a11y — [ADR 016](adr/adr016-diagram-rendering-via-remark-kroki-a11y.md)
 
-**Context:** lesson HTML needs PlantUML/Mermaid rendering and accessibility support, while Brightspace topic content cannot safely assume custom JavaScript is available or allowed. **Decision:** run `remark-kroki-a11y` in-process, share one option mapper with preview, adapt provider HTML to native Brightspace disclosures, and keep offline validation reusable. **Rationale:** keeps rendering and natural-language descriptions in one upstream provider while giving BSO deterministic no-JS output and strict/fallback error policy.
+- **Context:** lesson HTML needs PlantUML/Mermaid rendering and accessibility support, while Brightspace topic content cannot safely assume custom JavaScript is available or allowed.
+- **Decision:** run `remark-kroki-a11y` in-process, share one option mapper with preview, adapt provider HTML to native Brightspace disclosures, and keep offline validation reusable.
+- **Rationale:** keeps rendering and natural-language descriptions in one upstream provider while giving BSO deterministic no-JS output and strict/fallback error policy.
 
-### 8.9 Config file over convention-only — _(brightspacosaurus-generiek spec)_
+### 8.9 Convention over configuration, with a config file for overrides — _(brightspacosaurus-generiek spec)_
 
-**Context:** the original tool was convention-based and tied to one specific course's directory layout. **Decision:** move to a config-driven, generic tool where all project specifics live in `brightspacosaurus.config.json`. **Rationale:** decouples the tool from any single course, making it reusable and publishable. See `.kiro/specs/brightspacosaurus-generiek/`.
+- **Context:** the original tool was convention-based and tied to one specific course's directory layout.
+- **Decision:** move to a "convention over configuration" approach: an opinionated setup with good, sensible defaults that works without any configuration, where everything can still be configured differently and project specifics live in `brightspacosaurus.config.json`.
+- **Rationale:** decouples the tool from any single course, making it reusable and publishable, while a new course needs little or no configuration to get started. See `.kiro/specs/brightspacosaurus-generiek/`.
 
 ---
 

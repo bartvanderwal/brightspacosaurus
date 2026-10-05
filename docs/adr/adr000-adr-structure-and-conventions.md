@@ -23,7 +23,7 @@ Several ADR templates (including MADR) add a separate H2 section "Decision Drive
 
 ### Option A — MADR template with Decision Drivers as H2
 
-The Markdown Any Decision Records template (Zdun et al.) adds "Decision Drivers" as a separate H2.
+The Markdown Architectural Decision Records (MADR) template (Kopp et al., 2018) lists "Decision Drivers" as a separate H2 element, marked optional in the template.
 
 **Pros:** widely used in open-source projects.
 
@@ -68,8 +68,9 @@ Positive:
 Negative:
 
 - Existing ADRs (001–013) had to be adjusted: "Decision Drivers" moved to Context as an H3.
-- The film festival submodule has its own ADRs with the same deviation; they are outside the scope of this ADR (separate repository, separate conventions).
+- The film festival submodule has its own ADRs, which also keep decision drivers in Context instead of a separate "Decision Drivers" H2. Those ADRs are outside the scope of this ADR (separate repository, separate conventions).
 
 ## References
 
+- Kopp, O., Armbruster, A., & Zimmermann, O. (2018). Markdown architectural decision records: Format and tool support. In N. Herzberg, C. Hochreiner, O. Kopp, & J. Lenhard (Eds.), *10th ZEUS Workshop, ZEUS 2018, Dresden, Germany, 8–9 February 2018* (CEUR Workshop Proceedings, Vol. 2072). CEUR-WS.org. https://ceur-ws.org/Vol-2072/paper9.pdf
 - Nygard, M. (2011, November 15). *Documenting architecture decisions*. Cognitect. Retrieved September 30, 2026, from https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
