@@ -230,23 +230,43 @@ Deno.test("demo heading cards match configured export and remain readable withou
 
 Deno.test("flashcard config validates options and resolves defaults without shared arrays", () => {
   const base = { courseName: "Test", version: "1", sourcesDir: "lessons" };
-  assertEquals(resolveConfig(base, {}, Deno.cwd()).flashcards, {
-    sectionHeadings: ["Core concepts"],
-  });
+  assertEquals(
+    resolveConfig(base, {}, Deno.cwd()).flashcards,
+    { sectionHeadings: ["Core concepts"], locale: "nl" },
+  );
   assertEquals(
     resolveFromCliOnly({ sources: "lessons" }, Deno.cwd()).flashcards,
-    { sectionHeadings: ["Core concepts"] },
+    { sectionHeadings: ["Core concepts"], locale: "nl" },
+  );
+  assertEquals(
+    resolveConfig(
+      { ...base, diagrams: { locale: "en" } },
+      {},
+      Deno.cwd(),
+    ).flashcards?.locale,
+    "en",
   );
   const defaults = resolveFlashcardsOptions({});
-  assertEquals(defaults, { sectionHeadings: ["Core concepts"] });
+  assertEquals(defaults, {
+    sectionHeadings: ["Core concepts"],
+    locale: "en",
+  });
   defaults.sectionHeadings!.push("Other");
   assertEquals(DEFAULT_SECTION_HEADINGS, ["Core concepts"]);
   assertEquals(resolveFlashcardsOptions(), {
     sectionHeadings: ["Core concepts"],
+    locale: "en",
   });
   assertEquals(
     resolveFlashcardsOptions({ sectionHeadings: [] }),
-    { sectionHeadings: [] },
+    { ...resolveFlashcardsOptions(), sectionHeadings: [] },
+  );
+  assertEquals(
+    resolveFlashcardsOptions({ locale: "nl" }),
+    {
+      sectionHeadings: ["Core concepts"],
+      locale: "nl",
+    },
   );
   const options = { sectionHeadings: [" Kernbegrippen "] };
   assertEquals(validateConfig({ ...base, flashcards: options }), true);
@@ -265,6 +285,8 @@ Deno.test("flashcard config validates options and resolves defaults without shar
       { sectionHeadings: [""] },
       { sectionHeadings: ["  "] },
       { sectionHeadings: [1] },
+      { listStyle: "cards" },
+      { locale: "de" },
     ]
   ) {
     assertThrows(
@@ -406,4 +428,55 @@ Deno.test("transformation keeps leaf node shape valid for MDX and is idempotent"
   visit(tree);
   transform(tree);
   assertEquals(tree, once);
+});
+
+const GLOSSARY =
+  "## Kernbegrippen\n\n- **request:** Message from a client.\n- **response:** Reply from a server.\n";
+
+Deno.test("heading lists are always compact", async () => {
+  const options = { sectionHeadings: ["Kernbegrippen"] };
+  const compact = await render(GLOSSARY, options);
+  assertStringIncludes(
+    compact,
+    'class="bso-flashcards bso-flashcards-compact"',
+  );
+  assertStringIncludes(compact, 'aria-expanded="true"');
+});
+
+Deno.test("explicit flashcard containers always show cards, also under a configured heading", async () => {
+  const html = await render(
+    "::::flashcards\n- **request:** Message from a client.\n::::\n",
+  );
+  assertStringIncludes(html, 'class="bso-flashcards"');
+  assertEquals(html.includes("bso-flashcards-compact"), false);
+  const underHeading = await render(
+    `## Kernbegrippen\n\n${"::::flashcards\n:::flashcard\nterm: request\n\nMessage.\n:::\n::::"}\n`,
+    { sectionHeadings: ["Kernbegrippen"] },
+  );
+  assertStringIncludes(underHeading, 'class="bso-flashcards"');
+  assertEquals(underHeading.includes("bso-flashcards-compact"), false);
+});
+
+Deno.test("button labels follow the locale", async () => {
+  const options = { sectionHeadings: ["Kernbegrippen"] };
+  const nl = await render(GLOSSARY, { ...options, locale: "nl" });
+  assertStringIncludes(nl, 'data-bso-show-label="Toon definities"');
+  assertStringIncludes(nl, 'data-bso-hide-label="Verberg definities"');
+  const en = await render(GLOSSARY, options);
+  assertStringIncludes(en, 'data-bso-show-label="Show definitions"');
+  assertStringIncludes(en, 'data-bso-hide-label="Hide definitions"');
+  const container = await render(
+    "::::flashcards\n:::flashcard\nterm: request\n\nMessage.\n:::\n::::\n",
+    { locale: "nl" },
+  );
+  assertStringIncludes(container, 'data-bso-show-label="Toon definities"');
+});
+
+Deno.test("flashcard script reads its labels from the markup and falls back to English", async () => {
+  const script = await Deno.readTextFile(
+    "assets/brightspacosaurus-flashcards.js",
+  );
+  assertStringIncludes(script, "bsoShowLabel");
+  assertStringIncludes(script, "bsoHideLabel");
+  assertStringIncludes(script, '|| "Show definitions"');
 });

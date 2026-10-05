@@ -12,17 +12,19 @@ function initializeFlashcards(root) {
         if (button) button.setAttribute("aria-expanded", String(visible));
       });
     };
+    const showLabel = section.dataset.bsoShowLabel || "Show definitions";
+    const hideLabel = section.dataset.bsoHideLabel || "Hide definitions";
     const toolbar = document.createElement("div");
     toolbar.className = "bso-flashcard-toolbar";
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "bso-flashcard-global-toggle";
-    toggle.textContent = "Show definitions";
+    toggle.textContent = showLabel;
     toggle.addEventListener("click", function () {
       const hidden = section.querySelector(".bso-flashcard-definition[hidden]");
       const visible = Boolean(hidden);
       show(visible);
-      toggle.textContent = visible ? "Hide definitions" : "Show definitions";
+      toggle.textContent = visible ? hideLabel : showLabel;
     });
     toolbar.appendChild(toggle);
     section.insertBefore(toolbar, section.firstChild);

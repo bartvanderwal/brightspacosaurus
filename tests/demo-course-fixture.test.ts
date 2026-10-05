@@ -13,7 +13,7 @@ Deno.test("demo preview resolves the same app from the checkout and course roots
     const configPath = await findConfigFile(cwd);
     if (!configPath) throw new Error(`Missing demo config in ${cwd}`);
     const config = resolveConfig(await loadConfig(configPath), {}, cwd);
-    assertEquals(config.flashcards, { sectionHeadings: ["Core concepts"] });
+    assertEquals(config.flashcards?.sectionHeadings, ["Core concepts"]);
     assertEquals(config.sourcesDir, resolve(demoRoot, "lessons"));
     assertEquals(config.readersDir, resolve(demoRoot, "readers"));
     assertEquals(config.docusaurusDir, resolve("demo-course-docs"));

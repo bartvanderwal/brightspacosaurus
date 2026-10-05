@@ -8,7 +8,21 @@ export interface FlashcardsConfig {
    * automatic conversion.
    */
   sectionHeadings?: string[];
+  /**
+   * Language of the button labels. BSO fills this in from `diagrams.locale`,
+   * so courses do not set it; direct plugin use defaults to `en`.
+   */
+  locale?: "nl" | "en";
 }
+
+/** Fully resolved flashcard options. */
+export type ResolvedFlashcardsConfig = Required<FlashcardsConfig>;
+
+/** Labels of the "all definitions" button, per locale. */
+export const FLASHCARD_LABELS = {
+  nl: { show: "Toon definities", hide: "Verberg definities" },
+  en: { show: "Show definitions", hide: "Hide definitions" },
+} as const;
 
 /** Section headings recognized when `flashcards.sectionHeadings` is omitted. */
 export const DEFAULT_SECTION_HEADINGS: readonly string[] = ["Core concepts"];
@@ -21,35 +35,49 @@ export function normalizeSectionHeading(title: string): string {
   return title.trim().replace(/^\d+(?:\.\d+)*\.?\s+/, "").toLowerCase();
 }
 
-/** Validate options for both BSO configuration and direct remark plugin use. */
+/**
+ * Validate options for both BSO configuration and direct remark plugin use.
+ * `defaultLocale` applies when `locale` is not set in the options.
+ */
 export function resolveFlashcardsOptions(
   value?: unknown,
-): Required<FlashcardsConfig> {
-  if (value === undefined) {
-    return { sectionHeadings: [...DEFAULT_SECTION_HEADINGS] };
-  }
+  defaultLocale: "nl" | "en" = "en",
+): ResolvedFlashcardsConfig {
+  const defaults: ResolvedFlashcardsConfig = {
+    sectionHeadings: [...DEFAULT_SECTION_HEADINGS],
+    locale: defaultLocale,
+  };
+  if (value === undefined) return defaults;
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Field 'flashcards' must be an object.");
   }
   const options = value as Record<string, unknown>;
   for (const key of Object.keys(options)) {
-    if (key !== "sectionHeadings") {
+    if (!["sectionHeadings", "locale"].includes(key)) {
       throw new Error(`Unknown configuration field 'flashcards.${key}'.`);
     }
   }
-  const headings = options.sectionHeadings;
-  if (headings === undefined) {
-    return { sectionHeadings: [...DEFAULT_SECTION_HEADINGS] };
-  }
+  const { sectionHeadings: headings, locale } = options;
   if (
-    !Array.isArray(headings) ||
-    headings.some((heading) => typeof heading !== "string" || !heading.trim())
+    headings !== undefined &&
+    (!Array.isArray(headings) ||
+      headings.some((heading) =>
+        typeof heading !== "string" || !heading.trim()
+      ))
   ) {
     throw new Error(
       "Field 'flashcards.sectionHeadings' must be an array of non-empty strings.",
     );
   }
-  return { sectionHeadings: headings.map((heading: string) => heading.trim()) };
+  if (locale !== undefined && locale !== "nl" && locale !== "en") {
+    throw new Error('Field \'flashcards.locale\' must be "nl" or "en".');
+  }
+  return {
+    sectionHeadings: headings
+      ? (headings as string[]).map((heading) => heading.trim())
+      : defaults.sectionHeadings,
+    locale: locale ?? defaults.locale,
+  };
 }
 
 /** Minimal Markdown node shape accepted by the flashcard transformation. */
@@ -150,11 +178,16 @@ function element(
 export function remarkFlashcards(
   options?: FlashcardsConfig,
 ): (tree: FlashcardNode) => void {
+  const resolved = resolveFlashcardsOptions(options);
   const headings = new Set(
-    resolveFlashcardsOptions(options).sectionHeadings.map(
-      normalizeSectionHeading,
-    ),
+    resolved.sectionHeadings.map(normalizeSectionHeading),
   );
+  const labels = FLASHCARD_LABELS[resolved.locale];
+  const labelProperties = {
+    "data-bso-show-label": labels.show,
+    "data-bso-hide-label": labels.hide,
+  };
+  const compactClass = "bso-flashcards bso-flashcards-compact";
   return function walk(node: FlashcardNode): void {
     let sectionDepth: number | undefined;
     if (node.children) {
@@ -173,10 +206,12 @@ export function remarkFlashcards(
         ) {
           const cards = listCards(child);
           if (cards) {
-            return node.type === "containerDirective" &&
-                node.name === "flashcards"
-              ? cards
-              : element("section", "bso-flashcards", cards);
+            if (
+              node.type === "containerDirective" && node.name === "flashcards"
+            ) {
+              return cards;
+            }
+            return element("section", compactClass, cards, labelProperties);
           }
         }
         return child;
@@ -189,7 +224,7 @@ export function remarkFlashcards(
       node.data = {
         ...node.data,
         hName: "section",
-        hProperties: { className: "bso-flashcards" },
+        hProperties: { className: "bso-flashcards", ...labelProperties },
       };
     } else if (node.name === "flashcard") {
       const first = node.children?.[0];

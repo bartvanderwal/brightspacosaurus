@@ -284,6 +284,33 @@ article.markdown pre code {
   margin-bottom: 0.75rem;
 }
 
+/* Compact list style (issue #49): a plain bulleted list, only definitions hide. */
+.bso-flashcards-compact .bso-flashcard {
+  display: list-item;
+  list-style: disc;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  margin: 0.25rem 0 0.25rem 1.25rem;
+  padding: 0;
+}
+
+.bso-flashcards-compact .bso-flashcard-toggle {
+  width: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-decoration: underline dotted;
+}
+
+.bso-flashcards-compact .bso-flashcard-definition {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.bso-flashcards-compact .bso-flashcard-definition > :first-child {
+  margin-top: 0;
+}
+
 /* === Tabellen === */
 
 .brightspace-content table,

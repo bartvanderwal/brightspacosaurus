@@ -635,7 +635,10 @@ export function resolveConfig(
     docusaurusDir,
     teacherManual,
     quiz: resolveQuizConfig(config),
-    flashcards: resolveFlashcardsOptions(config.flashcards),
+    flashcards: resolveFlashcardsOptions(
+      config.flashcards,
+      config.diagrams?.locale ?? "nl",
+    ),
     teacherPage: {
       path: resolve(sourcesDir, resolveTeacherPage(config.teacherPage)),
       explicit: config.teacherPage !== undefined,
@@ -684,7 +687,7 @@ export function resolveFromCliOnly(
     docusaurusDir: null,
     teacherManual: null,
     quiz: { ...DEFAULT_QUIZ_CONFIG },
-    flashcards: resolveFlashcardsOptions(),
+    flashcards: resolveFlashcardsOptions(undefined, "nl"),
     teacherPage: {
       path: resolve(sourcesDir, resolveTeacherPage()),
       explicit: false,
