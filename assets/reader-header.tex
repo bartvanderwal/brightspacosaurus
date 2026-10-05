@@ -1,10 +1,26 @@
 % Unicode-support via fontspec (lualatex)
 \usepackage{fontspec}
-\setmainfont{DejaVu Serif}
-\setsansfont{DejaVu Sans}
-\setmonofont{DejaVu Sans Mono}
+% DejaVu when installed, otherwise TeX Gyre fonts that ship with TeX Live (issue #51).
+\IfFontExistsTF{DejaVu Serif}
+  {\setmainfont{DejaVu Serif}}
+  {\setmainfont{TeX Gyre Termes}}
+\IfFontExistsTF{DejaVu Sans}
+  {\setsansfont{DejaVu Sans}}
+  {\setsansfont{TeX Gyre Heros}}
+\IfFontExistsTF{DejaVu Sans Mono}
+  {\setmonofont{DejaVu Sans Mono}}
+  {\setmonofont{TeX Gyre Cursor}}
 \usepackage{newunicodechar}
-\newfontfamily\symbolfont{DejaVu Sans}
+% The check mark needs a font with that glyph; the TeX Gyre fonts lack it.
+\IfFontExistsTF{DejaVu Sans}
+  {\newfontfamily\symbolfont{DejaVu Sans}}
+  {\IfFontExistsTF{Menlo}
+    {\newfontfamily\symbolfont{Menlo}}
+    {\IfFontExistsTF{Noto Sans Symbols2}
+      {\newfontfamily\symbolfont{Noto Sans Symbols2}}
+      {\IfFontExistsTF{Symbola}
+        {\newfontfamily\symbolfont{Symbola}}
+        {\newfontfamily\symbolfont{TeX Gyre Heros}}}}}
 \newunicodechar{✔}{{\symbolfont ✔}}
 
 % Verplicht apart voorblad voor reader-PDF's.
