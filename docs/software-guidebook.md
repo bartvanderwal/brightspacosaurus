@@ -524,16 +524,7 @@ The Docusaurus preview and the Brightspace/IMSCC export are two render targets f
 
 The preferred way to achieve this is code reuse: share parsers, renderers, assets, semantic HTML contracts and browser behavior wherever the two targets allow it. Do not create parallel implementations when a shared implementation is possible. Some target-specific work remains unavoidable because Docusaurus and Brightspace have different rendering, sandboxing and import behavior; therefore parity always requires some tests in both targets, plus a real Brightspace import test for LMS-specific behavior. But this should be minimized through code reuse (same JS in Docusaurus as in Brightspace, use Docusaurus plugins and standards when possible for new features wanted in Brigthspace).
 
-The flashcard contract is implemented in `src/flashcards.ts` (`remarkFlashcards`).
-It emits semantic `hName`/`hProperties` elements, which both remark-rehype and
-Docusaurus/MDX support; raw HTML injection would not reliably survive MDX.
-`assets/brightspacosaurus-flashcards.js` is the single interaction implementation:
-classic inline script in exported HTML, imported initializer in Docusaurus. The
-initializer is idempotent and runs after each preview route mounts. Both targets
-load `assets/brightspacosaurus.css`. Definitions are initially visible for no-JS
-use, and browser tests exercise both the generated export and actual Docusaurus
-build, including keyboard input and client navigation. Nested directive fences
-must be longer outside than inside (`::::flashcards` around `:::flashcard`).
+The flashcard contract is implemented in `src/flashcards.ts` (`remarkFlashcards`). It emits semantic `hName`/`hProperties` elements, which both remark-rehype and Docusaurus/MDX support; raw HTML injection would not reliably survive MDX. `assets/brightspacosaurus-flashcards.js` is the single interaction implementation: classic inline script in exported HTML, imported initializer in Docusaurus. The initializer is idempotent and runs after each preview route mounts. Both targets load `assets/brightspacosaurus.css`. Definitions are initially visible for no-JS use, and browser tests exercise both the generated export and actual Docusaurus build, including keyboard input and client navigation. Nested directive fences must be longer outside than inside (`::::flashcards` around `:::flashcard`).
 
 The same transformer also accepts unordered `term: definition` lists, either in
 an explicit `flashcards` container or under a heading listed in
@@ -547,85 +538,23 @@ to both HTML conversions and to Docusaurus via `BSO_PREVIEW_FLASHCARDS_CONFIG`;
 the demo reads its course config when invoked directly. Custom preview apps must
 pass these options to `remarkFlashcards` as well.
 
-Heading scope follows Markdown depth until the next same/higher-level heading.
-A list converts atomically only if every item has a term and definition; ordered
-and task lists stay unchanged. Splitting the inline syntax tree at the first
-visible colon preserves definition formatting and subsequent blocks, while terms
-are rendered as escaped text. All syntaxes produce the existing card classes and
-use the existing browser initializer. Property tests exercise deterministic
-conversion, and browser tests compare both demo sets in preview and export.
+Heading scope follows Markdown depth until the next same/higher-level heading. A list converts atomically only if every item has a term and definition; ordered and task lists stay unchanged. Splitting the inline syntax tree at the first visible colon preserves definition formatting and subsequent blocks, while terms are rendered as escaped text. All syntaxes produce the existing card classes and use the existing browser initializer. Property tests exercise deterministic conversion, and browser tests compare both demo sets in preview and export.
 
-`assets/brightspacosaurus-navigation.js` (#41) is inlined into every exported
-page. Relative lesson links stay the portable fallback (#8); the script only
-changes a plain same-origin click on another `.html` page when the parent window
-is a Brightspace viewer (`/d2l/le/content/{ou}/…` or `/d2l/le/lessons/{ou}/…`).
-It then reads the course table of contents through the documented LE API
-(`/d2l/api/versions/le`, then `/d2l/api/le/{version}/{ou}/content/toc`) with the
-viewer's session and optional `X-Csrf-Token`, matches the topic `Url` against the
-link path and navigates the top window to the topic viewer. The API was chosen
-over scraping the menu DOM, which Brightspace does not document. Any failure or a
-4-second timeout falls back to the plain link. Pure helpers are exposed as
-`bsoTopicNavigation` for Deno unit tests; `demo-course-docs/tests/navigation.spec.cjs`
-exercises the real export inside a mocked Brightspace shell.
+`assets/brightspacosaurus-navigation.js` (#41) is inlined into every exported page. Relative lesson links stay the portable fallback (#8); the script only changes a plain same-origin click on another `.html` page when the parent window is a Brightspace viewer (`/d2l/le/content/{ou}/…` or `/d2l/le/lessons/{ou}/…`). It then reads the course table of contents through the documented LE API (`/d2l/api/versions/le`, then `/d2l/api/le/{version}/{ou}/content/toc`) with the viewer's session and optional `X-Csrf-Token`, matches the topic `Url` against the link path and navigates the top window to the topic viewer. The API was chosen over scraping the menu DOM, which Brightspace does not document. Any failure or a 4-second timeout falls back to the plain link. Pure helpers are exposed as `bsoTopicNavigation` for Deno unit tests; `demo-course-docs/tests/navigation.spec.cjs` exercises the real export inside a mocked Brightspace shell.
 
-Reader cover images: `deriveReaderPdfMetadata` reads `coverImage`;
-`convertReaderToPdf` resolves it against the reader directory and writes a
-one-line header defining `\bsocoverimage` next to the PDF output, included before
-`assets/reader-header.tex` and removed after pandoc. The title page in that
-header shows the image only `\ifdefined\bsocoverimage`. Paths outside
-`[A-Za-z0-9._/:-]` are rejected with a warning instead of being escaped, because
-LaTeX path escaping is fragile across engines.
+Reader cover images: `deriveReaderPdfMetadata` reads `coverImage`; `convertReaderToPdf` resolves it against the reader directory and writes a one-line header defining `\bsocoverimage` next to the PDF output, included before `assets/reader-header.tex` and removed after pandoc. The title page in that header shows the image only `\ifdefined\bsocoverimage`. Paths outside `[A-Za-z0-9._/:-]` are rejected with a warning instead of being escaped, because LaTeX path escaping is fragile across engines.
 
-`src/teacher-page.ts` is likewise runtime-neutral. `resolveTeacherPage`
-validates `teacherPage` (a relative `.md` path inside `sourcesDir`, default
-`for-teachers.md`); `resolveConfig` records whether it was explicit, because only
-a missing explicit page fails `prepare`. `convertMarkdown` receives
-`teacherPageVersions` for that one page and calls `insertVersionTable` after
-include expansion, so every `{@bso-versions}` line outside fenced code becomes a
-Markdown table (or the table follows the first H1). The table contains only
-versions, no build time, so output stays idempotent. The demo Docusaurus
-preprocessor applies the same function; `bso preview` passes path and versions
-via `BSO_PREVIEW_TEACHER_PAGE`.
+`src/teacher-page.ts` is likewise runtime-neutral. `resolveTeacherPage` validates `teacherPage` (a relative `.md` path inside `sourcesDir`, default `for-teachers.md`); `resolveConfig` records whether it was explicit, because only a missing explicit page fails `prepare`. `convertMarkdown` receives `teacherPageVersions` for that one page and calls `insertVersionTable` after include expansion, so every `{@bso-versions}` line outside fenced code becomes a Markdown table (or the table follows the first H1). The table contains only versions, no build time, so output stays idempotent. The demo Docusaurus preprocessor applies the same function; `bso preview` passes path and versions via `BSO_PREVIEW_TEACHER_PAGE`.
 
 Teacher progress dashboard (#37): `assets/teacher-dashboard/calc.js` is the single source of the pure calculation and threshold logic for student GitLab work items and repository stoplights. The page loads it as a classic script before `app.js`; the tests evaluate the same file through `tests/helpers/dashboard-calc.ts`, so they exercise the code that runs in the browser. The user interface in `app.js` is React 18 with htm (tagged templates instead of JSX), the same stack as the clickable prototype in owe-1, so no build step is needed. React, ReactDOM and htm are vendored in `assets/teacher-dashboard/vendor/` with pinned versions and SHA-256 hashes (see the README there) instead of loaded from a CDN, so the page in Brightspace runs no third-party code fetched at runtime. The fonts (Atkinson Hyperlegible Next and Mono, SIL OFL 1.1) are bundled too, so the dashboard makes no requests to third parties. The directive `{@bso-teacher-dashboard}` on the teacher page is handled by one remark plugin, `remarkTeacherDashboard` in `src/teacher-page.ts`, which both the Brightspace converter and the Docusaurus preview use (dev/prod parity, like `remarkFlashcards`). It wraps the page in two tabs, *Informatie* and *Voortgangsverkenner*, built from `hName`/`hProperties` nodes rather than raw HTML, with the dashboard in an `iframe` so its React app and CSS stay separate from the lesson page and the topic navigation script; `assets/brightspacosaurus-tabs.js` adds the tab behaviour in both environments, and without JavaScript both panels show one after the other. `src/teacher-dashboard.ts` writes the dashboard files; `prepare` writes them into the instructor module and `preview` into a static directory of the Docusaurus preview, so the preview runs the same dashboard. When `teacherDashboard` is configured in `brightspacosaurus.config.json`, `runPrepare` in `src/main.ts` generates `content/docenten/voortgangsverkenner.html`, `style.css`, `calc.js`, `app.js` and `vendor/` using bundled assets from `assets/teacher-dashboard/`. Cartridge generation in `src/manifest-builder.ts` categorizes content under `content/docenten/` into the instructor module (`module_docentenmateriaal`) with the title "Instructor material (hide after import)", ensuring it can be hidden from students after import. The client SPA executes entirely within the instructor's browser, keeping the token and all fetched data in memory only (with browser password manager support for the token), with selective student refresh, repo filters per assignment level and live threshold settings.
 
-Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`;
-`src/quiz-config.ts` supplies shared configuration validation/defaults. The QTI
-converter validates again before serialization, refusing ungradable items.
-`src/quiz-preview.ts` runs before Docusaurus' default remark plugins so generated
-metadata reflects the transformed page. It uses the same parsed questions and
-stable answer labels as QTI; `assets/brightspacosaurus-quizzes.js` shuffles DOM
-options per attempt, preserving the scoring key. QTI expresses the setting as
-`render_choice/@shuffle` (`Yes`/`No`), so build output remains deterministic.
-`bso preview` passes resolved quiz settings through `BSO_PREVIEW_QUIZ_CONFIG`; the
-demo falls back to its root course config when launched directly with npm.
-A native Brightspace import still needs manual verification. Preview is practice,
-with local feedback; it does not persist grades or enforce native attempt limits.
+Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`; `src/quiz-config.ts` supplies shared configuration validation/defaults. The QTI converter validates again before serialization, refusing ungradable items. `src/quiz-preview.ts` runs before Docusaurus' default remark plugins so generated metadata reflects the transformed page. It uses the same parsed questions and stable answer labels as QTI; `assets/brightspacosaurus-quizzes.js` shuffles DOM options per attempt, preserving the scoring key. QTI expresses the setting as `render_choice/@shuffle` (`Yes`/`No`), so build output remains deterministic. `bso preview` passes resolved quiz settings through `BSO_PREVIEW_QUIZ_CONFIG`; the demo falls back to its root course config when launched directly with npm. A native Brightspace import still needs manual verification. Preview is practice, with local feedback; it does not persist grades or enforce native attempt limits.
 
-`src/course-linter.ts` adds read-only diagnostics on top of generic Markdown style
-linting. It reuses the quiz validator, diagram checks and include syntax parser,
-checks flashcard structure in the Markdown AST and follows local includes with
-cycle detection. Diagnostics carry severity, rule, source file and one-based
-line/column. Warnings do not fail the command; authoring errors do. This is the
-first implementation slice of #11; per-rule enable/disable settings and broader
-didactic standards remain follow-ups. `lint.includeDirs` selects recursive scan
-roots in place of the configured source/reader directories; a `--sources` override
-wins. Includes remain transitive dependencies and diagnostics are deduplicated
-by file and sorted deterministically.
+`src/course-linter.ts` adds read-only diagnostics on top of generic Markdown style linting. It reuses the quiz validator, diagram checks and include syntax parser, checks flashcard structure in the Markdown AST and follows local includes with cycle detection. Diagnostics carry severity, rule, source file and one-based line/column. Warnings do not fail the command; authoring errors do. This is the first implementation slice of #11; per-rule enable/disable settings and broader didactic standards remain follow-ups. `lint.includeDirs` selects recursive scan roots in place of the configured source/reader directories; a `--sources` override wins. Includes remain transitive dependencies and diagnostics are deduplicated by file and sorted deterministically.
 
-`lintMarkdown` accepts a third `LintOptions` argument with `flashcards` settings.
-Configured headings must contain only complete term/definition bullet lists;
-empty sections, prose, subheadings, code and invalid lists produce one
-`flashcard-section-content` warning per affected section. List validation is
-shared with the renderer. Rendering preserves content even when lint warns.
+`lintMarkdown` accepts a third `LintOptions` argument with `flashcards` settings. Configured headings must contain only complete term/definition bullet lists; empty sections, prose, subheadings, code and invalid lists produce one `flashcard-section-content` warning per affected section. List validation is shared with the renderer. Rendering preserves content even when lint warns.
 
-The separate `examples/demo-course-antipatterns` course contains 30
-minimal lessons and an expected-rule manifest. Integration tests require exactly
-one diagnostic per lesson and unique rules across all lessons; the regular demo
-must emit none. Invalid directive nesting and malformed quiz answer keys report
-the primary cause without a second derived diagnostic. Empty quiz options remain
-in the parsed model long enough to produce the specific `quiz-option-text` error;
-export still rejects them.
+The separate `examples/demo-course-antipatterns` course contains 30 minimal lessons and an expected-rule manifest. Integration tests require exactly one diagnostic per lesson and unique rules across all lessons; the regular demo must emit none. Invalid directive nesting and malformed quiz answer keys report the primary cause without a second derived diagnostic. Empty quiz options remain in the parsed model long enough to produce the specific `quiz-option-text` error; export still rejects them.
 
 The shared implementation contracts belong with the relevant components and assets. The contribution rules in [CONTRIBUTING.md](../CONTRIBUTING.md) require new features to document and test both targets where applicable.
 

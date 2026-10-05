@@ -596,13 +596,7 @@ For each quiz Markdown file, BSO generates one valid QTI 1.2 XML file conforming
 
 Generated quizzes get a maximum attempt count through QTI metadata. Configure it with `quiz.maxAttempts` in `brightspacosaurus.config.json`; when omitted, BSO uses `0`, which means unlimited attempts. The value must be a non-negative integer. In the IMS Common Cartridge output, BSO writes Brightspace's `cc_maxattempts` metadata field; `0` is exported as `unlimited`, matching Brightspace's own Common Cartridge export.
 
-Answer markers accept `Correct answer`, `Answer`, `Correct antwoord`, `Goed antwoord`,
-`Goede antwoord`, `Juiste antwoord` and `Antwoord`, followed by a colon and one letter.
-The letter may be plain, bold or inline code; `**Antwoord:** c` is also supported.
-Options accept `- A. ...`, `a) ...` and `**a)** ...`; letters are normalized to uppercase.
-Invalid, missing or duplicate answers, missing options, duplicate labels/question
-numbers and answer keys without a matching option stop export with a source path
-and question number. No correct answer is inferred.
+Answer markers accept `Correct answer`, `Answer`, `Correct antwoord`, `Goed antwoord`, `Goede antwoord`, `Juiste antwoord` and `Antwoord`, followed by a colon and one letter. The letter may be plain, bold or inline code; `**Antwoord:** c` is also supported. Options accept `- A. ...`, `a) ...` and `**a)** ...`; letters are normalized to uppercase. Invalid, missing or duplicate answers, missing options, duplicate labels/question numbers and answer keys without a matching option stop export with a source path and question number. No correct answer is inferred.
 
 Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
 answer order per attempt. Default `false` preserves source order. BSO writes
