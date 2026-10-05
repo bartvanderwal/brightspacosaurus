@@ -414,6 +414,9 @@ This chapter describes code-level conventions and solutions that are not visible
 - **7.4** HTML entity handling
 - **7.5** Diagram rendering and error classification
 - **7.6** Syntax highlighting
+- **7.7** Docusaurus integration of the Voortgangsverkenner
+
+Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
 ### 7.1 Conventions
 
@@ -434,25 +437,70 @@ Every new asset must also be added to `publish.include` in `deno.json`, otherwis
 
 ### 7.3 Path handling
 
-`convertMarkdown` takes a `baseDir` option. Passing `sourcesDir` as the base flattens deep source directory structures so that manifest grouping uses the correct subdirectory (e.g. `week-1`) rather than the full nested path from the repo root.
+- **Where:** `convertMarkdown` in `markdown-converter.ts`.
+- **What:** it takes a `baseDir` option. Passing `sourcesDir` as the base flattens deep source directory structures.
+- **Why:** manifest grouping then uses the correct subdirectory (for example `week-1`) rather than the full nested path from the repo root.
 
 ### 7.4 HTML entity handling
 
-Page titles for the manifest are extracted from the generated HTML (the `<h1>`). rehype has already escaped that HTML (`&amp;`, `&#x26;`, etc.). Because `manifest-builder.ts` escapes again when writing XML, titles are first decoded with `decodeHtmlEntities` — handling named and numeric (hex and decimal) entities — to avoid double-escaping (e.g. `&amp;` becoming `&amp;amp;`).
+- **Where:** title extraction in `main.ts`, escaping in `manifest-builder.ts`.
+- **Problem:** page titles for the manifest come from the generated HTML (`<h1>`), which rehype has already escaped (`&amp;`, `&#x26;`, ...). `manifest-builder.ts` escapes again when writing XML.
+- **Solution:** titles are first decoded with `decodeHtmlEntities`, which handles named and numeric (hex and decimal) entities. This prevents double escaping, such as `&amp;` becoming `&amp;amp;`.
 
 ### 7.5 Diagram rendering and error classification
 
-`diagram-renderer.ts` adds two remark steps before Markdown is converted to HTML. First, it walks mdast code blocks and adds missing diagram metadata: `imgType` follows the fence language and `imgTitle` comes from the nearest preceding heading, falling back to a stable positional title. Second, it registers `remark-kroki-a11y` with options from `diagram-config.ts`.
+Diagram rendering is split over four modules. Each has one job:
 
-`diagram-adapter.ts` runs after raw provider HTML has been parsed by `rehype-raw`. It keeps provider-generated source and natural-language descriptions, converts tabbed source/description panels to native disclosures for Brightspace, and assigns deterministic IDs such as `bso-diagram-1-description`. Image diagrams use `aria-describedby`; inline SVGs get `role="img"`, a stable `<title>`, `aria-labelledby`, and `aria-describedby` when a description exists.
+| Module | Runs | Responsibility |
+|---|---|---|
+| `diagram-renderer.ts` | Before Markdown becomes HTML (remark) | Walks mdast code blocks and adds missing diagram metadata: `imgType` follows the fence language, `imgTitle` comes from the nearest preceding heading (fallback: a stable positional title). Registers `remark-kroki-a11y` with options from `diagram-config.ts`. |
+| `diagram-adapter.ts` | After `rehype-raw` has parsed the provider HTML | Keeps the provider-generated source and natural-language descriptions and converts tabbed source/description panels to native disclosures for Brightspace. Assigns deterministic IDs such as `bso-diagram-1-description`. |
+| `diagram-validation.ts` | Before any Kroki request, offline | Detects authoring issues: unsupported diagram declarations, unknown fence options, non-local `src=`, empty diagram blocks, inconsistent option values. |
+| `diagram-config.ts` | At config resolution | Resolves the `diagrams` settings and their defaults. |
 
-`diagram-validation.ts` detects offline authoring issues before a Kroki request is made: unsupported diagram declarations, unknown fence options, non-local `src=`, empty diagram blocks, and inconsistent option values. Rendering failures are wrapped in `DiagramError` with category `kroki-unreachable`, `invalid-source`, or `invalid-parameter`. The resolved `diagrams.failOnError` setting decides whether that error fails the build or becomes a warning plus original-code fallback.
+Accessibility details of the adapter output:
+
+- Image diagrams use `aria-describedby`.
+- Inline SVGs get `role="img"`, a stable `<title>`, `aria-labelledby`, and `aria-describedby` when a description exists.
+
+Error classification:
+
+- Rendering failures are wrapped in `DiagramError` with category `kroki-unreachable`, `invalid-source` or `invalid-parameter`.
+- The resolved `diagrams.failOnError` setting decides whether such an error fails the build or becomes a warning plus an original-code fallback.
 
 ### 7.6 Syntax highlighting
 
-The HTML export highlights fenced code blocks at build time with `rehype-prism-plus` (issue #28). It emits the same Prism token classes (`token keyword`, `token comment`, ...) as the Docusaurus preview, so visual parity only needs CSS and Brightspace pages need no runtime JavaScript. Languages Prism does not know stay plain code (`ignoreMissing`).
+- **What:** the HTML export highlights fenced code blocks at build time with `rehype-prism-plus` (issue #28).
+- **Parity:** it emits the same Prism token classes (`token keyword`, `token comment`, ...) as the Docusaurus preview, so visual parity only needs CSS and Brightspace pages need no runtime JavaScript.
+- **Unknown languages:** languages Prism does not know stay plain code (`ignoreMissing`).
+- **Colors:** the token colors in `assets/brightspacosaurus.css` are scoped to `.brightspace-content` and follow the hues of the Docusaurus GitHub theme, darkened for readability on the grey code background.
 
-This relies on Docusaurus currently using Prism; BSO imports nothing from Docusaurus. If Docusaurus switches highlighter (for example to Shiki), re-evaluate whether BSO follows for parity or deliberately stays on Prism. The token colors in `assets/brightspacosaurus.css` are scoped to `.brightspace-content` and follow the hues of the Docusaurus GitHub theme, darkened for readability on the grey code background.
+Watch out: this relies on Docusaurus currently using Prism, and BSO imports nothing from Docusaurus. If Docusaurus switches highlighter (for example to Shiki), re-evaluate whether BSO follows for parity or deliberately stays on Prism.
+
+### 7.7 Docusaurus integration of the Voortgangsverkenner
+
+The Voortgangsverkenner (see [1.6](#16-voortgangsverkenner-in-context)) appears in the Docusaurus preview as a tab on the teacher page, with the same working dashboard as in Brightspace (dev/prod parity).
+
+#### How the files reach Docusaurus
+
+- `bso preview` (`runPreview` in `main.ts`) writes the dashboard files to `preview-static/` next to the build directory.
+- It passes that directory to Docusaurus in the environment variable `BSO_PREVIEW_STATIC_DIR`.
+- Reader PDFs from an earlier `prepare` are copied to the same directory, so reader pages can embed them (#54).
+
+#### What a course with its own Docusaurus configuration needs
+
+| Addition | Detail |
+|---|---|
+| Remark plugin | `remarkTeacherDashboard` from `@bartvanderwal/brightspacosaurus/teacher-page`, for the teacher page only, with `src: "/docenten/voortgangsverkenner.html"`. |
+| Static directory | A directory that contains `docenten/voortgangsverkenner.html`: `BSO_PREVIEW_STATIC_DIR` when you start the preview with `bso preview`, or the `content` directory of a previous `prepare` (for example `build/brightspace/content`). |
+| Client module | A module that imports `@bartvanderwal/brightspacosaurus/tabs` and calls `globalThis.bsoTabs?.initializeTabs(document)` in `onRouteDidUpdate`. |
+
+A course that loads BSO via the package, for example `npm:@jsr/bartvanderwal__brightspacosaurus`, adds these itself.
+
+#### Reference setup and fallback
+
+- `demo-course-docs/docusaurus.config.js` shows the same setup, loading BSO from source instead of from the package.
+- Without a dashboard URL, the `{@bso-teacher-dashboard}` directive renders a short note instead of the tab.
 
 ---
 
