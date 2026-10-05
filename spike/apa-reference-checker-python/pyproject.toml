@@ -1,0 +1,22 @@
+[project]
+name = "apa-reference-checker"
+version = "0.1.0"
+description = "MCP server en CLI voor APA-referentiecontrole in Markdown-documenten"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.0",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.0",
+]
+
+[project.scripts]
+apa-reference-checker = "apa_reference_checker.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
