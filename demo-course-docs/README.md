@@ -1,5 +1,13 @@
 # Demo Course Preview
 
+This is the Docusaurus app that shows the demo course as a website. It holds no course content: the lessons, quizzes and readers live in [examples/demo-course](../examples/demo-course), and this app only renders them (`bso preview`, the GitHub Pages demo and the browser tests). The two are separate because the course is what BSO exports to Brightspace, while this app is only the preview shell around it. It also publishes the Software Guidebook, user manual and ADRs on GitHub Pages.
+
+| | `examples/demo-course` | `demo-course-docs` |
+| --- | --- | --- |
+| Is | The demo course: Markdown source, config, readers | Docusaurus app (config, React components, Playwright tests) |
+| Used for | `bso prepare` / `pack` into a `.imscc`; test set for BSO features | `bso preview`, GitHub Pages, browser regression tests |
+| Contains | Lessons, quizzes, readers, `brightspacosaurus.config.json` | `docusaurus.config.js`, `src/`, `tests/`, no course content |
+
 From the repository root:
 
 ```sh

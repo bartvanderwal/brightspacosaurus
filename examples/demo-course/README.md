@@ -1,5 +1,7 @@
 # Demo Course
 
+This is the source of a small example course, used both as a showcase and as the test set for Brightspacosaurus. It is the content that BSO exports to Brightspace; the website preview of it is rendered by the Docusaurus app in [demo-course-docs](../../demo-course-docs), and the deliberately invalid companion for the linter is [demo-course-antipatterns](../demo-course-antipatterns).
+
 A small two-week course that demonstrates all Brightspacosaurus features:
 
 - A lesson page with fenced code blocks (copy-to-clipboard button and color syntax highlighting, in both the export and the Docusaurus preview).

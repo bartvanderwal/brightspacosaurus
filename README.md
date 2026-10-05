@@ -14,7 +14,7 @@ If you prefer MD over BS ;) 🦕</p>
   📦 <a href="https://jsr.io/@bartvanderwal/brightspacosaurus">JSR</a>
 </p>
 
-Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. It was created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design. He and other colleagues were using a markdown-based approach and publishing through Docusaurus for course materials. This dropped WYSIWYG, but allowed including code previews with syntax highlighting, adding UML diagrams with diagrams-as-code tools like PlantUML and Mermaid, and even programmable parts like quizzes, using React/MD. They also preferred Git versionable, diffable files, and also having the modern option of AI-enhancement in the editor. This is of course impossible in Brightspace itself where the presence of direct student information makes access of LLM's unwanted/unacceptable.
+Brightspacosaurus is a CLI tool that converts Markdown course material into a Brightspace Common Cartridge (`.imscc`) package.
 
 **What you can do with it:**
 
@@ -32,11 +32,24 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 
 Each feature is explained, with a page that shows it, in the [online demo course](https://bartvanderwal.github.io/brightspacosaurus/lessons/features).
 
-📖 See the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/) for the data model and Brightspace import process, and the [Software Guidebook](https://bartvanderwal.github.io/brightspacosaurus/guidebook/software-guidebook/) for the architecture and design decisions (sources in `docs/`).
-
 > 🤖 Brightspacosaurus was built with substantial help from AI coding assistants, but with human-in-the-loop. See [About: building this with AI](#about-building-this-with-ai) for the full story.
 
 **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for why.
+
+## Documentation
+
+Four kinds of documentation, each with its own role:
+
+| Document | Purpose | Reader |
+|---|---|---|
+| README | Short pitch, feature list, links | Anyone seeing BSO for the first time |
+| [Demo course](https://bartvanderwal.github.io/brightspacosaurus/lessons/features) | Shows what BSO can do and how it looks, with the minimal setting to turn each feature on | Author: "what do I get and how do I enable it?" |
+| [User manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/) | Full reference: config fields, edge cases, Brightspace import process, troubleshooting | Author or administrator setting it up |
+| [Software Guidebook](https://bartvanderwal.github.io/brightspacosaurus/guidebook/software-guidebook/) | Architecture and design decisions (sources in `docs/`) | Developer, contributor |
+
+## Brightspacosaurus intro/history
+
+Brightspacosaurus was created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design. He and other colleagues were using a markdown-based approach and publishing through Docusaurus for course materials. This dropped WYSIWYG, but allowed including code previews with syntax highlighting, adding UML diagrams with diagrams-as-code tools like PlantUML and Mermaid, and even programmable parts like quizzes, using React/MD. They also preferred Git versionable, diffable files, and also having the modern option of AI-enhancement in the editor. This is of course impossible in Brightspace itself where the presence of direct student information makes access of LLM's unwanted/unacceptable.
 
 ## Requirements
 
