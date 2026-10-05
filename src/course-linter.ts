@@ -111,7 +111,23 @@ function inspectMarkdown(
       .length ?? 0;
   };
 
+  // Consecutive lines form one paragraph in Markdown, so "_Label_: a" and
+  // "_Label_: b" on separate plain lines render as one run-on line.
+  const metadataField = /(?:_[^_\s][^_\n]*_|\*\*[^*\n]+?\*\*):|\*\*[^*\n]+?:\*\*/g;
+  function checkMetadataFields(paragraph: Node): void {
+    const { start, end } = paragraph.position!;
+    const raw = lines.slice(start.line - 1, end.line).join("\n");
+    if ((raw.match(metadataField) ?? []).length < 2) return;
+    report(
+      paragraph,
+      "metadata-fields-one-line",
+      "Several 'Label: value' fields end up on one line. Make each field a list item (- _Label_: value).",
+      "warning",
+    );
+  }
+
   function walk(node: Node, containers: Node[] = []): void {
+    if (node.type === "paragraph") checkMetadataFields(node);
     if (["code", "html", "yaml"].includes(node.type)) {
       for (
         let i = node.position!.start.line;

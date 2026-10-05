@@ -425,7 +425,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-with-all-lint-issues"),
         [],
         1,
-        "24 errors, 3 warnings",
+        "24 errors, 4 warnings",
       ],
       [
         resolve("examples/demo-course-with-all-lint-issues"),
@@ -453,4 +453,16 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
     assertEquals(result.code, code, new TextDecoder().decode(result.stderr));
     assertStringIncludes(new TextDecoder().decode(result.stdout), summary);
   }
+});
+
+Deno.test("lint warns when 'Label: value' metadata fields run together in one paragraph", () => {
+  const rules = (source: string) => lintMarkdown(source, "doc.md").map((issue) => issue.rule);
+  assertEquals(rules("_Author_: A _Version_: 1\n"), ["metadata-fields-one-line"]);
+  assertEquals(rules("_Author_: A\n_Version_: 1\n"), ["metadata-fields-one-line"]);
+  assertEquals(rules("**Author:** A\n**Version:** 1\n"), ["metadata-fields-one-line"]);
+  // List items, separate paragraphs and a single field are fine.
+  assertEquals(rules("- _Author_: A\n- _Version_: 1\n"), []);
+  assertEquals(rules("_Author_: A\n\n_Version_: 1\n"), []);
+  assertEquals(rules("**Manual test:** links and includes.\n"), []);
+  assertEquals(rules("```\n_Author_: A\n_Version_: 1\n```\n"), []);
 });

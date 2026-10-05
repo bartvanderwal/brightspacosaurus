@@ -8,7 +8,7 @@ Run from the repository root with the local development version:
 
 ```sh
 deno task lint:demo    # 18 Markdown files, 0 errors, 0 warnings; exit 0
-deno task lint:issues  # 27 Markdown files, 24 errors, 3 warnings; exit 1 (expected)
+deno task lint:issues  # 28 Markdown files, 24 errors, 4 warnings; exit 1 (expected)
 ```
 
 An installed `bso` pinned to 0.11.1 does not recognize `flashcards` or `lint`.
@@ -74,3 +74,4 @@ Tests also require the ordinary demo course to remain free of diagnostics.
 | `quiz-duplicate-answer` | error | [quiz-duplicate-answer.md](lessons/quizzes/quiz-duplicate-answer.md) |
 | `quiz-answer-syntax` | error | [quiz-answer-syntax.md](lessons/quizzes/quiz-answer-syntax.md) |
 | `quiz-option-syntax` | error | [quiz-option-syntax.md](lessons/quizzes/quiz-option-syntax.md) |
+| `metadata-fields-one-line` | warning | [metadata-fields-one-line.md](lessons/metadata/metadata-fields-one-line.md) |
