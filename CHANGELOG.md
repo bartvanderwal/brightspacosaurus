@@ -8,6 +8,12 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.19.0 - 2026-10-06
+
+### Added
+
+- A GitHub Actions release workflow that publishes to JSR and npm with OIDC; npm releases include provenance (#6).
+
 ## 0.18.0 - 2026-10-05
 
 ### Added

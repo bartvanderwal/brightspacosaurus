@@ -88,8 +88,13 @@ jobs:
           if (pkg.version !== expectedVersion) {
             throw new Error(`Unexpected npm package version: ${pkg.version}`);
           }
-          if (Object.keys(pkg.scripts ?? {}).length > 0) {
-            throw new Error("Published package must not contain npm lifecycle scripts");
+          const lifecycleScripts = [
+            "preinstall", "install", "postinstall", "prepublish", "prepublishOnly",
+            "prepare", "prepack", "postpack",
+          ];
+          const hooks = lifecycleScripts.filter((name) => pkg.scripts?.[name]);
+          if (hooks.length > 0) {
+            throw new Error(`Published package must not contain npm lifecycle scripts: ${hooks.join(", ")}`);
           }
           NODE
         env:

@@ -618,7 +618,8 @@ This chapter describes how BSO is distributed and used: from JSR, in CI pipeline
 
 - **9.1** Distribution via JSR
 - **9.2** CI pipeline usage
-- **9.3** Manual import step
+- **9.3** Package publication with OIDC
+- **9.4** Manual import step
 
 ### 9.1 Distribution via JSR
 
@@ -653,7 +654,15 @@ build-imscc:
       - build/**/*.imscc
 ```
 
-### 9.3 Manual import step
+### 9.3 Package publication with OIDC
+
+`.github/workflows/publish.yml` publishes version tags (`vX.Y.Z`) to JSR and npm. The workflow checks that the tag matches `deno.json`, that `CHANGELOG.md` contains the version, and that the tagged commit is on `main`; it then runs type checks, lint, fast tests and `deno publish --dry-run` before publishing. It runs only for tags, grants `id-token: write` only to the publishing job, and stores no registry token.
+
+Before the first release, configure GitHub Actions as a trusted publisher for `@bartvanderwal/brightspacosaurus` on both JSR and npm, using this repository and the workflow filename `publish.yml`. Enable two-factor authentication on the npm account. Protect the `v*` tag pattern so only release maintainers can start a publishing run.
+
+For each release, bump `deno.json` according to semver and add the matching dated heading and notes to `CHANGELOG.md`; merge that commit to `main`, then create and push its `vX.Y.Z` tag. The workflow publishes to JSR with `deno publish`, then creates the npm package with `deno pack` and publishes the extracted package directory using npm Trusted Publishing and provenance. Do not publish the `.tgz` directly: publishing the extracted directory preserves npm's per-version README.
+
+### 9.4 Manual import step
 
 The final step — importing the `.imscc` into a Brightspace course — remains manual (Import/Export/Copy Components in Brightspace). See the [user manual](user-manual.md) and the README's Brightspace import section for the walkthrough and additive-import caveats.
 
@@ -682,7 +691,7 @@ The [`docs/adr/`](adr/README.md) directory is the running decision log:
 
 ### 10.2 Versioning
 
-The version lives in `deno.json` and follows semver (patch for bugfixes, minor for features on the current `0.x` line). The version is bumped in the same change as the corresponding feature or fix so the JSR publication stays correct. Significant behavioural changes are captured as ADRs and tracked as GitHub issues (for example, the JSR asset-loading fix under issue #5).
+The version lives in `deno.json` and follows semver (patch for bugfixes, minor for features on the current `0.x` line). The version and changelog entry are committed on `main` before creating its `vX.Y.Z` release tag; section 9.3 describes the automated OIDC publishing workflow. Significant behavioural changes are captured as ADRs and tracked as GitHub issues (for example, the JSR asset-loading fix under issue #5).
 
 ### 10.3 Spec history
 
