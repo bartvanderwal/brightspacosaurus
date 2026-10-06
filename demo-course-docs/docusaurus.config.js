@@ -244,10 +244,7 @@ module.exports = {
         remarkReaderPdfLink,
         remarkReaderPdfLinksPlugin,
         [remarkFlashcards, flashcardOptions],
-        [
-        remarkDiagrams,
-        diagramOptions,
-        ],
+        [remarkDiagrams, diagramOptions],
       ],
     },
     blog: false,

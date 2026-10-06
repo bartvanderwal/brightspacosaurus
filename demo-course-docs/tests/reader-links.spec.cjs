@@ -46,9 +46,8 @@ test("external and non-reader links are unchanged", () => {
 
 test("the demo lesson links directly to its PDF in the built preview", async ({ page }) => {
   await page.goto("/lessons/");
-  await page.getByRole("link", {
-    name: /Lesson 1\.2: Test Pyramid and Test Strategy/,
-  }).click();
+  await page.locator("article").getByRole("link", { name: /Lesson 1\.2/ })
+    .click();
   await expect(page.locator('a[href="/readers/reader-testing-basics.pdf"]'))
     .toHaveCount(1);
 });
