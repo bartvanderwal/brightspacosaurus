@@ -17,6 +17,7 @@ const {
 const { remarkQuizPreview } = require("../src/quiz-preview.ts");
 const { resolveQuizOptions } = require("../src/quiz-config.ts");
 const { resolveDiagramsConfig } = require("../src/diagram-config.ts");
+const { remarkReaderPdfLinks } = require("./src/reader-links.cjs");
 const course = require("../brightspacosaurus.config.json");
 const quizOptions = resolveQuizOptions(
   process.env.BSO_PREVIEW_QUIZ_CONFIG
@@ -67,6 +68,13 @@ const includeHost = {
 // shows a note how to start the preview with the dashboard.
 const previewStaticDir = process.env.BSO_PREVIEW_STATIC_DIR || "";
 const baseUrl = process.env.DOCS_BASE_URL || "/";
+const courseRoot = path.resolve(__dirname, "../examples/demo-course");
+const readerSourceDir = path.resolve(courseRoot, course.readersDir);
+const remarkReaderPdfLinksPlugin = remarkReaderPdfLinks({
+  readersDir: readerSourceDir,
+  previewStaticDir,
+  baseUrl,
+});
 function remarkTeacherPageTabs() {
   const transform = remarkTeacherDashboard({
     src: previewStaticDir ? `${baseUrl}docenten/voortgangsverkenner.html` : null,
@@ -231,10 +239,16 @@ module.exports = {
           args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
         ),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
-      remarkPlugins: [remarkTeacherPageTabs, remarkReaderPdfLink, [remarkFlashcards, flashcardOptions], [
+      remarkPlugins: [
+        remarkTeacherPageTabs,
+        remarkReaderPdfLink,
+        remarkReaderPdfLinksPlugin,
+        [remarkFlashcards, flashcardOptions],
+        [
         remarkDiagrams,
         diagramOptions,
-      ]],
+        ],
+      ],
     },
     blog: false,
     theme: { customCss: require.resolve("./src/css/custom.css") },

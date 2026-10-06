@@ -21,6 +21,8 @@ Open http://localhost:3000 and stop the server with Ctrl+C. Restart the preview
 server after changes to Docusaurus configuration or plugins.
 
 The app reads lessons, readers and linked partials from `examples/demo-course`.
+When a reader PDF is present in the preview's static files, links to that reader
+open the PDF directly; without the PDF, they continue to open the HTML page.
 Flashcards share the remark transformation, CSS and browser behavior with the
 Brightspace export. The core-concepts lesson demonstrates both explicit cards and
 a plain `Core concepts` list, enabled by `flashcards.sectionHeadings` in the demo

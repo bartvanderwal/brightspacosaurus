@@ -7,7 +7,7 @@
     "start": "docusaurus start",
     "build": "docusaurus build",
     "serve": "docusaurus serve",
-    "test": "npm run build && deno run --config ../deno.json --allow-read --allow-write --allow-env tests/export-fixture.ts && playwright test"
+    "test": "deno run --config ../deno.json --allow-read --allow-write --allow-env tests/export-fixture.ts && BSO_PREVIEW_STATIC_DIR=\"$PWD/../build/preview-static\" npm run build && BSO_PREVIEW_STATIC_DIR=\"$PWD/../build/preview-static\" playwright test"
   },
   "keywords": [],
   "author": "",

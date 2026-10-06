@@ -1,5 +1,13 @@
 import { convertMarkdown } from "../../src/markdown-converter.ts";
-import { resolve } from "@std/path";
+import { join, resolve } from "@std/path";
+
+const previewStaticDir = resolve("../build/preview-static");
+const previewReadersDir = join(previewStaticDir, "readers");
+await Deno.mkdir(previewReadersDir, { recursive: true });
+await Deno.writeTextFile(
+  join(previewReadersDir, "reader-testing-basics.pdf"),
+  "%PDF-1.4\n%%EOF\n",
+);
 
 // Serve a real standalone Brightspace export beside the static Docusaurus build.
 const result = await convertMarkdown({
