@@ -14,6 +14,7 @@ export interface WorkItemEvaluationInput {
   state: string;
   statusLabel?: string | null;
   dueDate?: string | null;
+  availableFrom?: string | null;
   studentCommitsCount: number;
   studentCommentsCount: number;
   requireCommentsForDone: boolean;
@@ -49,6 +50,7 @@ interface DashboardCalc {
     teacherUsernames: string[],
   ): boolean;
   isWorkItemCommit(commitMessage: string, issueIid: number): boolean;
+  currentWeekIndex(weeks: Array<{ startsOn: string }>, referenceDate?: Date): number;
   evaluateWorkItem(input: WorkItemEvaluationInput): WorkItemEvaluationResult;
   evaluateRepoStoplight(
     workItems: WorkItemEvaluationResult[],
@@ -67,6 +69,7 @@ export const {
   extractStudentIdentifier,
   isTeacherCommit,
   isWorkItemCommit,
+  currentWeekIndex,
   evaluateWorkItem,
   evaluateRepoStoplight,
 } = sandbox.bsoDashboardCalc!;

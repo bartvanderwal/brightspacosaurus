@@ -10,6 +10,7 @@ import fc from "fast-check";
 import {
   evaluateRepoStoplight,
   evaluateWorkItem,
+  currentWeekIndex,
   extractStudentIdentifier,
   isTeacherCommit,
   isWorkItemCommit,
@@ -100,6 +101,18 @@ Deno.test("isWorkItemCommit matches #<iid> with boundaries", () => {
 // Work Item Stoplight Status Evaluation
 // ---------------------------------------------------------------------------
 
+Deno.test("currentWeekIndex chooses the week active on the reference date", () => {
+  const weeks = [
+    { startsOn: "2026-09-01" },
+    { startsOn: "2026-09-08" },
+    { startsOn: "2026-09-15" },
+  ];
+  assertEquals(currentWeekIndex(weeks, new Date("2026-08-31T12:00:00")), -1);
+  assertEquals(currentWeekIndex(weeks, new Date("2026-09-01T00:00:00")), 0);
+  assertEquals(currentWeekIndex(weeks, new Date("2026-09-14T23:59:59")), 1);
+  assertEquals(currentWeekIndex(weeks, new Date("2026-09-15T00:00:00")), 2);
+});
+
 Deno.test("evaluateWorkItem: done with student commits and comments is green", () => {
   const result = evaluateWorkItem({
     state: "closed",
@@ -111,6 +124,33 @@ Deno.test("evaluateWorkItem: done with student commits and comments is green", (
   assertEquals(result.color, "green");
   assertEquals(result.isDone, true);
   assertEquals(result.isNeutral, false);
+});
+
+Deno.test("evaluateWorkItem: work before its course week is neutral, even when marked todo or doing", () => {
+  const referenceDate = new Date("2026-09-01T12:00:00");
+  for (const statusLabel of [undefined, "status::doing"]) {
+    const result = evaluateWorkItem({
+      state: "opened",
+      statusLabel,
+      availableFrom: "2026-09-08",
+      studentCommitsCount: 0,
+      studentCommentsCount: 0,
+      requireCommentsForDone: false,
+      referenceDate,
+    });
+    assertEquals(result.color, "gray");
+    assertEquals(result.isNeutral, true);
+    assertEquals(result.reason, "Opdracht nog niet aan de beurt");
+  }
+  const started = evaluateWorkItem({
+    state: "opened",
+    availableFrom: "2026-09-01",
+    studentCommitsCount: 0,
+    studentCommentsCount: 0,
+    requireCommentsForDone: false,
+    referenceDate,
+  });
+  assertEquals(started.color, "red");
 });
 
 Deno.test("evaluateWorkItem: done without student commits is orange", () => {
@@ -358,6 +398,7 @@ Deno.test("dashboard page loads calc.js before app.js and app.js does not redefi
       "extractStudentIdentifier",
       "isTeacherCommit",
       "isWorkItemCommit",
+      "currentWeekIndex",
       "evaluateWorkItem",
       "evaluateRepoStoplight",
     ]

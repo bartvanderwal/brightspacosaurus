@@ -92,6 +92,7 @@ button, input, select { font: inherit; color: inherit; }
 .row { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px calc(10px + var(--depth) * 16px); cursor: pointer; border-left: 3px solid transparent; }
 .row:hover { background: var(--bg); }
 .row[aria-selected="true"] { background: var(--accent-soft); border-left-color: var(--accent); }
+.row.future { opacity: .55; }
 .twisty { width: 14px; flex: none; text-align: center; color: var(--muted); font-size: 0.7rem; }
 .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .meta { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }

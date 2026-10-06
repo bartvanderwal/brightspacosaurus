@@ -342,6 +342,22 @@ Configure the dashboard under `teacherDashboard` in `brightspacosaurus.config.js
 }
 ```
 
+For date-aware week focus, optionally add a `weeks` calendar. Each repository prefix must be assigned to exactly one week, and weeks must be listed in ascending date order:
+
+```json
+{
+  "teacherDashboard": {
+    "weeks": [
+      { "title": "Week 1", "startsOn": "2026-09-01", "repos": ["pod", "n1-chuck-a-luck"] },
+      { "title": "Week 2", "startsOn": "2026-09-08", "repos": ["n2-ticketfaster-api", "n2-expense-pro"] },
+      { "title": "Week 3", "startsOn": "2026-09-15", "repos": ["n3-ticketfaster-frontend", "n3-expense-pro"] }
+    ]
+  }
+}
+```
+
+The dashboard opens the current week by default, leaves earlier weeks collapsed and dims later weeks. Use **Weekfocus** to switch weeks manually. Work items are grouped by their configured repository; unfinished work in a future week is neutral and does not count as backlog. Refreshing a week updates its repositories and keeps the other weeks' data in the page's in-memory cache. Without `weeks`, the dashboard keeps its existing class-wide behavior.
+
 #### Security and token handling
 
 - The dashboard authenticates against GitLab with a **fine-grained personal access token** with read-only permissions. A classic token with scope `read_api` also works, but grants far more than the dashboard needs.

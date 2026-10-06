@@ -313,6 +313,16 @@ export interface TeacherDashboardRepoConfig {
   label: string;
 }
 
+/** A dated course week and the assignment repositories it contains. */
+export interface TeacherDashboardWeekConfig {
+  /** Week label shown in the dashboard. */
+  title: string;
+  /** First day of the week in YYYY-MM-DD format. */
+  startsOn: string;
+  /** Repository prefixes assigned to this week. */
+  repos: string[];
+}
+
 /** Configuration for teacher progress dashboard (GitLab work items per student). */
 export interface TeacherDashboardConfig {
   /** GitLab instance URL. Standaard: "https://gitlab.com". */
@@ -331,6 +341,8 @@ export interface TeacherDashboardConfig {
   orangeThresholdPercent?: number;
   /** Incomplete percentage threshold for red status (0..100). Standaard: 50. */
   redThresholdPercent?: number;
+  /** Optional course calendar mapping repositories to weeks. */
+  weeks?: TeacherDashboardWeekConfig[];
   /**
    * Content module (folder name in `sourcesDir`) that holds the dashboard, directly after
    * the teacher page. Without it the dashboard gets its own "Instructor material" module.
@@ -348,6 +360,7 @@ export interface ResolvedTeacherDashboardConfig {
   requireCommentsForDone: boolean;
   orangeThresholdPercent: number;
   redThresholdPercent: number;
+  weeks: TeacherDashboardWeekConfig[];
   /** Content module for the dashboard; null keeps the separate "Instructor material" module. */
   module: ReadersModuleConfig | null;
 }
