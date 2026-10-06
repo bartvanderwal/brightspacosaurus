@@ -1,0 +1,103 @@
+name: Publish packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install npm with trusted-publishing support
+        run: npm install --global npm@12.2.0
+
+      - name: Validate release tag, version, changelog and main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must be vX.Y.Z; got $RELEASE_TAG" >&2
+            exit 1
+          fi
+          version="${RELEASE_TAG#v}"
+          if [[ "$(jq -r '.version' deno.json)" != "$version" ]]; then
+            echo "Release tag $RELEASE_TAG does not match deno.json version" >&2
+            exit 1
+          fi
+          if ! grep -Fq "## $version - " CHANGELOG.md; then
+            echo "CHANGELOG.md must contain a heading for version $version" >&2
+            exit 1
+          fi
+          git fetch origin main --no-tags
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Release tag must point to a commit on main" >&2
+            exit 1
+          fi
+
+      - name: Check types and lint
+        run: |
+          deno task check
+          deno task lint
+
+      - name: Run fast tests
+        run: deno task test:fast
+
+      - name: Validate JSR package
+        run: deno publish --dry-run
+
+      - name: Prepare npm package
+        run: |
+          deno pack --ignore='tests/' --ignore='**/*_test.ts' --ignore='**/*.test.ts' --ignore='src/marp-exporter.ts'
+          tarball="$(find . -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          if [[ -z "$tarball" ]]; then
+            echo "deno pack did not create an npm tarball" >&2
+            exit 1
+          fi
+          mkdir -p build/release-package
+          tar -xzf "$tarball" -C build/release-package --strip-components=1
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const pkg = JSON.parse(readFileSync("build/release-package/package.json", "utf8"));
+          const expectedVersion = process.env.RELEASE_TAG.replace(/^v/, "");
+          if (pkg.name !== "@bartvanderwal/brightspacosaurus") {
+            throw new Error(`Unexpected npm package name: ${pkg.name}`);
+          }
+          if (pkg.version !== expectedVersion) {
+            throw new Error(`Unexpected npm package version: ${pkg.version}`);
+          }
+          if (Object.keys(pkg.scripts ?? {}).length > 0) {
+            throw new Error("Published package must not contain npm lifecycle scripts");
+          }
+          NODE
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+
+      - name: Publish to JSR
+        run: deno publish
+
+      - name: Publish to npm with provenance
+        working-directory: build/release-package
+        run: npm publish --access public --provenance
