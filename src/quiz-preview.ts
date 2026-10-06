@@ -29,10 +29,16 @@ export function remarkQuizPreview(
     if (!/(?:^|[/\\])quiz-[^/\\]+\.md$/i.test(file.path ?? "")) return;
     const quiz = parseQuizMarkdown(String(file.value));
     assertValidQuiz(quiz, file.path);
-    const questions = quiz.questions.map((question) =>
-      element("fieldset", {
+    const questions = quiz.questions.map((question) => {
+      const correctAnswers = question.correctAnswers ??
+        [question.correctAnswer];
+      const multipleResponse = question.responseType === "multiple" ||
+        correctAnswers.length > 1;
+      return element("fieldset", {
         className: "bso-quiz-question",
         "data-correct-answer": question.correctAnswer,
+        "data-correct-answers": JSON.stringify(correctAnswers),
+        "data-response-type": multipleResponse ? "multiple" : "single",
       }, [
         element("legend", {}, [text(`Question ${question.number}`)]),
         element("p", {}, [text(question.text)]),
@@ -43,7 +49,7 @@ export function remarkQuizPreview(
             element("li", {}, [
               element("label", {}, [
                 element("input", {
-                  type: "radio",
+                  type: multipleResponse ? "checkbox" : "radio",
                   name: `bso-question-${question.number}`,
                   value: option.label,
                 }),
@@ -54,14 +60,16 @@ export function remarkQuizPreview(
         ),
         element("details", { className: "bso-quiz-answer" }, [
           element("summary", {}, [text("Show correct answer")]),
-          element("p", {}, [text(
-            question.options.find((option) =>
-              option.label === question.correctAnswer
-            )!.text,
-          )]),
+          element("p", {}, [
+            text(
+              correctAnswers.map((answer) =>
+                question.options.find((option) => option.label === answer)!.text
+              ).join(", "),
+            ),
+          ]),
         ]),
-      ])
-    );
+      ]);
+    });
     // Run before Docusaurus' defaults so they derive metadata from this tree.
     const title = tree.children?.find((node) =>
       node.type === "heading" && (node as { depth?: number }).depth === 1

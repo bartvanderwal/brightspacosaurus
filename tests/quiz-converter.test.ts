@@ -130,6 +130,11 @@ Deno.test("QuizConverter: quiz-2.2-di produceert structureel correcte QTI XML", 
   assertEquals(xml.includes('ident="sectie-les-2-2-di"'), true);
   assertEquals(xml.includes("<fieldlabel>cc_maxattempts</fieldlabel>"), true);
   assertEquals(xml.includes("<fieldentry>unlimited</fieldentry>"), true);
+  assertEquals(
+    xml.includes("<fieldentry>cc.multiple_choice.v0p1</fieldentry>"),
+    true,
+  );
+  assertEquals(xml.includes('rcardinality="Single"'), true);
 
   // Alle 5 vragen als items
   for (let i = 1; i <= 5; i++) {
@@ -177,6 +182,48 @@ Deno.test("QuizConverter: maxAttempts is configureerbaar in QTI metadata", () =>
 
   assertEquals(xml.includes("<fieldlabel>cc_maxattempts</fieldlabel>"), true);
   assertEquals(xml.includes("<fieldentry>5</fieldentry>"), true);
+});
+
+Deno.test("QuizConverter: multiple-response syntax produces multiple-response QTI", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+## Question 1
+Choose the correct answers.
+- A. First
+- B. Second
+- C. Third
+- D. Fourth
+Correct answer: A, C
+
+## Question 2
+Choose the correct answers.
+- [x] First
+- [ ] Second
+- [x] Third
+`);
+  const xml = generateQtiXml(quiz, "quiz-multiple");
+
+  assertEquals(
+    (xml.match(/<fieldentry>cc\.multiple_response\.v0p1<\/fieldentry>/g) ?? [])
+      .length,
+    2,
+  );
+  assertEquals(
+    (xml.match(/rcardinality="Multiple"/g) ?? []).length,
+    2,
+  );
+  assertEquals(
+    xml.includes(
+      '<conditionvar><and><varequal respident="q1_resp">q1_a</varequal><varequal respident="q1_resp">q1_c</varequal><not><varequal respident="q1_resp">q1_b</varequal></not><not><varequal respident="q1_resp">q1_d</varequal></not></and></conditionvar>',
+    ),
+    true,
+  );
+  assertEquals(
+    xml.includes(
+      '<conditionvar><and><varequal respident="q2_resp">q2_a</varequal><varequal respident="q2_resp">q2_c</varequal><not><varequal respident="q2_resp">q2_b</varequal></not></and></conditionvar>',
+    ),
+    true,
+  );
 });
 
 Deno.test("QuizConverter: convertQuiz schrijft QTI XML naar de juiste uitvoermap", async () => {

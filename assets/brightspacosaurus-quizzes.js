@@ -44,14 +44,23 @@ function initializeQuizzes(root, random = Math.random) {
     }
     check.addEventListener("click", function () {
       const selected = questions.map((question) =>
-        question.querySelector("input:checked")
+        Array.from(
+          question.querySelectorAll("input:checked"),
+          (input) => input.value,
+        )
       );
-      if (selected.some((answer) => !answer)) {
+      if (selected.some((answers) => !answers.length)) {
         feedback.textContent = "Choose an answer for every question.";
         return;
       }
       const correct = questions.filter((question, index) =>
-        selected[index].value === question.dataset.correctAnswer
+        JSON.stringify([...selected[index]].sort()) ===
+          JSON.stringify(
+            JSON.parse(
+              question.dataset.correctAnswers ??
+                JSON.stringify([question.dataset.correctAnswer]),
+            ).sort(),
+          )
       ).length;
       feedback.textContent = `${correct} / ${questions.length} correct`;
       questions.forEach((question) => {

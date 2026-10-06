@@ -123,14 +123,19 @@ export function generateQtiXml(
   for (const question of quiz.questions) {
     const qIdent = `q${question.number}`;
     const respIdent = `${qIdent}_resp`;
-    const correctLabel = `${qIdent}_${question.correctAnswer.toLowerCase()}`;
+    const correctLabels = (question.correctAnswers ?? [question.correctAnswer])
+      .map((answer) => `${qIdent}_${answer.toLowerCase()}`);
+    const multipleResponse = question.responseType === "multiple" ||
+      correctLabels.length > 1;
 
     xml += `      <item ident="${qIdent}">\n`;
     xml += `        <itemmetadata>\n`;
     xml += `          <qtimetadata>\n`;
     xml += `            <qtimetadatafield>\n`;
     xml += `              <fieldlabel>cc_profile</fieldlabel>\n`;
-    xml += `              <fieldentry>cc.multiple_choice.v0p1</fieldentry>\n`;
+    xml += `              <fieldentry>${
+      multipleResponse ? "cc.multiple_response.v0p1" : "cc.multiple_choice.v0p1"
+    }</fieldentry>\n`;
     xml += `            </qtimetadatafield>\n`;
     xml += `            <qtimetadatafield>\n`;
     xml += `              <fieldlabel>cc_weighting</fieldlabel>\n`;
@@ -144,8 +149,9 @@ export function generateQtiXml(
       escapeXml(question.text)
     }&lt;/p&gt;</mattext>\n`;
     xml += `          </material>\n`;
-    xml +=
-      `          <response_lid ident="${respIdent}" rcardinality="Single">\n`;
+    xml += `          <response_lid ident="${respIdent}" rcardinality="${
+      multipleResponse ? "Multiple" : "Single"
+    }">\n`;
     xml += `            <render_choice shuffle="${
       shuffleAnswers ? "Yes" : "No"
     }">\n`;
@@ -165,8 +171,26 @@ export function generateQtiXml(
     xml +=
       `          <outcomes><decvar minvalue="0" maxvalue="100" varname="SCORE" vartype="Decimal" /></outcomes>\n`;
     xml += `          <respcondition continue="No">\n`;
-    xml +=
-      `            <conditionvar><varequal respident="${respIdent}">${correctLabel}</varequal></conditionvar>\n`;
+    if (multipleResponse) {
+      const correctConditions = correctLabels.map((label) =>
+        `<varequal respident="${respIdent}">${label}</varequal>`
+      ).join("");
+      const incorrectConditions = question.options
+        .filter((option) =>
+          !correctLabels.includes(
+            `${qIdent}_${option.label.toLowerCase()}`,
+          )
+        )
+        .map((option) =>
+          `<not><varequal respident="${respIdent}">${qIdent}_${option.label.toLowerCase()}</varequal></not>`
+        ).join("");
+      xml +=
+        `            <conditionvar><and>${correctConditions}${incorrectConditions}</and></conditionvar>\n`;
+    } else {
+      xml += `            <conditionvar><varequal respident="${respIdent}">${
+        correctLabels[0]
+      }</varequal></conditionvar>\n`;
+    }
     xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
     xml += `          </respcondition>\n`;
     xml += `        </resprocessing>\n`;

@@ -12,7 +12,7 @@ export interface QuizIssue {
   message: string;
 }
 
-/** A parsed single-answer multiple-choice question. */
+/** A parsed multiple-choice question. */
 export interface QuizQuestion {
   /** Author-supplied question number; used in stable QTI identifiers. */
   number: number;
@@ -20,8 +20,12 @@ export interface QuizQuestion {
   text: string;
   /** Stable labels and their corresponding answer texts. */
   options: { label: string; text: string }[];
-  /** Uppercase label of the correct option. */
+  /** Uppercase first correct label, retained for single-answer consumers. */
   correctAnswer: string;
+  /** All correct labels for multiple-response questions. */
+  correctAnswers?: string[];
+  /** Checkbox-marked options represent a multiple-response question. */
+  responseType?: "multiple";
   /** One-based heading line, if parsed from Markdown. */
   line?: number;
 }
@@ -41,6 +45,8 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
   const quiz: ParsedQuiz = { title: "", questions: [], issues: [] };
   let question: QuizQuestion | undefined;
   let answerSeen = false;
+  let checkboxOptionCount = 0;
+  let regularOptionCount = 0;
   let fence: { character: string; length: number } | undefined;
   const issue = (rule: string, line: number, message: string) => {
     quiz.issues!.push({ rule, line, question: question?.number, message });
@@ -80,6 +86,8 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       };
       quiz.questions.push(question);
       answerSeen = false;
+      checkboxOptionCount = 0;
+      regularOptionCount = 0;
       continue;
     }
     if (!question || !line) continue;
@@ -97,20 +105,75 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
         );
       }
       answerSeen = true;
-      const label = answer[1].match(/^([a-z])[.)]?\s*$/i);
-      if (!label) {
+      if (checkboxOptionCount) {
+        issue(
+          "quiz-duplicate-answer",
+          index + 1,
+          "Use checked options or a correct-answer declaration, not both.",
+        );
+      }
+      const labels = parseCorrectAnswers(answer[1]);
+      if (!labels) {
         issue(
           "quiz-answer-syntax",
           index + 1,
-          "Specify exactly one correct answer letter, for example 'Correct answer: A'.",
+          "Specify one or more answer letters, for example 'Correct answer: A' or 'Correct answer: A, C'.",
         );
-      } else question.correctAnswer = label[1].toUpperCase();
+      } else {
+        question.correctAnswer = labels[0];
+        if (labels.length > 1) {
+          question.correctAnswers = labels;
+          question.responseType = "multiple";
+        }
+      }
+      continue;
+    }
+    const checkboxOption = line.match(
+      /^(?:[-+*]\s+)?\[([ xX])\]\s+(?:([a-z])[.)]\s+)?(.*)$/i,
+    );
+    if (checkboxOption) {
+      if (regularOptionCount) {
+        issue(
+          "quiz-option-syntax",
+          index + 1,
+          "Do not mix checkbox options with lettered answer options.",
+        );
+      }
+      if (answerSeen) {
+        issue(
+          "quiz-duplicate-answer",
+          index + 1,
+          "Use checked options or a correct-answer declaration, not both.",
+        );
+      }
+      checkboxOptionCount++;
+      question.responseType = "multiple";
+      const label = (checkboxOption[2] ??
+        String.fromCharCode(64 + question.options.length + 1))
+        .toUpperCase();
+      question.options.push({
+        label,
+        text: checkboxOption[3].trim(),
+      });
+      question.correctAnswers ??= [];
+      if (checkboxOption[1].toLowerCase() === "x") {
+        question.correctAnswers.push(label);
+        question.correctAnswer = question.correctAnswers[0];
+      }
       continue;
     }
     const option = line.match(
       /^(?:[-+*]\s+)?(?:\*\*|__|`)?([a-z])(?:\*\*|__|`)?[.)](?:\*\*|__|`)?(?:\s+(.*))?$/i,
     );
     if (option) {
+      if (checkboxOptionCount) {
+        issue(
+          "quiz-option-syntax",
+          index + 1,
+          "Do not mix checkbox options with lettered answer options.",
+        );
+      }
+      regularOptionCount++;
       question.options.push({
         label: option[1].toUpperCase(),
         text: (option[2] ?? "").trim(),
@@ -131,6 +194,23 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
     }
   }
   return quiz;
+}
+
+function parseCorrectAnswers(value: string): string[] | null {
+  const answer = value.trim();
+  const single = answer.match(/^([a-z])[.)]?$/i);
+  if (single) return [single[1].toUpperCase()];
+  let labels: string[];
+  if (/^[a-z]{2,}$/i.test(answer)) {
+    labels = [...answer.toUpperCase()];
+  } else {
+    const separated = answer.replace(/\b(?:and|en)\b/gi, ",");
+    if (!/^[a-z](?:(?:\s*[,;&]\s*|\s+)[a-z])*$/i.test(separated)) {
+      return null;
+    }
+    labels = separated.match(/[a-z]/gi)!.map((label) => label.toUpperCase());
+  }
+  return new Set(labels).size === labels.length ? labels : null;
 }
 
 /** Check that each exported question has one reachable, unambiguous scoring key. */
@@ -185,14 +265,26 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
     const malformedAnswer = issues.some((issue) =>
       issue.rule === "quiz-answer-syntax" && issue.question === question.number
     );
-    if (
+    const correctAnswers = question.correctAnswers ?? [question.correctAnswer];
+    if (!malformedAnswer && !correctAnswers[0]) {
+      issue(
+        "quiz-answer",
+        "The correct answer is missing. Use 'Correct answer: A' or mark at least one option with '[x]'.",
+      );
+    } else if (
       !malformedAnswer &&
-      (!question.correctAnswer || !labels.includes(question.correctAnswer))
+      correctAnswers.some((answer) => !labels.includes(answer))
     ) {
       issue(
         "quiz-answer",
-        "The correct answer is missing or does not match an option. Use 'Correct answer: A' or 'Antwoord: A' with an existing option letter.",
+        "A correct answer does not match an option. Use an existing option letter.",
       );
+    }
+    if (
+      correctAnswers.length > 1 &&
+      new Set(correctAnswers).size !== correctAnswers.length
+    ) {
+      issue("quiz-answer", "Correct answer labels must not be repeated.");
     }
   }
   return issues;

@@ -7,6 +7,8 @@ import {
 import { join } from "@std/path";
 import { convertQuiz, generateQtiXml } from "../src/quiz-converter.ts";
 import { parseQuizMarkdown, validateQuiz } from "../src/quiz-parser.ts";
+import { remarkQuizPreview } from "../src/quiz-preview.ts";
+import type { FlashcardNode } from "../src/flashcards.ts";
 import { resolveQuizOptions } from "../src/quiz-config.ts";
 import { resolveConfig, validateConfig } from "../src/config-loader.ts";
 import { runPack, runPrepare } from "../src/main.ts";
@@ -64,11 +66,14 @@ Deno.test("#34 rejects missing, duplicate, ambiguous or unreachable answers and 
       question("Antwoord: A or B"),
       question("Antwoord: A\nAntwoord: A"),
       question("Antwoord: A\nAntwoord: B"),
+      question("Antwoord: A, A"),
       question("Antwoord: A", ""),
       question("Antwoord: A", "- A. Yes"),
       question("Antwoord: A", "- A. Yes\n- A. No"),
       question("Antwoord: A", "- A. Yes\n- B. No\n- C. "),
       question("Antwoord: A", "- [x] Yes\n- [ ] No"),
+      question("", "- [ ] Yes\n- [ ] No"),
+      question("", "- [x] Yes\n- B. No"),
       question() + "\n## Vraag 1\nAgain?\n- A. Yes\n- B. No\nAntwoord: A\n",
       question().replace("Is this correct?", ""),
     ]
@@ -95,6 +100,66 @@ Deno.test("#34 rejects missing, duplicate, ambiguous or unreachable answers and 
   assertEquals(
     validateQuiz(quiz).some((issue) => issue.rule === "quiz-option-label"),
     true,
+  );
+});
+
+Deno.test("multiple-response questions accept answer keys and checked options", () => {
+  for (
+    const [answer, expected] of [
+      ["Correct answer: A, C", ["A", "C"]],
+      ["Correct answer: A and C", ["A", "C"]],
+      ["Correct answer: AC", ["A", "C"]],
+    ] as const
+  ) {
+    const quiz = parseQuizMarkdown(
+      question(answer, "- A. Yes\n- B. No\n- C. Maybe"),
+    );
+    assertEquals(validateQuiz(quiz), []);
+    assertEquals(quiz.questions[0].correctAnswers, expected);
+    assertStringIncludes(
+      generateQtiXml(quiz, "multiple"),
+      "<fieldentry>cc.multiple_response.v0p1</fieldentry>",
+    );
+  }
+
+  const checked = parseQuizMarkdown(
+    question("", "- [x] Yes\n- [ ] No\n- [x] Maybe"),
+  );
+  assertEquals(validateQuiz(checked), []);
+  assertEquals(checked.questions[0].correctAnswers, ["A", "C"]);
+  assertStringIncludes(
+    generateQtiXml(checked, "checkbox"),
+    'response_lid ident="q1_resp" rcardinality="Multiple"',
+  );
+});
+
+Deno.test("multiple-response preview renders checkboxes and all correct answers", () => {
+  const tree: FlashcardNode = { type: "root", children: [] };
+  remarkQuizPreview()(tree, {
+    path: "quiz-multiple.md",
+    value: question(
+      "Correct answer: A, C",
+      "- A. Yes\n- B. No\n- C. Maybe",
+    ),
+  });
+
+  const section = tree.children?.[0];
+  const fieldset = section?.children?.[0];
+  assertEquals(fieldset?.data?.hProperties?.["data-response-type"], "multiple");
+  assertEquals(
+    fieldset?.data?.hProperties?.["data-correct-answers"],
+    '["A","C"]',
+  );
+  const list = fieldset?.children?.[2];
+  assertEquals(
+    list?.children?.map((item) =>
+      item.children?.[0]?.children?.[0]?.data?.hProperties?.type
+    ),
+    ["checkbox", "checkbox", "checkbox"],
+  );
+  assertEquals(
+    fieldset?.children?.[3]?.children?.[1]?.children?.[0]?.value,
+    "Yes, Maybe",
   );
 });
 
