@@ -8,6 +8,12 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.19.0 - 2026-10-06
+
+### Added
+
+- The Voortgangsverkenner can focus on a configured, date-aware course week, switch weeks manually, and refresh the selected week while retaining other weeks' data in memory.
+
 ## 0.18.0 - 2026-10-05
 
 ### Added

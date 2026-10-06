@@ -55,8 +55,26 @@
   }
 
   /**
+   * Index of the latest course week that has started, or -1 before the course.
+   * @param {Array<{ startsOn: string }>} weeks
+   * @param {Date} [referenceDate]
+   * @returns {number}
+   */
+  function currentWeekIndex(weeks, referenceDate = new Date()) {
+    const today = `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}-${
+      String(referenceDate.getDate()).padStart(2, "0")
+    }`;
+    let current = -1;
+    for (let i = 0; i < weeks.length; i++) {
+      if (weeks[i].startsOn > today) break;
+      current = i;
+    }
+    return current;
+  }
+
+  /**
    * Stoplight for one work item.
-   * @param {{ state: string, statusLabel?: string | null, dueDate?: string | null,
+   * @param {{ state: string, statusLabel?: string | null, dueDate?: string | null, availableFrom?: string | null,
    *   studentCommitsCount: number, studentCommentsCount: number,
    *   requireCommentsForDone: boolean, referenceDate?: Date }} input
    * @returns {{ color: "green" | "orange" | "red" | "gray", reason: string,
@@ -67,6 +85,7 @@
       state,
       statusLabel,
       dueDate,
+      availableFrom,
       studentCommitsCount,
       studentCommentsCount,
       requireCommentsForDone,
@@ -95,6 +114,15 @@
         return { color: "orange", reason: "Status done, maar geen opmerking van de student", isDone: false, isNeutral: false };
       }
       return { color: "green", reason: "Status done met eigen commits", isDone: true, isNeutral: false };
+    }
+
+    if (availableFrom && /^\d{4}-\d{2}-\d{2}$/.test(availableFrom)) {
+      const today = `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}-${
+        String(referenceDate.getDate()).padStart(2, "0")
+      }`;
+      if (availableFrom > today) {
+        return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
+      }
     }
 
     if (logicalStatus === "doing") {
@@ -145,7 +173,7 @@
         incompletePercent: 0,
         scorableWorkItems: 0,
         ...counts,
-        reason: totalWorkItems === 0 ? "Geen work items in deze repo" : "Alle work items hebben een toekomstige deadline",
+        reason: totalWorkItems === 0 ? "Geen work items in deze repo" : "Alle work items hebben een toekomstige deadline of startdatum",
       };
     }
 
@@ -170,6 +198,7 @@
     extractStudentIdentifier,
     isTeacherCommit,
     isWorkItemCommit,
+    currentWeekIndex,
     evaluateWorkItem,
     evaluateRepoStoplight,
   };

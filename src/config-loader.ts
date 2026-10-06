@@ -348,6 +348,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
       "requireCommentsForDone",
       "orangeThresholdPercent",
       "redThresholdPercent",
+      "weeks",
       "module",
     ]);
 
@@ -408,6 +409,72 @@ export function validateConfig(config: unknown): config is BsoConfig {
         throw new Error(
           "Field 'label' in 'teacherDashboard.repos' must be a non-empty string.",
         );
+      }
+    }
+
+    if (td.weeks !== undefined) {
+      if (!Array.isArray(td.weeks) || td.weeks.length === 0) {
+        throw new Error("Field 'teacherDashboard.weeks' must be a non-empty array.");
+      }
+      const repoPrefixes = new Set((td.repos as { prefix: string }[]).map((r) => r.prefix.trim()));
+      const assignedRepos = new Set<string>();
+      const weekTitles = new Set<string>();
+      const weekFields = new Set(["title", "startsOn", "repos"]);
+      let previousStart = "";
+      for (const [index, value] of td.weeks.entries()) {
+        const field = `teacherDashboard.weeks[${index}]`;
+        if (typeof value !== "object" || value === null || Array.isArray(value)) {
+          throw new Error(`Field '${field}' must be an object with title, startsOn and repos.`);
+        }
+        const week = value as Record<string, unknown>;
+        for (const key of Object.keys(week)) {
+          if (!weekFields.has(key)) {
+            throw new Error(`Unknown configuration field '${field}.${key}'.`);
+          }
+        }
+        if (typeof week.title !== "string" || !week.title.trim()) {
+          throw new Error(`Field '${field}.title' must be a non-empty string.`);
+        }
+        if (weekTitles.has(week.title.trim())) {
+          throw new Error(`Field '${field}.title' must be unique.`);
+        }
+        weekTitles.add(week.title.trim());
+        const startsOnDate = typeof week.startsOn === "string"
+          ? new Date(`${week.startsOn}T00:00:00.000Z`)
+          : null;
+        if (
+          typeof week.startsOn !== "string" ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(week.startsOn) ||
+          !startsOnDate || Number.isNaN(startsOnDate.getTime()) ||
+          startsOnDate.toISOString().slice(0, 10) !== week.startsOn
+        ) {
+          throw new Error(`Field '${field}.startsOn' must be a valid date in YYYY-MM-DD format.`);
+        }
+        if (week.startsOn <= previousStart) {
+          throw new Error("Field 'teacherDashboard.weeks' must be ordered by ascending startsOn dates.");
+        }
+        previousStart = week.startsOn;
+        if (
+          !Array.isArray(week.repos) || week.repos.length === 0 ||
+          week.repos.some((prefix) => typeof prefix !== "string" || !prefix.trim())
+        ) {
+          throw new Error(`Field '${field}.repos' must be a non-empty array of repository prefixes.`);
+        }
+        for (const rawPrefix of week.repos as string[]) {
+          const prefix = rawPrefix.trim();
+          if (!repoPrefixes.has(prefix)) {
+            throw new Error(`Unknown repository prefix '${prefix}' in '${field}.repos'.`);
+          }
+          if (assignedRepos.has(prefix)) {
+            throw new Error(`Repository prefix '${prefix}' may only be assigned to one course week.`);
+          }
+          assignedRepos.add(prefix);
+        }
+      }
+      for (const prefix of repoPrefixes) {
+        if (!assignedRepos.has(prefix)) {
+          throw new Error(`Repository prefix '${prefix}' must be assigned to a 'teacherDashboard.weeks' entry.`);
+        }
       }
     }
 
@@ -553,6 +620,13 @@ export function resolveTeacherDashboardConfig(
     requireCommentsForDone: dashboard.requireCommentsForDone ?? false,
     orangeThresholdPercent: dashboard.orangeThresholdPercent ?? 10,
     redThresholdPercent: dashboard.redThresholdPercent ?? 50,
+    weeks: dashboard.weeks
+      ? dashboard.weeks.map((week) => ({
+        title: week.title.trim(),
+        startsOn: week.startsOn,
+        repos: week.repos.map((prefix) => prefix.trim()),
+      }))
+      : [],
     module: dashboard.module ? resolveModule(dashboard.module, "teacherDashboard.module") : null,
   };
 }

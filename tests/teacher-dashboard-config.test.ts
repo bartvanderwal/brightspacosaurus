@@ -50,6 +50,73 @@ Deno.test("validateConfig accepts valid full teacherDashboard", () => {
   assertEquals(validateConfig(baseConfig(teacherDashboard)), true);
 });
 
+Deno.test("teacherDashboard weeks map repos to ascending, valid course dates", () => {
+  const teacherDashboard: TeacherDashboardConfig = {
+    groupPath: "course-group",
+    subgroups: ["Arnhem"],
+    repos: [
+      { prefix: "pod", label: "POD" },
+      { prefix: "n1", label: "N1" },
+    ],
+    weeks: [
+      { title: "Week 1", startsOn: "2026-09-01", repos: ["pod"] },
+      { title: "Week 2", startsOn: "2026-09-08", repos: ["n1"] },
+    ],
+  };
+  assertEquals(validateConfig(baseConfig(teacherDashboard)), true);
+  const resolved = resolveConfig(
+    baseConfig(teacherDashboard) as unknown as import("../src/types.ts").BsoConfig,
+    {},
+    REPO_ROOT,
+  );
+  assertEquals(resolved.teacherDashboard?.weeks, teacherDashboard.weeks);
+});
+
+Deno.test("validateConfig rejects malformed, unordered or incomplete teacherDashboard weeks", () => {
+  const td = (weeks: unknown) =>
+    baseConfig({
+      groupPath: "grp",
+      subgroups: ["A"],
+      repos: [{ prefix: "pod", label: "POD" }, { prefix: "n1", label: "N1" }],
+      weeks,
+    });
+  assertThrows(() => validateConfig(td([])), Error, "teacherDashboard.weeks");
+  assertThrows(
+    () => validateConfig(td([{ title: "Week 1", startsOn: "2026-02-30", repos: ["pod", "n1"] }])),
+    Error,
+    "startsOn",
+  );
+  assertThrows(
+    () => validateConfig(td([
+      { title: "Week 1", startsOn: "2026-09-08", repos: ["pod"] },
+      { title: "Week 2", startsOn: "2026-09-01", repos: ["n1"] },
+    ])),
+    Error,
+    "ascending startsOn",
+  );
+  assertThrows(
+    () => validateConfig(td([
+      { title: "Week 1", startsOn: "2026-09-01", repos: ["pod"] },
+      { title: "Week 2", startsOn: "2026-09-08", repos: ["pod"] },
+    ])),
+    Error,
+    "only be assigned",
+  );
+  assertThrows(
+    () => validateConfig(td([{ title: "Week 1", startsOn: "2026-09-01", repos: ["pod"] }])),
+    Error,
+    "must be assigned",
+  );
+  assertThrows(
+    () => validateConfig(td([
+      { title: "Week 1", startsOn: "2026-09-01", repos: ["pod", "n1"] },
+      { title: "Week 1", startsOn: "2026-09-08", repos: ["n1"] },
+    ])),
+    Error,
+    "title' must be unique",
+  );
+});
+
 Deno.test("validateConfig rejects non-object teacherDashboard", () => {
   assertThrows(() => validateConfig(baseConfig("not-an-object")));
   assertThrows(() => validateConfig(baseConfig(null)));
@@ -133,6 +200,7 @@ Deno.test("resolveConfig applies correct default values for teacherDashboard", (
   assertEquals(resolved.teacherDashboard?.orangeThresholdPercent, 10);
   assertEquals(resolved.teacherDashboard?.redThresholdPercent, 50);
   assertEquals(resolved.teacherDashboard?.requireCommentsForDone, false);
+  assertEquals(resolved.teacherDashboard?.weeks, []);
 });
 
 Deno.test("teacherDashboard.module is validated like readersModule, with a required slug", () => {

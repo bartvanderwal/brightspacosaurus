@@ -23,6 +23,7 @@
       requireCommentsForDone: false,
       orangeThresholdPercent: 10,
       redThresholdPercent: 50,
+      weeks: [],
     };
     const el = document.getElementById("bso-dashboard-config");
     try {
@@ -36,6 +37,9 @@
   const config = readConfig();
   const apiBase = `${config.gitlabUrl.replace(/\/+$/, "")}/api/v4`;
   const MAX_PARALLEL = 6;
+  const weekByRepo = new Map((config.weeks || []).flatMap((week) =>
+    week.repos.map((prefix) => [prefix, week])
+  ));
 
   // --- GitLab API client ---
 
@@ -164,7 +168,7 @@
     return students;
   }
 
-  async function fetchWorkItem(token, project, issue, repoCommits) {
+  async function fetchWorkItem(token, project, issue, repoCommits, availableFrom) {
     const base = `/projects/${project.id}/issues/${issue.iid}`;
     const [notes, mergeRequests] = await Promise.all([
       apiGetAll(token, `${base}/notes`).catch(() => []),
@@ -196,6 +200,7 @@
       state: issue.state,
       statusLabel,
       dueDate: issue.due_date || (issue.milestone && issue.milestone.due_date) || null,
+      availableFrom,
       studentCommitsCount: commits.filter((c) => !c.byTeacher).length,
       studentCommentsCount: notes.filter((n) =>
         !n.system && !calc.isTeacherCommit(n.author && n.author.username, n.author && n.author.name, config.teacherUsernames)
@@ -217,7 +222,7 @@
         apiGetAll(token, `/projects/${project.id}/issues`),
       ]);
       const workItems = await mapLimit(issues, MAX_PARALLEL, (issue) =>
-        fetchWorkItem(token, project, issue, repoCommits)
+        fetchWorkItem(token, project, issue, repoCommits, weekByRepo.get(repo.prefix)?.startsOn)
       );
       workItems.sort((a, b) => a.iid - b.iid);
       return { prefix: repo.prefix, label: repo.label, exists: true, webUrl: project.web_url, workItems, warning };
@@ -233,8 +238,8 @@
     }
   }
 
-  async function fetchStudent(token, entry) {
-    const repos = await Promise.all(config.repos.map((repo) => fetchRepo(token, repo, entry.projects[repo.prefix])));
+  async function fetchStudent(token, entry, reposToFetch = config.repos) {
+    const repos = await Promise.all(reposToFetch.map((repo) => fetchRepo(token, repo, entry.projects[repo.prefix])));
     return { studentId: entry.studentId, repos, fetchedAt: new Date().toISOString() };
   }
 
@@ -322,30 +327,84 @@
 
   // --- Tree ---
 
+  function buildStudentNode(s, visible, settings, filter, parentId = "") {
+    const node = (id, type, label, light, meta, data, children, future = false) => ({
+      id,
+      type,
+      label,
+      light,
+      meta,
+      data,
+      children,
+      future,
+    });
+    const attention = (l) => !["ok", "idle"].includes(l);
+    const agg = studentAggregate(s, visible, settings);
+    const repos = visibleRepos(s, visible).map((repo) => {
+      const ragg = repoAggregate(repo, settings);
+      const items = repo.workItems
+        .map((it) => ({ it, cl: classifyItem(it, settings) }))
+        .filter(({ cl }) => !filter || attention(cl.light))
+        .map(({ it, cl }) => {
+          const commits = it.commits.map((c) =>
+            node(`${s.studentId}/${repo.prefix}/${it.iid}/${c.id}`, "commit", c.title, null, c.shortId, {
+              student: s,
+              repo,
+              item: it,
+              commit: c,
+            }, [])
+          );
+          return node(`${s.studentId}/${repo.prefix}/${it.iid}`, "item", `#${it.iid} ${it.title}`, cl.light,
+            it.commits.length ? `${it.commits.length} commit${it.commits.length > 1 ? "s" : ""}` : (it.statusLabel || it.state),
+            { student: s, repo, item: it }, commits);
+        });
+      const meta = !repo.exists ? "geen repo" : repo.error ? "fout" : `${ragg.n.ok}/${ragg.total}`;
+      return node(`${s.studentId}/${repo.prefix}`, "repo", repo.label, ragg.light, meta, { student: s, repo }, items);
+    }).filter((r) => !filter || attention(r.light));
+    return node(parentId ? `${parentId}/${s.studentId}` : s.studentId, "student", s.studentId, agg.light,
+      `${agg.n.ok}/${agg.total}`, { student: s }, repos);
+  }
+
+  function weekNodeId(klas, week) {
+    return `klas/${klas}/week/${week.startsOn}`;
+  }
+
   function buildTree(students, klas, visible, settings, filter, query) {
     const q = query.trim().toLowerCase();
-    const node = (id, type, label, light, meta, data, children) => ({ id, type, label, light, meta, data, children });
-    const attention = (l) => !["ok", "idle"].includes(l);
-    const kids = students.filter((s) => !q || s.studentId.toLowerCase().includes(q)).map((s) => {
-      const agg = studentAggregate(s, visible, settings);
-      const repos = visibleRepos(s, visible).map((repo) => {
-        const ragg = repoAggregate(repo, settings);
-        const items = repo.workItems
-          .map((it) => ({ it, cl: classifyItem(it, settings) }))
-          .filter(({ cl }) => !filter || attention(cl.light))
-          .map(({ it, cl }) => {
-            const commits = it.commits.map((c) =>
-              node(`${s.studentId}/${repo.prefix}/${it.iid}/${c.id}`, "commit", c.title, null, c.shortId, { student: s, repo, item: it, commit: c }, [])
-            );
-            return node(`${s.studentId}/${repo.prefix}/${it.iid}`, "item", `#${it.iid} ${it.title}`, cl.light,
-              it.commits.length ? `${it.commits.length} commit${it.commits.length > 1 ? "s" : ""}` : (it.statusLabel || it.state),
-              { student: s, repo, item: it }, commits);
-          });
-        const meta = !repo.exists ? "geen repo" : repo.error ? "fout" : `${ragg.n.ok}/${ragg.total}`;
-        return node(`${s.studentId}/${repo.prefix}`, "repo", repo.label, ragg.light, meta, { student: s, repo }, items);
-      }).filter((r) => !filter || attention(r.light));
-      return node(s.studentId, "student", s.studentId, agg.light, `${agg.n.ok}/${agg.total}`, { student: s }, repos);
-    }).filter((s) => !filter || attention(s.light));
+    const node = (id, type, label, light, meta, data, children, future = false) => ({
+      id,
+      type,
+      label,
+      light,
+      meta,
+      data,
+      children,
+      future,
+    });
+    const matchingStudents = students.filter((s) => !q || s.studentId.toLowerCase().includes(q));
+    if (config.weeks && config.weeks.length) {
+      const currentWeek = calc.currentWeekIndex(config.weeks);
+      const orderedWeeks = config.weeks.map((week, index) => ({ week, index })).sort((a, b) => {
+        if (a.index === currentWeek) return -1;
+        if (b.index === currentWeek) return 1;
+        const aIsPast = a.index < currentWeek;
+        const bIsPast = b.index < currentWeek;
+        if (aIsPast !== bIsPast) return aIsPast ? -1 : 1;
+        return aIsPast ? b.index - a.index : a.index - b.index;
+      });
+      const weeks = orderedWeeks.map(({ week, index }) => {
+        const weekVisible = new Set([...visible].filter((prefix) => week.repos.includes(prefix)));
+        const id = weekNodeId(klas, week);
+        const weekStudents = matchingStudents.map((s) => buildStudentNode(s, weekVisible, settings, filter, id))
+          .filter((s) => !filter || !["ok", "idle"].includes(s.light));
+        const future = currentWeek < 0 || index > currentWeek;
+        return node(id, "week", week.title, null,
+          week.startsOn, { klas, week }, weekStudents, future);
+      });
+      return node(`klas/${klas}`, "klas", klas || config.groupPath, null, `${weeks.length} weken`, { klas }, weeks);
+    }
+    const kids = matchingStudents.map((s) => buildStudentNode(s, visible, settings, filter))
+      .filter((s) => !filter || !["ok", "idle"].includes(s.light));
     return node(`klas/${klas}`, "klas", klas || config.groupPath, null, `${kids.length} studenten`, { klas }, kids);
   }
 
@@ -411,7 +470,7 @@
         ref=${ref} onKeyDown=${onKey} aria-activedescendant=${"t-" + slug(selected)}>
       ${rows.map(({ n, depth }) => html`<li key=${n.id} id=${"t-" + slug(n.id)} role="treeitem" aria-level=${depth + 1}
           aria-expanded=${n.children.length ? open.has(n.id) : undefined} aria-selected=${n.id === selected}
-          className="row" style=${{ "--depth": depth }}
+          className=${"row" + (n.future ? " future" : "")} style=${{ "--depth": depth }}
           onClick=${() => {
             select(n.id);
             if (n.children.length && n.id !== selected) setOpen((o) => new Set(o).add(n.id));
@@ -458,17 +517,41 @@
     </div>`;
   }
 
+  function WeekDetail({ week, weekId, students, visible, settings, onPick }) {
+    const scopedVisible = new Set([...visible].filter((prefix) => week.repos.includes(prefix)));
+    const repos = config.repos.filter((repo) => scopedVisible.has(repo.prefix));
+    const all = students.map((s) => ({
+      s,
+      agg: studentAggregate(s, scopedVisible, settings),
+      repos: repos.map((cfg) => repoAggregate(s.repos.find((r) => r.prefix === cfg.prefix), settings)),
+    }));
+    return html`<div className="detail">
+      <div className="dhead"><h2>${week.title}</h2>
+        <span className="muted">Start ${fmtDate(week.startsOn)} · ${repos.length} van ${week.repos.length} repo's getoond</span></div>
+      ${repos.length ? html`<div className="scroll"><table>
+        <thead><tr><th>Student</th><th>Weekstatus</th>${repos.map((r) => html`<th key=${r.prefix}>${r.label}</th>`)}</tr></thead>
+        <tbody>${all.map(({ s, agg, repos: ras }) => html`<tr key=${s.studentId} className="click" onClick=${() => onPick(`${weekId}/${s.studentId}`)}>
+          <td><strong>${s.studentId}</strong></td><td><${Light} l=${agg.light} /></td>
+          ${ras.map((a, i) => html`<td key=${i} title=${a.reason}><${Light} l=${a.light}
+            label=${a.reason === "Repo niet aangemaakt" ? "geen repo" : a.total ? `${a.n.ok}/${a.total}` : "–"} /></td>`)}</tr>`)}</tbody>
+      </table></div>` : html`<p className="muted">Deze week heeft geen zichtbare repo's.</p>`}
+    </div>`;
+  }
+
   function lastOwnCommit(items) {
     return items.flatMap((i) => i.commits).filter((c) => !c.byTeacher)
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""))[0];
   }
 
-  function StudentDetail({ s, visible, settings, onPick, onRefresh, busy }) {
-    const agg = studentAggregate(s, visible, settings);
-    const last = lastOwnCommit(studentItems(s, visible));
+  function StudentDetail({ s, visible, settings, onPick, onRefresh, busy, week }) {
+    const scopedVisible = week
+      ? new Set([...visible].filter((prefix) => week.repos.includes(prefix)))
+      : visible;
+    const agg = studentAggregate(s, scopedVisible, settings);
+    const last = lastOwnCommit(studentItems(s, scopedVisible));
     return html`<div className="detail">
       <div className="dhead"><h2>${s.studentId}</h2><${Light} l=${agg.light} />
-        <button className="btn" style=${{ marginLeft: "auto" }} disabled=${busy} onClick=${() => onRefresh(s.studentId)}>Ververs deze student</button></div>
+        <button className="btn" style=${{ marginLeft: "auto" }} disabled=${busy} onClick=${() => onRefresh(s.studentId, week)}>Ververs deze student</button></div>
       <div className="facts">
         <div className="fact"><span className="label">Groen</span><b className="add">${agg.n.ok}<span className="muted" style=${{ fontSize: "var(--step-0)" }}> / ${agg.total}</span></b></div>
         <div className="fact"><span className="label">Oranje</span><b style=${{ color: "var(--warn)" }}>${agg.n.warn}</b></div>
@@ -477,7 +560,7 @@
       </div>
       <div className="scroll"><table>
         <thead><tr><th>Repo</th><th>Stoplicht</th><th className="num">Groen</th><th className="num">Oranje</th><th className="num">Rood</th><th className="num">Nog niet</th><th>Verdeling</th></tr></thead>
-        <tbody>${visibleRepos(s, visible).map((r) => {
+        <tbody>${visibleRepos(s, scopedVisible).map((r) => {
           const a = repoAggregate(r, settings);
           return html`<tr key=${r.prefix} className="click" onClick=${() => onPick(`${s.studentId}/${r.prefix}`)}>
             <td><strong>${r.label}</strong>${!r.exists || r.error ? html`<div className="reason">${a.reason}</div>` : null}</td>
@@ -647,6 +730,13 @@
     const [settings, setSettings] = useState(defaultSettings);
     const [open, setOpen] = useState(() => new Set(["klas/"]));
     const [selected, setSelected] = useState("klas/");
+    const [selectedWeekTitle, setSelectedWeekTitle] = useState(() => {
+      if (!config.weeks.length) return "";
+      return config.weeks[Math.max(0, calc.currentWeekIndex(config.weeks))].title;
+    });
+    const currentWeekIndex = calc.currentWeekIndex(config.weeks || []);
+    const selectedWeek = config.weeks.find((week) => week.title === selectedWeekTitle) ||
+      config.weeks[Math.max(0, currentWeekIndex)] || null;
 
     const acceptToken = (accepted, classes) => {
       setToken(accepted);
@@ -667,14 +757,22 @@
       [students, klas, visible, settings, filter, query]);
 
     useEffect(() => {
-      setOpen(new Set([`klas/${klas}`]));
-      setSelected(`klas/${klas}`);
+      const initialWeek = config.weeks.length
+        ? config.weeks[Math.max(0, calc.currentWeekIndex(config.weeks))]
+        : null;
+      setSelectedWeekTitle(initialWeek?.title || "");
+      const classId = `klas/${klas}`;
+      const selectedId = initialWeek ? weekNodeId(klas, initialWeek) : classId;
+      setOpen(new Set(initialWeek ? [classId, selectedId] : [classId]));
+      setSelected(selectedId);
     }, [klas]);
 
     const path = findPath(root, selected);
     const node = path.length ? path[path.length - 1] : root;
     const pick = useCallback((id) => {
       const p = findPath(root, id);
+      const weekNode = p.find((n) => n.type === "week");
+      if (weekNode) setSelectedWeekTitle(weekNode.data.week.title);
       setOpen((o) => {
         const x = new Set(o);
         p.slice(0, -1).forEach((n) => x.add(n.id));
@@ -686,13 +784,32 @@
     async function refreshClass() {
       setError("");
       try {
-        setBusy({ text: "Projecten ophalen" });
+        const existing = dataByKlas[klas];
+        const updateRepos = config.weeks.length && existing && selectedWeek
+          ? config.repos.filter((repo) => selectedWeek.repos.includes(repo.prefix))
+          : config.repos;
+        setBusy({ text: config.weeks.length && existing ? `${selectedWeek.title} bijwerken` : "Projecten ophalen" });
         const entries = Object.values(await discoverStudents(token, klas));
         const result = {};
+        const updatedPrefixes = new Set(updateRepos.map((repo) => repo.prefix));
         let done = 0;
         setBusy({ done, total: entries.length });
         await mapLimit(entries, 2, async (entry) => {
-          result[entry.studentId] = await fetchStudent(token, entry);
+          const previous = existing?.students[entry.studentId];
+          const fresh = await fetchStudent(token, entry, previous ? updateRepos : config.repos);
+          const repos = previous
+            ? [
+              ...previous.repos.filter((repo) => !updatedPrefixes.has(repo.prefix)),
+              ...fresh.repos,
+            ]
+            : fresh.repos;
+          result[entry.studentId] = {
+            ...fresh,
+            repos: repos.sort((a, b) =>
+              config.repos.findIndex((repo) => repo.prefix === a.prefix) -
+              config.repos.findIndex((repo) => repo.prefix === b.prefix)
+            ),
+          };
           setBusy({ done: ++done, total: entries.length });
         });
         setDataByKlas((prev) => ({ ...prev, [klas]: { students: result, fetchedAt: new Date().toISOString() } }));
@@ -703,16 +820,37 @@
       }
     }
 
-    async function refreshStudent(studentId) {
+    async function refreshStudent(studentId, week) {
       setError("");
       try {
-        setBusy({ text: `${studentId} ophalen` });
+        setBusy({ text: `${studentId}${week ? ` · ${week.title}` : ""} ophalen` });
         const entry = (await discoverStudents(token, klas))[studentId];
         if (!entry) throw new Error(`Geen repo's meer gevonden voor ${studentId}.`);
-        const fresh = await fetchStudent(token, entry);
+        const previous = dataByKlas[klas]?.students[studentId];
+        const updateRepos = config.weeks.length && previous && week
+          ? config.repos.filter((repo) => week.repos.includes(repo.prefix))
+          : config.repos;
+        const fresh = await fetchStudent(token, entry, updateRepos);
+        const updatedPrefixes = new Set(updateRepos.map((repo) => repo.prefix));
+        const repos = previous
+          ? [...previous.repos.filter((repo) => !updatedPrefixes.has(repo.prefix)), ...fresh.repos]
+          : fresh.repos;
         setDataByKlas((prev) => ({
           ...prev,
-          [klas]: { ...prev[klas], students: { ...prev[klas].students, [studentId]: fresh } },
+          [klas]: {
+            ...prev[klas],
+            students: {
+              ...prev[klas].students,
+              [studentId]: {
+                ...fresh,
+                repos: repos.sort((a, b) =>
+                  config.repos.findIndex((repo) => repo.prefix === a.prefix) -
+                  config.repos.findIndex((repo) => repo.prefix === b.prefix)
+                ),
+              },
+            },
+            fetchedAt: new Date().toISOString(),
+          },
         }));
       } catch (e) {
         setError(e.message || String(e));
@@ -722,6 +860,7 @@
     }
 
     const d = node.data || {};
+    const week = path.find((n) => n.type === "week")?.data.week;
     let detail;
     if (!data) {
       detail = html`<div className="empty">${token
@@ -729,8 +868,10 @@
         : "Plak eerst een GitLab-token (fine-grained, alleen lezen). Zie de handleiding voor de benodigde rechten."}</div>`;
     } else if (node.type === "klas") {
       detail = html`<${KlasDetail} klas=${klas} students=${students} visible=${visible} settings=${settings} onPick=${pick} />`;
+    } else if (node.type === "week") {
+      detail = html`<${WeekDetail} week=${d.week} weekId=${node.id} students=${students} visible=${visible} settings=${settings} onPick=${pick} />`;
     } else if (node.type === "student") {
-      detail = html`<${StudentDetail} s=${d.student} visible=${visible} settings=${settings} onPick=${pick}
+      detail = html`<${StudentDetail} s=${d.student} visible=${visible} settings=${settings} week=${week} onPick=${pick}
         onRefresh=${refreshStudent} busy=${!!busy} />`;
     } else if (node.type === "repo") {
       detail = html`<${RepoDetail} s=${d.student} repo=${d.repo} settings=${settings} onPick=${pick} />`;
@@ -746,13 +887,24 @@
         ${subgroups.length > 1 ? html`<div className="field"><span className="label" id="klas-label">Klas</span>
           <div className="seg" role="group" aria-labelledby="klas-label">${subgroups.map((k) => html`<button key=${k}
             aria-pressed=${k === klas} disabled=${!!busy} onClick=${() => setKlas(k)}>${k}</button>`)}</div></div>` : null}
+        ${selectedWeek ? html`<label className="field" htmlFor="focus-week"><span className="label">Weekfocus</span>
+          <select id="focus-week" value=${selectedWeek.title} disabled=${!!busy} onChange=${(e) => {
+            const next = config.weeks.find((item) => item.title === e.target.value);
+            if (!next) return;
+            setSelectedWeekTitle(next.title);
+            const id = weekNodeId(klas, next);
+            setOpen((o) => new Set([...o, `klas/${klas}`, id]));
+            setSelected(id);
+          }}>${config.weeks.map((item, index) => html`<option key=${item.title} value=${item.title}>
+            ${item.title}${index > currentWeekIndex ? " · later" : ""}
+          </option>`)}</select></label>` : null}
         <${TokenField} token=${token} onAccept=${acceptToken} onForget=${forgetToken} />
       </header>
       <div className="status">
         <span className="note">Studentgegevens staan alleen in het geheugen van deze pagina en verdwijnen bij sluiten.</span>
-        ${data ? html`<span className="muted">Status van ${fmtDateTime(data.fetchedAt)}</span>` : null}
+        ${data ? html`<span className="muted">Laatst ververst ${fmtDateTime(data.fetchedAt)}</span>` : null}
         <button className="btn primary" disabled=${!token || !!busy} onClick=${refreshClass}>
-          ${data ? "Ververs status uit GitLab" : "Haal status uit GitLab"}</button>
+          ${data && selectedWeek ? `Ververs ${selectedWeek.title} uit GitLab` : data ? "Ververs status uit GitLab" : "Haal status uit GitLab"}</button>
         ${busy ? html`<span className="status" role="status"><span className="spinner" aria-hidden="true"></span>${
           busy.text || `${busy.done} van ${busy.total} studenten`}</span>` : null}
       </div>
@@ -764,7 +916,7 @@
       <div className="legend"><span className="label">Stoplicht</span>
         ${["ok", "warn", "bad", "idle"].map((l) => html`<${Light} key=${l} l=${l} />`)}
         <span>Groen: done met eigen commits · Oranje: doing, of done zonder eigen commits · Rood: todo na de deadline ·
-          Nog niet: deadline in de toekomst, telt niet mee</span></div>
+        Nog niet: deadline of cursusweek is in de toekomst, telt niet mee</span></div>
       <main className="work">
         <section className="pane" aria-label="Verkenner">
           <div className="pane-head">
@@ -772,7 +924,7 @@
             <label className="check"><input type="checkbox" checked=${filter} onChange=${(e) => setFilter(e.target.checked)} /> Alleen aandacht nodig</label>
           </div>
           ${data && root.children.length
-            ? html`<${Tree} root=${root} open=${open} setOpen=${setOpen} selected=${selected} select=${setSelected} />`
+            ? html`<${Tree} root=${root} open=${open} setOpen=${setOpen} selected=${selected} select=${pick} />`
             : html`<div className="empty">${data ? "Geen studenten gevonden." : "Nog geen gegevens."}</div>`}
         </section>
         <section className="pane" aria-live="polite">
