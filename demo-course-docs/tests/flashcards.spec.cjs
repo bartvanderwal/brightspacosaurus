@@ -156,7 +156,10 @@ for (
   test(`${target}: heading-based glossary supports reveal and keeps surrounding lists`, async ({ page }) => {
     await page.goto(url);
     const set = page.locator(".bso-flashcards").nth(1);
+    const list = set.locator("ul.bso-flashcard-list");
     await expect(set.locator(".bso-flashcard")).toHaveCount(8);
+    await expect(list).toHaveCount(1);
+    await expect(list.locator(":scope > li.bso-flashcard")).toHaveCount(8);
     await expect(set.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
       8,
     );
@@ -166,8 +169,11 @@ for (
     const first = set.locator(".bso-flashcard-toggle").first();
     await first.focus();
     await page.keyboard.press("Enter");
-    await expect(set.locator(".bso-flashcard-definition").first())
+    const definition = set.locator(".bso-flashcard-definition").first();
+    await expect(definition)
       .toBeVisible();
+    await expect(definition).toHaveCSS("display", "inline");
+    await expect(definition.locator(":scope > p")).toHaveCSS("display", "inline");
     await expect(
       set.locator(".bso-flashcard-definition").first().locator("strong"),
     ).toHaveText("client");
