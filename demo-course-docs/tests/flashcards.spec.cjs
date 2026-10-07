@@ -163,6 +163,8 @@ for (
     await expect(set.locator(".bso-flashcard-definition[hidden]")).toHaveCount(
       8,
     );
+    await expect(set.locator(".bso-flashcard-definition").first())
+      .toBeHidden();
     await expect(set.locator(".bso-flashcard-term").first()).toHaveText(
       "request",
     );
@@ -173,7 +175,10 @@ for (
     await expect(definition)
       .toBeVisible();
     await expect(definition).toHaveCSS("display", "inline");
-    await expect(definition.locator(":scope > p")).toHaveCSS("display", "inline");
+    await expect(definition.locator(":scope > p")).toHaveCSS(
+      "display",
+      "inline",
+    );
     await expect(
       set.locator(".bso-flashcard-definition").first().locator("strong"),
     ).toHaveText("client");

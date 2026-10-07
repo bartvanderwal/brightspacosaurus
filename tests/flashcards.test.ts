@@ -448,7 +448,7 @@ Deno.test("heading lists are always compact", async () => {
     compact,
     'class="bso-flashcards bso-flashcards-compact"',
   );
-  assertStringIncludes(compact, "<ul class=\"bso-flashcard-list\">");
+  assertStringIncludes(compact, '<ul class="bso-flashcard-list">');
   assertEquals(
     (compact.match(/<li class="bso-flashcard">/g) ?? []).length,
     2,

@@ -317,6 +317,10 @@ article.markdown pre code {
   margin: 0 0 0 0.35rem;
 }
 
+.bso-flashcards-compact .bso-flashcard-definition-inline[hidden] {
+  display: none;
+}
+
 .bso-flashcards-compact .bso-flashcard-definition-inline > p {
   display: inline;
   margin: 0;
