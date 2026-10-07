@@ -163,6 +163,78 @@ Deno.test("multiple-response preview renders checkboxes and all correct answers"
   );
 });
 
+Deno.test("QuizDown syntax supports multiple-choice, hints and open answers", () => {
+  const markdown = `# UML Quiz
+
+\`\`\`quiz debug=true
+? Which statements are correct?
+! Think about time-ordered messages.
+- [x] They show interactions over time.
+- [ ] They replace all class diagrams.
+- [x] They can show self-messages.
+
+? Name one participant.
+= wolf / little red / grandmother ~20
+\`\`\`
+`;
+  const quiz = parseQuizMarkdown(markdown);
+  assertEquals(validateQuiz(quiz), []);
+  assertEquals(quiz.title, "UML Quiz");
+  assertEquals(quiz.questions[0].responseType, "multiple");
+  assertEquals(quiz.questions[0].hint, "Think about time-ordered messages.");
+  assertEquals(quiz.questions[1].responseType, "open_short");
+  assertEquals(quiz.questions[1].acceptedAnswers, [
+    "wolf",
+    "little red",
+    "grandmother",
+  ]);
+  assertEquals(quiz.questions[1].maxLength, 20);
+
+  const tree: FlashcardNode = { type: "root", children: [] };
+  remarkQuizPreview()(tree, { path: "quiz-uml.md", value: markdown });
+  const questions = tree.children?.[0]?.children ?? [];
+  assertEquals(
+    questions[0].data?.hProperties?.["data-response-type"],
+    "multiple",
+  );
+  assertEquals(
+    questions[0].children?.[2]?.children?.[0]?.children?.[0]?.children?.[0]
+      ?.data?.hProperties?.type,
+    "checkbox",
+  );
+  assertEquals(
+    questions[0].children?.[4]?.children?.[1]?.children?.[0]?.value,
+    "Think about time-ordered messages.",
+  );
+  assertEquals(
+    questions[1].data?.hProperties?.["data-response-type"],
+    "open_short",
+  );
+  assertEquals(
+    questions[1].children?.[2]?.data?.hProperties?.maxlength,
+    "20",
+  );
+});
+
+Deno.test("QuizDown preserves nested fenced question content", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+\`\`\`quiz
+? What does this code print?
+\`\`\`java
+System.out.println("Hello");
+\`\`\`
+- (x) Hello
+- ( ) Goodbye
+\`\`\`
+`);
+  assertEquals(validateQuiz(quiz), []);
+  assertStringIncludes(
+    quiz.questions[0].text,
+    '\`\`\`java\nSystem.out.println("Hello");\n\`\`\`',
+  );
+});
+
 Deno.test("#34 fenced examples cannot inject question headings or correct answer declarations", () => {
   const markdown = question("") +
     "\n```md\n## Question 9\nCorrect answer: A\n```\n";

@@ -19,13 +19,19 @@ export interface QuizQuestion {
   /** Student-facing prompt. */
   text: string;
   /** Stable labels and their corresponding answer texts. */
-  options: { label: string; text: string }[];
+  options: { label: string; text: string; forcedOrder?: number }[];
   /** Uppercase first correct label, retained for single-answer consumers. */
   correctAnswer: string;
   /** All correct labels for multiple-response questions. */
   correctAnswers?: string[];
-  /** Checkbox-marked options represent a multiple-response question. */
-  responseType?: "multiple";
+  /** The response model represented by this question. */
+  responseType?: "single" | "multiple" | "open_short";
+  /** Accepted strings for an auto-graded open short-answer question. */
+  acceptedAnswers?: string[];
+  /** Maximum input length for an open short-answer question. */
+  maxLength?: number;
+  /** Optional student-facing hint. */
+  hint?: string;
   /** One-based heading line, if parsed from Markdown. */
   line?: number;
 }
@@ -42,6 +48,9 @@ export interface ParsedQuiz {
 
 /** Parse documented English/Dutch labels independently of bold or code formatting. */
 export function parseQuizMarkdown(content: string): ParsedQuiz {
+  const quizDownBlock = extractQuizDownBlock(content);
+  if (quizDownBlock !== null) return parseQuizDown(quizDownBlock, content);
+
   const quiz: ParsedQuiz = { title: "", questions: [], issues: [] };
   let question: QuizQuestion | undefined;
   let answerSeen = false;
@@ -196,6 +205,254 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
   return quiz;
 }
 
+function extractQuizDownBlock(content: string): string | null {
+  const lines = content.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const opening = lines[index].match(/^\s*(`{3,}|~{3,})\s*(\S+)(.*)$/);
+    if (!opening) continue;
+    const fence = opening[1];
+    let nestedFenceLength = 0;
+    let nestedFenceCharacter = "";
+    const body: string[] = [];
+    for (index++; index < lines.length; index++) {
+      const nestedOpening = lines[index].match(/^\s*(`{3,}|~{3,})\s*\S.*$/);
+      if (nestedOpening) {
+        nestedFenceLength = nestedOpening[1].length;
+        nestedFenceCharacter = nestedOpening[1][0];
+        body.push(lines[index]);
+        continue;
+      }
+      const closing = lines[index].match(/^\s*(`+|~+)\s*$/);
+      if (
+        closing && nestedFenceLength &&
+        closing[1][0] === nestedFenceCharacter &&
+        closing[1].length >= nestedFenceLength
+      ) {
+        nestedFenceLength = 0;
+        nestedFenceCharacter = "";
+        body.push(lines[index]);
+        continue;
+      }
+      if (
+        closing && closing[1][0] === fence[0] &&
+        !nestedFenceLength &&
+        closing[1].length >= fence.length
+      ) {
+        if (/^(?:quiz|quizz)$/i.test(opening[2])) return body.join("\n");
+        break;
+      }
+      body.push(lines[index]);
+    }
+    if (index === lines.length) return null;
+  }
+  return null;
+}
+
+function parseQuizDown(source: string, markdown: string): ParsedQuiz {
+  const title = markdown.match(/^#\s+(.+?)\s*#*\s*$/m)?.[1] ?? "";
+  const quiz: ParsedQuiz = { title, questions: [], issues: [] };
+  let question: QuizQuestion | undefined;
+  let currentOption: { text: string; forcedOrder?: number } | undefined;
+  let questionHasRoundMarkers = false;
+  let questionHasSquareMarkers = false;
+  const issue = (rule: string, line: number, message: string) => {
+    quiz.issues!.push({
+      rule,
+      line,
+      question: question?.number,
+      message,
+    });
+  };
+
+  const finalizeQuestion = (line: number) => {
+    if (!question) return;
+    if (questionHasRoundMarkers && questionHasSquareMarkers) {
+      issue(
+        "quiz-option-syntax",
+        line,
+        "Do not mix '( )' and '[ ]' option markers in one question.",
+      );
+    }
+    if (question.options.length) {
+      if (question.acceptedAnswers!.length) {
+        issue(
+          "quiz-answer",
+          line,
+          "A question cannot mix choice options and open short-answer syntax.",
+        );
+      }
+      question.responseType = questionHasSquareMarkers ? "multiple" : "single";
+      if (
+        question.responseType === "single" &&
+        question.correctAnswers!.length > 1
+      ) {
+        issue(
+          "quiz-answer",
+          line,
+          "A single-choice question must have exactly one correct option.",
+        );
+      } else if (
+        question.responseType === "single" &&
+        question.correctAnswers!.length === 0
+      ) {
+        question.correctAnswers = [question.options[0].label];
+        question.correctAnswer = question.options[0].label;
+      }
+      if (
+        question.responseType === "multiple" &&
+        question.correctAnswers!.length === 0
+      ) {
+        issue(
+          "quiz-answer",
+          line,
+          "Mark at least one correct option with '[x]' for a multiple-response question.",
+        );
+      }
+      question.options = orderQuizDownOptions(question.options);
+    } else if (question.acceptedAnswers?.length) {
+      question.responseType = "open_short";
+    } else {
+      issue(
+        "quiz-answer",
+        line,
+        "Question has no answer options or accepted short-answer values.",
+      );
+    }
+  };
+
+  const lines = source.split(/\r?\n/);
+  for (const [index, raw] of lines.entries()) {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      currentOption = undefined;
+      continue;
+    }
+    const prompt = trimmed.match(/^\?\s+(.+)$/);
+    if (prompt) {
+      finalizeQuestion(index + 1);
+      question = {
+        number: quiz.questions.length + 1,
+        text: prompt[1].trim(),
+        options: [],
+        correctAnswer: "",
+        correctAnswers: [],
+        acceptedAnswers: [],
+        line: index + 1,
+      };
+      quiz.questions.push(question);
+      questionHasRoundMarkers = false;
+      questionHasSquareMarkers = false;
+      currentOption = undefined;
+      continue;
+    }
+    if (!question) {
+      issue(
+        "quiz-question",
+        index + 1,
+        "QuizDown content must start with a question using '? prompt'.",
+      );
+      continue;
+    }
+    const hint = trimmed.match(/^!\s+(.+)$/);
+    if (hint) {
+      question.hint = hint[1].trim();
+      currentOption = undefined;
+      continue;
+    }
+    const openAnswer = trimmed.match(/^=\s+(.+)$/);
+    if (openAnswer) {
+      const value = openAnswer[1];
+      const maxLengthMatch = value.match(/\s+~(\d+)\s*$/);
+      const accepted = maxLengthMatch
+        ? value.slice(0, maxLengthMatch.index).trim()
+        : value.trim();
+      question.acceptedAnswers = splitQuizDownAnswers(accepted);
+      if (maxLengthMatch) {
+        question.maxLength = Number(maxLengthMatch[1]);
+      }
+      currentOption = undefined;
+      continue;
+    }
+    const option = raw.match(
+      /^\s*-\s*(?:(\d+)\.\s*)?(\([ xX]\)|\[[ xX]\])\s*(.*)$/,
+    );
+    if (option) {
+      let forcedOrder = option[1] ? Number(option[1]) : undefined;
+      let text = option[3] ?? "";
+      if (forcedOrder === undefined) {
+        const afterMarker = text.match(/^(\d+)\.\s+(.*)$/);
+        if (afterMarker) {
+          forcedOrder = Number(afterMarker[1]);
+          text = afterMarker[2];
+        }
+      }
+      const isCorrect = /x/i.test(option[2]);
+      const label = String.fromCharCode(65 + question.options.length);
+      question.options.push({
+        label,
+        text: text.trim(),
+      });
+      if (isCorrect) {
+        question.correctAnswers!.push(label);
+        question.correctAnswer ||= label;
+      }
+      if (forcedOrder !== undefined) {
+        question.options.at(-1)!.forcedOrder = forcedOrder;
+      }
+      if (option[2].startsWith("[")) questionHasSquareMarkers = true;
+      else questionHasRoundMarkers = true;
+      currentOption = {
+        text: "",
+        forcedOrder,
+      };
+      continue;
+    }
+    if (/^\s+/.test(raw) && currentOption) {
+      const lastOption = question.options.at(-1)!;
+      lastOption.text += `${lastOption.text ? "\n" : ""}${trimmed}`;
+      continue;
+    }
+    question.text += `${question.text ? "\n" : ""}${trimmed}`;
+    currentOption = undefined;
+  }
+  finalizeQuestion(lines.length);
+  return quiz;
+}
+
+function splitQuizDownAnswers(value: string): string[] {
+  const escapedSlash = "\u0000";
+  return value.replace(/\\\//g, escapedSlash)
+    .split(/\s+\/\s+/)
+    .map((answer) => answer.replaceAll(escapedSlash, "/").trim())
+    .filter(Boolean);
+}
+
+function orderQuizDownOptions(
+  options: QuizQuestion["options"],
+): QuizQuestion["options"] {
+  if (!options.some((option) => option.forcedOrder !== undefined)) {
+    return options;
+  }
+  const slots: (QuizQuestion["options"][number] | undefined)[] = Array(
+    options.length,
+  ).fill(undefined);
+  const unordered: QuizQuestion["options"][number][] = [];
+  for (const option of options) {
+    if (option.forcedOrder === undefined) {
+      unordered.push(option);
+      continue;
+    }
+    let index = Math.max(0, Math.min(options.length - 1, option.forcedOrder - 1));
+    while (index < slots.length && slots[index]) index++;
+    if (index >= slots.length) {
+      index = slots.lastIndexOf(undefined);
+    }
+    slots[index] = option;
+  }
+  let unorderedIndex = 0;
+  return slots.map((option) => option ?? unordered[unorderedIndex++]);
+}
+
 function parseCorrectAnswers(value: string): string[] | null {
   const answer = value.trim();
   const single = answer.match(/^([a-z])[.)]?$/i);
@@ -246,6 +503,27 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
       issue("quiz-prompt", "The question prompt is empty.");
     }
     const labels = question.options.map((option) => option.label);
+    if (question.responseType === "open_short") {
+      if (question.options.length) {
+        issue(
+          "quiz-answer",
+          "An open short-answer question cannot also have answer options.",
+        );
+      }
+      if (!question.acceptedAnswers?.length) {
+        issue(
+          "quiz-answer",
+          "An open short-answer question needs at least one accepted answer.",
+        );
+      }
+      if (
+        question.maxLength !== undefined &&
+        (!Number.isSafeInteger(question.maxLength) || question.maxLength < 1)
+      ) {
+        issue("quiz-answer", "The short-answer maximum length must be positive.");
+      }
+      continue;
+    }
     if (labels.length < 2) {
       issue("quiz-options", "At least two answer options are required.");
     }

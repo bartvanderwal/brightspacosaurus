@@ -124,9 +124,10 @@ export function generateQtiXml(
     const qIdent = `q${question.number}`;
     const respIdent = `${qIdent}_resp`;
     const correctLabels = (question.correctAnswers ?? [question.correctAnswer])
+      .filter(Boolean)
       .map((answer) => `${qIdent}_${answer.toLowerCase()}`);
-    const multipleResponse = question.responseType === "multiple" ||
-      correctLabels.length > 1;
+    const questionType = question.responseType ?? "single";
+    const multipleResponse = questionType === "multiple";
 
     xml += `      <item ident="${qIdent}">\n`;
     xml += `        <itemmetadata>\n`;
@@ -134,7 +135,11 @@ export function generateQtiXml(
     xml += `            <qtimetadatafield>\n`;
     xml += `              <fieldlabel>cc_profile</fieldlabel>\n`;
     xml += `              <fieldentry>${
-      multipleResponse ? "cc.multiple_response.v0p1" : "cc.multiple_choice.v0p1"
+      questionType === "open_short"
+        ? "cc.fib.v0p1"
+        : multipleResponse
+        ? "cc.multiple_response.v0p1"
+        : "cc.multiple_choice.v0p1"
     }</fieldentry>\n`;
     xml += `            </qtimetadatafield>\n`;
     xml += `            <qtimetadatafield>\n`;
@@ -149,50 +154,74 @@ export function generateQtiXml(
       escapeXml(question.text)
     }&lt;/p&gt;</mattext>\n`;
     xml += `          </material>\n`;
-    xml += `          <response_lid ident="${respIdent}" rcardinality="${
-      multipleResponse ? "Multiple" : "Single"
-    }">\n`;
-    xml += `            <render_choice shuffle="${
-      shuffleAnswers ? "Yes" : "No"
-    }">\n`;
-
-    for (const option of question.options) {
-      const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
+    if (questionType === "open_short") {
       xml +=
-        `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">&lt;p&gt;${
-          escapeXml(option.text)
-        }&lt;/p&gt;</mattext></material></response_label>\n`;
-    }
+        `          <response_str ident="${respIdent}" rcardinality="Single">\n`;
+      xml += `            <render_fib fibtype="String" prompt="Box"${
+        question.maxLength !== undefined
+          ? ` maxchars="${question.maxLength}"`
+          : ""
+      } />\n`;
+      xml += `          </response_str>\n`;
+    } else {
+      const hasForcedOrder = question.options.some((option) =>
+        option.forcedOrder !== undefined
+      );
+      xml += `          <response_lid ident="${respIdent}" rcardinality="${
+        multipleResponse ? "Multiple" : "Single"
+      }">\n`;
+      xml += `            <render_choice shuffle="${
+        shuffleAnswers && !hasForcedOrder ? "Yes" : "No"
+      }">\n`;
 
-    xml += `            </render_choice>\n`;
-    xml += `          </response_lid>\n`;
+      for (const option of question.options) {
+        const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
+        xml +=
+          `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">&lt;p&gt;${
+            escapeXml(option.text)
+          }&lt;/p&gt;</mattext></material></response_label>\n`;
+      }
+
+      xml += `            </render_choice>\n`;
+      xml += `          </response_lid>\n`;
+    }
     xml += `        </presentation>\n`;
     xml += `        <resprocessing>\n`;
     xml +=
       `          <outcomes><decvar minvalue="0" maxvalue="100" varname="SCORE" vartype="Decimal" /></outcomes>\n`;
-    xml += `          <respcondition continue="No">\n`;
-    if (multipleResponse) {
-      const correctConditions = correctLabels.map((label) =>
-        `<varequal respident="${respIdent}">${label}</varequal>`
-      ).join("");
-      const incorrectConditions = question.options
-        .filter((option) =>
-          !correctLabels.includes(
-            `${qIdent}_${option.label.toLowerCase()}`,
-          )
-        )
-        .map((option) =>
-          `<not><varequal respident="${respIdent}">${qIdent}_${option.label.toLowerCase()}</varequal></not>`
-        ).join("");
-      xml +=
-        `            <conditionvar><and>${correctConditions}${incorrectConditions}</and></conditionvar>\n`;
+    if (questionType === "open_short") {
+      for (const answer of question.acceptedAnswers ?? []) {
+        xml += `          <respcondition continue="No">\n`;
+        xml +=
+          `            <conditionvar><varequal respident="${respIdent}" case="No">${escapeXml(answer)}</varequal></conditionvar>\n`;
+        xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
+        xml += `          </respcondition>\n`;
+      }
     } else {
-      xml += `            <conditionvar><varequal respident="${respIdent}">${
-        correctLabels[0]
-      }</varequal></conditionvar>\n`;
+      xml += `          <respcondition continue="No">\n`;
+      if (multipleResponse) {
+        const correctConditions = correctLabels.map((label) =>
+          `<varequal respident="${respIdent}">${label}</varequal>`
+        ).join("");
+        const incorrectConditions = question.options
+          .filter((option) =>
+            !correctLabels.includes(
+              `${qIdent}_${option.label.toLowerCase()}`,
+            )
+          )
+          .map((option) =>
+            `<not><varequal respident="${respIdent}">${qIdent}_${option.label.toLowerCase()}</varequal></not>`
+          ).join("");
+        xml +=
+          `            <conditionvar><and>${correctConditions}${incorrectConditions}</and></conditionvar>\n`;
+      } else {
+        xml += `            <conditionvar><varequal respident="${respIdent}">${
+          correctLabels[0]
+        }</varequal></conditionvar>\n`;
+      }
+      xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
+      xml += `          </respcondition>\n`;
     }
-    xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
-    xml += `          </respcondition>\n`;
     xml += `        </resprocessing>\n`;
     xml += `      </item>\n\n`;
   }

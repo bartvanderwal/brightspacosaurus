@@ -585,18 +585,19 @@ BSO generates an `.imscc` package conforming to IMS Common Cartridge 1.3 from Ma
 
 ## 7. Quizzes and QTI
 
-The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO parses a quiz Markdown file based on this format:
+The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO supports the **Quizzosaurus / QuizDown** syntax: place a `quiz` fenced block in the file. Each question starts with `?`, an optional hint with `!`, and its response type is inferred from its markers:
 
-- **H1** as the quiz title
-- **H2** as the question number
-- Lettered options such as `- A. text`
-- `Correct antwoord: **X**` as the indicator of the correct answer
+- `- ( )` / `- (x)` for single-choice options; if no `(x)` is marked, the first option is used.
+- `- [ ]` / `- [x]` for multiple-response options; at least one `[x]` is required.
+- `= answer / accepted variant ~20` for an auto-graded short answer with accepted variants and an optional maximum input length.
+
+Question and option order is kept deterministic; numbered options can reserve their display position. Mixing round and square option markers, or combining options with short-answer syntax, is invalid. See the [Quizzosaurus syntax example](https://bartvanderwal.github.io/remark-kroki-a11y/examples/uml-quiz-experimental-syntax) and the [QuizDown/Quizzosaurus module documentation](https://github.com/bartvanderwal/remark-kroki-a11y/tree/main/test-docusaurus-site/src/components/Quiz).
 
 For each quiz Markdown file, BSO generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
 
 Generated quizzes get a maximum attempt count through QTI metadata. Configure it with `quiz.maxAttempts` in `brightspacosaurus.config.json`; when omitted, BSO uses `0`, which means unlimited attempts. The value must be a non-negative integer. In the IMS Common Cartridge output, BSO writes Brightspace's `cc_maxattempts` metadata field; `0` is exported as `unlimited`, matching Brightspace's own Common Cartridge export.
 
-Answer markers accept `Correct answer`, `Answer`, `Correct antwoord`, `Goed antwoord`, `Goede antwoord`, `Juiste antwoord` and `Antwoord`, followed by a colon and one or more letters. Multiple answers can be separated by commas, `and`/`en`, or written together, for example `Correct antwoord: A, C` or `Correct antwoord: AC`. A letter may be plain, bold or inline code; `**Antwoord:** c` is also supported. Options accept `- A. ...`, `a) ...` and `**a)** ...`; letters are normalized to uppercase. Multiple-response questions can alternatively use checkbox options: `- [x] Correct` and `- [ ] Incorrect` (option labels are assigned alphabetically), or checkbox options with explicit letters such as `- [x] A. Correct`. Checked options and a correct-answer declaration cannot be combined. BSO exports multiple-response questions with the IMS CC `cc.multiple_response.v0p1` profile and awards credit only when the selected set exactly matches the answer key. Brightspace import and scoring should be verified in a sandbox course. Fill-in-the-blank, open-response and matching questions are not supported yet.
+The earlier H1/H2 format with lettered options and a `Correct answer: X` answer key remains accepted for existing course files. New quizzes should use the linked QuizDown syntax; it keeps the answer key with each question instead of relying on a separate teacher-answer file. BSO exports single-choice as `cc.multiple_choice.v0p1`, multi-select as `cc.multiple_response.v0p1`, and auto-graded short answers as `cc.fib.v0p1`. Long-form essay and matching questions are not part of the currently documented QuizDown syntax. Verify QTI import and scoring in a Brightspace sandbox.
 
 Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
 answer order per attempt. Default `false` preserves source order. BSO writes

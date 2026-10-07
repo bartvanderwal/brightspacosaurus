@@ -12,7 +12,7 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 
 ### Added
 
-- Quiz export and preview support for multiple-response questions using checked options or multiple correct-answer letters (#50).
+- Quiz export and preview support for Quizzosaurus/QuizDown single-choice, multi-select and open short-answer syntax (#50).
 
 ## 0.18.0 - 2026-10-05
 

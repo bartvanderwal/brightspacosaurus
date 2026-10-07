@@ -19,7 +19,7 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 **What you can do with it:**
 
 - 📝 **[Write course material in Markdown](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#course-material-as-markdown)** — versionable, diffable and AI-editor-friendly
-- ✅ **[Build quizzes for student self-testing](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#native-quizzes)** — Markdown becomes scored Brightspace quizzes (QTI)
+- ✅ **[Build quizzes for student self-testing](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#native-quizzes)** — Quizzosaurus/QuizDown Markdown becomes scored Brightspace quizzes (QTI); [see its syntax](https://bartvanderwal.github.io/remark-kroki-a11y/examples/uml-quiz-experimental-syntax)
 - 📊 **[Include diagrams as code](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#diagrams-as-code)** — accessible PlantUML and Mermaid diagrams
 - ⚡ **[Preview everything before importing](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#docusaurus-preview)** — a live Docusaurus site from the same Markdown
 - 🚦 **[Check student progress through GitLab](https://bartvanderwal.github.io/brightspacosaurus/lessons/features#student-progress-from-gitlab-voortgangsverkenner)** — work items, commits and comments per student, as a stoplight

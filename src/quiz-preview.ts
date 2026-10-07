@@ -30,45 +30,72 @@ export function remarkQuizPreview(
     const quiz = parseQuizMarkdown(String(file.value));
     assertValidQuiz(quiz, file.path);
     const questions = quiz.questions.map((question) => {
-      const correctAnswers = question.correctAnswers ??
-        [question.correctAnswer];
-      const multipleResponse = question.responseType === "multiple" ||
-        correctAnswers.length > 1;
-      return element("fieldset", {
+      const responseType = question.responseType ?? "single";
+      const correctAnswers = responseType === "open_short"
+        ? question.acceptedAnswers ?? []
+        : question.correctAnswers ?? [question.correctAnswer];
+      const properties = {
         className: "bso-quiz-question",
         "data-correct-answer": question.correctAnswer,
         "data-correct-answers": JSON.stringify(correctAnswers),
-        "data-response-type": multipleResponse ? "multiple" : "single",
-      }, [
+        "data-response-type": responseType,
+      };
+      const children = [
         element("legend", {}, [text(`Question ${question.number}`)]),
         element("p", {}, [text(question.text)]),
-        element(
-          "ol",
-          { className: "bso-quiz-options", type: "A" },
-          question.options.map((option) =>
-            element("li", {}, [
-              element("label", {}, [
-                element("input", {
-                  type: multipleResponse ? "checkbox" : "radio",
-                  name: `bso-question-${question.number}`,
-                  value: option.label,
-                }),
-                text(` ${option.text}`),
-              ]),
-            ])
+      ];
+      if (responseType === "open_short") {
+        children.push(
+          element("input", {
+            className: "bso-quiz-open-answer",
+            type: "text",
+            name: `bso-question-${question.number}`,
+            ...(question.maxLength === undefined
+              ? {}
+              : { maxlength: String(question.maxLength) }),
+          }),
+        );
+      } else {
+        children.push(
+          element(
+            "ol",
+            { className: "bso-quiz-options", type: "A" },
+            question.options.map((option) =>
+              element("li", {}, [
+                element("label", {}, [
+                  element("input", {
+                    type: responseType === "multiple" ? "checkbox" : "radio",
+                    name: `bso-question-${question.number}`,
+                    value: option.label,
+                  }),
+                  text(` ${option.text}`),
+                ]),
+              ])
+            ),
           ),
-        ),
-        element("details", { className: "bso-quiz-answer" }, [
+        );
+      }
+      children.push(element("details", { className: "bso-quiz-answer" }, [
           element("summary", {}, [text("Show correct answer")]),
           element("p", {}, [
             text(
-              correctAnswers.map((answer) =>
-                question.options.find((option) => option.label === answer)!.text
-              ).join(", "),
+              responseType === "open_short"
+                ? correctAnswers[0] ?? ""
+                : correctAnswers.map((answer) =>
+                  question.options.find((option) =>
+                    option.label === answer
+                  )!.text
+                ).join(", "),
             ),
           ]),
-        ]),
-      ]);
+        ]));
+      if (question.hint) {
+        children.push(element("details", { className: "bso-quiz-hint" }, [
+          element("summary", {}, [text("Show hint")]),
+          element("p", {}, [text(question.hint)]),
+        ]));
+      }
+      return element("fieldset", properties, children);
     });
     // Run before Docusaurus' defaults so they derive metadata from this tree.
     const title = tree.children?.find((node) =>

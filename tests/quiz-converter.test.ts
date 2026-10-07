@@ -184,43 +184,65 @@ Deno.test("QuizConverter: maxAttempts is configureerbaar in QTI metadata", () =>
   assertEquals(xml.includes("<fieldentry>5</fieldentry>"), true);
 });
 
-Deno.test("QuizConverter: multiple-response syntax produces multiple-response QTI", () => {
+Deno.test("QuizConverter: Quizzosaurus question types produce matching QTI profiles", () => {
   const quiz = parseQuizMarkdown(`# Quiz
 
-## Question 1
-Choose the correct answers.
-- A. First
-- B. Second
-- C. Third
-- D. Fourth
-Correct answer: A, C
+\`\`\`quiz debug=true
+? Which answer is correct?
+! Look for the clue.
+- ( ) Incorrect
+- (x) Correct
 
-## Question 2
-Choose the correct answers.
+? Which statements are correct?
 - [x] First
 - [ ] Second
 - [x] Third
+
+? Name one correct participant.
+= wolf / little red / grandmother ~20
+\`\`\`
 `);
   const xml = generateQtiXml(quiz, "quiz-multiple");
 
+  assertEquals(quiz.questions.map((question) => question.responseType), [
+    "single",
+    "multiple",
+    "open_short",
+  ]);
+  assertEquals(quiz.questions[2].acceptedAnswers, [
+    "wolf",
+    "little red",
+    "grandmother",
+  ]);
+  assertEquals(
+    (xml.match(/<fieldentry>cc\.multiple_choice\.v0p1<\/fieldentry>/g) ?? [])
+      .length,
+    1,
+  );
   assertEquals(
     (xml.match(/<fieldentry>cc\.multiple_response\.v0p1<\/fieldentry>/g) ?? [])
       .length,
-    2,
+    1,
   );
   assertEquals(
-    (xml.match(/rcardinality="Multiple"/g) ?? []).length,
-    2,
+    (xml.match(/<fieldentry>cc\.fib\.v0p1<\/fieldentry>/g) ?? []).length,
+    1,
   );
+  assertEquals(xml.includes('<varequal respident="q1_resp">q1_b</varequal>'), true);
+  assertEquals(xml.includes('rcardinality="Multiple"'), true);
   assertEquals(
     xml.includes(
-      '<conditionvar><and><varequal respident="q1_resp">q1_a</varequal><varequal respident="q1_resp">q1_c</varequal><not><varequal respident="q1_resp">q1_b</varequal></not><not><varequal respident="q1_resp">q1_d</varequal></not></and></conditionvar>',
+      '<conditionvar><and><varequal respident="q2_resp">q2_a</varequal><varequal respident="q2_resp">q2_c</varequal><not><varequal respident="q2_resp">q2_b</varequal></not></and></conditionvar>',
     ),
     true,
   );
   assertEquals(
+    xml.includes('<render_fib fibtype="String" prompt="Box" maxchars="20" />'),
+    true,
+  );
+  assertEquals(
     xml.includes(
-      '<conditionvar><and><varequal respident="q2_resp">q2_a</varequal><varequal respident="q2_resp">q2_c</varequal><not><varequal respident="q2_resp">q2_b</varequal></not></and></conditionvar>',
+      '<varequal respident="q3_resp" case="No">little red</varequal>',
     ),
     true,
   );
