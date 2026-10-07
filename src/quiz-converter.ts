@@ -193,8 +193,11 @@ export function generateQtiXml(
       for (const answer of question.acceptedAnswers ?? []) {
         xml += `          <respcondition continue="No">\n`;
         xml +=
-          `            <conditionvar><varequal respident="${respIdent}" case="No">${escapeXml(answer)}</varequal></conditionvar>\n`;
-        xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
+          `            <conditionvar><varequal respident="${respIdent}" case="No">${
+            escapeXml(answer)
+          }</varequal></conditionvar>\n`;
+        xml +=
+          `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
         xml += `          </respcondition>\n`;
       }
     } else {

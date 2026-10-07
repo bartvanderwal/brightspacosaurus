@@ -442,7 +442,10 @@ function orderQuizDownOptions(
       unordered.push(option);
       continue;
     }
-    let index = Math.max(0, Math.min(options.length - 1, option.forcedOrder - 1));
+    let index = Math.max(
+      0,
+      Math.min(options.length - 1, option.forcedOrder - 1),
+    );
     while (index < slots.length && slots[index]) index++;
     if (index >= slots.length) {
       index = slots.lastIndexOf(undefined);
@@ -520,7 +523,10 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
         question.maxLength !== undefined &&
         (!Number.isSafeInteger(question.maxLength) || question.maxLength < 1)
       ) {
-        issue("quiz-answer", "The short-answer maximum length must be positive.");
+        issue(
+          "quiz-answer",
+          "The short-answer maximum length must be positive.",
+        );
       }
       continue;
     }

@@ -228,7 +228,10 @@ Deno.test("QuizConverter: Quizzosaurus question types produce matching QTI profi
     (xml.match(/<fieldentry>cc\.fib\.v0p1<\/fieldentry>/g) ?? []).length,
     1,
   );
-  assertEquals(xml.includes('<varequal respident="q1_resp">q1_b</varequal>'), true);
+  assertEquals(
+    xml.includes('<varequal respident="q1_resp">q1_b</varequal>'),
+    true,
+  );
   assertEquals(xml.includes('rcardinality="Multiple"'), true);
   assertEquals(
     xml.includes(

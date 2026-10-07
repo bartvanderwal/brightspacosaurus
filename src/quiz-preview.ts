@@ -76,19 +76,17 @@ export function remarkQuizPreview(
         );
       }
       children.push(element("details", { className: "bso-quiz-answer" }, [
-          element("summary", {}, [text("Show correct answer")]),
-          element("p", {}, [
-            text(
-              responseType === "open_short"
-                ? correctAnswers[0] ?? ""
-                : correctAnswers.map((answer) =>
-                  question.options.find((option) =>
-                    option.label === answer
-                  )!.text
-                ).join(", "),
-            ),
-          ]),
-        ]));
+        element("summary", {}, [text("Show correct answer")]),
+        element("p", {}, [
+          text(
+            responseType === "open_short"
+              ? correctAnswers[0] ?? ""
+              : correctAnswers.map((answer) =>
+                question.options.find((option) => option.label === answer)!.text
+              ).join(", "),
+          ),
+        ]),
+      ]));
       if (question.hint) {
         children.push(element("details", { className: "bso-quiz-hint" }, [
           element("summary", {}, [text("Show hint")]),

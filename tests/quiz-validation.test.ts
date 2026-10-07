@@ -235,6 +235,24 @@ System.out.println("Hello");
   );
 });
 
+Deno.test("QuizDown forced positions are preserved in deterministic option order", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+\`\`\`quiz
+? Put the final answer last.
+- ( ) First
+- 3. (x) Last
+- ( ) Second
+\`\`\`
+`);
+  assertEquals(validateQuiz(quiz), []);
+  assertEquals(
+    quiz.questions[0].options.map((option) => option.text),
+    ["First", "Second", "Last"],
+  );
+  assertEquals(quiz.questions[0].correctAnswer, "B");
+});
+
 Deno.test("#34 fenced examples cannot inject question headings or correct answer declarations", () => {
   const markdown = question("") +
     "\n```md\n## Question 9\nCorrect answer: A\n```\n";

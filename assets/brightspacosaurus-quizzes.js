@@ -98,7 +98,7 @@ function questionIsOpenShort(question) {
 }
 
 function normalizeShortAnswer(value) {
-  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 if (typeof module !== "undefined" && module.exports) {
