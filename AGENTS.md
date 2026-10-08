@@ -51,6 +51,12 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 
 - ADRs in `docs/adr/` are immutable once accepted. Only typo fixes and small corrections shortly after writing are allowed. To change a decision, write a new ADR and mark the old one as deprecated or superseded, with a link to the new one.
 - Design and code-level explanations (how something is implemented, plugin choices within an existing architecture) belong in the Software Guidebook, chapter 7 "Code", not in an ADR.
+- **Put images in the text, never hidden in an appendix.** Place every image exactly where the reader needs it, not in a "Bijlagen"/"Appendix" section (except material that is truly supplementary). Give each image a figure number and a short caption ("Figure 3. ..." in English, "Figuur 3. ..." in Dutch), refer to it from the running text, add a short explanation that says what to look at and what to take away (in Dutch docs: "Toelichting"), and give it meaningful alt text. Write the caption first, keep it brief, limit a diagram to about one paragraph's worth of information, and use a callout or crop to focus attention. Reason: readers love pictures. Google's Technical Writing course puts it this way: "when it comes to reading technical material, the vast majority of adults are still little kids—still yearning for pictures rather than text" (Google, n.d.).
+- Cite sources in APA 7 style: an in-text citation like (Google, n.d.) and a "Sources" section at the end of the document with the full references. Only cite pages you actually read; say so when a page could not be fetched and you relied on a search snippet or on text supplied by the user.
+
+Reference for the rule on images:
+
+Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developers. <https://developers.google.com/tech-writing/two/illustrations>
 
 ## Testing
 
