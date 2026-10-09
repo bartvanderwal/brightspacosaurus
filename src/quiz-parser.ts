@@ -67,10 +67,18 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
     if (fenceMatch) {
       if (!fence) {
         fence = { character: fenceMatch[1][0], length: fenceMatch[1].length };
+        if (question && !question.options.length) {
+          question.text += `${question.text ? "\n" : ""}${raw}`;
+        }
       } else if (
         fenceMatch[1][0] === fence.character &&
         fenceMatch[1].length >= fence.length && !fenceMatch[2].trim()
-      ) fence = undefined;
+      ) {
+        fence = undefined;
+        if (question && !question.options.length) {
+          question.text += `\n${raw}`;
+        }
+      }
       continue;
     }
     if (fence) {
