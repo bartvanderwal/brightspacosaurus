@@ -7,6 +7,14 @@ All notable changes to Brightspacosaurus are documented here.
 ### Fixed
 
 - Quiz QTI export renders Markdown code in questions, answer options and feedback; fenced code is preserved in legacy question prompts.
+- A `quiz` block may use a four-backtick fence around three-backtick code blocks; the closing fence was read as a nested opening, so no questions were found.
+- Fenced code in a QuizDown prompt or answer option keeps its indentation and blank lines.
+- The Docusaurus quiz preview renders inline code and fenced code in prompts, answer options, hints and the correct answer, instead of literal backticks. Preview and QTI export now parse quiz text with the same Markdown parser (`src/quiz-markdown.ts`), so both targets show the same output.
+- Mixing `[ ]` and lettered options in one question reports one error instead of three.
+
+### Added
+
+- Demo quiz 2.4 with single choice, multiple response, open short answer and Java/JSX code in prompts and answer options.
 
 ## Project Stability
 
