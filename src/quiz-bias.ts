@@ -19,7 +19,7 @@ export interface QuizBiasOptions {
   minQuestionsForLength?: number;
   /** Minimum number of questions before the letter share is checked. */
   minQuestionsForPosition?: number;
-  /** Lowercase words that start options and must not be wrong every time. */
+  /** Lowercase words or phrases that start options and must not be wrong every time. */
   giveawayWords?: string[];
 }
 
@@ -45,7 +45,12 @@ export const defaultQuizBiasOptions: Required<QuizBiasOptions> = {
   maxLengthRatio: 2,
   minQuestionsForLength: 4,
   minQuestionsForPosition: 6,
-  giveawayWords: ["alleen"],
+  giveawayWords: [
+    "alleen",
+    "alle bovenstaande",
+    "alle van bovenstaande",
+    "geen van bovenstaande",
+  ],
 };
 
 const length = (text: string) => [...text].length;

@@ -256,7 +256,7 @@ The `error` or `warning` word is colored (red and dark orange) only when stderr 
 
 `hard-wrapped-lines` (warning) reports a paragraph that looks wrapped at a fixed column: three or more lines that are all at least 50 characters long and differ by at most 25 characters. Markdown renders such line breaks as spaces, so the output does not change, but diffs get noisy and AI-assisted editing has to rewrap text. Write each paragraph on one line and let the editor wrap it. Breaks that end in two spaces or a backslash are intentional and ignored.
 
-Quiz bias rules check that students cannot score without knowing the material. `quiz-length-bias` and `quiz-reverse-length-bias` (warnings) report a quiz where the correct option is the unique longest or shortest option in more than 40% of the questions (from four questions). `quiz-answer-length-ratio` (warning) reports a question whose correct option is more than twice as long as its shortest option. `quiz-only-giveaway` (warning) reports signal words such as "Alleen" at the start of options that are never correct. `quiz-position-bias` (warning) reports one letter that is correct in more than 45% of the questions (from six questions). `quiz-answer-key-mismatch` (error) reports a quiz and its `quiz-*-antwoorden-docent.md` that name a different correct answer. Adjust the thresholds and signal words in the configuration:
+Quiz bias rules check that students cannot score without knowing the material. `quiz-length-bias` and `quiz-reverse-length-bias` (warnings) report a quiz where the correct option is the unique longest or shortest option in more than 40% of the questions (from four questions). `quiz-answer-length-ratio` (warning) reports a question whose correct option is more than twice as long as its shortest option. `quiz-only-giveaway` (warning) reports signal words such as "Alleen", "Alle bovenstaande" and "Geen van bovenstaande" at the start of options that are never correct. `quiz-position-bias` (warning) reports one letter that is correct in more than 45% of the questions (from six questions). `quiz-answer-key-mismatch` (error) reports a quiz and its `quiz-*-antwoorden-docent.md` that name a different correct answer. Adjust the thresholds and signal words to match the course language:
 
 ```json
 {
@@ -268,7 +268,12 @@ Quiz bias rules check that students cannot score without knowing the material. `
       "maxLengthRatio": 2,
       "minQuestionsForLength": 4,
       "minQuestionsForPosition": 6,
-      "giveawayWords": ["alleen"]
+      "giveawayWords": [
+        "alleen",
+        "alle bovenstaande",
+        "alle van bovenstaande",
+        "geen van bovenstaande"
+      ]
     }
   }
 }

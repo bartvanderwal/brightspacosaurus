@@ -66,6 +66,22 @@ Deno.test("reverse length bias fires when the correct option is the shortest", (
     ),
     ["quiz-reverse-length-bias"],
   );
+  assertEquals(
+    rules(
+      quiz(
+        ["A", shortest],
+        ["A", shortest],
+        ["B", equal()],
+        ["C", equal()],
+        ["D", equal()],
+      ),
+    ),
+    [],
+  );
+  assertEquals(
+    rules(quiz(["A", shortest], ["A", shortest], ["B", equal()])),
+    [],
+  );
 });
 
 Deno.test("length ratio is reported per question and ignores empty options", () => {
@@ -91,6 +107,19 @@ Deno.test("signal-word options that are never correct are reported", () => {
   assertEquals(rules(quiz(["A", giveaway], ["B", equal()])), [
     "quiz-only-giveaway",
   ]);
+  for (
+    const signal of [
+      "Alle bovenstaande",
+      "Alle van bovenstaande",
+      "Geen van bovenstaande",
+    ]
+  ) {
+    assertEquals(
+      rules(quiz(["A", ["Aaaa", signal, "Cccc", "Dddd"]])),
+      ["quiz-only-giveaway"],
+      signal,
+    );
+  }
   // Once a signal-word option is correct, the quiz is fine.
   assertEquals(rules(quiz(["A", giveaway], ["B", giveaway])), []);
   assertEquals(
@@ -109,6 +138,14 @@ Deno.test("position bias needs six questions and more than 45% for one letter", 
   assertEquals(rules(letters("BBBACD")), ["quiz-position-bias"]);
   assertEquals(rules(letters("BBACDA")), []);
   assertEquals(rules(letters("BBBAC")), []);
+  assertEquals(
+    rules(letters("AAABCD"), undefined, { maxLetterShare: 0.5 }),
+    [],
+  );
+  assertEquals(
+    rules(letters("AAAABC"), undefined, { maxLetterShare: 0.5 }),
+    ["quiz-position-bias"],
+  );
 });
 
 Deno.test("teacher answers are read from every documented layout", () => {
