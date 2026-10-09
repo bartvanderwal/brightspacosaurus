@@ -284,14 +284,19 @@ article.markdown pre code {
   margin-bottom: 0.75rem;
 }
 
-/* Compact list style (issue #49): a plain bulleted list, only definitions hide. */
+/* Compact glossary lists retain their bullets; simple definitions share the term's line. */
+.bso-flashcards-compact .bso-flashcard-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 .bso-flashcards-compact .bso-flashcard {
   display: list-item;
-  list-style: disc;
+  list-style: inherit;
   border: 0;
   border-radius: 0;
   background: none;
-  margin: 0.25rem 0 0.25rem 1.25rem;
+  margin: 0.25rem 0;
   padding: 0;
 }
 
@@ -305,6 +310,20 @@ article.markdown pre code {
 
 .bso-flashcards-compact .bso-flashcard-definition {
   margin: 0.25rem 0 0.5rem;
+}
+
+.bso-flashcards-compact .bso-flashcard-definition-inline {
+  display: inline;
+  margin: 0 0 0 0.35rem;
+}
+
+.bso-flashcards-compact .bso-flashcard-definition-inline[hidden] {
+  display: none;
+}
+
+.bso-flashcards-compact .bso-flashcard-definition-inline > p {
+  display: inline;
+  margin: 0;
 }
 
 .bso-flashcards-compact .bso-flashcard-definition > :first-child {

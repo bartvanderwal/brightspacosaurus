@@ -7,6 +7,8 @@ import {
 import { join } from "@std/path";
 import { convertQuiz, generateQtiXml } from "../src/quiz-converter.ts";
 import { parseQuizMarkdown, validateQuiz } from "../src/quiz-parser.ts";
+import { remarkQuizPreview } from "../src/quiz-preview.ts";
+import type { FlashcardNode } from "../src/flashcards.ts";
 import { resolveQuizOptions } from "../src/quiz-config.ts";
 import { resolveConfig, validateConfig } from "../src/config-loader.ts";
 import { runPack, runPrepare } from "../src/main.ts";
@@ -64,11 +66,14 @@ Deno.test("#34 rejects missing, duplicate, ambiguous or unreachable answers and 
       question("Antwoord: A or B"),
       question("Antwoord: A\nAntwoord: A"),
       question("Antwoord: A\nAntwoord: B"),
+      question("Antwoord: A, A"),
       question("Antwoord: A", ""),
       question("Antwoord: A", "- A. Yes"),
       question("Antwoord: A", "- A. Yes\n- A. No"),
       question("Antwoord: A", "- A. Yes\n- B. No\n- C. "),
       question("Antwoord: A", "- [x] Yes\n- [ ] No"),
+      question("", "- [ ] Yes\n- [ ] No"),
+      question("", "- [x] Yes\n- B. No"),
       question() + "\n## Vraag 1\nAgain?\n- A. Yes\n- B. No\nAntwoord: A\n",
       question().replace("Is this correct?", ""),
     ]
@@ -96,6 +101,156 @@ Deno.test("#34 rejects missing, duplicate, ambiguous or unreachable answers and 
     validateQuiz(quiz).some((issue) => issue.rule === "quiz-option-label"),
     true,
   );
+});
+
+Deno.test("multiple-response questions accept answer keys and checked options", () => {
+  for (
+    const [answer, expected] of [
+      ["Correct answer: A, C", ["A", "C"]],
+      ["Correct answer: A and C", ["A", "C"]],
+      ["Correct answer: AC", ["A", "C"]],
+    ] as const
+  ) {
+    const quiz = parseQuizMarkdown(
+      question(answer, "- A. Yes\n- B. No\n- C. Maybe"),
+    );
+    assertEquals(validateQuiz(quiz), []);
+    assertEquals(quiz.questions[0].correctAnswers, expected);
+    assertStringIncludes(
+      generateQtiXml(quiz, "multiple"),
+      "<fieldentry>cc.multiple_response.v0p1</fieldentry>",
+    );
+  }
+
+  const checked = parseQuizMarkdown(
+    question("", "- [x] Yes\n- [ ] No\n- [x] Maybe"),
+  );
+  assertEquals(validateQuiz(checked), []);
+  assertEquals(checked.questions[0].correctAnswers, ["A", "C"]);
+  assertStringIncludes(
+    generateQtiXml(checked, "checkbox"),
+    'response_lid ident="q1_resp" rcardinality="Multiple"',
+  );
+});
+
+Deno.test("multiple-response preview renders checkboxes and all correct answers", () => {
+  const tree: FlashcardNode = { type: "root", children: [] };
+  remarkQuizPreview()(tree, {
+    path: "quiz-multiple.md",
+    value: question(
+      "Correct answer: A, C",
+      "- A. Yes\n- B. No\n- C. Maybe",
+    ),
+  });
+
+  const section = tree.children?.[0];
+  const fieldset = section?.children?.[0];
+  assertEquals(fieldset?.data?.hProperties?.["data-response-type"], "multiple");
+  assertEquals(
+    fieldset?.data?.hProperties?.["data-correct-answers"],
+    '["A","C"]',
+  );
+  const list = fieldset?.children?.[2];
+  assertEquals(
+    list?.children?.map((item) =>
+      item.children?.[0]?.children?.[0]?.data?.hProperties?.type
+    ),
+    ["checkbox", "checkbox", "checkbox"],
+  );
+  assertEquals(
+    fieldset?.children?.[3]?.children?.[1]?.children?.[0]?.value,
+    "Yes, Maybe",
+  );
+});
+
+Deno.test("QuizDown syntax supports multiple-choice, hints and open answers", () => {
+  const markdown = `# UML Quiz
+
+\`\`\`quiz debug=true
+? Which statements are correct?
+! Think about time-ordered messages.
+- [x] They show interactions over time.
+- [ ] They replace all class diagrams.
+- [x] They can show self-messages.
+
+? Name one participant.
+= wolf / little red / grandmother ~20
+\`\`\`
+`;
+  const quiz = parseQuizMarkdown(markdown);
+  assertEquals(validateQuiz(quiz), []);
+  assertEquals(quiz.title, "UML Quiz");
+  assertEquals(quiz.questions[0].responseType, "multiple");
+  assertEquals(quiz.questions[0].hint, "Think about time-ordered messages.");
+  assertEquals(quiz.questions[1].responseType, "open_short");
+  assertEquals(quiz.questions[1].acceptedAnswers, [
+    "wolf",
+    "little red",
+    "grandmother",
+  ]);
+  assertEquals(quiz.questions[1].maxLength, 20);
+
+  const tree: FlashcardNode = { type: "root", children: [] };
+  remarkQuizPreview()(tree, { path: "quiz-uml.md", value: markdown });
+  const questions = tree.children?.[0]?.children ?? [];
+  assertEquals(
+    questions[0].data?.hProperties?.["data-response-type"],
+    "multiple",
+  );
+  assertEquals(
+    questions[0].children?.[2]?.children?.[0]?.children?.[0]?.children?.[0]
+      ?.data?.hProperties?.type,
+    "checkbox",
+  );
+  assertEquals(
+    questions[0].children?.[4]?.children?.[1]?.children?.[0]?.value,
+    "Think about time-ordered messages.",
+  );
+  assertEquals(
+    questions[1].data?.hProperties?.["data-response-type"],
+    "open_short",
+  );
+  assertEquals(
+    questions[1].children?.[2]?.data?.hProperties?.maxlength,
+    "20",
+  );
+});
+
+Deno.test("QuizDown preserves nested fenced question content", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+\`\`\`quiz
+? What does this code print?
+\`\`\`java
+System.out.println("Hello");
+\`\`\`
+- (x) Hello
+- ( ) Goodbye
+\`\`\`
+`);
+  assertEquals(validateQuiz(quiz), []);
+  assertStringIncludes(
+    quiz.questions[0].text,
+    '\`\`\`java\nSystem.out.println("Hello");\n\`\`\`',
+  );
+});
+
+Deno.test("QuizDown forced positions are preserved in deterministic option order", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+\`\`\`quiz
+? Put the final answer last.
+- ( ) First
+- 3. (x) Last
+- ( ) Second
+\`\`\`
+`);
+  assertEquals(validateQuiz(quiz), []);
+  assertEquals(
+    quiz.questions[0].options.map((option) => option.text),
+    ["First", "Second", "Last"],
+  );
+  assertEquals(quiz.questions[0].correctAnswer, "B");
 });
 
 Deno.test("#34 fenced examples cannot inject question headings or correct answer declarations", () => {

@@ -96,12 +96,20 @@ export interface FlashcardNode {
   };
 }
 
-function card(term: string, body: FlashcardNode[]): FlashcardNode[] {
+function card(
+  term: string,
+  body: FlashcardNode[],
+  inlineDefinition = false,
+): FlashcardNode[] {
+  const definitionClass = inlineDefinition && body.length === 1 &&
+      body[0].type === "paragraph"
+    ? "bso-flashcard-definition bso-flashcard-definition-inline"
+    : "bso-flashcard-definition";
   return [
     element("button", "bso-flashcard-toggle", [
       element("span", "bso-flashcard-term", [{ type: "text", value: term }]),
     ], { type: "button", "aria-expanded": "true" }),
-    element("div", "bso-flashcard-definition", body),
+    element("div", definitionClass, body),
   ];
 }
 
@@ -125,7 +133,10 @@ function dropPrefix(nodes: FlashcardNode[], count: number): FlashcardNode[] {
   return result;
 }
 
-function listCards(list: FlashcardNode): FlashcardNode[] | null {
+function listCards(
+  list: FlashcardNode,
+  compact = false,
+): FlashcardNode[] | null {
   if (list.type !== "list" || list.ordered || !list.children?.length) {
     return null;
   }
@@ -143,7 +154,13 @@ function listCards(list: FlashcardNode): FlashcardNode[] | null {
       ...item.children!.slice(1),
     ];
     if (!body.some((node) => nodeText(node).trim())) return null;
-    cards.push(element("article", "bso-flashcard", card(term, body)));
+    cards.push(
+      element(
+        compact ? "li" : "article",
+        "bso-flashcard",
+        card(term, body, compact),
+      ),
+    );
   }
   return cards;
 }
@@ -204,14 +221,18 @@ export function remarkFlashcards(
           sectionDepth !== undefined ||
           (node.type === "containerDirective" && node.name === "flashcards")
         ) {
-          const cards = listCards(child);
+          const compact = !(
+            node.type === "containerDirective" && node.name === "flashcards"
+          );
+          const cards = listCards(child, compact);
           if (cards) {
-            if (
-              node.type === "containerDirective" && node.name === "flashcards"
-            ) {
-              return cards;
-            }
-            return element("section", compactClass, cards, labelProperties);
+            if (!compact) return cards;
+            return element(
+              "section",
+              compactClass,
+              [element("ul", "bso-flashcard-list", cards)],
+              labelProperties,
+            );
           }
         }
         return child;

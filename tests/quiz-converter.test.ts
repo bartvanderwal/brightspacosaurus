@@ -130,6 +130,11 @@ Deno.test("QuizConverter: quiz-2.2-di produceert structureel correcte QTI XML", 
   assertEquals(xml.includes('ident="sectie-les-2-2-di"'), true);
   assertEquals(xml.includes("<fieldlabel>cc_maxattempts</fieldlabel>"), true);
   assertEquals(xml.includes("<fieldentry>unlimited</fieldentry>"), true);
+  assertEquals(
+    xml.includes("<fieldentry>cc.multiple_choice.v0p1</fieldentry>"),
+    true,
+  );
+  assertEquals(xml.includes('rcardinality="Single"'), true);
 
   // Alle 5 vragen als items
   for (let i = 1; i <= 5; i++) {
@@ -177,6 +182,73 @@ Deno.test("QuizConverter: maxAttempts is configureerbaar in QTI metadata", () =>
 
   assertEquals(xml.includes("<fieldlabel>cc_maxattempts</fieldlabel>"), true);
   assertEquals(xml.includes("<fieldentry>5</fieldentry>"), true);
+});
+
+Deno.test("QuizConverter: Quizzosaurus question types produce matching QTI profiles", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+\`\`\`quiz debug=true
+? Which answer is correct?
+! Look for the clue.
+- ( ) Incorrect
+- (x) Correct
+
+? Which statements are correct?
+- [x] First
+- [ ] Second
+- [x] Third
+
+? Name one correct participant.
+= wolf / little red / grandmother ~20
+\`\`\`
+`);
+  const xml = generateQtiXml(quiz, "quiz-multiple");
+
+  assertEquals(quiz.questions.map((question) => question.responseType), [
+    "single",
+    "multiple",
+    "open_short",
+  ]);
+  assertEquals(quiz.questions[2].acceptedAnswers, [
+    "wolf",
+    "little red",
+    "grandmother",
+  ]);
+  assertEquals(
+    (xml.match(/<fieldentry>cc\.multiple_choice\.v0p1<\/fieldentry>/g) ?? [])
+      .length,
+    1,
+  );
+  assertEquals(
+    (xml.match(/<fieldentry>cc\.multiple_response\.v0p1<\/fieldentry>/g) ?? [])
+      .length,
+    1,
+  );
+  assertEquals(
+    (xml.match(/<fieldentry>cc\.fib\.v0p1<\/fieldentry>/g) ?? []).length,
+    1,
+  );
+  assertEquals(
+    xml.includes('<varequal respident="q1_resp">q1_b</varequal>'),
+    true,
+  );
+  assertEquals(xml.includes('rcardinality="Multiple"'), true);
+  assertEquals(
+    xml.includes(
+      '<conditionvar><and><varequal respident="q2_resp">q2_a</varequal><varequal respident="q2_resp">q2_c</varequal><not><varequal respident="q2_resp">q2_b</varequal></not></and></conditionvar>',
+    ),
+    true,
+  );
+  assertEquals(
+    xml.includes('<render_fib fibtype="String" prompt="Box" maxchars="20" />'),
+    true,
+  );
+  assertEquals(
+    xml.includes(
+      '<varequal respident="q3_resp" case="No">little red</varequal>',
+    ),
+    true,
+  );
 });
 
 Deno.test("QuizConverter: convertQuiz schrijft QTI XML naar de juiste uitvoermap", async () => {

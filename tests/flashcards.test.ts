@@ -129,7 +129,15 @@ Deno.test("heading lists preserve formatted definitions and only split the first
     glossaryOptions,
   );
   assertEquals(cardCount(html), 4);
+  assertStringIncludes(
+    html,
+    '<ul class="bso-flashcard-list"><li class="bso-flashcard">',
+  );
   assertStringIncludes(html, 'class="bso-flashcard-term">request</span>');
+  assertStringIncludes(
+    html,
+    'class="bso-flashcard-definition bso-flashcard-definition-inline"><p>A <strong>client</strong>',
+  );
   assertStringIncludes(
     html,
     '<p>A <strong>client</strong> sends a request: see <a href="https://example.org">docs</a>.</p>',
@@ -439,6 +447,15 @@ Deno.test("heading lists are always compact", async () => {
   assertStringIncludes(
     compact,
     'class="bso-flashcards bso-flashcards-compact"',
+  );
+  assertStringIncludes(compact, '<ul class="bso-flashcard-list">');
+  assertEquals(
+    (compact.match(/<li class="bso-flashcard">/g) ?? []).length,
+    2,
+  );
+  assertEquals(
+    (compact.match(/class="bso-flashcard-definition-inline"/g) ?? []).length,
+    2,
   );
   assertStringIncludes(compact, 'aria-expanded="true"');
 });
