@@ -140,6 +140,13 @@ export interface ReaderConvertResult {
  * Schema van het brightspacosaurus.config.json configuratiebestand.
  * Requirements: 1.3, 1.7
  */
+export interface SlidesConfig {
+  /** Lesson paths relative to sourcesDir mapped to slide globs relative to Repo_Root. */
+  lessons: Record<string, string>;
+  /** Empty disables the banner; omitted uses the development disclaimer. */
+  disclaimer?: string;
+}
+
 export interface BsoConfig {
   /** Cursusnaam voor het manifest. Verplicht. */
   courseName: string;
@@ -169,6 +176,8 @@ export interface BsoConfig {
   name?: string;
   /** Path to the Docusaurus directory for `bso preview` (relative to Repo_Root). Optional. */
   docusaurusDir?: string;
+  /** Preview-only Marp presentations; never included in the cartridge. */
+  slides?: SlidesConfig;
   /** Configuration for instructor manual generation. Optional. */
   teacherManual?: TeacherManualConfig;
   /** Configuratie voor gegenereerde quizzen/toetsen. Optioneel. */
@@ -247,6 +256,7 @@ export interface ResolvedConfig {
   name: string;
   /** Absolute path to the Docusaurus directory. null = preview not configured. */
   docusaurusDir: string | null;
+  slides?: SlidesConfig;
   /** Instructor manual configuration with absolute paths. null = skip. */
   teacherManual: ResolvedTeacherManualConfig | null;
   /** Definitieve quizinstellingen. */

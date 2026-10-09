@@ -8,6 +8,12 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
+## 0.20.0 - 2026-10-09
+
+### Added
+
+- Preview-only Marp presentations mapped through `slides.lessons`: hidden Alt/Option+P opens the current lesson's slides, with local images, presenter notes and a configurable development disclaimer. Slides are not included in the Brightspace cartridge (#69).
+
 ## 0.19.0 - 2026-10-06
 
 ### Added

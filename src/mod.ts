@@ -35,6 +35,7 @@ export type {
   ResolvedTeacherPageConfig,
   ScanOptions,
   ScanResult,
+  SlidesConfig,
   TeacherManualConfig,
 } from "./types.ts";
 

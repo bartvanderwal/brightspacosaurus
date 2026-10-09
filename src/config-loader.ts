@@ -40,6 +40,12 @@ export const EXAMPLE_CONFIG = `{
   "readersDir": "bronmateriaal/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "scripts/docusaurus",
+  "slides": {
+    "lessons": {
+      "lesoverzicht-1.1.md": "slides/week-1/les-1/slides-*.md"
+    },
+    "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
+  },
   "teacherManual": {
     "inputFiles": ["docs/handleiding.md"],
     "outputName": "docentenhandleiding.pdf"
@@ -151,6 +157,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "customCss",
     "name",
     "docusaurusDir",
+    "slides",
     "teacherManual",
     "quiz",
     "diagrams",
@@ -194,6 +201,35 @@ export function validateConfig(config: unknown): config is BsoConfig {
       throw new Error(
         `Optional field '${field}' must be a string if it is provided.`,
       );
+    }
+  }
+
+  // Validate preview-only slide mappings if present
+  if (obj.slides !== undefined) {
+    if (typeof obj.slides !== "object" || obj.slides === null || Array.isArray(obj.slides)) {
+      throw new Error("Field 'slides' must be an object.");
+    }
+    const slides = obj.slides as Record<string, unknown>;
+    for (const key of Object.keys(slides)) {
+      if (key !== "lessons" && key !== "disclaimer") {
+        throw new Error(`Unknown configuration field 'slides.${key}'.`);
+      }
+    }
+    if (typeof slides.lessons !== "object" || slides.lessons === null || Array.isArray(slides.lessons)) {
+      throw new Error("Field 'slides.lessons' must be an object mapping lesson paths to slide globs.");
+    }
+    for (const [lesson, pattern] of Object.entries(slides.lessons)) {
+      if (!lesson.trim() || !lesson.endsWith(".md") || typeof pattern !== "string" || !pattern.trim()) {
+        throw new Error("Field 'slides.lessons' must map Markdown lesson paths to non-empty slide globs.");
+      }
+      for (const path of [lesson, pattern]) {
+        if (/^(?:[\\/]|[A-Za-z]:)/.test(path) || path.split(/[\\/]/).includes("..")) {
+          throw new Error("Field 'slides.lessons' must use relative paths without '..'.");
+        }
+      }
+    }
+    if (slides.disclaimer !== undefined && typeof slides.disclaimer !== "string") {
+      throw new Error("Field 'slides.disclaimer' must be a string.");
     }
   }
 
@@ -634,6 +670,7 @@ export function resolveConfig(
     customCss,
     name,
     docusaurusDir,
+    slides: config.slides,
     teacherManual,
     quiz: resolveQuizConfig(config),
     flashcards: resolveFlashcardsOptions(

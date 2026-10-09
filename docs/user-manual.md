@@ -142,6 +142,8 @@ The most important fields:
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
+| `slides.lessons`       | no       | Preview-only mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); see below |
+| `slides.disclaimer`    | no       | Banner on every presented slide; default `In ontwikkeling voor 2026/2027, periode 3`; `""` disables it |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
 | `diagrams.krokiUrl`    | no       | Kroki endpoint for PlantUML/Mermaid rendering (default `https://kroki.io`)                   |
@@ -480,6 +482,29 @@ deno task pack
 With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build. With `--skip-readers` you do the opposite: BSO skips all PDF generation with pandoc (readers, instructor manual and user manual) and still copies pre-built PDFs. That makes local builds and tests much faster when the PDFs are not what you are checking.
 
 For fast author feedback, use `bso preview` when `docusaurusDir` is configured. This starts the Docusaurus development server for the course repository, so most content and formatting issues can be caught locally before creating and importing a new `.imscc` package.
+
+#### Instructor slides in the local preview
+
+Map lessons to Marp Markdown in the content repository's `brightspacosaurus.config.json`:
+
+```json
+{
+  "slides": {
+    "lessons": {
+      "lesoverzicht-6.3.md": "instructor-material/week-6/les-3/slides-*.md"
+    },
+    "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
+  }
+}
+```
+
+Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. Only decks with `marp: true` in YAML frontmatter qualify. Matching decks are combined in filename order into one presentation; the first deck's frontmatter supplies the theme and other presentation-wide settings. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
+
+Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
+
+BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-preview-only-marp-presentations).
+
+Slides are never added to the `.imscc`. **Hidden is not secured:** anyone who knows the URL can open the slides. Keep this feature local; reconsider access control before deploying the preview online.
 
 ### 5.2 Import behavior: additive with overwrite option
 

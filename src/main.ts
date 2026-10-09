@@ -768,6 +768,9 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   // link to the PDF as in Brightspace.
   const staticDir = join(dirname(config.outputDir), "preview-static");
   let previewStaticDir = "";
+  const { renderPreviewSlides } = await import("./slides-preview.ts");
+  const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir);
+  if (Object.keys(slides).length) previewStaticDir = staticDir;
   if (config.teacherDashboard) {
     previewStaticDir = staticDir;
     await writeTeacherDashboard(join(staticDir, "docenten"), config.teacherDashboard);
@@ -787,6 +790,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     args: ["start"],
     env: {
       BSO_PREVIEW_STATIC_DIR: previewStaticDir,
+      BSO_PREVIEW_SLIDES: JSON.stringify(slides),
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
       BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({

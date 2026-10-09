@@ -17,6 +17,7 @@ const {
 const { remarkQuizPreview } = require("../src/quiz-preview.ts");
 const { resolveQuizOptions } = require("../src/quiz-config.ts");
 const { resolveDiagramsConfig } = require("../src/diagram-config.ts");
+const { remarkPreviewSlides } = require("../src/slides-preview-remark.ts");
 const course = require("../brightspacosaurus.config.json");
 const quizOptions = resolveQuizOptions(
   process.env.BSO_PREVIEW_QUIZ_CONFIG
@@ -199,6 +200,7 @@ module.exports = {
   clientModules: [
     require.resolve("./src/flashcards-client.js"),
     require.resolve("./src/teacher-tabs-client.js"),
+    require.resolve("../assets/brightspacosaurus-slides.js"),
     require.resolve("remark-kroki-a11y/diagramTabs.js"),
   ],
   plugins: [["@docusaurus/plugin-content-docs", {
@@ -231,7 +233,10 @@ module.exports = {
           args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
         ),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
-      remarkPlugins: [remarkTeacherPageTabs, remarkReaderPdfLink, [remarkFlashcards, flashcardOptions], [
+      remarkPlugins: [[remarkPreviewSlides, {
+        lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
+        baseUrl,
+      }], remarkTeacherPageTabs, remarkReaderPdfLink, [remarkFlashcards, flashcardOptions], [
         remarkDiagrams,
         diagramOptions,
       ]],
