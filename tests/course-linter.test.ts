@@ -430,16 +430,24 @@ Deno.test("clean demo has no diagnostics and antipattern demo has exactly one fi
     {},
     root,
   );
-  const expected: Record<string, string> = JSON.parse(
+  const expected: Record<string, string | null> = JSON.parse(
     await Deno.readTextFile(join(root, "expected-rules.json")),
   );
+  const expectedDiagnostics = Object.fromEntries(
+    Object.entries(expected).filter((entry): entry is [string, string] =>
+      entry[1] !== null
+    ),
+  );
   assertEquals(
-    new Set(Object.values(expected)).size,
-    Object.keys(expected).length,
+    new Set(Object.values(expectedDiagnostics)).size,
+    Object.keys(expectedDiagnostics).length,
   );
   const result = await lintCourse(config);
   assertEquals(result.filesChecked, Object.keys(expected).length);
-  assertEquals(result.diagnostics.length, Object.keys(expected).length);
+  assertEquals(
+    result.diagnostics.length,
+    Object.keys(expectedDiagnostics).length,
+  );
   const actual: Record<string, string> = {};
   for (const diagnostic of result.diagnostics) {
     const file = relative(root, diagnostic.sourceFile);
@@ -447,7 +455,7 @@ Deno.test("clean demo has no diagnostics and antipattern demo has exactly one fi
     actual[file] = diagnostic.rule;
     assertEquals(diagnostic.line > 0 && diagnostic.column > 0, true);
   }
-  assertEquals(actual, expected);
+  assertEquals(actual, expectedDiagnostics);
   assertEquals(await lintCourse(config), result);
 });
 
