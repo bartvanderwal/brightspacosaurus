@@ -16,3 +16,6 @@ demo-course-docs/playwright-report/
 # Personal Claude Code settings (plugins, statusline)
 .claude/settings.json
 .claude/settings.local.json
+
+# Agent working notes (task investigations, run artifacts)
+.agents/
