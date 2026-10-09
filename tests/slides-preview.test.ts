@@ -261,9 +261,10 @@ Deno.test("slides preview: embeds inline, reference, background and CSS local im
       "static",
       fake(captured),
     );
-    assertEquals(captured[0].match(/data:image\/svg\+xml;base64,/g)?.length, 4);
+    assertEquals(captured[0].match(/data:image\/svg\+xml;base64,/g)?.length, 2);
+    assertEquals(captured[0].match(/bso-embedded-svg-0\.svg/g)?.length, 2);
     assertStringIncludes(captured[0], "![bg](<data:");
-    assertStringIncludes(captured[0], 'url("data:');
+    assertStringIncludes(captured[0], "url(data:");
     assertStringIncludes(captured[0], '"title"');
     assertStringIncludes(captured[0], "![remote](https://example.org/pic.png)");
     assertStringIncludes(captured[0], "![data](data:image/png;base64,YQ==)");
@@ -398,6 +399,95 @@ Deno.test("slides preview: CSS-looking URLs in presenter notes and metadata are 
       fake(captured),
     );
     assertEquals(captured[0], source);
+  });
+});
+
+Deno.test("slides preview: CSS data URLs keep quoted YAML valid and remote CSS unchanged", async () => {
+  await fixture(async (root) => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+    await write(root, "decks/image.svg", svg);
+    const data = `data:image/svg+xml;base64,${btoa(svg)}`;
+    for (
+      const [outer, inner] of [['"', "'"], ["'", '"'], ['"', String.raw`\"`], [
+        "'",
+        "''",
+      ]]
+    ) {
+      const style =
+        `style: ${outer}section { background: url(${inner}image.svg${inner}); mask: url(${inner}https://example.org/image.svg${inner}); }${outer}`;
+      await write(
+        root,
+        "decks/slides.md",
+        deck.replace("theme: default", `theme: default\n${style}`) +
+          `\n<!-- ${style} -->\n`,
+      );
+      const captured: string[] = [];
+      await renderPreviewSlides(
+        config,
+        root,
+        "lessons",
+        "static",
+        fake(captured),
+      );
+      assertStringIncludes(
+        captured[0],
+        style.replace(`url(${inner}image.svg${inner})`, `url(${data})`),
+      );
+      assertStringIncludes(
+        captured[0],
+        `<!-- ${
+          style.replace(`url(${inner}image.svg${inner})`, `url(${data})`)
+        } -->`,
+      );
+    }
+  });
+});
+
+Deno.test("slides preview: deck-local image and link references cannot collide after merging", async () => {
+  await fixture(async (root) => {
+    const red =
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="red"/></svg>';
+    const blue =
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="blue"/></svg>';
+    await write(root, "decks/red.svg", red);
+    await write(root, "decks/blue.svg", blue);
+    await write(
+      root,
+      "decks/a.md",
+      deck +
+        '\n![bg][picture]\n\n[**Source**][source]\n\n[picture]: red.svg "Red title"\n[source]: https://red.example\n',
+    );
+    await write(
+      root,
+      "decks/b.md",
+      deck +
+        "\n![diagram][picture]\n\n[![thumbnail][picture]][source]\n\n![picture][]\n\n![picture]\n\n" +
+        '[picture]: blue.svg "Blue title"\n[source]: https://blue.example\n<!-- Explain url(nonexistent.png) -->\n',
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(
+      config,
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    const redUrl = `data:image/svg+xml;base64,${btoa(red)}`;
+    const blueUrl = "bso-embedded-svg-0.svg";
+    assertStringIncludes(captured[0], `![bg](<${redUrl}> "Red title")`);
+    assertStringIncludes(captured[0], `![diagram](<${blueUrl}> "Blue title")`);
+    assertStringIncludes(captured[0], `[**Source**](<https://red.example>)`);
+    assertStringIncludes(
+      captured[0],
+      `[![thumbnail](<${blueUrl}> "Blue title")](<https://blue.example>)`,
+    );
+    assertEquals(
+      captured[0].match(/!\[picture\]\(<bso-embedded-svg-/g)?.length,
+      2,
+    );
+    assert(!captured[0].includes("[picture]:"));
+    assert(!captured[0].includes("[source]:"));
+    assertStringIncludes(captured[0], "<!-- Explain url(nonexistent.png) -->");
   });
 });
 
@@ -733,6 +823,103 @@ Deno.test("slides preview: tool cache cannot be inside static output or escape t
       "outside root",
     );
   });
+});
+
+Deno.test({
+  name:
+    "slides preview: real Marp applies quoted YAML styles and keeps duplicate references deck-local",
+  ignore: !runMarpIntegration,
+  fn: async () => {
+    await fixture(async (root) => {
+      const red =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>';
+      const blue =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="blue"/></svg>';
+      await write(root, "decks/red.svg", red);
+      await write(root, "decks/blue.svg", blue);
+      for (
+        const [name, outer, inner] of [
+          ["double", '"', "'"],
+          ["single", "'", '"'],
+          ["escaped-double", '"', String.raw`\"`],
+          ["escaped-single", "'", "''"],
+        ]
+      ) {
+        await write(
+          root,
+          `decks/${name}.md`,
+          deck.replace(
+            "theme: default",
+            `theme: default\nstyle: ${outer}section { background-image: url(${inner}red.svg${inner}); --bso-smoke:quoted-${name}; }${outer}`,
+          ),
+        );
+      }
+      await write(root, "lessons/combined.md", "# Combined");
+      await write(root, "lessons/escaped-double.md", "# Escaped double style");
+      await write(root, "lessons/escaped-single.md", "# Escaped single style");
+      await write(
+        root,
+        "decks/a.md",
+        deck +
+          '\n![Red diagram][picture]\n\n[Source][source]\n\n[picture]: red.svg "Red title"\n[source]: https://red.example\n',
+      );
+      await write(
+        root,
+        "decks/b.md",
+        deck +
+          '\n![Blue diagram][picture]\n\n[Source][source]\n\n[picture]: blue.svg "Blue title"\n[source]: https://blue.example\n',
+      );
+      await renderPreviewSlides(
+        {
+          lessons: {
+            "week/lesson.md": "decks/double.md",
+            "other.md": "decks/single.md",
+            "combined.md": "decks/{a,b}.md",
+            "escaped-double.md": "decks/escaped-double.md",
+            "escaped-single.md": "decks/escaped-single.md",
+          },
+        },
+        root,
+        "lessons",
+        "static",
+      );
+      const redUrl = `data:image/svg+xml;base64,${btoa(red)}`;
+      const blueUrl = `data:image/svg+xml;base64,${btoa(blue)}`;
+      for (
+        const [name, lesson] of [
+          ["double", "week/lesson"],
+          ["single", "other"],
+          ["escaped-double", "escaped-double"],
+          ["escaped-single", "escaped-single"],
+        ]
+      ) {
+        const html = await Deno.readTextFile(
+          join(root, `static/slides/${lesson}/index.html`),
+        );
+        assertStringIncludes(
+          html.replace(/\s/g, ""),
+          `--bso-smoke:quoted-${name}`,
+        );
+        assertStringIncludes(html, redUrl);
+      }
+      const html = await Deno.readTextFile(
+        join(root, "static/slides/combined/index.html"),
+      );
+      const sections = [
+        ...html.matchAll(/<section\b[^>]*>([\s\S]*?)<\/section>/g),
+      ].map((match) => match[1]);
+      assertEquals(sections.length, 2);
+      assertStringIncludes(sections[0], `src="${redUrl}"`);
+      assert(!sections[0].includes(blueUrl));
+      assertStringIncludes(sections[1], `src="${blueUrl}"`);
+      assert(!sections[1].includes(redUrl));
+      assertStringIncludes(sections[0], 'title="Red title"');
+      assertStringIncludes(sections[1], 'title="Blue title"');
+      assertStringIncludes(sections[0], 'href="https://red.example"');
+      assertStringIncludes(sections[1], 'href="https://blue.example"');
+      assertEquals(html.match(/Speaker note/g)?.length, 2);
+    });
+  },
 });
 
 Deno.test({

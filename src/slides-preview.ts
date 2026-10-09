@@ -195,29 +195,80 @@ async function embedImages(
   text: string,
   source: string,
   root: string,
+  svgImages: Map<string, string>,
 ): Promise<string> {
   const tree = unified().use(remarkParse).use(remarkFrontmatter, ["yaml"])
     .parse(text) as ImageNode;
   const edits: { start: number; end: number; value: string }[] = [];
-  const references = new Set<string>();
-  function referencesIn(node: ImageNode): void {
-    if (node.type === "imageReference" && node.identifier) {
-      references.add(node.identifier);
+  const definitions = new Map<string, ImageNode>();
+  const imageCache = new Map<string, Promise<string>>();
+  function definitionsIn(node: ImageNode): void {
+    if (
+      node.type === "definition" && node.identifier &&
+      !definitions.has(node.identifier)
+    ) {
+      definitions.set(node.identifier, node);
     }
-    node.children?.forEach(referencesIn);
+    node.children?.forEach(definitionsIn);
   }
-  referencesIn(tree);
-  async function cssUrls(fragment: string, start: number): Promise<void> {
+  definitionsIn(tree);
+  function embeddedUrl(url: string): Promise<string> {
+    if (!imageCache.has(url)) imageCache.set(url, imageUrl(url, source, root));
+    return imageCache.get(url)!;
+  }
+  function markdownImageUrl(url: string, alt?: string | null): string {
+    // Marp rejects ordinary SVG data images, but supports SVG backgrounds.
+    // Ordinary SVGs are embedded in the rendered image attributes instead.
+    if (
+      !url.startsWith("data:image/svg+xml;base64,") ||
+      /(?:^|\s)bg(?:\s|$)/.test(alt ?? "")
+    ) return url;
+    const existing = [...svgImages].find(([, value]) => value === url)?.[0];
+    if (existing) return existing;
+    const placeholder = `bso-embedded-svg-${svgImages.size}.svg`;
+    svgImages.set(placeholder, url);
+    return placeholder;
+  }
+  async function cssUrls(
+    fragment: string,
+    start: number,
+    yamlStyle = false,
+  ): Promise<void> {
+    let scan = fragment;
+    let offsets: number[] | undefined;
+    const quote = yamlStyle
+      ? fragment.match(/^[ \t]*_?style[ \t]*:[ \t]*(["'])/)?.[1]
+      : undefined;
+    if (quote) {
+      // Decode YAML quote escaping for matching, but edit the original source spans.
+      scan = "";
+      offsets = [0];
+      for (let i = 0; i < fragment.length;) {
+        let char = fragment[i++];
+        if (
+          (quote === '"' && char === "\\" &&
+            (fragment[i] === '"' || fragment[i] === "\\")) ||
+          (quote === "'" && char === "'" && fragment[i] === "'")
+        ) char = fragment[i++];
+        scan += char;
+        offsets.push(i);
+      }
+    }
     for (
-      const match of fragment.matchAll(
+      const match of scan.matchAll(
         /url\(\s*(?:(["'])(.*?)\1|([^)\s]+))\s*\)/gi,
       )
     ) {
-      const url = await imageUrl(match[2] ?? match[3], source, root);
+      const original = match[2] ?? match[3];
+      const url = await embeddedUrl(original);
+      if (url === original) continue;
+      const from = offsets?.[match.index!] ?? match.index!;
+      const to = offsets?.[match.index! + match[0].length] ??
+        match.index! + match[0].length;
       edits.push({
-        start: start + match.index!,
-        end: start + match.index! + match[0].length,
-        value: `url("${url}")`,
+        start: start + from,
+        end: start + to,
+        value: `url(${url})`,
       });
     }
   }
@@ -233,6 +284,7 @@ async function embedImages(
             await cssUrls(
               fragment.slice(range.start, range.end),
               start + range.start,
+              true,
             );
           }
         } else {
@@ -266,31 +318,69 @@ async function embedImages(
               await cssUrls(
                 comment[1].slice(range.start, range.end),
                 start + comment.index! + 4 + range.start,
+                true,
               );
             }
           }
         }
       }
     }
-    if (
-      (node.type === "image" ||
-        (node.type === "definition" && references.has(node.identifier!))) &&
-      node.url
-    ) {
-      const url = await imageUrl(node.url, source, root);
-      const start = node.position?.start.offset;
-      const end = node.position?.end.offset;
-      if (url !== node.url && start !== undefined && end !== undefined) {
-        const title = node.title ? ` ${JSON.stringify(node.title)}` : "";
-        const value = node.type === "image"
-          ? `![${
-            (node.alt ?? "").replace(/[[\]\\]/g, "\\$&")
-          }](<${url}>${title})`
-          : `[${node.identifier}]: <${url}>${title}`;
-        edits.push({ start, end, value });
-      }
-    }
     for (const child of node.children ?? []) await visit(child);
+    const start = node.position?.start.offset;
+    const end = node.position?.end.offset;
+    if (start === undefined || end === undefined) return;
+    if (node.type === "definition") {
+      edits.push({ start, end, value: "" });
+    } else if (node.type === "image" && node.url) {
+      const url = markdownImageUrl(await embeddedUrl(node.url), node.alt);
+      if (url !== node.url) {
+        edits.push({
+          start,
+          end,
+          value: `![${(node.alt ?? "").replace(/[[\]\\]/g, "\\$&")}](<${url}>${
+            node.title ? ` ${JSON.stringify(node.title)}` : ""
+          })`,
+        });
+      }
+    } else if (
+      node.type === "imageReference" || node.type === "linkReference"
+    ) {
+      const definition = definitions.get(node.identifier!);
+      if (!definition?.url) return;
+      const url = node.type === "imageReference"
+        ? markdownImageUrl(await embeddedUrl(definition.url), node.alt)
+        : definition.url;
+      const title = definition.title
+        ? ` ${JSON.stringify(definition.title)}`
+        : "";
+      let label = (node.alt ?? "").replace(/[[\]\\]/g, "\\$&");
+      if (node.type === "linkReference") {
+        const labelStart = node.children?.[0]?.position?.start.offset;
+        const labelEnd = node.children?.at(-1)?.position?.end.offset;
+        label = labelStart !== undefined && labelEnd !== undefined
+          ? text.slice(labelStart, labelEnd)
+          : "";
+        // Fold nested image edits into this link's replacement rather than overlap them.
+        if (labelStart !== undefined && labelEnd !== undefined) {
+          for (
+            const edit of edits.filter((edit) =>
+              edit.start >= labelStart && edit.end <= labelEnd
+            ).sort((a, b) => b.start - a.start)
+          ) {
+            label = label.slice(0, edit.start - labelStart) + edit.value +
+              label.slice(edit.end - labelStart);
+            edits.splice(edits.indexOf(edit), 1);
+          }
+        }
+      }
+      edits.push({
+        start,
+        end,
+        value: `${
+          node.type === "imageReference" ? "!" : ""
+        }[${label}](<${url}>${title})`,
+      });
+    }
   }
   await visit(tree);
   for (const edit of edits.sort((a, b) => b.start - a.start)) {
@@ -482,12 +572,14 @@ export async function renderPreviewSlides(
   let toolsPrepared = false;
   for (const plan of plans) {
     const chunks: string[] = [];
+    const svgImages = new Map<string, string>();
     for (const source of plan.decks) {
       await confined(source, root);
       const embedded = await embedImages(
         (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
         source,
         root,
+        svgImages,
       );
       const deck = frontmatter(embedded)!;
       chunks.push(chunks.length ? deck.body : deck.header + deck.body);
@@ -528,7 +620,17 @@ export async function renderPreviewSlides(
         "--no-html",
         "--allow-local-files",
       ], root);
-      const html = await Deno.readTextFile(destination);
+      const html = (await Deno.readTextFile(destination)).replace(
+        /<img\b[^>]*>/gi,
+        (tag) =>
+          tag.replace(
+            /\bsrc=(["'])(.*?)\1/g,
+            (attribute, quote, url) =>
+              svgImages.has(url)
+                ? `src=${quote}${svgImages.get(url)}${quote}`
+                : attribute,
+          ),
+      );
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
       await Deno.writeTextFile(
         destination,
