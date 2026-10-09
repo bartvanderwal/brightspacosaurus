@@ -8,6 +8,7 @@ import { join } from "@std/path";
 import { convertQuiz, generateQtiXml } from "../src/quiz-converter.ts";
 import { parseQuizMarkdown, validateQuiz } from "../src/quiz-parser.ts";
 import { remarkQuizPreview } from "../src/quiz-preview.ts";
+import { quizTextNodes } from "../src/quiz-markdown.ts";
 import type { FlashcardNode } from "../src/flashcards.ts";
 import { resolveQuizOptions } from "../src/quiz-config.ts";
 import { resolveConfig, validateConfig } from "../src/config-loader.ts";
@@ -158,9 +159,79 @@ Deno.test("multiple-response preview renders checkboxes and all correct answers"
     ["checkbox", "checkbox", "checkbox"],
   );
   assertEquals(
-    fieldset?.children?.[3]?.children?.[1]?.children?.[0]?.value,
-    "Yes, Maybe",
+    fieldset?.children?.[3]?.children?.[1]?.children?.map((answer) =>
+      answer.children?.[0]?.value
+    ),
+    ["Yes", "Maybe"],
   );
+});
+
+Deno.test("quiz preview and QTI export render prompt, option and hint Markdown from the same tree (parity)", () => {
+  const markdown = `# Code quiz
+
+\`\`\`\`quiz
+? Use \`private\` here:
+
+\`\`\`java
+class A {
+    private int x;
+}
+\`\`\`
+
+! The \`private\` keyword.
+
+- (x) \`List<String>\`
+- ( ) This one:
+  \`\`\`jsx
+  const el = <Button title="A & B" />;
+  \`\`\`
+\`\`\`\`
+`;
+  const quiz = parseQuizMarkdown(markdown);
+  const [question] = quiz.questions;
+  const tree: FlashcardNode = { type: "root", children: [] };
+  remarkQuizPreview()(tree, { path: "quiz-code.md", value: markdown });
+  const fieldset = tree.children?.[0]?.children?.[0];
+
+  // Prompt with a code block: a div holding exactly the shared mdast nodes.
+  const prompt = fieldset?.children?.[1];
+  assertEquals(prompt?.data?.hName, "div");
+  assertEquals(prompt?.children, quizTextNodes(question.text).nodes);
+  const code = prompt?.children?.find((node) => node.type === "code") as
+    | { lang?: string; value?: string }
+    | undefined;
+  assertEquals(code?.lang, "java");
+  assertEquals(code?.value, "class A {\n    private int x;\n}");
+
+  // Options: inline code stays inline, a code block becomes a block.
+  const optionText = (index: number) =>
+    fieldset?.children?.[2]?.children?.[index]?.children?.[0]?.children?.[2];
+  assertEquals(optionText(0)?.data?.hName, "span");
+  assertEquals(optionText(0)?.children, quizTextNodes("`List<String>`").nodes);
+  assertEquals(optionText(1)?.data?.hName, "div");
+  assertEquals(
+    optionText(1)?.children,
+    quizTextNodes(question.options[1].text).nodes,
+  );
+
+  // Hint: inline code, not literal backticks.
+  const hint = fieldset?.children?.find((node) =>
+    node.data?.hProperties?.className === "bso-quiz-hint"
+  );
+  assertEquals(hint?.children?.[1]?.children?.[1]?.type, "inlineCode");
+
+  // The QTI export renders the same nodes: code elements, no backticks.
+  const xml = generateQtiXml(quiz, "quiz-code");
+  assertStringIncludes(xml, "&lt;code&gt;private&lt;/code&gt;");
+  assertStringIncludes(
+    xml,
+    "&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;",
+  );
+  assertStringIncludes(
+    xml,
+    "&lt;pre&gt;&lt;code class=&quot;language-jsx&quot;&gt;",
+  );
+  assertEquals(xml.includes("`"), false);
 });
 
 Deno.test("QuizDown syntax supports multiple-choice, hints and open answers", () => {

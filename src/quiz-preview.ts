@@ -1,11 +1,26 @@
 /** Docusaurus remark adapter using the same quiz model and settings as QTI export. */
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
+import { quizTextNodes } from "./quiz-markdown.ts";
 import type { FlashcardNode } from "./flashcards.ts";
 import type { QuizConfig } from "./types.ts";
 
 function text(value: string): FlashcardNode {
   return { type: "text", value };
+}
+
+/**
+ * Question, option and hint text as Markdown nodes from the parser the QTI
+ * export also uses (quiz-markdown.ts), so code renders and is highlighted like
+ * on lesson pages: a paragraph for prose, a div when the text holds blocks.
+ */
+function richText(
+  tag: "p" | "span",
+  value: string,
+  properties: Record<string, string> = {},
+): FlashcardNode {
+  const { nodes, block } = quizTextNodes(value);
+  return element(block ? "div" : tag, properties, nodes as FlashcardNode[]);
 }
 
 function element(
@@ -42,7 +57,7 @@ export function remarkQuizPreview(
       };
       const children = [
         element("legend", {}, [text(`Question ${question.number}`)]),
-        element("p", {}, [text(question.text)]),
+        richText("p", question.text, { className: "bso-quiz-prompt" }),
       ];
       if (responseType === "open_short") {
         children.push(
@@ -68,7 +83,10 @@ export function remarkQuizPreview(
                     name: `bso-question-${question.number}`,
                     value: option.label,
                   }),
-                  text(` ${option.text}`),
+                  text(" "),
+                  richText("span", option.text, {
+                    className: "bso-quiz-option-text",
+                  }),
                 ]),
               ])
             ),
@@ -77,20 +95,26 @@ export function remarkQuizPreview(
       }
       children.push(element("details", { className: "bso-quiz-answer" }, [
         element("summary", {}, [text("Show correct answer")]),
-        element("p", {}, [
-          text(
-            responseType === "open_short"
-              ? correctAnswers[0] ?? ""
-              : correctAnswers.map((answer) =>
-                question.options.find((option) => option.label === answer)!.text
-              ).join(", "),
+        responseType === "open_short"
+          ? element("p", {}, [text(correctAnswers[0] ?? "")])
+          : element(
+            "div",
+            {},
+            correctAnswers.map((answer) =>
+              // One block per correct answer: answers may hold code blocks,
+              // which cannot be joined into one comma-separated line.
+              richText(
+                "p",
+                question.options.find((option) => option.label === answer)!
+                  .text,
+              )
+            ),
           ),
-        ]),
       ]));
       if (question.hint) {
         children.push(element("details", { className: "bso-quiz-hint" }, [
           element("summary", {}, [text("Show hint")]),
-          element("p", {}, [text(question.hint)]),
+          richText("p", question.hint),
         ]));
       }
       return element("fieldset", properties, children);

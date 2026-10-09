@@ -10,19 +10,17 @@
 
 import { basename, dirname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";
-import remarkParse from "remark-parse";
-import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
 import type { ParsedQuiz } from "./quiz-parser.ts";
+import { parseQuizText } from "./quiz-markdown.ts";
 export { parseQuizMarkdown } from "./quiz-parser.ts";
 export type { ParsedQuiz, QuizQuestion } from "./quiz-parser.ts";
 
-const quizMarkdownProcessor = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
+// Same mdast as the preview (quiz-markdown.ts); only the last step differs.
+const quizHtmlProcessor = unified()
   .use(remarkRehype)
   .use(rehypeStringify);
 
@@ -77,7 +75,10 @@ function escapeXml(text: string): string {
 }
 
 function renderQuizMarkdown(markdown: string): string {
-  return String(quizMarkdownProcessor.processSync(markdown));
+  // deno-lint-ignore no-explicit-any
+  const tree = quizHtmlProcessor.runSync(parseQuizText(markdown) as any);
+  // deno-lint-ignore no-explicit-any
+  return String(quizHtmlProcessor.stringify(tree as any));
 }
 
 function formatBrightspaceMaxAttempts(maxAttempts: number): string {
