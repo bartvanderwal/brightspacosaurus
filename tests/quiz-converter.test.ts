@@ -18,6 +18,7 @@ import {
   parseQuizMarkdown,
 } from "../src/quiz-converter.ts";
 import { join } from "@std/path";
+import { validateQuiz } from "../src/quiz-parser.ts";
 
 Deno.test("parseQuizMarkdown: English question labels are supported", () => {
   const parsed = parseQuizMarkdown(`# Quiz: English\n
@@ -295,6 +296,79 @@ const el = <Button title="A & B" />;
     ?.split("</itemfeedback>")[0];
   assertEquals(feedback?.includes("&lt;code&gt;private&lt;/code&gt;"), true);
   assertEquals(feedback?.includes("&amp;#x3C; and &amp;#x26;."), true);
+});
+
+Deno.test("QuizConverter: a four-backtick quiz fence may contain three-backtick code blocks", () => {
+  const quiz = parseQuizMarkdown(`# Code quiz
+
+\`\`\`\`quiz
+? What does this print?
+\`\`\`java
+System.out.println(1 < 2);
+\`\`\`
+- (x) \`true\`
+- ( ) \`false\`
+
+? Name the keyword for a constant.
+= final ~10
+\`\`\`\`
+`);
+  assertEquals(validateQuiz(quiz), []);
+  assertEquals(quiz.questions.map((question) => question.responseType), [
+    "single",
+    "open_short",
+  ]);
+  const xml = generateQtiXml(quiz, "quiz-four-backticks");
+  assertEquals(
+    xml.includes("&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;"),
+    true,
+  );
+});
+
+Deno.test("QuizDown keeps indentation and blank lines of code in prompts and options", () => {
+  const quiz = parseQuizMarkdown(`# Code quiz
+
+\`\`\`\`quiz
+? Which method returns the larger number?
+
+\`\`\`java
+class Max {
+
+    int pick() { return 1; }
+}
+\`\`\`
+
+- (x) This one:
+  \`\`\`java
+  int max(int a, int b) {
+      return a > b ? a : b;
+  }
+  \`\`\`
+- ( ) This one:
+  \`\`\`java
+  int max(int a, int b) {
+
+      return a < b ? a : b;
+  }
+  \`\`\`
+\`\`\`\`
+`);
+  assertEquals(validateQuiz(quiz), []);
+  const [question] = quiz.questions;
+  assertEquals(
+    question.text.includes("class Max {\n\n    int pick() { return 1; }\n}"),
+    true,
+  );
+  assertEquals(question.options.length, 2);
+  assertEquals(
+    question.options[0].text,
+    "This one:\n```java\nint max(int a, int b) {\n    return a > b ? a : b;\n}\n```",
+  );
+  assertEquals(
+    question.options[1].text.includes("{\n\n    return a < b"),
+    true,
+  );
+  assertEquals(question.correctAnswers, ["A"]);
 });
 
 Deno.test("QuizConverter: preserves fenced blocks in legacy question prompts", () => {

@@ -227,7 +227,11 @@ function extractQuizDownBlock(content: string): string | null {
     let nestedFenceCharacter = "";
     const body: string[] = [];
     for (index++; index < lines.length; index++) {
-      const nestedOpening = lines[index].match(/^\s*(`{3,}|~{3,})\s*\S.*$/);
+      // An info string may not start with a fence character, otherwise a
+      // closing fence of four or more backticks would count as an opening.
+      const nestedOpening = lines[index].match(
+        /^\s*(`{3,}|~{3,})\s*[^`~\s].*$/,
+      );
       if (nestedOpening) {
         nestedFenceLength = nestedOpening[1].length;
         nestedFenceCharacter = nestedOpening[1][0];
@@ -332,9 +336,38 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
     }
   };
 
+  // Fenced code inside a prompt or an option is kept verbatim: indentation and
+  // blank lines matter in code, and QuizDown markers inside it are not syntax.
+  let codeFence: string | null = null;
+  let optionIndent = 0;
+  const stripIndent = (line: string, indent: number) =>
+    line.replace(new RegExp(`^ {0,${indent}}`), "");
+  const appendText = (line: string) => {
+    if (currentOption) {
+      const lastOption = question!.options.at(-1)!;
+      const text = stripIndent(line, optionIndent);
+      lastOption.text += `${lastOption.text ? "\n" : ""}${text}`;
+    } else {
+      question!.text += `${question!.text ? "\n" : ""}${line}`;
+    }
+  };
+  const fenceOpening = (line: string) =>
+    line.trim().match(/^(`{3,}|~{3,})\s*(?:[^`~\s].*)?$/)?.[1] ?? null;
+
   const lines = source.split(/\r?\n/);
   for (const [index, raw] of lines.entries()) {
     const trimmed = raw.trim();
+    if (codeFence !== null) {
+      appendText(raw);
+      const closing = trimmed.match(/^(`+|~+)$/)?.[1];
+      if (
+        closing && closing[0] === codeFence[0] &&
+        closing.length >= codeFence.length
+      ) {
+        codeFence = null;
+      }
+      continue;
+    }
     if (!trimmed) {
       currentOption = undefined;
       continue;
@@ -417,15 +450,18 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
         text: "",
         forcedOrder,
       };
+      // Continuation lines are indented under the option text.
+      optionIndent = (raw.match(/^\s*/)?.[0].length ?? 0) + 2;
       continue;
     }
     if (/^\s+/.test(raw) && currentOption) {
-      const lastOption = question.options.at(-1)!;
-      lastOption.text += `${lastOption.text ? "\n" : ""}${trimmed}`;
+      codeFence = fenceOpening(raw);
+      appendText(raw);
       continue;
     }
-    question.text += `${question.text ? "\n" : ""}${trimmed}`;
     currentOption = undefined;
+    codeFence = fenceOpening(raw);
+    appendText(codeFence === null ? trimmed : raw);
   }
   finalizeQuestion(lines.length);
   return quiz;
