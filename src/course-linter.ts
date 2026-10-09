@@ -13,6 +13,11 @@ import {
 import remarkDirective from "remark-directive";
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { parseQuizMarkdown, validateQuiz } from "./quiz-parser.ts";
+import {
+  checkQuizBias,
+  parseTeacherAnswers,
+  type QuizBiasOptions,
+} from "./quiz-bias.ts";
 import { parseIncludeTarget } from "./markdown-converter.ts";
 import { scanSources } from "./source-scanner.ts";
 import type { ResolvedConfig } from "./types.ts";
@@ -54,6 +59,10 @@ export interface LintOptions {
    * frontmatter is not processed.
    */
   lessonFile?: boolean;
+  /** Thresholds for the quiz bias rules. */
+  quizBias?: QuizBiasOptions;
+  /** Content of the teacher answer model that belongs to a quiz file. */
+  teacherAnswers?: string;
 }
 
 interface Node {
@@ -347,7 +356,8 @@ function inspectMarkdown(
   }
 
   if (basename(sourceFile).startsWith("quiz-")) {
-    for (const issue of validateQuiz(parseQuizMarkdown(markdown))) {
+    const quiz = parseQuizMarkdown(markdown);
+    for (const issue of validateQuiz(quiz)) {
       diagnostics.push({
         sourceFile,
         line: issue.line,
@@ -357,6 +367,23 @@ function inspectMarkdown(
         message: `${
           issue.question !== undefined ? `Question ${issue.question}: ` : ""
         }${issue.message}`,
+      });
+    }
+    const teacherAnswers = options.teacherAnswers === undefined
+      ? undefined
+      : parseTeacherAnswers(options.teacherAnswers);
+    for (
+      const finding of checkQuizBias(quiz, teacherAnswers, options.quizBias)
+    ) {
+      diagnostics.push({
+        sourceFile,
+        line: finding.line,
+        column: 1,
+        severity: finding.severity,
+        rule: finding.rule,
+        message: `${
+          finding.question !== undefined ? `Question ${finding.question}: ` : ""
+        }${finding.message}`,
       });
     }
   }
@@ -411,6 +438,8 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     const result = inspectMarkdown(await Deno.readTextFile(file), file, {
       flashcards: config.flashcards,
       lessonFile: lessonFiles.has(file),
+      quizBias: config.lint?.quizBias,
+      teacherAnswers: await readTeacherAnswers(file),
     });
     diagnostics.push(...result.diagnostics);
     for (const include of result.includes) {
@@ -505,4 +534,20 @@ export function formatLintDiagnostic(
   return `${
     relative(repoRoot, diagnostic.sourceFile)
   }:${diagnostic.line}:${diagnostic.column}: ${severity} ${diagnostic.rule}: ${diagnostic.message}`;
+}
+
+/** The `*-antwoorden-docent.md` next to `quiz-*-vragen-en-antwoorden.md`, if any. */
+async function readTeacherAnswers(quizFile: string): Promise<string | undefined> {
+  if (!basename(quizFile).startsWith("quiz-")) return undefined;
+  const teacherFile = quizFile.replace(
+    /-vragen-en-antwoorden\.md$/,
+    "-antwoorden-docent.md",
+  );
+  if (teacherFile === quizFile) return undefined;
+  try {
+    return await Deno.readTextFile(teacherFile);
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return undefined;
+    throw error;
+  }
 }

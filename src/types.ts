@@ -1,5 +1,6 @@
 import type { FlashcardsConfig } from "./flashcards.ts";
 import type { TeacherPageVersions } from "./teacher-page.ts";
+import type { QuizBiasOptions } from "./quiz-bias.ts";
 
 /**
  * TypeScript-interfaces voor Brightspacosaurus.
@@ -368,4 +369,6 @@ export interface CliOverrides {
 export interface LintConfig {
   /** Directories scanned recursively instead of sourcesDir/readersDir. */
   includeDirs?: string[];
+  /** Thresholds for the quiz bias rules; see `QuizBiasOptions`. */
+  quizBias?: QuizBiasOptions;
 }

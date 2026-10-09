@@ -250,7 +250,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     const lint = obj.lint as Record<string, unknown>;
     for (const key of Object.keys(lint)) {
-      if (key !== "includeDirs") {
+      if (key !== "includeDirs" && key !== "quizBias") {
         throw new Error(`Unknown configuration field 'lint.${key}'.`);
       }
     }
@@ -264,6 +264,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
         "Field 'lint.includeDirs' must be a non-empty array of non-empty directory paths.",
       );
     }
+    validateQuizBias(lint.quizBias);
   }
 
   // Validate diagrams if it is present
@@ -647,6 +648,7 @@ export function resolveConfig(
       includeDirs: cliOverrides.sources
         ? [sourcesDir]
         : config.lint?.includeDirs?.map((dir) => resolve(repoRoot, dir)),
+      quizBias: config.lint?.quizBias,
     },
     diagrams: resolveDiagramsConfig(config),
     teacherDashboard: resolveTeacherDashboardConfig(config.teacherDashboard),
@@ -733,4 +735,41 @@ function resolveModule(value: unknown, field: string): ReadersModuleConfig {
     slug: (obj.slug as string | undefined) ?? "readers",
     title: (obj.title as string | undefined)?.trim() ?? null,
   };
+}
+
+const quizBiasNumbers = [
+  "maxLongestShare",
+  "maxShortestShare",
+  "maxLetterShare",
+  "maxLengthRatio",
+  "minQuestionsForLength",
+  "minQuestionsForPosition",
+];
+
+function validateQuizBias(value: unknown): void {
+  if (value === undefined) return;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Field 'lint.quizBias' must be an object.");
+  }
+  const bias = value as Record<string, unknown>;
+  for (const [key, setting] of Object.entries(bias)) {
+    if (key === "giveawayWords") {
+      if (
+        !Array.isArray(setting) ||
+        setting.some((word) => typeof word !== "string" || !word.trim())
+      ) {
+        throw new Error(
+          "Field 'lint.quizBias.giveawayWords' must be an array of non-empty strings.",
+        );
+      }
+    } else if (!quizBiasNumbers.includes(key)) {
+      throw new Error(`Unknown configuration field 'lint.quizBias.${key}'.`);
+    } else if (
+      typeof setting !== "number" || !Number.isFinite(setting) || setting < 0
+    ) {
+      throw new Error(
+        `Field 'lint.quizBias.${key}' must be a non-negative number.`,
+      );
+    }
+  }
 }

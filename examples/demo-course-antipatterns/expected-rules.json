@@ -28,5 +28,11 @@
   "lessons/quizzes/quiz-option-syntax.md": "quiz-option-syntax",
   "lessons/metadata/hard-wrapped-lines.md": "hard-wrapped-lines",
   "lessons/metadata/lesson-frontmatter.md": "lesson-frontmatter",
-  "lessons/metadata/metadata-fields-one-line.md": "metadata-fields-one-line"
+  "lessons/metadata/metadata-fields-one-line.md": "metadata-fields-one-line",
+  "lessons/quizzes/quiz-length-bias.md": "quiz-length-bias",
+  "lessons/quizzes/quiz-reverse-length-bias.md": "quiz-reverse-length-bias",
+  "lessons/quizzes/quiz-answer-length-ratio.md": "quiz-answer-length-ratio",
+  "lessons/quizzes/quiz-only-giveaway.md": "quiz-only-giveaway",
+  "lessons/quizzes/quiz-position-bias.md": "quiz-position-bias",
+  "lessons/quizzes/quiz-answer-key-mismatch-vragen-en-antwoorden.md": "quiz-answer-key-mismatch"
 }

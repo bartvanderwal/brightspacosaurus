@@ -16,8 +16,8 @@ Correct answer: **A**
 What should a diagram fallback preserve?
 
 - A. The original diagram source code
-- B. Only an empty image
-- C. The quiz answer key
-- D. Nothing
+- B. Only an empty image placeholder
+- C. The quiz answer key of the course
+- D. Nothing, the diagram is dropped
 
 Correct answer: **A**

@@ -16,8 +16,8 @@ Correct answer: **A**
 What is packaged in an IMSCC archive?
 
 - A. HTML, QTI, readers, images and the manifest
-- B. Only Markdown source
-- C. Only Java source
-- D. Only CSS
+- B. Only the Markdown source of the lessons
+- C. Only the Java source of the assignments
+- D. Only the CSS for the Brightspace theme
 
 Correct answer: **A**

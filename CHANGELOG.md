@@ -13,6 +13,8 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 ### Added
 
 - Quiz export and preview support for Quizzosaurus/QuizDown single-choice, multi-select and open short-answer syntax (#50).
+- `bso lint` rules for bias in multiple-choice quizzes (#68): `quiz-length-bias`, `quiz-reverse-length-bias`, `quiz-answer-length-ratio`, `quiz-only-giveaway` and `quiz-position-bias` (warnings), and `quiz-answer-key-mismatch` (error) when `quiz-*-vragen-en-antwoorden.md` and its `*-antwoorden-docent.md` name a different correct answer. Thresholds and signal words are configurable in `lint.quizBias`. The rules replace owe-1's `scripts/check-quiz-bias.py`; they also find quizzes whose question headings have a title (`## Vraag 1 — Titel`), which the script skipped.
+
 
 ## 0.18.0 - 2026-10-05
 
