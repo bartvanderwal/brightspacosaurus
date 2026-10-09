@@ -7,7 +7,7 @@ What does FizzBuzz print for the number 15?
 - A. Fizz
 - B. Buzz
 - C. FizzBuzz
-- D. 15
+- D. Nothing
 
 Correct answer: **C**
 

@@ -115,7 +115,7 @@ Deno.test("multiple-response questions accept answer keys and checked options", 
       question(answer, "- A. Yes\n- B. No\n- C. Maybe"),
     );
     assertEquals(validateQuiz(quiz), []);
-    assertEquals(quiz.questions[0].correctAnswers, expected);
+    assertEquals(quiz.questions[0].correctAnswers, [...expected]);
     assertStringIncludes(
       generateQtiXml(quiz, "multiple"),
       "<fieldentry>cc.multiple_response.v0p1</fieldentry>",

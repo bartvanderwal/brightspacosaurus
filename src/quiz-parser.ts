@@ -142,11 +142,14 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
     );
     if (checkboxOption) {
       if (regularOptionCount) {
+        // Report the mix once and skip the line, so the question keeps its
+        // lettered options and does not also get follow-up answer errors.
         issue(
           "quiz-option-syntax",
           index + 1,
           "Do not mix checkbox options with lettered answer options.",
         );
+        continue;
       }
       if (answerSeen) {
         issue(
@@ -181,6 +184,7 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
           index + 1,
           "Do not mix checkbox options with lettered answer options.",
         );
+        continue;
       }
       regularOptionCount++;
       question.options.push({

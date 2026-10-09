@@ -454,7 +454,8 @@ Deno.test("heading lists are always compact", async () => {
     2,
   );
   assertEquals(
-    (compact.match(/class="bso-flashcard-definition-inline"/g) ?? []).length,
+    (compact.match(/class="[^"]*\bbso-flashcard-definition-inline\b/g) ??
+      []).length,
     2,
   );
   assertStringIncludes(compact, 'aria-expanded="true"');
