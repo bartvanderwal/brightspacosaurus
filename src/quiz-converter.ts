@@ -9,11 +9,22 @@
  */
 
 import { basename, dirname, join, relative, resolve } from "@std/path";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
 
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
 import type { ParsedQuiz } from "./quiz-parser.ts";
 export { parseQuizMarkdown } from "./quiz-parser.ts";
 export type { ParsedQuiz, QuizQuestion } from "./quiz-parser.ts";
+
+const quizMarkdownProcessor = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkRehype)
+  .use(rehypeStringify);
 
 /** Options for converting a quiz Markdown file. */
 export interface QuizConvertOptions {
@@ -63,6 +74,10 @@ function escapeXml(text: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+function renderQuizMarkdown(markdown: string): string {
+  return String(quizMarkdownProcessor.processSync(markdown));
 }
 
 function formatBrightspaceMaxAttempts(maxAttempts: number): string {
@@ -150,9 +165,9 @@ export function generateQtiXml(
     xml += `        </itemmetadata>\n`;
     xml += `        <presentation>\n`;
     xml += `          <material>\n`;
-    xml += `            <mattext texttype="text/html">&lt;p&gt;${
-      escapeXml(question.text)
-    }&lt;/p&gt;</mattext>\n`;
+    xml += `            <mattext texttype="text/html">${
+      escapeXml(renderQuizMarkdown(question.text))
+    }</mattext>\n`;
     xml += `          </material>\n`;
     if (questionType === "open_short") {
       xml +=
@@ -177,9 +192,9 @@ export function generateQtiXml(
       for (const option of question.options) {
         const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
         xml +=
-          `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">&lt;p&gt;${
-            escapeXml(option.text)
-          }&lt;/p&gt;</mattext></material></response_label>\n`;
+          `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">${
+            escapeXml(renderQuizMarkdown(option.text))
+          }</mattext></material></response_label>\n`;
       }
 
       xml += `            </render_choice>\n`;
@@ -226,6 +241,12 @@ export function generateQtiXml(
       xml += `          </respcondition>\n`;
     }
     xml += `        </resprocessing>\n`;
+    if (question.hint) {
+      xml +=
+        `        <itemfeedback ident="${qIdent}_feedback"><flow_mat><material><mattext texttype="text/html">${
+          escapeXml(renderQuizMarkdown(question.hint))
+        }</mattext></material></flow_mat></itemfeedback>\n`;
+    }
     xml += `      </item>\n\n`;
   }
 

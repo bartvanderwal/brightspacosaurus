@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.19.1 - 2026-10-09
+
+### Fixed
+
+- Quiz QTI export renders Markdown code in questions, answer options and feedback; fenced code is preserved in legacy question prompts.
+
 ## Project Stability
 
 Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the project should be treated as release-candidate quality rather than a stable LTS tool: configuration names, CLI behavior, generated package structure and public TypeScript APIs may still change between minor versions.
