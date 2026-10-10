@@ -2,6 +2,16 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Fixed
+
+- The npm package declares types for the `./tabs` export and no longer contains an empty `assets/brightspacosaurus-tabs.d.ts.d.ts` (#77).
+
+### Added
+
+- `deno task release:npm` (and `--dry-run`) publishes to npm in one step: login check, pack into `build/`, the fixes above, publish from the extracted folder, clean-up (#77).
+
 ## 0.19.1 - 2026-10-09
 
 ### Fixed

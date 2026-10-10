@@ -91,13 +91,13 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
 - Publish from the intended commit on `main` and tag it `vX.Y.Z` (ADR 018).
 - After a fix that affects JSR behavior: verify locally first, then publish, and only then test the JSR variant (chicken-and-egg: the JSR version can only be tested after publishing).
 - **Publishing to JSR:** `deno publish` (done by the user).
-- **Publishing to npm — important:** do NOT publish directly from the `.tgz` tarball (`npm publish ./file.tgz`). Due to a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)), publishing from a tarball leaves the per-version `readme` field empty, so the npm website shows "This package does not have a README". Instead, publish from the extracted package directory so npm picks up the README:
-  ```sh
-  deno pack --ignore='tests/' --ignore='**/*_test.ts' --ignore='**/*.test.ts' --ignore='src/marp-exporter.ts'
-  tar -xzf bartvanderwal-brightspacosaurus-<version>.tgz
-  cd package && npm publish --access public && cd ..
-  rm -rf package
-  ```
+- **Publishing to npm:** run `deno task release:npm` (`utils/release-npm.ts`, #77) from the clean, tagged commit. It runs every step in order, and `deno task release:npm --dry-run` does the same without publishing. The steps:
+  - Check `npm whoami` first. A publish without a valid login fails with a misleading `404 Not Found`; run `npm login` first.
+  - Pack into `build/npm-release/`, so no `package/` or `.tgz` lands in the repo root.
+  - Fix two `deno pack` quirks: delete the empty `assets/*.d.ts.d.ts` file, and add the `types` condition for the `./tabs` export.
+  - Publish from the extracted folder, not from the `.tgz` tarball. Publishing from a tarball leaves the npm README empty because of a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)).
+  - Clean up `build/npm-release/`.
+- `deno pack` reports "Could not generate types" for internal modules such as `assets.ts`, `quiz-markdown.ts` and `teacher-dashboard.ts`. This is expected. It only emits `.d.ts` files for modules that the public type surface references, and no published `.d.ts` imports these modules.
 - The first publish of the scoped package needs `--access public`; npm remembers it afterwards.
 
 ## Spec workflow

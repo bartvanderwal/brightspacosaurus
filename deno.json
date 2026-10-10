@@ -30,7 +30,8 @@
     "demo": "cd examples/demo-course && deno run -A ../../src/main.ts prepare && deno run -A ../../src/main.ts pack",
     "demo:preview": "deno run --allow-read --allow-write=build --allow-env --allow-run=npm src/main.ts preview",
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
-    "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs"
+    "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs",
+    "release:npm": "deno run --allow-read --allow-write=build --allow-run=npm,deno,tar utils/release-npm.ts"
   },
   "fmt": {
     "proseWrap": "never",
