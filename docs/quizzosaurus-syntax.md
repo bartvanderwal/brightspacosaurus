@@ -6,7 +6,7 @@ This document lives in BSO because the parser lives in BSO ([`src/quiz-parser.ts
 
 Decision record: [ADR 020](adr/adr020-quizdown-syntax-and-quizzosaurus-package.md).
 
-Status: sections 2 and 6 (markers and `@` assignments in a fenced `quiz` block, `(2 pt)` points, the linter in section 7) are implemented since 0.21.0; the option labels (section 3) and the heading form (sections 4 and 5) since 0.22.0. A lone `(N)` and `pt` spelling, a long answer (`= ~long`) and the model answer for teachers are still open.
+Status: sections 2 to 6 (markers, `@` assignments, option labels, the heading form with explanations, `(2 pt)` points) and the linter in section 7 are implemented in 0.21.0. Still open: a long answer (`= ~long`), a model answer for teachers, and whether a bare `(N)` is unambiguous.
 
 ## 1. Principles
 
