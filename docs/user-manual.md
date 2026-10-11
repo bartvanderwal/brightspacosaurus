@@ -146,7 +146,7 @@ The most important fields:
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `In ontwikkeling voor 2026/2027, periode 3`; `""` disables it |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
-| `quiz.locale`          | no       | Default quiz heading language: `en` (default) or `nl`                                       |
+| `quiz.locale`          | no       | Language of the quiz labels and default headings: `en` or `nl`. Defaults to `diagrams.locale` (the general language of BSO's generated labels), and to `en` when neither is set |
 | `quiz.assignmentPrefix` | no       | Custom assignment heading prefix; overrides the locale default                              |
 | `quiz.questionPrefix`  | no       | Custom prefix for standalone questions; overrides the locale default (`Question`, `Vraag`)               |
 | `quiz.subquestionPrefix`  | no       | Custom prefix for assignment subquestions; overrides the locale default (`Subquestion`, `Deelvraag`)               |

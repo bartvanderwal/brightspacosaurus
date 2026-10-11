@@ -20,6 +20,7 @@ All notable changes to Brightspacosaurus are documented here.
 - The heading form of QuizDown: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt).
 - The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
 - The demo course preview shows the Brightspacosaurus dinosaur as its favicon.
+- `quiz.locale` defaults to `diagrams.locale`, the general language of BSO's generated labels, so a Dutch course gets `Vraag`/`Deelvraag`, `Toon het juiste antwoord` and Dutch preview labels without setting it per section. An explicit `quiz.locale` still wins; without either, quizzes stay English.
 
 ### Fixed
 
