@@ -4,7 +4,15 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+## 0.20.1 - 2026-10-11
+
+### Added
+
+- `@bartvanderwal/brightspacosaurus/quizzes-client` and `/flashcards-client` exports, with types: importing them defines `globalThis.bsoQuizzes` and `globalThis.bsoFlashcards`, so Docusaurus can call `initializeQuizzes(document)` and `initializeFlashcards(document)` without a `DOMContentLoaded` workaround. The scripts stay classic scripts in Brightspace (#86).
+
 ### Fixed
+
+- Legacy question headings accept free text after the number, such as `## Vraag 12 (optioneel)` or `## Vraag 13 Bella`. 0.20.0 reported a lint error for it. The text is kept as the question's `title`. Points must still be written `(2 pt)` or `(2)`; other spellings in parentheses are an error.
 
 - QuizDown: an indented fenced block after a blank line under an option stays part of that option, as in GFM; it was dropped without an error (#84).
 

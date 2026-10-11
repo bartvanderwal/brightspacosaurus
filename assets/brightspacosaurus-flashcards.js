@@ -46,6 +46,12 @@ function initializeFlashcards(root) {
 
 // Bundlers import the initializer; standalone Brightspace pages use the same
 // asset as a classic inline script, with its existing DOMContentLoaded behavior.
+// Also a global, so a bundler (Docusaurus) can import this file as a side-effect
+// module and call globalThis.bsoFlashcards.initialize...(document), like the tabs script.
+if (typeof globalThis !== "undefined") {
+  globalThis.bsoFlashcards = { initializeFlashcards };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { initializeFlashcards };
 } else if (typeof document !== "undefined") {

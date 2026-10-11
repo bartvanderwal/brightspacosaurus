@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -17,7 +17,9 @@
     "./lint": "./src/course-linter.ts",
     "./quiz-preview": "./src/quiz-preview.ts",
     "./teacher-page": "./src/teacher-page.ts",
-    "./tabs": "./assets/brightspacosaurus-tabs.js"
+    "./tabs": "./assets/brightspacosaurus-tabs.js",
+    "./quizzes-client": "./assets/brightspacosaurus-quizzes.js",
+    "./flashcards-client": "./assets/brightspacosaurus-flashcards.js"
   },
   "tasks": {
     "prepare": "deno run --allow-read --allow-write --allow-run=pandoc,git --allow-env --allow-net --node-modules-dir=auto src/main.ts prepare",
@@ -69,6 +71,8 @@
       "src/mod.ts",
       "assets/brightspacosaurus.css",
       "assets/brightspacosaurus-flashcards.js",
+      "assets/brightspacosaurus-flashcards.d.ts",
+      "assets/brightspacosaurus-quizzes.d.ts",
       "assets/brightspacosaurus-navigation.js",
       "assets/brightspacosaurus-tabs.js",
       "assets/brightspacosaurus-tabs.d.ts",

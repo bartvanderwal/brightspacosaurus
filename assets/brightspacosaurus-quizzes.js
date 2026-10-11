@@ -116,6 +116,12 @@ function normalizeShortAnswer(value) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+// Also a global, so a bundler (Docusaurus) can import this file as a side-effect
+// module and call globalThis.bsoQuizzes.initialize...(document), like the tabs script.
+if (typeof globalThis !== "undefined") {
+  globalThis.bsoQuizzes = { initializeQuizzes, shuffleOptions };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { initializeQuizzes, shuffleOptions };
 } else if (typeof document !== "undefined") {
