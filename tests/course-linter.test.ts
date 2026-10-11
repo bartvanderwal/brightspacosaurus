@@ -137,6 +137,68 @@ Correct antwoord: A
   assertEquals(standalone[0].severity, "warning");
 });
 
+Deno.test("lint uses configured English and Dutch prefixes and reports bad heading levels", () => {
+  const english = lintMarkdown(
+    `# Quiz
+
+## Assignment 2
+Context.
+
+### Question 2a
+Prompt.
+- A. Yes
+- B. No
+Correct answer: A
+`,
+    "quiz-test.md",
+    { assignmentPrefix: "Assignment", questionPrefix: "Question" },
+  );
+  assertEquals(english.some((issue) => issue.rule.startsWith("quiz-")), false);
+
+  const dutch = lintMarkdown(
+    `# Quiz
+
+## Opgave 2
+Context.
+
+### Vraag 2a
+Prompt.
+- A. Ja
+- B. Nee
+Correct antwoord: A
+`,
+    "quiz-test.md",
+    { assignmentPrefix: "Opgave", questionPrefix: "Vraag" },
+  );
+  assertEquals(dutch.some((issue) => issue.rule.startsWith("quiz-")), false);
+
+  const invalid = lintMarkdown(
+    `# Assignment 5
+
+### Assignment 2
+Context.
+
+## Question 2a
+Prompt.
+- A. Yes
+- B. No
+Correct answer: A
+`,
+    "quiz-test.md",
+  );
+  assertEquals(
+    invalid.filter((issue) => issue.rule === "quiz-heading-level").length,
+    2,
+  );
+  assertEquals(
+    invalid.some((issue) =>
+      issue.rule === "quiz-subquestion-without-assignment" &&
+      issue.severity === "warning"
+    ),
+    true,
+  );
+});
+
 Deno.test("lint output colors only the severity word, and only when asked", () => {
   const warning = {
     severity: "warning" as const,

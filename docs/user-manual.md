@@ -144,6 +144,9 @@ The most important fields:
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
+| `quiz.locale`          | no       | Default quiz heading language: `en` (default) or `nl`                                       |
+| `quiz.assignmentPrefix` | no       | Custom assignment heading prefix; overrides the locale default                              |
+| `quiz.questionPrefix`  | no       | Custom question/subquestion heading prefix; overrides the locale default                    |
 | `diagrams.krokiUrl`    | no       | Kroki endpoint for PlantUML/Mermaid rendering (default `https://kroki.io`)                   |
 | `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
 | `diagrams.locale`      | no       | Language of generated labels: diagram UI and reader PDF cover and document language (`nl` or `en`, default `nl`) |
@@ -617,27 +620,29 @@ Generated quizzes get a maximum attempt count through QTI metadata. Configure it
 
 The earlier H1/H2 format with lettered options and a `Correct answer: X` answer key remains accepted for existing course files. New quizzes should use the linked QuizDown syntax; it keeps the answer key with each question instead of relying on a separate teacher-answer file. BSO exports single-choice as `cc.multiple_choice.v0p1`, multi-select as `cc.multiple_response.v0p1`, and auto-graded short answers as `cc.fib.v0p1`. Long-form essay and matching questions are not part of the currently documented QuizDown syntax. Verify QTI import and scoring in a Brightspace sandbox.
 
-The legacy format also supports a shared-context assignment with independently answered subquestions:
+The legacy format also supports a shared-context assignment with independently answered subquestions. English headings are the generic defaults:
 
 ```markdown
-## Opdracht 27
+## Assignment 27
 
 The shared case, image or code block goes here.
 
-### Deelvraag 27a (2 punten)
+### Question 27a (2 points)
 
 Which answer is correct?
 - A. The first option
 - B. The second option
-Correct antwoord: A
+Correct answer: A
 
-### Deelvraag 27b (3 punten)
+### Question 27b (3 points)
 
 What is the short answer?
-Correct antwoord: accepted answer / accepted variant
+Correct answer: accepted answer / accepted variant
 ```
 
-The assignment context is written once and shown before its subquestions in the Docusaurus preview and in a Brightspace quiz section. Each part can use its own question type and optional positive point value; a part without an explicit value is worth 1 point. Brightspace weights the part by that value, and the assignment score is the sum of its parts. Relative Markdown images in the shared context are included in the cartridge. `## Vraag N` remains a standalone question. A companion `-antwoorden-docent.md` can mirror the `## Opdracht` / `### Deelvraag` headings; lint compares its answer letters by part label. Lint reports assignments without parts and nonconsecutive part letters; a `### Deelvraag` outside an assignment is treated as a standalone question and reported as a warning. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
+The assignment context is written once and shown before its subquestions in the Docusaurus preview and in a Brightspace quiz section. Each part can use its own question type and optional positive point value; a part without an explicit value is worth 1 point. Brightspace weights the part by that value, and the assignment score is the sum of its parts. Relative Markdown images in the shared context are included in the cartridge. A `## Question N` outside an assignment remains a standalone question. Dutch legacy headings (`## Opdracht N`, `### Deelvraag 27a`) and existing `Vraag` headings remain accepted.
+
+Set `quiz.locale` to `"nl"` to derive the defaults `Opdracht` and `Deelvraag`. A client can instead set `quiz.assignmentPrefix` and/or `quiz.questionPrefix` to its own terms; an explicit prefix takes precedence over the locale. These settings are shared by QTI export, Docusaurus preview and course lint. QuizDown's fenced `quiz` syntax is unchanged. A companion `-antwoorden-docent.md` can mirror the assignment/subquestion headings; lint compares its answer letters by part label. Lint reports assignments without parts, nonconsecutive part letters, malformed heading syntax and assignment/question headings at the wrong level. A subquestion heading outside an assignment is treated as a standalone question and reported as a warning. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
 
 Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
 answer order per attempt. Default `false` preserves source order. BSO writes

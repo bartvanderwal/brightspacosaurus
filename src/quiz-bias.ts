@@ -3,7 +3,7 @@
  * knowing the material: length and position bias, signal words that give the
  * answer away, and answer keys that disagree with the teacher answer model.
  */
-import type { ParsedQuiz } from "./quiz-parser.ts";
+import type { ParsedQuiz, QuizHeadingOptions } from "./quiz-parser.ts";
 
 /** Thresholds for the quiz bias rules; all optional, defaults follow chance level. */
 export interface QuizBiasOptions {
@@ -56,6 +56,7 @@ const length = (text: string) => [...text].length;
  */
 export function parseTeacherAnswers(
   markdown: string,
+  options: QuizHeadingOptions = {},
 ): Map<number | string, string> {
   let numbered = new Map<number | string, string>();
   for (
@@ -77,9 +78,25 @@ export function parseTeacherAnswers(
     }
   }
   const answers = new Map(numbered);
+  const questionPrefixes = [
+    ...new Set([
+      options.questionPrefix?.trim(),
+      options.locale === "nl" ? "Deelvraag" : "Question",
+      "Question",
+      "Vraag",
+      "Deelvraag",
+      "Subquestion",
+    ].filter((prefix): prefix is string => Boolean(prefix))),
+  ];
+  const escapedPrefixes = questionPrefixes.map((prefix) =>
+    prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  );
   const headings = [
     ...markdown.matchAll(
-      /^###\s+(?:Deelvraag|Subquestion)\s+(\d*[a-z])\b[^\n]*$/gim,
+      new RegExp(
+        `^###\\s+(?:${escapedPrefixes.join("|")})\\s+(\\d*[a-z])\\b[^\\n]*$`,
+        "gim",
+      ),
     ),
   ];
   for (const [index, heading] of headings.entries()) {

@@ -13,6 +13,7 @@ import {
 import remarkDirective from "remark-directive";
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { parseQuizMarkdown, validateQuiz } from "./quiz-parser.ts";
+import type { QuizHeadingOptions } from "./quiz-parser.ts";
 import {
   checkQuizBias,
   parseTeacherAnswers,
@@ -51,7 +52,7 @@ export interface LintResult {
 }
 
 /** Options shared by single-file and course linting. */
-export interface LintOptions {
+export interface LintOptions extends QuizHeadingOptions {
   /** Headings whose content must consist solely of term/definition lists. */
   flashcards?: FlashcardsConfig;
   /**
@@ -356,8 +357,8 @@ function inspectMarkdown(
   }
 
   if (basename(sourceFile).startsWith("quiz-")) {
-    const quiz = parseQuizMarkdown(markdown);
-    for (const issue of validateQuiz(quiz)) {
+    const quiz = parseQuizMarkdown(markdown, options);
+    for (const issue of validateQuiz(quiz, options)) {
       diagnostics.push({
         sourceFile,
         line: issue.line,
@@ -371,7 +372,7 @@ function inspectMarkdown(
     }
     const teacherAnswers = options.teacherAnswers === undefined
       ? undefined
-      : parseTeacherAnswers(options.teacherAnswers);
+      : parseTeacherAnswers(options.teacherAnswers, options);
     for (
       const finding of checkQuizBias(quiz, teacherAnswers, options.quizBias)
     ) {
@@ -439,6 +440,9 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       flashcards: config.flashcards,
       lessonFile: lessonFiles.has(file),
       quizBias: config.lint?.quizBias,
+      locale: config.quiz.locale,
+      assignmentPrefix: config.quiz.assignmentPrefix,
+      questionPrefix: config.quiz.questionPrefix,
       teacherAnswers: await readTeacherAnswers(file),
     });
     diagnostics.push(...result.diagnostics);

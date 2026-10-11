@@ -73,14 +73,62 @@ export interface ParsedQuiz {
   issues?: QuizIssue[];
 }
 
+/** Heading prefixes that select the legacy grouped-question syntax. */
+export interface QuizHeadingOptions {
+  locale?: "en" | "nl";
+  assignmentPrefix?: string;
+  questionPrefix?: string;
+}
+
+export type QuizValidationOptions = QuizHeadingOptions;
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function headingTail(
+  line: string,
+  depth: number,
+  prefix: string,
+): string | null {
+  const match = line.match(
+    new RegExp(
+      `^#{${depth}}\\s+${escapeRegExp(prefix)}(?=\\s|$)(.*)$`,
+      "i",
+    ),
+  );
+  return match?.[1] ?? null;
+}
+
 /** Parse documented English/Dutch labels independently of bold or code formatting. */
-export function parseQuizMarkdown(content: string): ParsedQuiz {
+export function parseQuizMarkdown(
+  content: string,
+  options: QuizHeadingOptions = {},
+): ParsedQuiz {
   const quizDownBlock = extractQuizDownBlock(content);
   if (quizDownBlock !== null) return parseQuizDown(quizDownBlock, content);
 
   const quiz: ParsedQuiz = { title: "", questions: [], blocks: [], issues: [] };
   let question: QuizQuestion | undefined;
   let assignment: QuizAssignment | undefined;
+  const assignmentPrefixes = [
+    ...new Set([
+      options.assignmentPrefix?.trim(),
+      options.locale === "nl" ? "Opdracht" : "Assignment",
+      "Assignment",
+      "Opdracht",
+    ]
+      .filter((value): value is string => Boolean(value))),
+  ];
+  const questionPrefixes = [
+    ...new Set([
+      options.questionPrefix?.trim(),
+      options.locale === "nl" ? "Deelvraag" : "Question",
+      "Question",
+      "Vraag",
+      "Deelvraag",
+      "Subquestion",
+    ].filter((value): value is string => Boolean(value))),
+  ];
   let answerSeen = false;
   let checkboxOptionCount = 0;
   let regularOptionCount = 0;
@@ -88,13 +136,19 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
   const issue = (rule: string, line: number, message: string) => {
     quiz.issues!.push({ rule, line, question: question?.number, message });
   };
+  const nextQuestionNumber = () => {
+    let number = quiz.questions.length + 1;
+    while (quiz.questions.some((item) => item.number === number)) number++;
+    return number;
+  };
   const startQuestion = (
     line: number,
     label?: string,
     points?: number,
+    number?: number,
   ): QuizQuestion => {
     question = {
-      number: quiz.questions.length + 1,
+      number: number ?? nextQuestionNumber(),
       text: "",
       options: [],
       correctAnswer: "",
@@ -103,7 +157,7 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       ...(points === undefined ? {} : { points }),
     };
     quiz.questions.push(question);
-    if (assignment && label) assignment.questions.push(question);
+    if (assignment) assignment.questions.push(question);
     else quiz.blocks!.push({ type: "question", question });
     answerSeen = false;
     checkboxOptionCount = 0;
@@ -145,20 +199,88 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       continue;
     }
     if (line.startsWith("# ")) {
-      if (!quiz.title) quiz.title = line.slice(2).trim();
+      const misplacedPrefix = assignmentPrefixes.find((prefix) =>
+        headingTail(line, 1, prefix)?.match(/^\s+\d+\b/)
+      ) ??
+        questionPrefixes.find((prefix) =>
+          headingTail(line, 1, prefix)?.match(/^\s+\d+[a-z]?\b/i)
+        );
+      if (misplacedPrefix) {
+        quiz.issues!.push({
+          rule: "quiz-heading-level",
+          line: index + 1,
+          message:
+            `Quiz heading '${misplacedPrefix}' is at level 1; use level 2 for assignments or standalone questions, or level 3 for assignment subquestions.`,
+        });
+      }
+      if (!quiz.title) {
+        quiz.title = line.slice(2).trim();
+      }
       continue;
     }
-    const assignmentHeading = line.match(
-      /^##\s+Opdracht\s+(\d+)\b(?:\s*[-—:]\s*(.*))?$/i,
-    );
-    if (assignmentHeading) {
+    const prefixTail = (depth: number, prefixes: string[]) => {
+      for (const prefix of prefixes) {
+        const tail = headingTail(line, depth, prefix);
+        if (tail !== null) return { prefix, tail };
+      }
+      return null;
+    };
+    const assignmentAtH2 = prefixTail(2, assignmentPrefixes);
+    const questionAtH2 = prefixTail(2, questionPrefixes);
+    const questionAtH3 = prefixTail(3, questionPrefixes);
+    const headingDepth = line.match(/^(#{2,6})\s/)?.[1].length;
+    const assignmentAtCurrentLevel = headingDepth === undefined
+      ? null
+      : prefixTail(headingDepth, assignmentPrefixes);
+    const questionAtCurrentLevel = headingDepth === undefined
+      ? null
+      : prefixTail(headingDepth, questionPrefixes);
+
+    if (assignmentAtCurrentLevel && headingDepth !== 2) {
       question = undefined;
-      const number = Number(assignmentHeading[1]);
+      assignment = undefined;
+      quiz.issues!.push({
+        rule: "quiz-heading-level",
+        line: index + 1,
+        message:
+          `Assignment headings must use level 2 (##), not level ${headingDepth} (#${
+            "#".repeat(headingDepth! - 1)
+          }).`,
+      });
+      continue;
+    }
+    if (questionAtCurrentLevel && headingDepth! > 3) {
+      question = undefined;
+      assignment = undefined;
+      quiz.issues!.push({
+        rule: "quiz-heading-level",
+        line: index + 1,
+        message:
+          `Question headings must use level 2 (##) for standalone questions or level 3 (###) in assignments, not level ${headingDepth}.`,
+      });
+      continue;
+    }
+    if (assignmentAtH2) {
+      question = undefined;
+      const detail = assignmentAtH2.tail.match(
+        /^\s+(\d+)\b(?:\s*[-—:]\s*(.*))?\s*$/,
+      );
+      if (!detail) {
+        assignment = undefined;
+        quiz.issues!.push({
+          rule: "quiz-heading-syntax",
+          line: index + 1,
+          message:
+            `Use '## ${assignmentAtH2.prefix} N' for an assignment heading.`,
+        });
+        continue;
+      }
+      const number = Number(detail[1]);
       assignment = {
         number,
-        title: assignmentHeading[2]
-          ? `Opdracht ${assignmentHeading[1]} — ${assignmentHeading[2].trim()}`
-          : `Opdracht ${assignmentHeading[1]}`,
+        title: detail[2]
+          ? `${assignmentAtH2.prefix} ${detail[1]} — ${detail[2].trim()}`
+          : `${assignmentAtH2.prefix} ${detail[1]}`,
         text: "",
         questions: [],
         line: index + 1,
@@ -166,36 +288,55 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       quiz.blocks!.push({ type: "assignment", assignment });
       continue;
     }
-    const subquestionHeading = line.match(
-      /^###\s+(?:Deelvraag|Subquestion)\s+(\d*[a-z])\b(?:\s*\((\d+(?:[.,]\d+)?)\s+punten?\))?(?:\s*[-—:]\s*(.*))?$/i,
-    );
-    if (subquestionHeading) {
-      const label = subquestionHeading[1];
-      const points = subquestionHeading[2]
-        ? Number(subquestionHeading[2].replace(",", "."))
+    if (questionAtH3 || questionAtH2) {
+      const nested = questionAtH3 !== null;
+      const heading = nested ? questionAtH3! : questionAtH2!;
+      const detail = heading.tail.match(
+        /^\s+(\d+[a-z]?|[a-z])(?:\s*\((\d+(?:[.,]\d+)?)\s+(?:points?|punten?)\))?(?:\s*[-—:]\s*(.*))?\s*$/i,
+      );
+      if (!detail) {
+        if (!nested) assignment = undefined;
+        quiz.issues!.push({
+          rule: "quiz-heading-syntax",
+          line: index + 1,
+          message: `Use '${
+            nested ? "###" : "##"
+          } ${heading.prefix} N' for a question heading.`,
+        });
+        question = undefined;
+        continue;
+      }
+      const label = detail[1].match(/[a-z]$/i) ? detail[1] : undefined;
+      const points = detail[2]
+        ? Number(detail[2].replace(",", "."))
         : undefined;
-      if (assignment) {
+      if (nested && assignment) {
         assignment.text = assignment.text.trim();
       } else {
-        quiz.issues!.push({
-          rule: "quiz-subquestion-without-assignment",
-          line: index + 1,
-          message:
-            `Deelvraag ${label} is parsed as a standalone question without shared assignment context.`,
-          severity: "warning",
-        });
+        if (
+          (nested && !assignment) || label ||
+          /^(?:Deelvraag|Subquestion)$/i.test(heading.prefix)
+        ) {
+          quiz.issues!.push({
+            rule: "quiz-subquestion-without-assignment",
+            line: index + 1,
+            message: `Subquestion '${
+              detail[1]
+            }' is parsed as a standalone question without shared assignment context.`,
+            severity: "warning",
+          });
+        }
+        assignment = undefined;
       }
-      const parsedQuestion = startQuestion(index + 1, label, points);
-      if (subquestionHeading[3]) {
-        parsedQuestion.text = subquestionHeading[3].trim();
-      }
-      continue;
-    }
-    const heading = line.match(/^##\s+(?:Question|Vraag)\s+(\d+)\b/i);
-    if (heading) {
-      assignment = undefined;
-      const parsedQuestion = startQuestion(index + 1);
-      parsedQuestion.number = Number(heading[1]);
+      const parsedQuestion = startQuestion(
+        index + 1,
+        nested && assignment ? label : undefined,
+        points,
+        nested && assignment || !detail[1].match(/^\d+/)
+          ? undefined
+          : Number(detail[1].match(/^\d+/)![0]),
+      );
+      if (detail[3]) parsedQuestion.text = detail[3].trim();
       continue;
     }
     if (assignment && !question) {
@@ -649,7 +790,10 @@ function looksLikeAnswerKey(value: string): boolean {
 }
 
 /** Check that each exported question has one reachable, unambiguous scoring key. */
-export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
+export function validateQuiz(
+  quiz: ParsedQuiz,
+  options: QuizValidationOptions = {},
+): QuizIssue[] {
   const issues = [...(quiz.issues ?? [])];
   if (!quiz.questions.length) {
     issues.push({
@@ -678,8 +822,9 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
           rule: "quiz-subquestion-order",
           line: part.line ?? block.assignment.line ?? 1,
           question: part.number,
-          message:
-            `Deelvragen in Opdracht ${block.assignment.number} must use consecutive letters starting with a.`,
+          message: `${options.questionPrefix ?? "Subquestion"}s in ${
+            options.assignmentPrefix ?? "Assignment"
+          } ${block.assignment.number} must use consecutive letters starting with a.`,
         });
       }
     }
@@ -781,8 +926,12 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
 }
 
 /** Fail before producing invalid QTI or an ungradable quiz preview. */
-export function assertValidQuiz(quiz: ParsedQuiz, sourceFile = "Quiz"): void {
-  const issues = validateQuiz(quiz).filter((issue) =>
+export function assertValidQuiz(
+  quiz: ParsedQuiz,
+  sourceFile = "Quiz",
+  options: QuizValidationOptions = {},
+): void {
+  const issues = validateQuiz(quiz, options).filter((issue) =>
     issue.severity !== "warning"
   );
   if (!issues.length) return;

@@ -7,6 +7,7 @@ All notable changes to Brightspacosaurus are documented here.
 ### Added
 
 - Legacy quiz assignments with shared Markdown context, ordered subquestions, optional points, lint rules and matching QTI/Docusaurus sections (#80).
+- English-default quiz headings with configurable locale-derived or explicit assignment and question prefixes.
 
 ### Changed
 

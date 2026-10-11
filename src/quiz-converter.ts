@@ -14,14 +14,20 @@ import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
-import type { ParsedQuiz, QuizQuestion } from "./quiz-parser.ts";
+import type {
+  ParsedQuiz,
+  QuizHeadingOptions,
+  QuizQuestion,
+} from "./quiz-parser.ts";
 import { parseQuizText } from "./quiz-markdown.ts";
 export { parseQuizMarkdown } from "./quiz-parser.ts";
 export type {
   ParsedQuiz,
   QuizAssignment,
   QuizBlock,
+  QuizHeadingOptions,
   QuizQuestion,
+  QuizValidationOptions,
 } from "./quiz-parser.ts";
 
 // Same mdast as the preview (quiz-markdown.ts); only the last step differs.
@@ -30,7 +36,7 @@ const quizHtmlProcessor = unified()
   .use(rehypeStringify);
 
 /** Options for converting a quiz Markdown file. */
-export interface QuizConvertOptions {
+export interface QuizConvertOptions extends QuizHeadingOptions {
   /** Absolute path to the quiz Markdown source file. */
   sourcePath: string;
   /** Absolute path to the quiz output directory (build/brightspace/quiz/). */
@@ -354,8 +360,8 @@ export async function convertQuiz(
   const content = await Deno.readTextFile(sourcePath);
 
   // Parse the quiz
-  const quiz = parseQuizMarkdown(content);
-  assertValidQuiz(quiz, sourcePath);
+  const quiz = parseQuizMarkdown(content, options);
+  assertValidQuiz(quiz, sourcePath, options);
 
   const filename = basename(sourcePath);
   const ident = deriveQuizIdent(filename);

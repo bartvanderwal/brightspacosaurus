@@ -307,12 +307,115 @@ Correct antwoord: Paris / New York
   assertEquals(context?.children?.some((node) => node.type === "code"), true);
   assertEquals(
     assignment?.children?.[2]?.children?.[0]?.children?.[0]?.value,
-    "Deelvraag 27a (2 punten)",
+    "Question 27a (2 points)",
   );
   assertEquals(
     assignment?.children?.[3]?.children?.[0]?.children?.[0]?.value,
-    "Deelvraag 27b (3 punten)",
+    "Question 27b (3 points)",
   );
+});
+
+Deno.test("quiz heading prefixes default to English and follow locale or explicit overrides", () => {
+  assertEquals(resolveQuizOptions(), {
+    maxAttempts: 0,
+    shuffleAnswers: false,
+    locale: "en",
+    assignmentPrefix: "Assignment",
+    questionPrefix: "Question",
+  });
+  assertEquals(
+    resolveQuizOptions({ locale: "nl" }).assignmentPrefix,
+    "Opdracht",
+  );
+  assertEquals(
+    resolveQuizOptions({ locale: "nl" }).questionPrefix,
+    "Deelvraag",
+  );
+  assertEquals(
+    resolveQuizOptions({
+      locale: "nl",
+      assignmentPrefix: "Opgave",
+      questionPrefix: "Vraag",
+    }).assignmentPrefix,
+    "Opgave",
+  );
+  assertThrows(
+    () => resolveQuizOptions({ locale: "fr" }),
+    Error,
+    "quiz.locale",
+  );
+  assertThrows(
+    () => resolveQuizOptions({ questionPrefix: " " }),
+    Error,
+    "quiz.questionPrefix",
+  );
+
+  const english = parseQuizMarkdown(`# Quiz
+
+## Assignment 7
+Shared context.
+
+### Question 7a (2 points)
+Part prompt.
+- A. Yes
+- B. No
+Correct answer: A
+`);
+  assertEquals(english.blocks?.[0]?.type, "assignment");
+  assertEquals(english.questions[0].label, "7a");
+  assertEquals(validateQuiz(english), []);
+
+  const dutch = parseQuizMarkdown(
+    `# Quiz
+
+## Opdracht 7
+Gedeelde context.
+
+### Deelvraag 7a (2 punten)
+Deelvraag.
+- A. Ja
+- B. Nee
+Correct antwoord: A
+`,
+    resolveQuizOptions({ locale: "nl" }),
+  );
+  assertEquals(dutch.blocks?.[0]?.type, "assignment");
+  assertEquals(validateQuiz(dutch), []);
+  const custom = parseQuizMarkdown(
+    "# Quiz\n\n## Opgave 7\nContext.\n\n### Vraag 7a\nPrompt.\n- A. Ja\n- B. Nee\nCorrect antwoord: A",
+    resolveQuizOptions({
+      locale: "nl",
+      assignmentPrefix: "Opgave",
+      questionPrefix: "Vraag",
+    }),
+  );
+  assertEquals(custom.blocks?.[0]?.type, "assignment");
+  assertEquals(validateQuiz(custom), []);
+  const standalone = parseQuizMarkdown(
+    "# Quiz\n\n## Question 1\nPrompt.\n- A. Yes\n- B. No\nCorrect answer: A",
+  );
+  assertEquals(standalone.issues, []);
+  assertEquals(standalone.blocks?.[0]?.type, "question");
+
+  const mixed = parseQuizMarkdown(`# Quiz
+
+## Question 2
+Standalone.
+- A. Yes
+- B. No
+Correct answer: A
+
+## Assignment 3
+Shared context.
+
+### Question 3a
+Part.
+- A. Yes
+- B. No
+Correct answer: A
+`);
+  assertEquals(mixed.questions.map((item) => item.number), [2, 3]);
+  assertEquals(validateQuiz(mixed), []);
 });
 
 Deno.test("QuizDown syntax supports multiple-choice, hints and open answers", () => {
@@ -443,7 +546,13 @@ Deno.test("#34 conversion fails with source path and question number before writ
 });
 
 Deno.test("#35 shared config defaults to fixed order and rejects invalid shuffle settings", () => {
-  assertEquals(resolveQuizOptions(), { maxAttempts: 0, shuffleAnswers: false });
+  assertEquals(resolveQuizOptions(), {
+    maxAttempts: 0,
+    shuffleAnswers: false,
+    locale: "en",
+    assignmentPrefix: "Assignment",
+    questionPrefix: "Question",
+  });
   for (const shuffleAnswers of [true, false]) {
     const raw = {
       courseName: "Quiz",
@@ -462,6 +571,19 @@ Deno.test("#35 shared config defaults to fixed order and rejects invalid shuffle
       () => resolveQuizOptions({ shuffleAnswers }),
       Error,
       "quiz.shuffleAnswers",
+    );
+  }
+  for (const quiz of [{ locale: "fr" }, { assignmentPrefix: "" }]) {
+    assertThrows(
+      () =>
+        validateConfig({
+          courseName: "Quiz",
+          version: "1.0",
+          sourcesDir: "lessons",
+          quiz,
+        }),
+      Error,
+      "quiz.",
     );
   }
 });

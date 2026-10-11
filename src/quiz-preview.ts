@@ -43,8 +43,8 @@ export function remarkQuizPreview(
   const config = resolveQuizOptions(options);
   return (tree, file) => {
     if (!/(?:^|[/\\])quiz-[^/\\]+\.md$/i.test(file.path ?? "")) return;
-    const quiz = parseQuizMarkdown(String(file.value));
-    assertValidQuiz(quiz, file.path);
+    const quiz = parseQuizMarkdown(String(file.value), config);
+    assertValidQuiz(quiz, file.path, config);
     const renderQuestion = (question: QuizQuestion) => {
       const responseType = question.responseType ?? "single";
       const correctAnswers = responseType === "open_short"
@@ -52,7 +52,13 @@ export function remarkQuizPreview(
         : question.correctAnswers ?? [question.correctAnswer];
       const points = question.points === undefined
         ? ""
-        : ` (${question.points} ${question.points === 1 ? "punt" : "punten"})`;
+        : ` (${question.points} ${
+          config.locale === "nl"
+            ? question.points === 1 ? "punt" : "punten"
+            : question.points === 1
+            ? "point"
+            : "points"
+        })`;
       const properties = {
         className: "bso-quiz-question",
         "data-correct-answer": question.correctAnswer,
@@ -67,8 +73,8 @@ export function remarkQuizPreview(
           text(
             `${
               question.label
-                ? `Deelvraag ${question.label}`
-                : `Question ${question.number}`
+                ? `${config.questionPrefix} ${question.label}`
+                : `${config.questionPrefix} ${question.number}`
             }${points}`,
           ),
         ]),

@@ -158,6 +158,32 @@ Correct antwoord: **C**
     ]),
     [["quiz-answer-key-mismatch", 1]],
   );
+
+  assertEquals(
+    parseTeacherAnswers(
+      "### Question 4a\nCorrect answer: B",
+    ),
+    new Map([["4a", "B"]]),
+  );
+  const localizedQuiz = `# Quiz
+
+## Opgave 4
+Shared context.
+
+### Vraag 4a
+Which option is correct?
+- A. First
+- B. Second
+Correct answer: A
+`;
+  assertEquals(
+    lintMarkdown(localizedQuiz, "quiz-localized.md", {
+      assignmentPrefix: "Opgave",
+      questionPrefix: "Vraag",
+      teacherAnswers: "### Vraag 4a\nCorrect answer: B",
+    }).map((issue) => issue.rule),
+    ["quiz-answer-key-mismatch"],
+  );
 });
 
 Deno.test("a teacher answer model that disagrees is an error; a missing one is fine", () => {

@@ -321,6 +321,9 @@ export async function runPrepare(
         sourcesDir: config.sourcesDir,
         maxAttempts: config.quiz.maxAttempts,
         shuffleAnswers: config.quiz.shuffleAnswers,
+        locale: config.quiz.locale,
+        assignmentPrefix: config.quiz.assignmentPrefix,
+        questionPrefix: config.quiz.questionPrefix,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
