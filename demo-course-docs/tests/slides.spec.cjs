@@ -1,3 +1,5 @@
+// deno-lint-ignore-file no-window
+// The code inside page.evaluate() runs in the browser, where `window` exists.
 const { test, expect } = require("@playwright/test");
 
 async function setup(page) {
