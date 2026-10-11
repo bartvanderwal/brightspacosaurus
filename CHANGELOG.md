@@ -4,46 +4,25 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
-### Added
-
-- QuizDown explanation section: a `### Toelichting` or `### Explanation` heading one level below a question or sub-question holds Markdown (code, images) shown after the answer. Exported as a second QTI `itemfeedback`, shown in the preview after checking. Rules `quizdown-duplicate-explanation` and `quizdown-explanation-empty` (#80).
-
-## 0.22.0 - 2026-10-12
-
-### Added
-
-- QuizDown heading form: `## ? Question` (the heading is the question, with a free title and no required number), `## @ Assignment` with `### ?` sub-questions, and plain headings as sections. Questions end at a heading of the same or a higher level (#80).
-- Option labels `a.` / `b)` in QuizDown options, checked against their position.
-- Lint rules `quizdown-invalid-subheading-in-question`, `quizdown-nested-question`, `quizdown-heading-title` and `quizdown-option-label`, each with a fixture in `examples/demo-course-antipatterns`; demo quiz 2.6 shows the heading form.
-
-### Fixed
-
-- QuizDown lint issues in a fenced `quiz` block now report the line in the file, not the line in the block.
-
-## 0.21.0 - 2026-10-12
+Planned as 0.21.0.
 
 ### Added
 
 - QuizDown assignments: `@ title` starts an assignment whose Markdown up to the first `?` is shared context; each `?` after it is a sub-question with its own response type and points, labelled `1a`, `1b`, ... Exported as QTI sections and grouped in the Docusaurus preview (#80).
 - Points in QuizDown as `(2 pt)` or `(2)` at the end of the `?` line.
-- Standalone QuizDown linter `src/quizdown-lint.ts`; `bso lint` calls it for quiz files that contain QuizDown. Rules: `quiz-assignment-empty`, `quiz-points-syntax`, `quizdown-unindented-option-content`, `quizdown-mixed-formats` (errors) and `quizdown-assignment-no-context` (warning). Each rule has a fixture in `examples/demo-course-antipatterns`; demo quiz 2.5 shows a valid assignment.
-
-### Fixed
-
-- A subquestion outside an assignment in the legacy format is an error, not a warning.
-- `deno lint` accepts the quiz and flashcard client scripts (`@ts-self-types`).
-
-## 0.20.1 - 2026-10-11
-
-### Added
-
+- QuizDown heading form: `## ? Question` (the heading is the question, with a free title and no required number), `## @ Assignment` with `### ?` sub-questions, and plain headings as sections. Questions end at a heading of the same or a higher level (#80).
+- QuizDown explanation section: a `### Toelichting` or `### Explanation` heading one level below a question or sub-question holds Markdown (code, images) shown after the answer. Exported as a second QTI `itemfeedback`, shown in the preview after checking (#80).
+- Option labels `a.` / `b)` in QuizDown options, checked against their position.
+- Standalone QuizDown linter `src/quizdown-lint.ts`; `bso lint` calls it for quiz files that contain QuizDown. Rules (errors): `quiz-assignment-empty`, `quiz-points-syntax`, `quizdown-unindented-option-content`, `quizdown-mixed-formats`, `quizdown-invalid-subheading-in-question`, `quizdown-nested-question`, `quizdown-heading-title`, `quizdown-option-label`, `quizdown-duplicate-explanation`, `quizdown-explanation-empty`; warning: `quizdown-assignment-no-context`. Each rule has a fixture in `examples/demo-course-antipatterns`; demo quizzes 2.5 and 2.6 show assignments and the heading form.
 - `@bartvanderwal/brightspacosaurus/quizzes-client` and `/flashcards-client` exports, with types: importing them defines `globalThis.bsoQuizzes` and `globalThis.bsoFlashcards`, so Docusaurus can call `initializeQuizzes(document)` and `initializeFlashcards(document)` without a `DOMContentLoaded` workaround. The scripts stay classic scripts in Brightspace (#86).
 
 ### Fixed
 
-- Legacy question headings accept free text after the number, such as `## Vraag 12 (optioneel)` or `## Vraag 13 Bella`. 0.20.0 reported a lint error for it. The text is kept as the question's `title`. Points must still be written `(2 pt)` or `(2)`; other spellings in parentheses are an error.
-
+- Legacy question headings accept free text after the number, such as `## Vraag 12 (optioneel)` or `## Vraag 13 Bella`. 0.20.0 reported a lint error for it. The text is kept as the question's `title`.
+- A subquestion outside an assignment in the legacy format is an error, not a warning.
 - QuizDown: an indented fenced block after a blank line under an option stays part of that option, as in GFM; it was dropped without an error (#84).
+- QuizDown lint issues in a fenced `quiz` block report the line in the file, not the line in the block.
+- `deno lint` accepts the quiz and flashcard client scripts (`@ts-self-types`).
 
 ## 0.20.0 - 2026-10-11
 
