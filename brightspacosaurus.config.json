@@ -6,6 +6,11 @@
   "readersDir": "examples/demo-course/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "demo-course-docs",
+  "slides": {
+    "lessons": {
+      "week-1/lesson-1-fizzbuzz.md": "examples/demo-course/slides/slides-*.md"
+    }
+  },
   "diagrams": {
     "locale": "en"
   },

@@ -19,7 +19,9 @@
     "./teacher-page": "./src/teacher-page.ts",
     "./tabs": "./assets/brightspacosaurus-tabs.js",
     "./quizzes-client": "./assets/brightspacosaurus-quizzes.js",
-    "./flashcards-client": "./assets/brightspacosaurus-flashcards.js"
+    "./flashcards-client": "./assets/brightspacosaurus-flashcards.js",
+    "./slides-client": "./assets/brightspacosaurus-slides.js",
+    "./slides-remark": "./src/slides-preview-remark.ts"
   },
   "tasks": {
     "prepare": "deno run --allow-read --allow-write --allow-run=pandoc,git --allow-env --allow-net --node-modules-dir=auto src/main.ts prepare",
@@ -76,6 +78,8 @@
       "assets/brightspacosaurus-navigation.js",
       "assets/brightspacosaurus-tabs.js",
       "assets/brightspacosaurus-tabs.d.ts",
+      "assets/brightspacosaurus-slides.js",
+      "assets/brightspacosaurus-slides.d.ts",
       "assets/brightspacosaurus-copy-button.js",
       "assets/reader-header.tex",
       "assets/include-filter.lua",

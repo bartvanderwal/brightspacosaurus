@@ -415,6 +415,7 @@ This chapter describes code-level conventions and solutions that are not visible
 - **7.5** Diagram rendering and error classification
 - **7.6** Syntax highlighting
 - **7.7** Docusaurus integration of the Voortgangsverkenner
+- **7.8** Preview-only Marp presentations
 
 Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
@@ -503,6 +504,31 @@ A course that loads BSO via the package, for example `npm:@jsr/bartvanderwal__br
 - Without a dashboard URL, the `{@bso-teacher-dashboard}` directive renders a short note instead of the tab.
 
 ---
+
+### 7.8 Preview-only Marp presentations
+
+`runPreview` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
+
+For a content repository's own Docusaurus configuration, add:
+
+```js
+const { remarkPreviewSlides } = require("@bartvanderwal/brightspacosaurus/slides-remark");
+
+// Add to the docs preset's remarkPlugins:
+[remarkPreviewSlides, {
+  lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
+  baseUrl: process.env.DOCS_BASE_URL || "/",
+}]
+
+// Add to clientModules:
+require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
+
+// Add BSO_PREVIEW_STATIC_DIR to staticDirectories, as in section 7.7.
+```
+
+Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
+
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. This is a deliberate preview-only exception to export parity; hidden URLs are not access control.
 
 ## 8. Design Decisions
 
