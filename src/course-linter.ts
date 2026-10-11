@@ -448,6 +448,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       locale: config.quiz.locale,
       assignmentPrefix: config.quiz.assignmentPrefix,
       questionPrefix: config.quiz.questionPrefix,
+      subquestionPrefix: config.quiz.subquestionPrefix,
       teacherAnswers: await readTeacherAnswers(file),
     });
     diagnostics.push(...result.diagnostics);

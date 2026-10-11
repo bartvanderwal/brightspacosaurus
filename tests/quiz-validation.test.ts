@@ -307,11 +307,11 @@ Correct antwoord: Paris / New York
   assertEquals(context?.children?.some((node) => node.type === "code"), true);
   assertEquals(
     assignment?.children?.[2]?.children?.[0]?.children?.[0]?.value,
-    "Question 27a (2 points)",
+    "Subquestion 27a (2 points)",
   );
   assertEquals(
     assignment?.children?.[3]?.children?.[0]?.children?.[0]?.value,
-    "Question 27b (3 points)",
+    "Subquestion 27b (3 points)",
   );
 });
 
@@ -322,6 +322,7 @@ Deno.test("quiz heading prefixes default to English and follow locale or explici
     locale: "en",
     assignmentPrefix: "Assignment",
     questionPrefix: "Question",
+    subquestionPrefix: "Subquestion",
   });
   assertEquals(
     resolveQuizOptions({ locale: "nl" }).assignmentPrefix,
@@ -329,6 +330,10 @@ Deno.test("quiz heading prefixes default to English and follow locale or explici
   );
   assertEquals(
     resolveQuizOptions({ locale: "nl" }).questionPrefix,
+    "Vraag",
+  );
+  assertEquals(
+    resolveQuizOptions({ locale: "nl" }).subquestionPrefix,
     "Deelvraag",
   );
   assertEquals(
@@ -552,6 +557,7 @@ Deno.test("#35 shared config defaults to fixed order and rejects invalid shuffle
     locale: "en",
     assignmentPrefix: "Assignment",
     questionPrefix: "Question",
+    subquestionPrefix: "Subquestion",
   });
   for (const shuffleAnswers of [true, false]) {
     const raw = {

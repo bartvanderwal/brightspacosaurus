@@ -82,6 +82,7 @@ export interface QuizHeadingOptions {
   locale?: "en" | "nl";
   assignmentPrefix?: string;
   questionPrefix?: string;
+  subquestionPrefix?: string;
 }
 
 export type QuizValidationOptions = QuizHeadingOptions;
@@ -148,6 +149,7 @@ export function parseQuizMarkdown(
   const questionPrefixes = [
     ...new Set([
       options.questionPrefix?.trim(),
+      options.subquestionPrefix?.trim(),
       options.locale === "nl" ? "Deelvraag" : "Question",
       "Question",
       "Vraag",
@@ -516,6 +518,9 @@ export function isQuizDown(content: string): boolean {
 /** Marks a line that ends the current assignment before it is read. */
 const END_ASSIGNMENT = "\u0000";
 
+/** Marks a `?` line whose text is the question's name (heading form), not its prompt. */
+const TITLE = "\u0002";
+
 /** Replaces the heading line of a question's explanation section. */
 const EXPLANATION = "\u0001";
 
@@ -647,7 +652,7 @@ function quizDownFromHeadings(
         });
       }
       questionLevel = level;
-      output[line - 1] = `${prefix}? ${marker[2] ?? "(untitled)"}`;
+      output[line - 1] = `${prefix}${TITLE}? ${marker[2] ?? "(untitled)"}`;
       return;
     }
     if (questionLevel !== undefined && level > questionLevel) {
@@ -745,6 +750,8 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
 
   const finalizeQuestion = (line: number) => {
     if (!question) return;
+    // A name without a prompt under it is also the prompt: '## ? Which is X?'.
+    if (question.title && !question.text.trim()) question.text = question.title;
     if (question.explanation !== undefined) {
       question.explanation = question.explanation.trim();
       if (!question.explanation) {
@@ -835,6 +842,7 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
     line.trim().match(/^(`{3,}|~{3,})\s*(?:[^`~\s].*)?$/)?.[1] ?? null;
 
   let ignoreText = false;
+  let titleMode = false;
   let inExplanation = false;
   let explanationLine = 0;
   const lines = source.split(/\r?\n/);
@@ -852,6 +860,11 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
         ignoreText = true; // A section break: text up to the next marker is not part of a quiz.
         continue;
       }
+    }
+    titleMode = false;
+    if (raw.startsWith(TITLE) && codeFence === null) {
+      titleMode = true;
+      raw = raw.slice(1);
     }
     if (raw === EXPLANATION && codeFence === null) {
       if (question) {
@@ -923,8 +936,8 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       }
       question = {
         number: quiz.questions.length + 1,
-        text,
-        title: text,
+        text: titleMode ? "" : text,
+        ...(titleMode ? { title: text } : {}),
         options: [],
         correctAnswer: "",
         correctAnswers: [],
@@ -1165,7 +1178,7 @@ export function validateQuiz(
           rule: "quiz-subquestion-order",
           line: part.line ?? block.assignment.line ?? 1,
           question: part.number,
-          message: `${options.questionPrefix ?? "Subquestion"}s in ${
+          message: `${options.subquestionPrefix ?? "Subquestion"}s in ${
             options.assignmentPrefix ?? "Assignment"
           } ${block.assignment.number} must use consecutive letters starting with a.`,
         });

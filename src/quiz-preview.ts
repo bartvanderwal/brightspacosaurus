@@ -73,9 +73,9 @@ export function remarkQuizPreview(
           text(
             `${
               question.label
-                ? `${config.questionPrefix} ${question.label}`
+                ? `${config.subquestionPrefix} ${question.label}`
                 : `${config.questionPrefix} ${question.number}`
-            }${points}`,
+            }${question.title ? `: ${question.title}` : ""}${points}`,
           ),
         ]),
         richText("p", question.text, { className: "bso-quiz-prompt" }),
@@ -115,7 +115,13 @@ export function remarkQuizPreview(
         );
       }
       children.push(element("details", { className: "bso-quiz-answer" }, [
-        element("summary", {}, [text("Show correct answer")]),
+        element("summary", {}, [
+          text(
+            config.locale === "nl"
+              ? "Toon het juiste antwoord"
+              : "Show correct answer",
+          ),
+        ]),
         responseType === "open_short"
           ? element("p", {}, [text(correctAnswers[0] ?? "")])
           : element(
@@ -144,7 +150,9 @@ export function remarkQuizPreview(
       }
       if (question.hint) {
         children.push(element("details", { className: "bso-quiz-hint" }, [
-          element("summary", {}, [text("Show hint")]),
+          element("summary", {}, [
+            text(config.locale === "nl" ? "Toon hint" : "Show hint"),
+          ]),
           richText("p", question.hint),
         ]));
       }

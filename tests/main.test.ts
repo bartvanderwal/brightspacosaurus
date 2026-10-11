@@ -37,6 +37,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
       locale: "en",
       assignmentPrefix: "Assignment",
       questionPrefix: "Question",
+      subquestionPrefix: "Subquestion",
     },
     flashcards: { sectionHeadings: ["Kernbegrippen"] },
     diagrams: {

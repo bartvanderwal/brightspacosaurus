@@ -179,6 +179,7 @@ function testConfig(repoRoot: string, explicit: boolean): ResolvedConfig {
       locale: "en",
       assignmentPrefix: "Assignment",
       questionPrefix: "Question",
+      subquestionPrefix: "Subquestion",
     },
     teacherPage: { path: join(sourcesDir, "for-teachers.md"), explicit },
     diagrams: {

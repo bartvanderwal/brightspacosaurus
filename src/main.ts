@@ -325,6 +325,7 @@ export async function runPrepare(
         locale: config.quiz.locale,
         assignmentPrefix: config.quiz.assignmentPrefix,
         questionPrefix: config.quiz.questionPrefix,
+      subquestionPrefix: config.quiz.subquestionPrefix,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);

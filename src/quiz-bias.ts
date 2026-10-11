@@ -86,6 +86,7 @@ export function parseTeacherAnswers(
   const questionPrefixes = [
     ...new Set([
       options.questionPrefix?.trim(),
+      options.subquestionPrefix?.trim(),
       options.locale === "nl" ? "Deelvraag" : "Question",
       "Question",
       "Vraag",

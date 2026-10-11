@@ -277,3 +277,52 @@ Deno.test("an assignment's shared context may have subheadings, a question may n
     ["quizdown-invalid-subheading-in-question@20"],
   );
 });
+
+import { remarkQuizPreview } from "../src/quiz-preview.ts";
+
+Deno.test("heading form: the heading is the name, the text under it is the prompt (#90)", () => {
+  const quiz = parseQuizMarkdown(
+    "# Q\n\n## ? 29. Gegenereerde interface\n\nWat is het voordeel?\n\n- (x) a\n- ( ) b\n\n## ? Welke is juist?\n\n- (x) a\n- ( ) b\n",
+  );
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.questions[0].title, "29. Gegenereerde interface");
+  assertEquals(quiz.questions[0].text, "Wat is het voordeel?");
+  // Without text under the heading, the name is also the prompt.
+  assertEquals(quiz.questions[1].title, "Welke is juist?");
+  assertEquals(quiz.questions[1].text, "Welke is juist?");
+});
+
+Deno.test("the fenced form has no names: the text of '?' is the prompt", () => {
+  const quiz = parseQuizMarkdown("```quiz\n? Which?\n- (x) a\n- ( ) b\n```\n");
+  assertEquals(quiz.questions[0].title, undefined);
+});
+
+Deno.test("the name goes to the QTI item title and to the preview legend (#90)", () => {
+  const markdown =
+    "# Q\n\n## ? 29. Gegenereerde interface\n\nWat is het voordeel?\n\n- (x) a\n- ( ) b\n";
+  const xml = generateQtiXml(parseQuizMarkdown(markdown), "quiz-t");
+  assertStringIncludes(xml, 'title="29. Gegenereerde interface"');
+  const tree = {
+    type: "root",
+    children: [{ type: "heading", depth: 1, children: [] }],
+  };
+  // deno-lint-ignore no-explicit-any
+  remarkQuizPreview({ locale: "nl" })(tree as any, {
+    path: "quiz-t.md",
+    value: markdown,
+  });
+  const text = JSON.stringify(tree);
+  assertStringIncludes(text, "Vraag 1: 29. Gegenereerde interface");
+  assertStringIncludes(text, "Toon het juiste antwoord");
+});
+
+Deno.test("a question named only by a number is a lint warning (#90)", () => {
+  assertEquals(
+    rules("# Q\n\n## ? 29.\n\nWhich?\n\n- (x) a\n- ( ) b\n"),
+    ["quizdown-question-name@3"],
+  );
+  assertEquals(
+    lintQuizDown("# Q\n\n## ? 29.\n\nWhich?\n\n- (x) a\n- ( ) b\n")[0].severity,
+    "warning",
+  );
+});

@@ -66,6 +66,19 @@ export function lintQuizDown(markdown: string): QuizIssue[] {
       });
     }
   }
+  for (const question of quiz.questions) {
+    // A number alone is no name: it says nothing to a teacher who looks for the question.
+    if (question.title && !/\p{L}/u.test(question.title)) {
+      issues.push({
+        rule: "quizdown-question-name",
+        line: question.line ?? 1,
+        question: question.number,
+        message:
+          `The question heading '${question.title}' is only a number; give the question a name, for example '## ? ${question.number}. Generated interface'.`,
+        severity: "warning",
+      });
+    }
+  }
   for (const line of legacyHeadingLines(markdown)) {
     issues.push({
       rule: "quizdown-mixed-formats",

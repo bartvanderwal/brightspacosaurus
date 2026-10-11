@@ -4,6 +4,12 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+### Changed
+
+- QuizDown heading form: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt). The preview shows the name in the legend (`Vraag 29: Gegenereerde interface`), QTI writes it as the item title, and a name that is only a number is the warning `quizdown-question-name` (#90).
+- Standalone questions and assignment subquestions have separate prefixes: `quiz.questionPrefix` (`Question`/`Vraag`) and the new `quiz.subquestionPrefix` (`Subquestion`/`Deelvraag`). With `locale: "nl"`, `questionPrefix` was `Deelvraag` before.
+- The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
+
 ## 0.21.1
 
 ### Added

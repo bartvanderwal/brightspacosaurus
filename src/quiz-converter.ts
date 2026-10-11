@@ -191,7 +191,9 @@ export function generateQtiXml(
     const questionType = question.responseType ?? "single";
     const multipleResponse = questionType === "multiple";
 
-    xml += `      <item ident="${qIdent}">\n`;
+    xml += `      <item ident="${qIdent}"${
+      question.title ? ` title="${escapeXml(question.title)}"` : ""
+    }>\n`;
     xml += `        <itemmetadata>\n`;
     xml += `          <qtimetadata>\n`;
     xml += `            <qtimetadatafield>\n`;

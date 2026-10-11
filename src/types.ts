@@ -195,8 +195,10 @@ export interface QuizConfig {
   locale?: "en" | "nl";
   /** Heading prefix for shared-context assignments; overrides the locale default. */
   assignmentPrefix?: string;
-  /** Heading prefix for questions and assignment subquestions; overrides the locale default. */
+  /** Heading prefix for standalone questions; overrides the locale default. */
   questionPrefix?: string;
+  /** Heading prefix for assignment subquestions; overrides the locale default. */
+  subquestionPrefix?: string;
 }
 
 /**
@@ -296,8 +298,10 @@ export interface ResolvedQuizConfig {
   locale: "en" | "nl";
   /** Heading prefix for shared-context assignments. */
   assignmentPrefix: string;
-  /** Heading prefix for questions and assignment subquestions. */
+  /** Heading prefix for standalone questions. */
   questionPrefix: string;
+  /** Heading prefix for assignment subquestions. */
+  subquestionPrefix: string;
 }
 
 /** Resolved instructor manual configuration with absolute paths. */

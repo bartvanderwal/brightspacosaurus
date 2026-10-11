@@ -13,7 +13,13 @@ export function resolveQuizOptions(value: unknown = {}): ResolvedQuizConfig {
   ) {
     throw new Error("Field 'quiz.locale' must be 'en' or 'nl'.");
   }
-  for (const field of ["assignmentPrefix", "questionPrefix"] as const) {
+  for (
+    const field of [
+      "assignmentPrefix",
+      "questionPrefix",
+      "subquestionPrefix",
+    ] as const
+  ) {
     if (
       quiz[field] !== undefined &&
       (typeof quiz[field] !== "string" || !quiz[field].trim())
@@ -48,6 +54,9 @@ export function resolveQuizOptions(value: unknown = {}): ResolvedQuizConfig {
     assignmentPrefix: ((quiz.assignmentPrefix as string | undefined)?.trim()) ??
       (locale === "nl" ? "Opdracht" : "Assignment"),
     questionPrefix: ((quiz.questionPrefix as string | undefined)?.trim()) ??
-      (locale === "nl" ? "Deelvraag" : "Question"),
+      (locale === "nl" ? "Vraag" : "Question"),
+    subquestionPrefix:
+      ((quiz.subquestionPrefix as string | undefined)?.trim()) ??
+        (locale === "nl" ? "Deelvraag" : "Subquestion"),
   };
 }
