@@ -4,23 +4,26 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+## 0.20.0 - 2026-10-11
+
 ### Added
 
-- Legacy quiz assignments with shared Markdown context, ordered subquestions, optional points, lint rules and matching QTI/Docusaurus sections (#80).
-- English-default quiz headings with configurable locale-derived or explicit assignment and question prefixes.
+- Quiz assignments in the legacy format: `## Opdracht N` (or `## Assignment N`) holds shared Markdown context, with `### Deelvraag Na` sub-questions that each have their own response type and optional points. Points are written `(2 pt)` or `(2)`. QTI export writes a section per assignment, the Docusaurus preview groups the sub-questions and reports weighted points, and teacher answer keys use the part labels (#80, #81).
+- Quiz headings are English by default, with configurable locale-derived or explicit assignment and question prefixes.
+- `bso lint` reports assignments without sub-questions, labels that do not ascend, invalid point spellings, and a sub-question outside an assignment. Lint issues carry a severity (`error` or `warning`).
+- Quiz bias lint covers giveaway phrases ("Alleen", "Alle bovenstaande", "Geen van bovenstaande"), with configurable words, and a clean demo quiz (#68, #75).
+- `deno task release` checks branch, clean tree, tag and push (ADR 018), then runs `deno publish` and `release:npm`; `--dry-run` passes through (#83).
+- `deno task release:npm` (and `--dry-run`) publishes to npm in one step: login check, pack into `build/`, the fixes below, publish from the extracted folder, clean-up (#77).
+- ADR 020 (QuizDown as preferred, strict quiz syntax in a Quizzosaurus package) and `docs/quizzosaurus-syntax.md`, with the proposed QuizDown assignment syntax (not implemented yet), and ADR 021 (convention over configuration and good defaults) (#82).
 
 ### Changed
 
-- Quiz previews report weighted points when subquestion points are supplied.
+- `deno task demo` now starts the Docusaurus preview (was `demo:preview`); `deno task demo:pack` builds the demo `.imscc` (was `demo`) (#83).
 
 ### Fixed
 
 - Relative quiz images are copied into the cartridge and referenced as quiz resource dependencies.
 - The npm package declares types for the `./tabs` export and no longer contains an empty `assets/brightspacosaurus-tabs.d.ts.d.ts` (#77).
-
-### Added
-
-- `deno task release:npm` (and `--dry-run`) publishes to npm in one step: login check, pack into `build/`, the fixes above, publish from the extracted folder, clean-up (#77).
 
 ## 0.19.1 - 2026-10-09
 
