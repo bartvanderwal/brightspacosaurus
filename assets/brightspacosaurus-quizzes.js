@@ -43,6 +43,11 @@ function initializeQuizzes(root, random = Math.random) {
         const answer = question.querySelector(".bso-quiz-answer");
         answer.hidden = true;
         answer.open = false;
+        const explanation = question.querySelector(".bso-quiz-explanation");
+        if (explanation) {
+          explanation.hidden = true;
+          explanation.open = false;
+        }
       });
       feedback.textContent = "";
     }
@@ -98,6 +103,8 @@ function initializeQuizzes(root, random = Math.random) {
       }
       questions.forEach((question) => {
         question.querySelector(".bso-quiz-answer").hidden = false;
+        const explanation = question.querySelector(".bso-quiz-explanation");
+        if (explanation) explanation.hidden = false;
       });
     });
     restart.addEventListener("click", function () {

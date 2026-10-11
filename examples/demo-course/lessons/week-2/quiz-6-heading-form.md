@@ -8,6 +8,10 @@ In the heading form a question is a heading that starts with `?`. The heading is
 - ( ) b. A class that creates objects for a family of products
 - ( ) c. A class that has exactly one instance
 
+### Explanation
+
+The Decorator **wraps** a component and forwards calls to it, so behaviour can be added without subclassing.
+
 ## Assignment: testing
 
 ## @ Testing FizzBuzz

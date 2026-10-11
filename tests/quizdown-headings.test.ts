@@ -123,8 +123,8 @@ const rules = (markdown: string) =>
 
 Deno.test("heading form rejects a heading inside a question and a nested question", () => {
   assertEquals(
-    rules("# Q\n\n## ? Vraag\n\n- (x) a\n- ( ) b\n\n### Toelichting\n"),
-    ["quizdown-heading-in-question@8"],
+    rules("# Q\n\n## ? Vraag\n\n- (x) a\n- ( ) b\n\n### Extra\n"),
+    ["quizdown-invalid-subheading-in-question@8"],
   );
   assertEquals(
     rules("# Q\n\n## ? Vraag\n\n### ? Deelvraag\n\n- (x) a\n- ( ) b\n")
@@ -177,5 +177,103 @@ Deno.test("option labels: matching labels are stripped, wrong ones are errors", 
   assertEquals(
     rules("```quiz\n? Q?\n- (x) b. First\n- ( ) a. Second\n```\n"),
     ["quizdown-option-label@3", "quizdown-option-label@4"],
+  );
+});
+
+const explained = `# Quiz
+
+## ? Welke methode is idempotent?
+
+- (x) PUT
+- ( ) POST
+
+### Toelichting
+
+PUT vervangt de resource; **twee keer** hetzelfde geeft hetzelfde resultaat.
+
+\`\`\`http
+PUT /items/1
+\`\`\`
+
+#### Detail
+
+Een diepere kop blijft tekst.
+
+## @ Opdracht
+
+Context.
+
+### ? Deelvraag (1 pt)
+
+- (x) a
+- ( ) b
+
+#### Explanation
+
+Because a.
+
+### ? Tweede deelvraag
+
+= x
+`;
+
+Deno.test("an explanation section under a question or sub-question is kept (Toelichting / Explanation)", () => {
+  const quiz = parseQuizMarkdown(explained);
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.questions.length, 3);
+  assertStringIncludes(quiz.questions[0].explanation!, "**twee keer**");
+  assertStringIncludes(quiz.questions[0].explanation!, "PUT /items/1");
+  assertStringIncludes(quiz.questions[0].explanation!, "#### Detail");
+  assertEquals(quiz.questions[0].options.length, 2);
+  assertEquals(quiz.questions[1].explanation, "Because a.");
+  assertEquals(quiz.questions[2].explanation, undefined);
+  assertEquals(lintQuizDown(explained), []);
+});
+
+Deno.test("the explanation is exported as item feedback next to the hint", () => {
+  const xml = generateQtiXml(parseQuizMarkdown(explained), "quiz-test");
+  assertEquals(xml.match(/_explanation"/g)?.length, 2);
+  assertStringIncludes(xml, "&lt;strong&gt;twee keer&lt;/strong&gt;");
+});
+
+Deno.test("explanation rules: duplicate and empty sections are errors; other deeper headings still are", () => {
+  assertEquals(
+    rules(
+      "# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n### Toelichting\n\nx\n\n### Toelichting\n\ny\n",
+    ),
+    ["quizdown-duplicate-explanation@12"],
+  );
+  assertEquals(
+    rules("# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n### Toelichting\n"),
+    ["quizdown-explanation-empty@8"],
+  );
+  assertEquals(
+    rules("# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n#### Toelichting\n"),
+    ["quizdown-invalid-subheading-in-question@8"],
+  );
+});
+
+Deno.test("an explanation ends at the next question or section", () => {
+  const quiz = parseQuizMarkdown(
+    "# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n### Explanation\n\ntext\n\n## Sectie\n\nIntro\n\n## ? W\n\n- (x) a\n- ( ) b\n",
+  );
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.questions[0].explanation, "text");
+  assertEquals(quiz.questions[1].explanation, undefined);
+});
+
+Deno.test("an assignment's shared context may have subheadings, a question may not", () => {
+  const source = (extra: string) =>
+    `# Q\n\n## @ Opdracht\n\nContext\n\n### Achtergrond\n\nMore context.\n\n#### Detail\n\nEven more.\n\n### ? Deelvraag\n\n- (x) a\n- ( ) b\n${extra}`;
+  const quiz = parseQuizMarkdown(source(""));
+  assertEquals(quiz.issues, []);
+  const assignment = quiz.blocks![0];
+  if (assignment.type !== "assignment") throw new Error("not an assignment");
+  assertStringIncludes(assignment.assignment.text, "### Achtergrond");
+  assertStringIncludes(assignment.assignment.text, "#### Detail");
+  assertEquals(lintQuizDown(source("")), []);
+  assertEquals(
+    rules(source("\n#### Extra\n")),
+    ["quizdown-invalid-subheading-in-question@20"],
   );
 });

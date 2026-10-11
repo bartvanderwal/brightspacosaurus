@@ -132,6 +132,16 @@ export function remarkQuizPreview(
             ),
           ),
       ]));
+      if (question.explanation) {
+        children.push(
+          element("details", { className: "bso-quiz-explanation" }, [
+            element("summary", {}, [
+              text(config.locale === "nl" ? "Toelichting" : "Explanation"),
+            ]),
+            richText("p", question.explanation),
+          ]),
+        );
+      }
       if (question.hint) {
         children.push(element("details", { className: "bso-quiz-hint" }, [
           element("summary", {}, [text("Show hint")]),

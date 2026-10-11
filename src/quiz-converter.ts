@@ -294,6 +294,12 @@ export function generateQtiXml(
           escapeXml(renderQuizMarkdown(question.hint, resolveImage))
         }</mattext></material></flow_mat></itemfeedback>\n`;
     }
+    if (question.explanation) {
+      xml +=
+        `        <itemfeedback ident="${qIdent}_explanation"><flow_mat><material><mattext texttype="text/html">${
+          escapeXml(renderQuizMarkdown(question.explanation, resolveImage))
+        }</mattext></material></flow_mat></itemfeedback>\n`;
+    }
     xml += `      </item>\n\n`;
   };
 

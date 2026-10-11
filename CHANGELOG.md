@@ -4,13 +4,17 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+### Added
+
+- QuizDown explanation section: a `### Toelichting` or `### Explanation` heading one level below a question or sub-question holds Markdown (code, images) shown after the answer. Exported as a second QTI `itemfeedback`, shown in the preview after checking. Rules `quizdown-duplicate-explanation` and `quizdown-explanation-empty` (#80).
+
 ## 0.22.0 - 2026-10-12
 
 ### Added
 
 - QuizDown heading form: `## ? Question` (the heading is the question, with a free title and no required number), `## @ Assignment` with `### ?` sub-questions, and plain headings as sections. Questions end at a heading of the same or a higher level (#80).
 - Option labels `a.` / `b)` in QuizDown options, checked against their position.
-- Lint rules `quizdown-heading-in-question`, `quizdown-nested-question`, `quizdown-heading-title` and `quizdown-option-label`, each with a fixture in `examples/demo-course-antipatterns`; demo quiz 2.6 shows the heading form.
+- Lint rules `quizdown-invalid-subheading-in-question`, `quizdown-nested-question`, `quizdown-heading-title` and `quizdown-option-label`, each with a fixture in `examples/demo-course-antipatterns`; demo quiz 2.6 shows the heading form.
 
 ### Fixed
 

@@ -40,6 +40,8 @@ export interface QuizQuestion {
   points?: number;
   /** Optional student-facing hint. */
   hint?: string;
+  /** Markdown explanation shown after the answer ('### Toelichting' in heading form). */
+  explanation?: string;
   /** One-based heading line, if parsed from Markdown. */
   line?: number;
 }
@@ -514,6 +516,12 @@ export function isQuizDown(content: string): boolean {
 /** Marks a line that ends the current assignment before it is read. */
 const END_ASSIGNMENT = "\u0000";
 
+/** Replaces the heading line of a question's explanation section. */
+const EXPLANATION = "\u0001";
+
+/** The fixed heading names of an explanation section, directly under a question. */
+const explanationHeading = /^(?:Toelichting|Explanation)$/;
+
 const quizDownHeading = /^(#{1,6})\s+(.*?)\s*$/;
 
 /** Visit the lines outside fenced code, with their one-based line numbers. */
@@ -569,11 +577,32 @@ function quizDownFromHeadings(
   const output = [...lines];
   let assignmentLevel: number | undefined;
   let questionLevel: number | undefined;
+  let explanationLevel: number | undefined;
   outsideFences(content, (raw, line) => {
     const heading = raw.match(quizDownHeading);
     if (!heading) return;
     const level = heading[1].length;
     const text = heading[2];
+    if (explanationLevel !== undefined && level > explanationLevel) {
+      return; // A heading inside an explanation stays Markdown.
+    }
+    if (
+      questionLevel !== undefined && level === questionLevel + 1 &&
+      explanationHeading.test(text)
+    ) {
+      if (explanationLevel !== undefined) {
+        issues.push({
+          rule: "quizdown-duplicate-explanation",
+          line,
+          message: "A question has at most one explanation section.",
+          severity: "error",
+        });
+      }
+      explanationLevel = level;
+      output[line - 1] = EXPLANATION;
+      return;
+    }
+    explanationLevel = undefined;
     const marker = text.match(/^([?@])(?:\s+(.*))?$/);
     if (level === 1) {
       output[line - 1] = END_ASSIGNMENT;
@@ -623,10 +652,10 @@ function quizDownFromHeadings(
     }
     if (questionLevel !== undefined && level > questionLevel) {
       issues.push({
-        rule: "quizdown-heading-in-question",
+        rule: "quizdown-invalid-subheading-in-question",
         line,
         message:
-          "A heading inside a question is not supported; end the question with a heading of the same or a higher level.",
+          "A heading inside a question is only supported for its explanation: name it 'Toelichting' or 'Explanation', one level below the question. Otherwise end the question with a heading of the same or a higher level.",
         severity: "error",
       });
       output[line - 1] = "";
@@ -716,6 +745,16 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
 
   const finalizeQuestion = (line: number) => {
     if (!question) return;
+    if (question.explanation !== undefined) {
+      question.explanation = question.explanation.trim();
+      if (!question.explanation) {
+        issue(
+          "quizdown-explanation-empty",
+          explanationLine || line,
+          "The explanation section is empty; remove the heading or add the text.",
+        );
+      }
+    }
     if (questionHasRoundMarkers && questionHasSquareMarkers) {
       issue(
         "quiz-option-syntax",
@@ -778,7 +817,11 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
   const stripIndent = (line: string, indent: number) =>
     line.replace(new RegExp(`^ {0,${indent}}`), "");
   const appendText = (line: string) => {
-    if (!question && assignment) {
+    if (inExplanation && question) {
+      question.explanation = `${
+        question.explanation ? question.explanation + "\n" : ""
+      }${line}`;
+    } else if (!question && assignment) {
       assignment.text += `${assignment.text ? "\n" : ""}${line}`;
     } else if (currentOption) {
       const lastOption = question!.options.at(-1)!;
@@ -792,6 +835,8 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
     line.trim().match(/^(`{3,}|~{3,})\s*(?:[^`~\s].*)?$/)?.[1] ?? null;
 
   let ignoreText = false;
+  let inExplanation = false;
+  let explanationLine = 0;
   const lines = source.split(/\r?\n/);
   for (const [index, line] of lines.entries()) {
     let raw = line;
@@ -801,13 +846,29 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       question = undefined;
       assignment = undefined;
       currentOption = undefined;
+      inExplanation = false;
       raw = raw.slice(1);
       if (!raw.trim()) {
         ignoreText = true; // A section break: text up to the next marker is not part of a quiz.
         continue;
       }
     }
+    if (raw === EXPLANATION && codeFence === null) {
+      if (question) {
+        question.explanation = "";
+        explanationLine = index + 1;
+        inExplanation = true;
+      }
+      continue;
+    }
     const trimmed = raw.trim();
+    if (
+      inExplanation && codeFence === null && !/^[?@]\s/.test(trimmed)
+    ) {
+      codeFence = fenceOpening(raw);
+      appendText(raw);
+      continue;
+    }
     if (codeFence !== null) {
       appendText(raw);
       const closing = trimmed.match(/^(`+|~+)$/)?.[1];
@@ -829,7 +890,10 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
     if (continuesOption) appendText("");
     if (!continuesOption && blankAfterOption) currentOption = undefined;
     blankAfterOption = false;
-    if (/^[?@]\s/.test(trimmed)) ignoreText = false;
+    if (/^[?@]\s/.test(trimmed)) {
+      ignoreText = false;
+      inExplanation = false;
+    }
     const assignmentStart = trimmed.match(/^@\s+(.+)$/);
     if (assignmentStart) {
       finalizeQuestion(index + 1);
