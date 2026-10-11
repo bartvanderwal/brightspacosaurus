@@ -575,7 +575,7 @@
     </div>`;
   }
 
-  function RepoDetail({ s, repo, settings, onPick, nodeId }) {
+  function RepoDetail({ repo, settings, onPick, nodeId }) {
     const a = repoAggregate(repo, settings);
     if (!repo.exists || repo.error) {
       return html`<div className="detail">
