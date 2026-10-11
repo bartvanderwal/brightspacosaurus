@@ -61,7 +61,7 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
 
 ## Testing
 
-- Test runner: Deno's built-in `deno test`.
+- Test runner: Deno's built-in `deno test`. A bare `deno test` has no permissions and fails; use `deno task test` (or `deno test -P`, which loads the `default` permission set from `deno.json`).
 - Property-based tests with fast-check (via JSR), at least 100 iterations per property.
 - When making code changes, add or update tests: argument validation, deterministic output, error scenarios.
 - While developing, run `deno task test:fast` (under a minute): all tests except the pandoc PDF conversion tests. Tests that call `runPrepare` without testing PDFs pass `{ skipReaders: true }`.

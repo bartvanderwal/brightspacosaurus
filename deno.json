@@ -44,6 +44,18 @@
       "**/*.md"
     ]
   },
+  "permissions": {
+    "default": {
+      "read": true,
+      "write": true,
+      "run": true,
+      "env": true,
+      "net": ["127.0.0.1"]
+    }
+  },
+  "test": {
+    "include": ["tests/", "src/reader-pdf-converter_test.ts"]
+  },
   "lint": {
     "exclude": [
       "spike/",
