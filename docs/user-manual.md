@@ -667,7 +667,25 @@ Given this class:
 ```
 ````
 
-`bso lint` checks QuizDown with the standalone QuizDown linter (`src/quizdown-lint.ts`): assignments without sub-questions, invalid point spellings, unindented content after an option, a legacy `## Vraag` heading in a file with a QuizDown block (errors), and an assignment without shared context (warning). See [QuizDown syntax](quizzosaurus-syntax.md) and ADR 020.
+QuizDown also has a heading form, so a question can have a name instead of a number. A heading that starts with `?` is a question, a heading that starts with `@` is an assignment, and a plain heading is a section. The heading text is the question; the text under it continues the prompt. Sub-questions are `?` headings one level below their `@` heading. A question ends at the next heading of the same or a higher level; an assignment ends at a heading of its own or a higher level. A file uses either a fenced `quiz` block or heading form. Options may carry the label `a.` or `b)`, which must match their position.
+
+```markdown
+## ? Which UML diagram belongs to the Decorator pattern?
+
+- (x) a. A wrapper that adds behaviour around a component
+- ( ) b. A class that has exactly one instance
+
+## @ Testing FizzBuzz
+
+Shared context, with code if needed.
+
+### ? Which test is useful? (2 pt)
+
+- (x) A test for input 15
+- ( ) A test for null
+```
+
+`bso lint` checks QuizDown with the standalone QuizDown linter (`src/quizdown-lint.ts`): assignments without sub-questions, invalid point spellings, unindented content after an option, a legacy `## Vraag` heading in a file with a QuizDown block (errors), and an assignment without shared context (warning). The heading form adds `quizdown-heading-in-question`, `quizdown-nested-question`, `quizdown-heading-title` and `quizdown-option-label` (errors). Line numbers refer to the file. See [QuizDown syntax](quizzosaurus-syntax.md) and ADR 020.
 
 Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
 answer order per attempt. Default `false` preserves source order. BSO writes

@@ -4,6 +4,18 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+## 0.22.0 - 2026-10-12
+
+### Added
+
+- QuizDown heading form: `## ? Question` (the heading is the question, with a free title and no required number), `## @ Assignment` with `### ?` sub-questions, and plain headings as sections. Questions end at a heading of the same or a higher level (#80).
+- Option labels `a.` / `b)` in QuizDown options, checked against their position.
+- Lint rules `quizdown-heading-in-question`, `quizdown-nested-question`, `quizdown-heading-title` and `quizdown-option-label`, each with a fixture in `examples/demo-course-antipatterns`; demo quiz 2.6 shows the heading form.
+
+### Fixed
+
+- QuizDown lint issues in a fenced `quiz` block now report the line in the file, not the line in the block.
+
 ## 0.21.0 - 2026-10-12
 
 ### Added

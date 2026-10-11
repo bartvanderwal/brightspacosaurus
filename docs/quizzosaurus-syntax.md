@@ -6,7 +6,7 @@ This document lives in BSO because the parser lives in BSO ([`src/quiz-parser.ts
 
 Decision record: [ADR 020](adr/adr020-quizdown-syntax-and-quizzosaurus-package.md).
 
-Status: sections 2 and 6 (markers and `@` assignments in a fenced `quiz` block, `(2 pt)` points, the linter in section 7) are implemented since 0.21.0. Everything marked **proposal** (option labels, heading form with `## ?` and `## @`) is for #80 and not implemented yet.
+Status: sections 2 and 6 (markers and `@` assignments in a fenced `quiz` block, `(2 pt)` points, the linter in section 7) are implemented since 0.21.0; the option labels (section 3) and the heading form (sections 4 and 5) since 0.22.0. A lone `(N)` and `pt` spelling, a long answer (`= ~long`) and the model answer for teachers are still open.
 
 ## 1. Principles
 
@@ -27,7 +27,7 @@ Status: sections 2 and 6 (markers and `@` assignments in a fenced `quiz` block, 
 
 The response type follows from the markers. Mixing round and square markers, or options with `=`, is invalid.
 
-## 3. Options (proposal: labels, composition)
+## 3. Options: labels and composition
 
 Options may carry a label (`a.`), and may contain any Markdown, including fenced blocks and diagrams:
 
@@ -44,16 +44,16 @@ Options may carry a label (`a.`), and may contain any Markdown, including fenced
   ```
 ````
 
-Content under an option **must** be indented by two spaces, as in GFM. A fence that is not indented is an error (`quizdown-unindented-option-content`): editors and GitHub render it as a list followed by a separate block, so the author sees something different from what the parser reads.
+An option may start with a label (`a.` or `b)`). A label must match the option's position (`a.` first, `b.` second, and so on); a wrong one is an error (`quizdown-option-label`), so a text such as 'I. Newton' as the first option would be read as a label. Content under an option **must** be indented by two spaces, as in GFM. A fence that is not indented is an error (`quizdown-unindented-option-content`): editors and GitHub render it as a list followed by a separate block, so the author sees something different from what the parser reads.
 
 ## 4. Where a question ends
 
 A question has no closing marker. It ends implicitly:
 
 - **Fenced form:** at the next `?` or `@` line at block level, or at the end of the block.
-- **Heading form (proposal):** at the next heading of the **same or a higher** level, or at the end of the file. A deeper heading does not end it.
+- **Heading form:** at the next heading of the **same or a higher** level, or at the end of the file. A deeper heading does not end it.
 
-## 5. Heading form (proposal)
+## 5. Heading form
 
 A quiz file may use headings instead of a fence. Three kinds of headings are distinguished by an explicit marker, because a plain heading must stay a normal section:
 
@@ -93,9 +93,9 @@ class FizzBuzz { ... }
 
 Nesting rules:
 
-- A `?` heading with answer markers (options, `=`) is a **leaf question**. A deeper heading *without* `?` under it is part of that question (for example an explanation or feedback section). It does not end the question.
+- A `?` heading with answer markers (options, `=`) is a **leaf question**. The heading text is the first line of the question; the text under it continues the prompt. A deeper heading *without* `?` inside a question is an **error** (`quizdown-heading-in-question`) for now: the model has no place for explanations or feedback yet, and BSO does not drop content silently.
 - An `@` heading is an **assignment**. Its content up to the first `?` child is the shared context. Its `?` children are the sub-questions, each with its own response type and points. The assignment ends at the next heading of the same or a higher level.
-- A `?` heading that has `?` children is invalid (a question is either a leaf or an assignment).
+- A `?` heading that has `?` children is an error (`quizdown-nested-question`): a question is either a leaf or an assignment. A `?` or `@` heading needs a title (`quizdown-heading-title`).
 - A section heading never starts a question by itself. Without an explicit `@`, a section whose first children are questions would be indistinguishable from an assignment with shared text.
 
 ## 6. Assignments in a fenced block
