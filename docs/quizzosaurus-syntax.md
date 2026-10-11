@@ -165,7 +165,7 @@ Rules to add for #80: assignment without sub-questions; sub-question labels that
 
 ## 10. Why strict: the cost of being liberal
 
-Postel's robustness principle says: be conservative in what you send, be liberal in what you accept. Spolsky (2008) describes what it did to the web: browsers forgave broken pages, so pages came to depend on the forgiveness, and a standards-compliant IE8 broke sites that contained workarounds for earlier IE bugs. Thomson (2019) generalises this: the negative consequences for interoperability accumulate over time when implementations apply the principle.
+Postel's robustness principle says: be conservative in what you send, be liberal in what you accept. Spolsky (2008) describes what it did to the web: browsers forgave broken pages, so pages came to depend on the forgiveness, and a standards-compliant IE8 broke sites that contained workarounds for earlier IE bugs. Thomson and Schinazi (2023) generalise this: "negative consequences to interoperability accumulate over time if implementations silently accept faulty input."
 
 QuizDown applies the lesson from the start:
 
@@ -173,10 +173,14 @@ QuizDown applies the lesson from the start:
 - The format is recognised from explicit markers (a `quiz` fence, `?` and `@` headings), never guessed from content.
 - A future breaking change gets an explicit version, so old quizzes keep their meaning. This is the same role the doctype and IE8's version targeting played for the web. The syntax has no version marker yet; add one (for example `quizdown: 1` in front matter) before the first incompatible change.
 
+Strictness must not make authoring harder. The pit of success (Atwood, 2007, crediting Mariani) is the counterweight: the canonical form is the easiest to write, defaults replace configuration, and each error message names the fix.
+
 The same principle governs BSO. Where BSO has a choice between repairing input and rejecting it, it rejects it with a useful message (see *Fail fast* in AGENTS.md). This does not conflict with "support both of two reasonable syntaxes": each syntax is strictly defined, and BSO accepts neither of them in a broken form.
 
 ## Sources
 
+Atwood, J. (2007, August 29). *Falling into the pit of success*. Coding Horror. <https://blog.codinghorror.com/falling-into-the-pit-of-success/>
+
 Spolsky, J. (2008, March 17). *Martian headsets*. Joel on Software. <https://www.joelonsoftware.com/2008/03/17/martian-headsets/>
 
-Thomson, M. (2019). *The harmful consequences of the robustness principle* (Internet-Draft draft-iab-protocol-maintenance-04). IETF. <https://datatracker.ietf.org/doc/html/draft-iab-protocol-maintenance-04>
+Thomson, M., & Schinazi, D. (2023). *Maintaining robust protocols* (RFC 9413). Internet Architecture Board. <https://www.rfc-editor.org/rfc/rfc9413>
