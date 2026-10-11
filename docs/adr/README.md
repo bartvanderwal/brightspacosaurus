@@ -16,3 +16,4 @@ The numbering is historical rather than contiguous. Brightspacosaurus was extrac
 | [017](adr017-test-strategy-and-quality-levels.md) | Layered testing strategy |
 | [018](adr018-github-flow-and-release-tags.md) | GitHub Flow with release tags |
 | [020](adr020-quizdown-syntax-and-quizzosaurus-package.md) | QuizDown syntax, strict by design, in a Quizzosaurus package |
+| [021](adr021-convention-over-configuration-and-good-defaults.md) | Convention over configuration and good defaults |

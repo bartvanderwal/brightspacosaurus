@@ -680,6 +680,7 @@ The [`docs/adr/`](adr/README.md) directory is the running decision log:
 | [015](adr/adr015-brightspacosaurus-publication-via-jsr.md) | Publication via JSR. |
 | [016](adr/adr016-diagram-rendering-via-remark-kroki-a11y.md) | Diagram rendering via remark-kroki-a11y with no-JS Brightspace adaptation. |
 | [020](adr/adr020-quizdown-syntax-and-quizzosaurus-package.md) | QuizDown syntax, strict by design, in a Quizzosaurus package. |
+| [021](adr/adr021-convention-over-configuration-and-good-defaults.md) | Convention over configuration and good defaults. |
 
 ### 10.2 Versioning
 
