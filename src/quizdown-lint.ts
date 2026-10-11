@@ -74,7 +74,7 @@ export function lintQuizDown(markdown: string): QuizIssue[] {
         line: question.line ?? 1,
         question: question.number,
         message:
-          `The question heading '${question.title}' is only a number; give the question a name, for example '## ? ${question.number}. Generated interface'.`,
+          `The question has no name: '${question.title}' is only a number. Give it a name, for example '## ? ${question.number}. Generated interface'.`,
         severity: "warning",
       });
     }

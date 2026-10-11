@@ -59,6 +59,20 @@ export function remarkQuizPreview(
             ? "point"
             : "points"
         })`;
+      const label = question.label
+        ? `${config.subquestionPrefix} ${question.label}`
+        : `${config.questionPrefix} ${question.number}`;
+      // "Vraag 2 — Encapsulation": the name, with its inline Markdown, next to
+      // the label. A name that is only a number is not shown.
+      const legendNodes = (item: QuizQuestion): FlashcardNode[] =>
+        item.title && /\p{L}/u.test(item.title)
+          ? [
+            text(label),
+            text(" — "),
+            ...(quizTextNodes(item.title).nodes as FlashcardNode[]),
+            text(points),
+          ]
+          : [text(`${label}${points}`)];
       const properties = {
         className: "bso-quiz-question",
         "data-correct-answer": question.correctAnswer,
@@ -69,15 +83,7 @@ export function remarkQuizPreview(
           : { "data-points": String(question.points) }),
       };
       const children = [
-        element("legend", {}, [
-          text(
-            `${
-              question.label
-                ? `${config.subquestionPrefix} ${question.label}`
-                : `${config.questionPrefix} ${question.number}`
-            }${question.title ? `: ${question.title}` : ""}${points}`,
-          ),
-        ]),
+        element("legend", {}, legendNodes(question)),
         richText("p", question.text, { className: "bso-quiz-prompt" }),
       ];
       if (responseType === "open_short") {
