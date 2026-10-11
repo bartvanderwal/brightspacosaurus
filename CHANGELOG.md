@@ -4,11 +4,22 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
-Planned as 0.21.0.
+## 0.21.1
 
 ### Added
 
 - `bso preview` (and `deno task demo`) runs `npm ci` (or `npm install` without a lockfile) first when the Docusaurus app has no `node_modules`.
+- `deno task release` and `release:npm` let npm ask for the one-time password of a 2FA account (authenticator code or passkey) and accept `--otp=<code>` (#88).
+- `docs/quizzosaurus-syntax.md` is part of the package, so the links in the manual and the guidebook work.
+
+### Fixed
+
+- `bso preview` from a checkout failed since 0.19.1: `Cannot find module 'remark-gfm'` (the Docusaurus config loads BSO's `src/*.ts`; the preview now sets `NODE_PATH` to the Docusaurus app's `node_modules`) and `remarkKrokiA11y is not a function` (the diagram plugin is found whichever way the loader shapes the import) (#91).
+
+## 0.21.0 - 2026-10-12
+
+### Added
+
 - QuizDown assignments: `@ title` starts an assignment whose Markdown up to the first `?` is shared context; each `?` after it is a sub-question with its own response type and points, labelled `1a`, `1b`, ... Exported as QTI sections and grouped in the Docusaurus preview (#80).
 - Points in QuizDown as `(2 pt)` or `(2)` at the end of the `?` line.
 - QuizDown heading form: `## ? Question` (the heading is the question, with a free title and no required number), `## @ Assignment` with `### ?` sub-questions, and plain headings as sections. Questions end at a heading of the same or a higher level (#80).
@@ -19,7 +30,6 @@ Planned as 0.21.0.
 
 ### Fixed
 
-- `bso preview` from a checkout failed with `Cannot find module 'remark-gfm'` since 0.19.1: the Docusaurus config loads BSO's `src/*.ts`, which need packages from the Docusaurus app's `node_modules`. The preview now sets `NODE_PATH` to that folder.
 - Legacy question headings accept free text after the number, such as `## Vraag 12 (optioneel)` or `## Vraag 13 Bella`. 0.20.0 reported a lint error for it. The text is kept as the question's `title`.
 - A subquestion outside an assignment in the legacy format is an error, not a warning.
 - QuizDown: an indented fenced block after a blank line under an option stays part of that option, as in GFM; it was dropped without an error (#84).
