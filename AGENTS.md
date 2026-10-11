@@ -74,6 +74,7 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
 ## Git and commits
 
 - Commit messages in English.
+- No `Co-Authored-By` trailers and no tool attribution lines in commit messages or pull request descriptions; the commit author is the person who owns the change.
 - The commit title briefly captures **what** changed and **why**: `what, because why; see #issue`. Guideline: max ~72 characters for the title; prefer small, logically coherent commits over one large one.
 - Preferably include an issue number in the commit. If there is no matching issue and the change is more than minor maintenance, first create or request an issue so the rationale can live there.
 - **Workflow for agents**: for every commit request, first look up relevant open issues via `gh issue list` and include the matching issue numbers in the commit title. Use `Closes #N` when the commit closes an issue.
