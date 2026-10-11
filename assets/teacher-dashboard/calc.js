@@ -115,6 +115,12 @@
       referenceDate = new Date(),
     } = input;
 
+    const isFutureWorkItem = availableFrom && /^\d{4}-\d{2}-\d{2}$/.test(availableFrom) &&
+      availableFrom >
+        `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}-${
+          String(referenceDate.getDate()).padStart(2, "0")
+        }`;
+
     let logicalStatus = "todo";
     if (statusLabel) {
       const label = statusLabel.toLowerCase();
@@ -131,21 +137,22 @@
 
     if (logicalStatus === "done") {
       if (studentCommitsCount <= 0) {
+        if (isFutureWorkItem) {
+          return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
+        }
         return { color: "orange", reason: "Status done zonder eigen commits", isDone: false, isNeutral: false };
       }
       if (requireCommentsForDone && studentCommentsCount <= 0) {
+        if (isFutureWorkItem) {
+          return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
+        }
         return { color: "orange", reason: "Status done, maar geen opmerking van de student", isDone: false, isNeutral: false };
       }
       return { color: "green", reason: "Status done met eigen commits", isDone: true, isNeutral: false };
     }
 
-    if (availableFrom && /^\d{4}-\d{2}-\d{2}$/.test(availableFrom)) {
-      const today = `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}-${
-        String(referenceDate.getDate()).padStart(2, "0")
-      }`;
-      if (availableFrom > today) {
-        return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
-      }
+    if (isFutureWorkItem) {
+      return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
     }
 
     if (logicalStatus === "doing") {

@@ -154,6 +154,46 @@ Deno.test("evaluateWorkItem: work before its course week is neutral, even when m
   assertEquals(started.color, "red");
 });
 
+Deno.test("evaluateWorkItem: future done work is neutral unless completion requirements are met", () => {
+  const referenceDate = new Date("2026-09-01T12:00:00");
+  const future = {
+    state: "closed",
+    availableFrom: "2026-09-08",
+    studentCommitsCount: 0,
+    studentCommentsCount: 0,
+    requireCommentsForDone: false,
+    referenceDate,
+  };
+
+  assertEquals(evaluateWorkItem(future), {
+    color: "gray",
+    reason: "Opdracht nog niet aan de beurt",
+    isDone: false,
+    isNeutral: true,
+  });
+  assertEquals(evaluateWorkItem({
+    ...future,
+    studentCommitsCount: 1,
+    requireCommentsForDone: true,
+  }), {
+    color: "gray",
+    reason: "Opdracht nog niet aan de beurt",
+    isDone: false,
+    isNeutral: true,
+  });
+  assertEquals(evaluateWorkItem({
+    ...future,
+    studentCommitsCount: 1,
+    studentCommentsCount: 1,
+    requireCommentsForDone: true,
+  }), {
+    color: "green",
+    reason: "Status done met eigen commits",
+    isDone: true,
+    isNeutral: false,
+  });
+});
+
 Deno.test("evaluateWorkItem: done without student commits is orange", () => {
   const result = evaluateWorkItem({
     state: "closed",
