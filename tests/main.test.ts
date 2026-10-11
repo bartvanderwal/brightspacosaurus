@@ -29,7 +29,13 @@ function testConfig(repoRoot: string): ResolvedConfig {
     docusaurusDir: null,
     teacherManual: null,
     teacherDashboard: null,
-    quiz: { maxAttempts: 0, shuffleAnswers: false },
+    quiz: {
+      maxAttempts: 0,
+      shuffleAnswers: false,
+      locale: "en",
+      assignmentPrefix: "Assignment",
+      questionPrefix: "Question",
+    },
     flashcards: { sectionHeadings: ["Kernbegrippen"] },
     diagrams: {
       krokiUrl: "https://kroki.io",

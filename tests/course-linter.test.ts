@@ -87,6 +87,118 @@ Deno.test("lint shares quiz validation and formats source locations for editors"
   assertEquals(lintMarkdown(source.replace("Z", "a"), "quiz-test.md"), []);
 });
 
+Deno.test("lint reports assignment structure and standalone deelvragen", () => {
+  const empty = lintMarkdown(
+    "# Quiz\n\n## Opdracht 27\n\nGedeelde context",
+    "quiz-test.md",
+  );
+  assertEquals(
+    empty.some((issue) => issue.rule === "quiz-assignment-empty"),
+    true,
+  );
+
+  const outOfOrder = lintMarkdown(
+    `# Quiz
+
+## Opdracht 27
+Context.
+
+### Deelvraag 27a
+First?
+- A. Yes
+- B. No
+Correct antwoord: A
+
+### Deelvraag 27c
+Third?
+- A. Yes
+- B. No
+Correct antwoord: A
+`,
+    "quiz-test.md",
+  );
+  assertEquals(
+    outOfOrder.some((issue) => issue.rule === "quiz-subquestion-order"),
+    true,
+  );
+
+  const standalone = lintMarkdown(
+    `# Quiz
+
+### Deelvraag 27a
+Question?
+- A. Yes
+- B. No
+Correct antwoord: A
+`,
+    "quiz-test.md",
+  );
+  assertEquals(standalone[0].rule, "quiz-subquestion-without-assignment");
+  assertEquals(standalone[0].severity, "error");
+});
+
+Deno.test("lint uses configured English and Dutch prefixes and reports bad heading levels", () => {
+  const english = lintMarkdown(
+    `# Quiz
+
+## Assignment 2
+Context.
+
+### Question 2a
+Prompt.
+- A. Yes
+- B. No
+Correct answer: A
+`,
+    "quiz-test.md",
+    { assignmentPrefix: "Assignment", questionPrefix: "Question" },
+  );
+  assertEquals(english.some((issue) => issue.rule.startsWith("quiz-")), false);
+
+  const dutch = lintMarkdown(
+    `# Quiz
+
+## Opgave 2
+Context.
+
+### Vraag 2a
+Prompt.
+- A. Ja
+- B. Nee
+Correct antwoord: A
+`,
+    "quiz-test.md",
+    { assignmentPrefix: "Opgave", questionPrefix: "Vraag" },
+  );
+  assertEquals(dutch.some((issue) => issue.rule.startsWith("quiz-")), false);
+
+  const invalid = lintMarkdown(
+    `# Assignment 5
+
+### Assignment 2
+Context.
+
+## Question 2a
+Prompt.
+- A. Yes
+- B. No
+Correct answer: A
+`,
+    "quiz-test.md",
+  );
+  assertEquals(
+    invalid.filter((issue) => issue.rule === "quiz-heading-level").length,
+    2,
+  );
+  assertEquals(
+    invalid.some((issue) =>
+      issue.rule === "quiz-subquestion-without-assignment" &&
+      issue.severity === "error"
+    ),
+    true,
+  );
+});
+
 Deno.test("lint output colors only the severity word, and only when asked", () => {
   const warning = {
     severity: "warning" as const,
@@ -490,10 +602,17 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
 });
 
 Deno.test("lint warns when 'Label: value' metadata fields run together in one paragraph", () => {
-  const rules = (source: string) => lintMarkdown(source, "doc.md").map((issue) => issue.rule);
-  assertEquals(rules("_Author_: A _Version_: 1\n"), ["metadata-fields-one-line"]);
-  assertEquals(rules("_Author_: A\n_Version_: 1\n"), ["metadata-fields-one-line"]);
-  assertEquals(rules("**Author:** A\n**Version:** 1\n"), ["metadata-fields-one-line"]);
+  const rules = (source: string) =>
+    lintMarkdown(source, "doc.md").map((issue) => issue.rule);
+  assertEquals(rules("_Author_: A _Version_: 1\n"), [
+    "metadata-fields-one-line",
+  ]);
+  assertEquals(rules("_Author_: A\n_Version_: 1\n"), [
+    "metadata-fields-one-line",
+  ]);
+  assertEquals(rules("**Author:** A\n**Version:** 1\n"), [
+    "metadata-fields-one-line",
+  ]);
   // List items, separate paragraphs and a single field are fine.
   assertEquals(rules("- _Author_: A\n- _Version_: 1\n"), []);
   assertEquals(rules("_Author_: A\n\n_Version_: 1\n"), []);
@@ -584,7 +703,9 @@ Deno.test("CLI lint puts one blank line before the summary only when there are d
 });
 
 Deno.test("lint colors only on a terminal without NO_COLOR and TERM=dumb", () => {
-  const env = (vars: Record<string, string>) => ({ get: (k: string) => vars[k] });
+  const env = (vars: Record<string, string>) => ({
+    get: (k: string) => vars[k],
+  });
   assertEquals(shouldColorLint(true, env({ TERM: "xterm-256color" })), true);
   assertEquals(shouldColorLint(true, env({})), true);
   assertEquals(shouldColorLint(false, env({ TERM: "xterm" })), false);
@@ -598,11 +719,19 @@ Deno.test("lint accepts both flashcard syntaxes in a flashcard section and warns
     lintMarkdown(source, "lesson.md", opts).map((issue) => issue.rule);
   assertEquals(rules("## Kernbegrippen\n\n- request: Message.\n"), []);
   assertEquals(rules(`## Kernbegrippen\n\n${valid}\n`), []);
-  assertEquals(rules("## Kernbegrippen\n\nOnly prose.\n"), ["flashcard-section-content"]);
+  assertEquals(rules("## Kernbegrippen\n\nOnly prose.\n"), [
+    "flashcard-section-content",
+  ]);
   assertEquals(rules("## Kernbegrippen\n"), ["flashcard-section-content"]);
   // Without configuration the default heading 'Core concepts' (any case) is checked.
-  assertEquals(rules("## core CONCEPTS\n\nOnly prose.\n", {} as typeof options), ["flashcard-section-content"]);
-  assertEquals(rules(`## Core concepts\n\n${valid}\n`, {} as typeof options), []);
+  assertEquals(
+    rules("## core CONCEPTS\n\nOnly prose.\n", {} as typeof options),
+    ["flashcard-section-content"],
+  );
+  assertEquals(
+    rules(`## Core concepts\n\n${valid}\n`, {} as typeof options),
+    [],
+  );
 });
 
 Deno.test("lint warns about paragraphs hard-wrapped at a fixed column", () => {
@@ -614,7 +743,9 @@ Deno.test("lint warns about paragraphs hard-wrapped at a fixed column", () => {
     "spaces, so readers see no difference in the output at all.",
   ].join("\n");
   assertEquals(rules(wrapped), ["hard-wrapped-lines"]);
-  assertEquals(rules(`- item ${wrapped.replaceAll("\n", "\n  ")}\n`), ["hard-wrapped-lines"]);
+  assertEquals(rules(`- item ${wrapped.replaceAll("\n", "\n  ")}\n`), [
+    "hard-wrapped-lines",
+  ]);
   // One line, two lines, short lines, uneven lines and code are fine.
   assertEquals(rules(wrapped.replaceAll("\n", " ")), []);
   assertEquals(rules(wrapped.split("\n").slice(0, 2).join("\n")), []);

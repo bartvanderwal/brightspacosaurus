@@ -321,6 +321,9 @@ export async function runPrepare(
         sourcesDir: config.sourcesDir,
         maxAttempts: config.quiz.maxAttempts,
         shuffleAnswers: config.quiz.shuffleAnswers,
+        locale: config.quiz.locale,
+        assignmentPrefix: config.quiz.assignmentPrefix,
+        questionPrefix: config.quiz.questionPrefix,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
@@ -663,11 +666,25 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
             "",
           );
           const title = extractAssessmentTitle(xml, fallbackTitle);
+          const dependencies = new Set<string>();
+          for (const [, source] of xml.matchAll(/src=&quot;([^&"]+)&quot;/gi)) {
+            let assetPath = source;
+            try {
+              assetPath = decodeURIComponent(assetPath.split(/[?#]/, 1)[0]);
+            } catch {
+              continue;
+            }
+            const assetFullPath = resolve(dirname(fullPath), assetPath);
+            const assetRelative = relative(quizDir, assetFullPath);
+            if (assetRelative.startsWith("..")) continue;
+            dependencies.add(`quiz/${assetRelative}`);
+          }
           entries.push({
             id,
             title,
             href: relPath,
             type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+            dependencies: [...dependencies],
           });
         }
       }

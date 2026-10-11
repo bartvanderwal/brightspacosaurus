@@ -173,7 +173,13 @@ function testConfig(repoRoot: string, explicit: boolean): ResolvedConfig {
     docusaurusDir: null,
     teacherManual: null,
     teacherDashboard: null,
-    quiz: { maxAttempts: 0, shuffleAnswers: false },
+    quiz: {
+      maxAttempts: 0,
+      shuffleAnswers: false,
+      locale: "en",
+      assignmentPrefix: "Assignment",
+      questionPrefix: "Question",
+    },
     teacherPage: { path: join(sourcesDir, "for-teachers.md"), explicit },
     diagrams: {
       krokiUrl: "https://kroki.io",
