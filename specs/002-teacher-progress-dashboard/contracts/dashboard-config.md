@@ -61,6 +61,23 @@ The `teacherDashboard` property is optional at the top level of `brightspacosaur
       "minimum": 0,
       "maximum": 100,
       "default": 50
+    },
+    "weeks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["title", "startsOn", "repos"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1 },
+          "startsOn": { "type": "string", "format": "date" },
+          "repos": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
     }
   }
 }
@@ -76,3 +93,4 @@ The `teacherDashboard` property is optional at the top level of `brightspacosaur
    - `orangeThresholdPercent` must be strictly less than `redThresholdPercent`:
      $0 \le \text{orangeThresholdPercent} < \text{redThresholdPercent} \le 100$.
 5. If validation fails, `bso prepare` fails immediately with an actionable error message on `stderr`.
+6. Optional `weeks` must be ordered by unique ascending `startsOn` dates. Every configured repository prefix must occur in exactly one week.

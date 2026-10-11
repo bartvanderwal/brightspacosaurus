@@ -10,6 +10,8 @@ import fc from "fast-check";
 import {
   evaluateRepoStoplight,
   evaluateWorkItem,
+  currentWeekIndex,
+  oldestRepoFetchedAt,
   extractStudentIdentifier,
   isTeacherCommit,
   isWorkItemCommit,
@@ -100,6 +102,18 @@ Deno.test("isWorkItemCommit matches #<iid> with boundaries", () => {
 // Work Item Stoplight Status Evaluation
 // ---------------------------------------------------------------------------
 
+Deno.test("currentWeekIndex chooses the week active on the reference date", () => {
+  const weeks = [
+    { startsOn: "2026-09-01" },
+    { startsOn: "2026-09-08" },
+    { startsOn: "2026-09-15" },
+  ];
+  assertEquals(currentWeekIndex(weeks, new Date("2026-08-31T12:00:00")), -1);
+  assertEquals(currentWeekIndex(weeks, new Date("2026-09-01T00:00:00")), 0);
+  assertEquals(currentWeekIndex(weeks, new Date("2026-09-14T23:59:59")), 1);
+  assertEquals(currentWeekIndex(weeks, new Date("2026-09-15T00:00:00")), 2);
+});
+
 Deno.test("evaluateWorkItem: done with student commits and comments is green", () => {
   const result = evaluateWorkItem({
     state: "closed",
@@ -111,6 +125,73 @@ Deno.test("evaluateWorkItem: done with student commits and comments is green", (
   assertEquals(result.color, "green");
   assertEquals(result.isDone, true);
   assertEquals(result.isNeutral, false);
+});
+
+Deno.test("evaluateWorkItem: work before its course week is neutral, even when marked todo or doing", () => {
+  const referenceDate = new Date("2026-09-01T12:00:00");
+  for (const statusLabel of [undefined, "status::doing"]) {
+    const result = evaluateWorkItem({
+      state: "opened",
+      statusLabel,
+      availableFrom: "2026-09-08",
+      studentCommitsCount: 0,
+      studentCommentsCount: 0,
+      requireCommentsForDone: false,
+      referenceDate,
+    });
+    assertEquals(result.color, "gray");
+    assertEquals(result.isNeutral, true);
+    assertEquals(result.reason, "Opdracht nog niet aan de beurt");
+  }
+  const started = evaluateWorkItem({
+    state: "opened",
+    availableFrom: "2026-09-01",
+    studentCommitsCount: 0,
+    studentCommentsCount: 0,
+    requireCommentsForDone: false,
+    referenceDate,
+  });
+  assertEquals(started.color, "red");
+});
+
+Deno.test("evaluateWorkItem: future done work is neutral unless completion requirements are met", () => {
+  const referenceDate = new Date("2026-09-01T12:00:00");
+  const future = {
+    state: "closed",
+    availableFrom: "2026-09-08",
+    studentCommitsCount: 0,
+    studentCommentsCount: 0,
+    requireCommentsForDone: false,
+    referenceDate,
+  };
+
+  assertEquals(evaluateWorkItem(future), {
+    color: "gray",
+    reason: "Opdracht nog niet aan de beurt",
+    isDone: false,
+    isNeutral: true,
+  });
+  assertEquals(evaluateWorkItem({
+    ...future,
+    studentCommitsCount: 1,
+    requireCommentsForDone: true,
+  }), {
+    color: "gray",
+    reason: "Opdracht nog niet aan de beurt",
+    isDone: false,
+    isNeutral: true,
+  });
+  assertEquals(evaluateWorkItem({
+    ...future,
+    studentCommitsCount: 1,
+    studentCommentsCount: 1,
+    requireCommentsForDone: true,
+  }), {
+    color: "green",
+    reason: "Status done met eigen commits",
+    isDone: true,
+    isNeutral: false,
+  });
 });
 
 Deno.test("evaluateWorkItem: done without student commits is orange", () => {
@@ -343,6 +424,31 @@ Deno.test("Property: evaluateRepoStoplight preserves mathematical bounds and thr
 });
 
 // ---------------------------------------------------------------------------
+// Per-repository freshness
+// ---------------------------------------------------------------------------
+
+Deno.test("oldestRepoFetchedAt reports the oldest timestamp for selected repositories only", () => {
+  const students = [
+    {
+      repos: [
+        { prefix: "week-one", fetchedAt: "2026-10-01T10:00:00.000Z" },
+        { prefix: "week-two", fetchedAt: "2026-10-10T10:00:00.000Z" },
+      ],
+    },
+    {
+      repos: [
+        { prefix: "week-one", fetchedAt: "2026-10-03T10:00:00.000Z" },
+        { prefix: "week-two", fetchedAt: "2026-10-11T10:00:00.000Z" },
+      ],
+    },
+  ];
+
+  assertEquals(oldestRepoFetchedAt(students, ["week-one"]), "2026-10-01T10:00:00.000Z");
+  assertEquals(oldestRepoFetchedAt(students, ["week-two"]), "2026-10-10T10:00:00.000Z");
+  assertEquals(oldestRepoFetchedAt(students, ["missing"]), null);
+});
+
+// ---------------------------------------------------------------------------
 // Single source: the page uses calc.js, app.js has no own copy of the rules
 // ---------------------------------------------------------------------------
 
@@ -350,14 +456,17 @@ Deno.test("dashboard page loads calc.js before app.js and app.js does not redefi
   const { loadAssetText } = await import("../src/assets.ts");
   const html = await loadAssetText("teacher-dashboard/index.html");
   const app = await loadAssetText("teacher-dashboard/app.js");
+  const stateAt = html.indexOf('<script src="state.js">');
   const calcAt = html.indexOf('<script src="calc.js">');
   const appAt = html.indexOf('<script src="app.js">');
+  assertEquals(stateAt >= 0 && calcAt >= 0 && stateAt < appAt && calcAt < appAt, true);
   assertEquals(calcAt >= 0 && calcAt < appAt, true, "calc.js must load before app.js");
   for (
     const name of [
       "extractStudentIdentifier",
       "isTeacherCommit",
       "isWorkItemCommit",
+      "currentWeekIndex",
       "evaluateWorkItem",
       "evaluateRepoStoplight",
     ]

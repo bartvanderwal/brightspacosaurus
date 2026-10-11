@@ -55,8 +55,49 @@
   }
 
   /**
+   * Index of the latest course week that has started, or -1 before the course.
+   * @param {Array<{ startsOn: string }>} weeks
+   * @param {Date} [referenceDate]
+   * @returns {number}
+   */
+  function currentWeekIndex(weeks, referenceDate = new Date()) {
+    const today = `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}-${
+      String(referenceDate.getDate()).padStart(2, "0")
+    }`;
+    let current = -1;
+    for (let i = 0; i < weeks.length; i++) {
+      if (weeks[i].startsOn > today) break;
+      current = i;
+    }
+    return current;
+  }
+
+  /**
+   * Oldest fetch timestamp among the selected repositories for all students.
+   * @param {Array<{ repos: Array<{ prefix: string, fetchedAt?: string }> }>} students
+   * @param {string[]} repoPrefixes
+   * @returns {string | null}
+   */
+  function oldestRepoFetchedAt(students, repoPrefixes) {
+    const selected = new Set(repoPrefixes);
+    let oldest = null;
+    let oldestTime = Infinity;
+    for (const student of students) {
+      for (const repo of student.repos) {
+        if (!selected.has(repo.prefix) || !repo.fetchedAt) continue;
+        const fetchedTime = Date.parse(repo.fetchedAt);
+        if (Number.isFinite(fetchedTime) && fetchedTime < oldestTime) {
+          oldest = repo.fetchedAt;
+          oldestTime = fetchedTime;
+        }
+      }
+    }
+    return oldest;
+  }
+
+  /**
    * Stoplight for one work item.
-   * @param {{ state: string, statusLabel?: string | null, dueDate?: string | null,
+   * @param {{ state: string, statusLabel?: string | null, dueDate?: string | null, availableFrom?: string | null,
    *   studentCommitsCount: number, studentCommentsCount: number,
    *   requireCommentsForDone: boolean, referenceDate?: Date }} input
    * @returns {{ color: "green" | "orange" | "red" | "gray", reason: string,
@@ -67,11 +108,18 @@
       state,
       statusLabel,
       dueDate,
+      availableFrom,
       studentCommitsCount,
       studentCommentsCount,
       requireCommentsForDone,
       referenceDate = new Date(),
     } = input;
+
+    const isFutureWorkItem = availableFrom && /^\d{4}-\d{2}-\d{2}$/.test(availableFrom) &&
+      availableFrom >
+        `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, "0")}-${
+          String(referenceDate.getDate()).padStart(2, "0")
+        }`;
 
     let logicalStatus = "todo";
     if (statusLabel) {
@@ -89,12 +137,22 @@
 
     if (logicalStatus === "done") {
       if (studentCommitsCount <= 0) {
+        if (isFutureWorkItem) {
+          return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
+        }
         return { color: "orange", reason: "Status done zonder eigen commits", isDone: false, isNeutral: false };
       }
       if (requireCommentsForDone && studentCommentsCount <= 0) {
+        if (isFutureWorkItem) {
+          return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
+        }
         return { color: "orange", reason: "Status done, maar geen opmerking van de student", isDone: false, isNeutral: false };
       }
       return { color: "green", reason: "Status done met eigen commits", isDone: true, isNeutral: false };
+    }
+
+    if (isFutureWorkItem) {
+      return { color: "gray", reason: "Opdracht nog niet aan de beurt", isDone: false, isNeutral: true };
     }
 
     if (logicalStatus === "doing") {
@@ -145,7 +203,7 @@
         incompletePercent: 0,
         scorableWorkItems: 0,
         ...counts,
-        reason: totalWorkItems === 0 ? "Geen work items in deze repo" : "Alle work items hebben een toekomstige deadline",
+        reason: totalWorkItems === 0 ? "Geen work items in deze repo" : "Alle work items hebben een toekomstige deadline of startdatum",
       };
     }
 
@@ -170,6 +228,8 @@
     extractStudentIdentifier,
     isTeacherCommit,
     isWorkItemCommit,
+    currentWeekIndex,
+    oldestRepoFetchedAt,
     evaluateWorkItem,
     evaluateRepoStoplight,
   };
