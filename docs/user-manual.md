@@ -617,7 +617,7 @@ The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO s
 - `- [ ]` / `- [x]` for multiple-response options; at least one `[x]` is required.
 - `= answer / accepted variant ~20` for an auto-graded short answer with accepted variants and an optional maximum input length.
 
-Question and option order is kept deterministic; numbered options can reserve their display position. Mixing round and square option markers, or combining options with short-answer syntax, is invalid. See the [Quizzosaurus syntax example](https://bartvanderwal.github.io/remark-kroki-a11y/examples/uml-quiz-experimental-syntax) and the [QuizDown/Quizzosaurus module documentation](https://github.com/bartvanderwal/remark-kroki-a11y/tree/main/test-docusaurus-site/src/components/Quiz).
+Question and option order is kept deterministic; numbered options can reserve their display position. Mixing round and square option markers, or combining options with short-answer syntax, is invalid. See the [QuizDown syntax](quizzosaurus-syntax.md) for all markers, the heading form and the lint rules.
 
 For each quiz Markdown file, BSO generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -49,7 +49,7 @@ We choose Option C.
 
 1. **QuizDown** is the name of the preferred quiz syntax, and **Quizzosaurus** (QZO) the package with model, parsers, linter and generators. A Docusaurus plugin is named `remark-quizzosaurus`.
 2. **Composition:** QuizDown only defines structure. All text inside it is Markdown. Markers are line markers outside fenced code. No HTML tags are required.
-3. **Markers:** `( )` for single choice, `[ ]` for multiple response, `=` for open answers, `?` for questions, `!` for hints, and `@` for assignments with shared context. Headings can carry the same markers (`## ?`, `## @`). A question ends implicitly at the next question or at a heading of the same or a higher level. Points are written `(2 pt)` or `(2)`.
+3. **Markers:** `( )` for single choice, `[ ]` for multiple response, `=` for open answers, `?` for questions, `!` for hints, and `@` for assignments with shared context. Headings can carry the same markers (`## ? Title`, `## @ Title`); the heading text is the question, with a free title and no required number, and a plain heading is a section. A question ends implicitly at the next question or at a heading of the same or a higher level. Points are written `(2 pt)` or `(2)`. Options may carry an `a.` label that must match their position. A question or sub-question may have one explanation, a subheading named `Toelichting` or `Explanation` one level below it; any other subheading inside a question is an error, while the shared context of an assignment may contain subheadings.
 4. **Strict, not forgiving (conceptual integrity):** one canonical form per concept; deviations are errors with an actionable message. Warnings are for pure style. The format is recognised by explicit markers, and a breaking change gets an explicit version.
 5. **Linter:** a separate QuizDown linter module in Quizzosaurus, usable standalone. `bso lint` calls it, only for files that contain QuizDown. Issues carry a severity (`error` or `warning`).
 6. **Pit of success:** the strict syntax is not a burden on authors, because the easiest thing to write is also the correct thing. Sensible defaults replace configuration (for example default points and answer shuffling), and every error message names the fix. Atwood, quoting Mariani, puts the goal as follows: "we want our customers to simply fall into winning practices by using our platform and frameworks." (Atwood, 2007). Atwood adds that "a well-designed system makes it easy to do the right things and annoying (but not impossible) to do the wrong things" (Atwood, 2007). Strictness decides what is accepted; the pit of success decides how little the author must do to be accepted.
@@ -67,7 +67,8 @@ We choose Option C.
 
 - Two parsers during the migration.
 - The name QuizDown clashes with an existing project of the same name that uses `[ ]` for single choice. The same file can then mean different things in the two tools. The name is kept for now; availability of the package name and domain must be checked, and a distinct name remains an option. An explicit version marker reduces the risk.
-- Open syntax points: long open answers, a teacher-only model answer, and whether a bare `(N)` is unambiguous.
+- Open syntax points: long open answers, a teacher-only model answer, an explanation marker in the fenced form, and whether a bare `(N)` is unambiguous.
+- How Brightspace displays the explanation (written as a second QTI item feedback) and the hint is not verified.
 - The import of a Section Text into Brightspace still has to be verified in a sandbox.
 
 ## References
