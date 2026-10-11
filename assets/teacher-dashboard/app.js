@@ -357,6 +357,7 @@
     });
     const attention = (l) => !["ok", "idle"].includes(l);
     const agg = studentAggregate(s, visible, settings);
+    const studentId = parentId ? `${parentId}/${s.studentId}` : s.studentId;
     const repos = visibleRepos(s, visible).map((repo) => {
       const ragg = repoAggregate(repo, settings);
       const items = repo.workItems
@@ -364,21 +365,21 @@
         .filter(({ cl }) => !filter || attention(cl.light))
         .map(({ it, cl }) => {
           const commits = it.commits.map((c) =>
-            node(`${s.studentId}/${repo.prefix}/${it.iid}/${c.id}`, "commit", c.title, null, c.shortId, {
+            node(`${studentId}/${repo.prefix}/${it.iid}/${c.id}`, "commit", c.title, null, c.shortId, {
               student: s,
               repo,
               item: it,
               commit: c,
             }, [])
           );
-          return node(`${s.studentId}/${repo.prefix}/${it.iid}`, "item", `#${it.iid} ${it.title}`, cl.light,
+          return node(`${studentId}/${repo.prefix}/${it.iid}`, "item", `#${it.iid} ${it.title}`, cl.light,
             it.commits.length ? `${it.commits.length} commit${it.commits.length > 1 ? "s" : ""}` : (it.statusLabel || it.state),
             { student: s, repo, item: it }, commits);
         });
       const meta = !repo.exists ? "geen repo" : repo.error ? "fout" : `${ragg.n.ok}/${ragg.total}`;
-      return node(`${s.studentId}/${repo.prefix}`, "repo", repo.label, ragg.light, meta, { student: s, repo }, items);
+      return node(`${studentId}/${repo.prefix}`, "repo", repo.label, ragg.light, meta, { student: s, repo }, items);
     }).filter((r) => !filter || attention(r.light));
-    return node(parentId ? `${parentId}/${s.studentId}` : s.studentId, "student", s.studentId, agg.light,
+    return node(studentId, "student", s.studentId, agg.light,
       `${agg.n.ok}/${agg.total}`, { student: s }, repos);
   }
 
@@ -505,7 +506,7 @@
 
   // --- Detail views ---
 
-  function KlasDetail({ klas, students, visible, settings, onPick }) {
+  function KlasDetail({ klas, students, visible, settings, weekId, onPick }) {
     const repos = config.repos.filter((r) => visible.has(r.prefix));
     const all = students.map((s) => ({
       s,
@@ -524,7 +525,8 @@
       </div>
       <div className="scroll"><table>
         <thead><tr><th>Student</th><th>Totaal</th>${repos.map((r) => html`<th key=${r.prefix}>${r.label}</th>`)}<th>Verdeling</th></tr></thead>
-        <tbody>${all.map(({ s, agg, repos: ras }) => html`<tr key=${s.studentId} className="click" onClick=${() => onPick(s.studentId)}>
+        <tbody>${all.map(({ s, agg, repos: ras }) => html`<tr key=${s.studentId} className="click"
+          onClick=${() => onPick(weekId ? `${weekId}/${s.studentId}` : s.studentId)}>
           <td><strong>${s.studentId}</strong></td>
           <td><${Light} l=${agg.light} /></td>
           ${ras.map((a, i) => html`<td key=${i} title=${a.reason}><${Light} l=${a.light}
@@ -560,7 +562,7 @@
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""))[0];
   }
 
-  function StudentDetail({ s, visible, settings, onPick, onRefresh, busy, week }) {
+  function StudentDetail({ s, visible, settings, onPick, onRefresh, busy, week, nodeId }) {
     const scopedVisible = week
       ? new Set([...visible].filter((prefix) => week.repos.includes(prefix)))
       : visible;
@@ -579,7 +581,7 @@
         <thead><tr><th>Repo</th><th>Stoplicht</th><th className="num">Groen</th><th className="num">Oranje</th><th className="num">Rood</th><th className="num">Nog niet</th><th>Verdeling</th></tr></thead>
         <tbody>${visibleRepos(s, scopedVisible).map((r) => {
           const a = repoAggregate(r, settings);
-          return html`<tr key=${r.prefix} className="click" onClick=${() => onPick(`${s.studentId}/${r.prefix}`)}>
+          return html`<tr key=${r.prefix} className="click" onClick=${() => onPick(`${nodeId}/${r.prefix}`)}>
             <td><strong>${r.label}</strong>${!r.exists || r.error ? html`<div className="reason">${a.reason}</div>` : null}</td>
             <td><${Light} l=${a.light} /></td><td className="num">${a.n.ok}</td><td className="num">${a.n.warn}</td>
             <td className="num">${a.n.bad}</td><td className="num muted">${a.idle}</td><td><${Stack} n=${a.n} total=${a.total} /></td></tr>`;
@@ -588,7 +590,7 @@
     </div>`;
   }
 
-  function RepoDetail({ s, repo, settings, onPick }) {
+  function RepoDetail({ s, repo, settings, onPick, nodeId }) {
     const a = repoAggregate(repo, settings);
     if (!repo.exists || repo.error) {
       return html`<div className="detail">
@@ -604,7 +606,7 @@
         <thead><tr><th>Work item</th><th>Stoplicht</th><th>Reden</th><th className="num">Commits</th><th className="num">MR's</th><th>Deadline</th></tr></thead>
         <tbody>${repo.workItems.map((it) => {
           const cl = classifyItem(it, settings);
-          return html`<tr key=${it.iid} className="click" onClick=${() => onPick(`${s.studentId}/${repo.prefix}/${it.iid}`)}>
+          return html`<tr key=${it.iid} className="click" onClick=${() => onPick(`${nodeId}/${repo.prefix}/${it.iid}`)}>
             <td><span className="mono muted">#${it.iid}</span> ${it.title}</td><td><${Light} l=${cl.light} /></td>
             <td className="reason">${cl.reason}</td><td className="num">${it.commits.length}</td>
             <td className="num">${it.mergeRequests.length}</td><td className="mono">${fmtDate(it.dueDate)}</td></tr>`;
@@ -887,14 +889,15 @@
         ? `Nog niets opgehaald voor ${klas || config.groupPath}. Kies "Haal status uit GitLab".`
         : "Plak eerst een GitLab-token (fine-grained, alleen lezen). Zie de handleiding voor de benodigde rechten."}</div>`;
     } else if (node.type === "klas") {
-      detail = html`<${KlasDetail} klas=${klas} students=${students} visible=${visible} settings=${settings} onPick=${pick} />`;
+      const weekId = selectedWeek ? weekNodeId(klas, selectedWeek) : "";
+      detail = html`<${KlasDetail} klas=${klas} students=${students} visible=${visible} settings=${settings} weekId=${weekId} onPick=${pick} />`;
     } else if (node.type === "week") {
       detail = html`<${WeekDetail} week=${d.week} weekId=${node.id} students=${students} visible=${visible} settings=${settings} onPick=${pick} />`;
     } else if (node.type === "student") {
-      detail = html`<${StudentDetail} s=${d.student} visible=${visible} settings=${settings} week=${week} onPick=${pick}
+      detail = html`<${StudentDetail} s=${d.student} visible=${visible} settings=${settings} week=${week} nodeId=${node.id} onPick=${pick}
         onRefresh=${refreshStudent} busy=${!!busy} />`;
     } else if (node.type === "repo") {
-      detail = html`<${RepoDetail} s=${d.student} repo=${d.repo} settings=${settings} onPick=${pick} />`;
+      detail = html`<${RepoDetail} s=${d.student} repo=${d.repo} settings=${settings} nodeId=${path[path.length - 2]?.id || d.student.studentId} onPick=${pick} />`;
     } else if (node.type === "item") {
       detail = html`<${ItemDetail} item=${d.item} settings=${settings} />`;
     } else if (node.type === "commit") {
