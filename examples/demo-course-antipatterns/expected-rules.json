@@ -40,5 +40,9 @@
   "lessons/quizzes/quiz-unindented-option-content.md": "quizdown-unindented-option-content",
   "lessons/quizzes/quiz-assignment-no-context.md": "quizdown-assignment-no-context",
   "lessons/quizzes/quiz-mixed-formats.md": "quizdown-mixed-formats",
+  "lessons/quizzes/quiz-heading-in-question.md": "quizdown-heading-in-question",
+  "lessons/quizzes/quiz-nested-question.md": "quizdown-nested-question",
+  "lessons/quizzes/quiz-option-label.md": "quizdown-option-label",
+  "lessons/quizzes/quiz-heading-title.md": "quizdown-heading-title",
   "lessons/quizzes/quiz-no-bias.md": null
 }

@@ -107,7 +107,29 @@ export function parseQuizMarkdown(
   options: QuizHeadingOptions = {},
 ): ParsedQuiz {
   const quizDownBlock = extractQuizDownBlock(content);
-  if (quizDownBlock !== null) return parseQuizDown(quizDownBlock, content);
+  if (quizDownBlock !== null) {
+    const quiz = parseQuizDown(quizDownBlock.body, content);
+    // Report lines in the file, not in the block.
+    const shift = (line: number) => line + quizDownBlock.startLine - 1;
+    for (const issue of quiz.issues!) issue.line = shift(issue.line);
+    for (const question of quiz.questions) {
+      if (question.line !== undefined) question.line = shift(question.line);
+    }
+    for (const block of quiz.blocks ?? []) {
+      if (block.type === "assignment" && block.assignment.line !== undefined) {
+        block.assignment.line = shift(block.assignment.line);
+      }
+    }
+    return quiz;
+  }
+  if (hasQuizDownHeadings(content)) {
+    const converted = quizDownFromHeadings(content);
+    const quiz = parseQuizDown(converted.source, content);
+    quiz.issues = [...converted.issues, ...quiz.issues!].sort((a, b) =>
+      a.line - b.line
+    );
+    return quiz;
+  }
 
   const quiz: ParsedQuiz = { title: "", questions: [], blocks: [], issues: [] };
   let question: QuizQuestion | undefined;
@@ -485,15 +507,152 @@ export function parseQuizMarkdown(
 
 /** True when the Markdown holds a fenced `quiz` block, the QuizDown syntax. */
 export function isQuizDown(content: string): boolean {
-  return extractQuizDownBlock(content) !== null;
+  return extractQuizDownBlock(content) !== null ||
+    hasQuizDownHeadings(content);
 }
 
-function extractQuizDownBlock(content: string): string | null {
+/** Marks a line that ends the current assignment before it is read. */
+const END_ASSIGNMENT = "\u0000";
+
+const quizDownHeading = /^(#{1,6})\s+(.*?)\s*$/;
+
+/** Visit the lines outside fenced code, with their one-based line numbers. */
+function outsideFences(
+  content: string,
+  visit: (raw: string, line: number) => void,
+): void {
+  let fence: { character: string; length: number } | undefined;
+  for (const [index, raw] of content.split(/\r?\n/).entries()) {
+    const opening = raw.match(/^\s*(`{3,}|~{3,})(.*)$/);
+    if (opening) {
+      if (!fence) {
+        fence = { character: opening[1][0], length: opening[1].length };
+      } else if (
+        opening[1][0] === fence.character &&
+        opening[1].length >= fence.length && !opening[2].trim()
+      ) {
+        fence = undefined;
+      }
+      continue;
+    }
+    if (!fence) visit(raw, index + 1);
+  }
+}
+
+/** True when a heading outside code starts with `?` or `@`: QuizDown heading form. */
+export function hasQuizDownHeadings(content: string): boolean {
+  let found = false;
+  outsideFences(content, (raw) => {
+    const heading = raw.match(quizDownHeading);
+    if (heading && heading[1].length >= 2 && /^[?@](?:\s|$)/.test(heading[2])) {
+      found = true;
+    }
+  });
+  return found;
+}
+
+/**
+ * Rewrites QuizDown heading form (`## ? Question`, `## @ Assignment`) to the
+ * marker form, one output line per input line, so line numbers stay exact.
+ *
+ * - `## @ Title` and `## ? Title` become `@ Title` and `? Title`.
+ * - A heading of the same or a higher level ends the question, and an
+ *   assignment ends at a heading of its own or a higher level; a plain heading
+ *   becomes a section break (a lone END_ASSIGNMENT line).
+ * - Headings inside a question are reported, not guessed.
+ */
+function quizDownFromHeadings(
+  content: string,
+): { source: string; issues: QuizIssue[] } {
+  const issues: QuizIssue[] = [];
+  const lines = content.split(/\r?\n/);
+  const output = [...lines];
+  let assignmentLevel: number | undefined;
+  let questionLevel: number | undefined;
+  outsideFences(content, (raw, line) => {
+    const heading = raw.match(quizDownHeading);
+    if (!heading) return;
+    const level = heading[1].length;
+    const text = heading[2];
+    const marker = text.match(/^([?@])(?:\s+(.*))?$/);
+    if (level === 1) {
+      output[line - 1] = END_ASSIGNMENT;
+      assignmentLevel = questionLevel = undefined;
+      return;
+    }
+    if (marker?.[1] === "@") {
+      if (!marker[2]) {
+        issues.push({
+          rule: "quizdown-heading-title",
+          line,
+          message: "An assignment heading needs a title: '## @ Title'.",
+          severity: "error",
+        });
+      }
+      output[line - 1] = `@ ${marker[2] ?? "(untitled)"}`;
+      assignmentLevel = level;
+      questionLevel = undefined;
+      return;
+    }
+    if (marker?.[1] === "?") {
+      if (!marker[2]) {
+        issues.push({
+          rule: "quizdown-heading-title",
+          line,
+          message: "A question heading needs a title: '## ? Title'.",
+          severity: "error",
+        });
+      }
+      let prefix = "";
+      if (assignmentLevel !== undefined && level <= assignmentLevel) {
+        prefix = END_ASSIGNMENT;
+        assignmentLevel = undefined;
+      }
+      if (questionLevel !== undefined && level > questionLevel) {
+        issues.push({
+          rule: "quizdown-nested-question",
+          line,
+          message:
+            "A question cannot contain a question. Use '## @ Title' for an assignment with sub-questions.",
+          severity: "error",
+        });
+      }
+      questionLevel = level;
+      output[line - 1] = `${prefix}? ${marker[2] ?? "(untitled)"}`;
+      return;
+    }
+    if (questionLevel !== undefined && level > questionLevel) {
+      issues.push({
+        rule: "quizdown-heading-in-question",
+        line,
+        message:
+          "A heading inside a question is not supported; end the question with a heading of the same or a higher level.",
+        severity: "error",
+      });
+      output[line - 1] = "";
+      return;
+    }
+    if (
+      assignmentLevel !== undefined && questionLevel === undefined &&
+      level > assignmentLevel
+    ) {
+      return; // A heading inside the shared context stays Markdown.
+    }
+    output[line - 1] = END_ASSIGNMENT; // A section break.
+    assignmentLevel = questionLevel = undefined;
+  });
+  return { source: output.join("\n"), issues };
+}
+
+function extractQuizDownBlock(
+  content: string,
+): { body: string; startLine: number } | null {
   const lines = content.split(/\r?\n/);
   for (let index = 0; index < lines.length; index++) {
     const opening = lines[index].match(/^\s*(`{3,}|~{3,})\s*(\S+)(.*)$/);
     if (!opening) continue;
     const fence = opening[1];
+    const openingLine = index;
     let nestedFenceLength = 0;
     let nestedFenceCharacter = "";
     const body: string[] = [];
@@ -525,7 +684,9 @@ function extractQuizDownBlock(content: string): string | null {
         !nestedFenceLength &&
         closing[1].length >= fence.length
       ) {
-        if (/^(?:quiz|quizz)$/i.test(opening[2])) return body.join("\n");
+        if (/^(?:quiz|quizz)$/i.test(opening[2])) {
+          return { body: body.join("\n"), startLine: openingLine + 2 };
+        }
         break;
       }
       body.push(lines[index]);
@@ -630,8 +791,22 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
   const fenceOpening = (line: string) =>
     line.trim().match(/^(`{3,}|~{3,})\s*(?:[^`~\s].*)?$/)?.[1] ?? null;
 
+  let ignoreText = false;
   const lines = source.split(/\r?\n/);
-  for (const [index, raw] of lines.entries()) {
+  for (const [index, line] of lines.entries()) {
+    let raw = line;
+    if (raw.startsWith(END_ASSIGNMENT) && codeFence === null) {
+      // From heading form: this line ends the current assignment first.
+      finalizeQuestion(index + 1);
+      question = undefined;
+      assignment = undefined;
+      currentOption = undefined;
+      raw = raw.slice(1);
+      if (!raw.trim()) {
+        ignoreText = true; // A section break: text up to the next marker is not part of a quiz.
+        continue;
+      }
+    }
     const trimmed = raw.trim();
     if (codeFence !== null) {
       appendText(raw);
@@ -654,6 +829,7 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
     if (continuesOption) appendText("");
     if (!continuesOption && blankAfterOption) currentOption = undefined;
     blankAfterOption = false;
+    if (/^[?@]\s/.test(trimmed)) ignoreText = false;
     const assignmentStart = trimmed.match(/^@\s+(.+)$/);
     if (assignmentStart) {
       finalizeQuestion(index + 1);
@@ -684,6 +860,7 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       question = {
         number: quiz.questions.length + 1,
         text,
+        title: text,
         options: [],
         correctAnswer: "",
         correctAnswers: [],
@@ -712,6 +889,7 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       appendText(raw);
       continue;
     }
+    if (!question && ignoreText) continue;
     if (!question) {
       issue(
         "quiz-question",
@@ -755,6 +933,21 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       }
       const isCorrect = /x/i.test(option[2]);
       const label = String.fromCharCode(65 + question.options.length);
+      // An optional visible label ('a.' or 'b)') must match the option's position.
+      const written = text.match(/^([a-z])[.)]\s+(.*)$/i);
+      if (written) {
+        if (written[1].toUpperCase() === label) {
+          text = written[2];
+        } else {
+          issue(
+            "quizdown-option-label",
+            index + 1,
+            `Option label '${
+              written[1]
+            }.' does not match its position; labels are optional, but if used they run a., b., c. in order (expected '${label.toLowerCase()}.').`,
+          );
+        }
+      }
       question.options.push({
         label,
         text: text.trim(),
