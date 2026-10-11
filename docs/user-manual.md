@@ -647,7 +647,27 @@ Correct answer: accepted answer / accepted variant
 
 The assignment context is written once and shown before its subquestions in the Docusaurus preview and in a Brightspace quiz section. Each part can use its own question type and optional positive point value; a part without an explicit value is worth 1 point. Brightspace weights the part by that value, and the assignment score is the sum of its parts. Relative Markdown images in the shared context are included in the cartridge. A `## Question N` outside an assignment remains a standalone question. Dutch legacy headings (`## Opdracht N`, `### Deelvraag 27a`) and existing `Vraag` headings remain accepted.
 
-Set `quiz.locale` to `"nl"` to derive the defaults `Opdracht` and `Deelvraag`. A client can instead set `quiz.assignmentPrefix` and/or `quiz.questionPrefix` to its own terms; an explicit prefix takes precedence over the locale. These settings are shared by QTI export, Docusaurus preview and course lint. QuizDown's fenced `quiz` syntax is unchanged. A companion `-antwoorden-docent.md` can mirror the assignment/subquestion headings; lint compares its answer letters by part label. Lint reports assignments without parts, nonconsecutive part letters, malformed heading syntax and assignment/question headings at the wrong level. A subquestion heading outside an assignment is treated as a standalone question and reported as a warning. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
+Set `quiz.locale` to `"nl"` to derive the defaults `Opdracht` and `Deelvraag`. A client can instead set `quiz.assignmentPrefix` and/or `quiz.questionPrefix` to its own terms; an explicit prefix takes precedence over the locale. These settings are shared by QTI export, Docusaurus preview and course lint. QuizDown's fenced `quiz` syntax is unchanged. A companion `-antwoorden-docent.md` can mirror the assignment/subquestion headings; lint compares its answer letters by part label. Lint reports assignments without parts, nonconsecutive part letters, malformed heading syntax and assignment/question headings at the wrong level. A subquestion heading outside an assignment is reported as an error. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
+
+In QuizDown, an assignment starts with `@ title`. The Markdown up to the first `?` is the shared context (text, code, images); every `?` after it is a sub-question with its own type, so single choice, multiple response and short answers can be mixed. Points go at the end of the `?` line as `(2 pt)` or `(2)`; other spellings such as `(2 punten)` are errors. A `?` before the first `@` is a standalone question. Sub-questions are labelled `1a`, `1b`, ... per assignment. Indented fenced code under an option, also after a blank line, belongs to that option.
+
+````markdown
+```quiz
+@ Testing FizzBuzz
+Given this class:
+
+   ...code...
+
+? Which test is useful? (2 pt)
+- (x) A test that asserts `"Fizz"` for 9
+- ( ) A test that only checks for null
+
+? What does `fizzbuzzer(5)` return? (1)
+= Buzz ~10
+```
+````
+
+`bso lint` checks QuizDown with the standalone QuizDown linter (`src/quizdown-lint.ts`): assignments without sub-questions, invalid point spellings, unindented content after an option, a legacy `## Vraag` heading in a file with a QuizDown block (errors), and an assignment without shared context (warning). See [QuizDown syntax](quizzosaurus-syntax.md) and ADR 020.
 
 Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
 answer order per attempt. Default `false` preserves source order. BSO writes

@@ -6,7 +6,7 @@ This document lives in BSO because the parser lives in BSO ([`src/quiz-parser.ts
 
 Decision record: [ADR 020](adr/adr020-quizdown-syntax-and-quizzosaurus-package.md).
 
-Status: section 2 (markers in a fenced `quiz` block) describes what is implemented. Everything marked **proposal** is for #80 and not implemented yet.
+Status: sections 2 and 6 (markers and `@` assignments in a fenced `quiz` block, `(2 pt)` points, the linter in section 7) are implemented since 0.21.0. Everything marked **proposal** (option labels, heading form with `## ?` and `## @`) is for #80 and not implemented yet.
 
 ## 1. Principles
 
@@ -98,7 +98,7 @@ Nesting rules:
 - A `?` heading that has `?` children is invalid (a question is either a leaf or an assignment).
 - A section heading never starts a question by itself. Without an explicit `@`, a section whose first children are questions would be indistinguishable from an assignment with shared text.
 
-## 6. Assignments in a fenced block (proposal)
+## 6. Assignments in a fenced block
 
 `@` plays the same role as the `@` heading:
 

@@ -4,6 +4,19 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+## 0.21.0 - 2026-10-12
+
+### Added
+
+- QuizDown assignments: `@ title` starts an assignment whose Markdown up to the first `?` is shared context; each `?` after it is a sub-question with its own response type and points, labelled `1a`, `1b`, ... Exported as QTI sections and grouped in the Docusaurus preview (#80).
+- Points in QuizDown as `(2 pt)` or `(2)` at the end of the `?` line.
+- Standalone QuizDown linter `src/quizdown-lint.ts`; `bso lint` calls it for quiz files that contain QuizDown. Rules: `quiz-assignment-empty`, `quiz-points-syntax`, `quizdown-unindented-option-content`, `quizdown-mixed-formats` (errors) and `quizdown-assignment-no-context` (warning). Each rule has a fixture in `examples/demo-course-antipatterns`; demo quiz 2.5 shows a valid assignment.
+
+### Fixed
+
+- A subquestion outside an assignment in the legacy format is an error, not a warning.
+- `deno lint` accepts the quiz and flashcard client scripts (`@ts-self-types`).
+
 ## 0.20.1 - 2026-10-11
 
 ### Added
