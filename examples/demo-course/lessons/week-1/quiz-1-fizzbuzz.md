@@ -1,17 +1,27 @@
 # Quiz 1.1: FizzBuzz
 
-## Question 1
+## Opdracht 1
+
+Use this implementation for both subquestions:
+
+```java
+class FizzBuzz {
+    String of(int number) { /* implementation */ }
+}
+```
+
+### Deelvraag 1a (2 pt)
 
 What does FizzBuzz print for the number 15?
 
 - A. Fizz
 - B. Buzz
 - C. FizzBuzz
-- D. 15
+- D. Nothing
 
 Correct answer: **C**
 
-## Question 2
+### Deelvraag 1b (3 pt)
 
 What does FizzBuzz print for the number 7?
 

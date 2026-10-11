@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { join, resolve } from "@std/path";
+import { DELIMITER, join, resolve } from "@std/path";
 import JSZip from "jszip";
 import { resolveConfig } from "../src/config-loader.ts";
 import {
@@ -9,6 +9,8 @@ import {
   unknownCommandMessage,
   runPack,
   runPrepare,
+  previewInstallArgs,
+  previewNodePath,
   runPreview,
 } from "../src/main.ts";
 import { loadPackageVersion } from "../src/assets.ts";
@@ -29,7 +31,14 @@ function testConfig(repoRoot: string): ResolvedConfig {
     docusaurusDir: null,
     teacherManual: null,
     teacherDashboard: null,
-    quiz: { maxAttempts: 0, shuffleAnswers: false },
+    quiz: {
+      maxAttempts: 0,
+      shuffleAnswers: false,
+      locale: "en",
+      assignmentPrefix: "Assignment",
+      questionPrefix: "Question",
+      subquestionPrefix: "Subquestion",
+    },
     flashcards: { sectionHeadings: ["Kernbegrippen"] },
     diagrams: {
       krokiUrl: "https://kroki.io",
@@ -276,5 +285,20 @@ Deno.test("--output overrides the build directory that receives the package", ()
   assertEquals(
     resolveConfig(base, {}, "/repo").outputDir,
     resolve("/repo", "build/brightspace"),
+  );
+});
+
+Deno.test("preview installs the Docusaurus dependencies only when node_modules is missing", () => {
+  assertEquals(previewInstallArgs(true, true), null);
+  assertEquals(previewInstallArgs(true, false), null);
+  assertEquals(previewInstallArgs(false, true), ["ci"]);
+  assertEquals(previewInstallArgs(false, false), ["install"]);
+});
+
+Deno.test("preview adds the Docusaurus node_modules to NODE_PATH, keeping an existing value", () => {
+  assertEquals(previewNodePath("/site"), "/site/node_modules");
+  assertEquals(
+    previewNodePath("/site", "/other"),
+    `/site/node_modules${DELIMITER}/other`,
   );
 });

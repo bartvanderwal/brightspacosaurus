@@ -13,7 +13,8 @@
   },
   "quiz": {
     "maxAttempts": 0,
-    "shuffleAnswers": true
+    "shuffleAnswers": true,
+    "locale": "en"
   },
   "teacherDashboard": {
     "gitlabUrl": "https://gitlab.example.org",

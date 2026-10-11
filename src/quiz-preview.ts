@@ -1,11 +1,27 @@
 /** Docusaurus remark adapter using the same quiz model and settings as QTI export. */
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
+import type { QuizQuestion } from "./quiz-parser.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
+import { quizTextNodes } from "./quiz-markdown.ts";
 import type { FlashcardNode } from "./flashcards.ts";
 import type { QuizConfig } from "./types.ts";
 
 function text(value: string): FlashcardNode {
   return { type: "text", value };
+}
+
+/**
+ * Question, option and hint text as Markdown nodes from the parser the QTI
+ * export also uses (quiz-markdown.ts), so code renders and is highlighted like
+ * on lesson pages: a paragraph for prose, a div when the text holds blocks.
+ */
+function richText(
+  tag: "p" | "span",
+  value: string,
+  properties: Record<string, string> = {},
+): FlashcardNode {
+  const { nodes, block } = quizTextNodes(value);
+  return element(block ? "div" : tag, properties, nodes as FlashcardNode[]);
 }
 
 function element(
@@ -27,22 +43,42 @@ export function remarkQuizPreview(
   const config = resolveQuizOptions(options);
   return (tree, file) => {
     if (!/(?:^|[/\\])quiz-[^/\\]+\.md$/i.test(file.path ?? "")) return;
-    const quiz = parseQuizMarkdown(String(file.value));
-    assertValidQuiz(quiz, file.path);
-    const questions = quiz.questions.map((question) => {
+    const quiz = parseQuizMarkdown(String(file.value), config);
+    assertValidQuiz(quiz, file.path, config);
+    const renderQuestion = (question: QuizQuestion) => {
       const responseType = question.responseType ?? "single";
       const correctAnswers = responseType === "open_short"
         ? question.acceptedAnswers ?? []
         : question.correctAnswers ?? [question.correctAnswer];
+      const points = question.points === undefined
+        ? ""
+        : ` (${question.points} ${
+          config.locale === "nl"
+            ? question.points === 1 ? "punt" : "punten"
+            : question.points === 1
+            ? "point"
+            : "points"
+        })`;
       const properties = {
         className: "bso-quiz-question",
         "data-correct-answer": question.correctAnswer,
         "data-correct-answers": JSON.stringify(correctAnswers),
         "data-response-type": responseType,
+        ...(question.points === undefined
+          ? {}
+          : { "data-points": String(question.points) }),
       };
       const children = [
-        element("legend", {}, [text(`Question ${question.number}`)]),
-        element("p", {}, [text(question.text)]),
+        element("legend", {}, [
+          text(
+            `${
+              question.label
+                ? `${config.subquestionPrefix} ${question.label}`
+                : `${config.questionPrefix} ${question.number}`
+            }${question.title ? `: ${question.title}` : ""}${points}`,
+          ),
+        ]),
+        richText("p", question.text, { className: "bso-quiz-prompt" }),
       ];
       if (responseType === "open_short") {
         children.push(
@@ -68,7 +104,10 @@ export function remarkQuizPreview(
                     name: `bso-question-${question.number}`,
                     value: option.label,
                   }),
-                  text(` ${option.text}`),
+                  text(" "),
+                  richText("span", option.text, {
+                    className: "bso-quiz-option-text",
+                  }),
                 ]),
               ])
             ),
@@ -76,24 +115,76 @@ export function remarkQuizPreview(
         );
       }
       children.push(element("details", { className: "bso-quiz-answer" }, [
-        element("summary", {}, [text("Show correct answer")]),
-        element("p", {}, [
+        element("summary", {}, [
           text(
-            responseType === "open_short"
-              ? correctAnswers[0] ?? ""
-              : correctAnswers.map((answer) =>
-                question.options.find((option) => option.label === answer)!.text
-              ).join(", "),
+            config.locale === "nl"
+              ? "Toon het juiste antwoord"
+              : "Show correct answer",
           ),
         ]),
+        responseType === "open_short"
+          ? element("p", {}, [text(correctAnswers[0] ?? "")])
+          : element(
+            "div",
+            {},
+            correctAnswers.map((answer) =>
+              // One block per correct answer: answers may hold code blocks,
+              // which cannot be joined into one comma-separated line.
+              richText(
+                "p",
+                question.options.find((option) => option.label === answer)!
+                  .text,
+              )
+            ),
+          ),
       ]));
+      if (question.explanation) {
+        children.push(
+          element("details", { className: "bso-quiz-explanation" }, [
+            element("summary", {}, [
+              text(config.locale === "nl" ? "Toelichting" : "Explanation"),
+            ]),
+            richText("p", question.explanation),
+          ]),
+        );
+      }
       if (question.hint) {
         children.push(element("details", { className: "bso-quiz-hint" }, [
-          element("summary", {}, [text("Show hint")]),
-          element("p", {}, [text(question.hint)]),
+          element("summary", {}, [
+            text(config.locale === "nl" ? "Toon hint" : "Show hint"),
+          ]),
+          richText("p", question.hint),
         ]));
       }
       return element("fieldset", properties, children);
+    };
+    const blocks = quiz.blocks ?? quiz.questions.map((question) => ({
+      type: "question" as const,
+      question,
+    }));
+    const content = blocks.map((block) => {
+      if (block.type === "question") return renderQuestion(block.question);
+      const assignment = block.assignment;
+      return element("section", {
+        className: "bso-quiz-assignment",
+        "data-assignment-number": String(assignment.number),
+        "data-points": String(
+          assignment.questions.reduce(
+            (sum, question) => sum + (question.points ?? 1),
+            0,
+          ),
+        ),
+      }, [
+        element("h2", {}, [text(assignment.title)]),
+        ...(assignment.text.trim()
+          ? [
+            richText("p", assignment.text, {
+              className: "bso-quiz-assignment-context",
+            }),
+          ]
+          : []),
+        ...assignment.questions.map(renderQuestion),
+      ]);
     });
     // Run before Docusaurus' defaults so they derive metadata from this tree.
     const title = tree.children?.find((node) =>
@@ -104,7 +195,7 @@ export function remarkQuizPreview(
       element("section", {
         className: "bso-quiz",
         "data-shuffle-answers": String(config.shuffleAnswers),
-      }, questions),
+      }, content),
     ];
   };
 }

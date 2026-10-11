@@ -1,0 +1,328 @@
+/**
+ * QuizDown heading form (`## ? Question`, `## @ Assignment`) and option labels (#80, ADR 020).
+ */
+import { assertEquals, assertStringIncludes } from "@std/assert";
+import { generateQtiXml } from "../src/quiz-converter.ts";
+import {
+  isQuizDown,
+  parseQuizMarkdown,
+  validateQuiz,
+} from "../src/quiz-parser.ts";
+import { lintQuizDown } from "../src/quizdown-lint.ts";
+
+const headingQuiz = `# Quiz Design Patterns & UML
+
+Some introduction text.
+
+## Sectie zonder vraag
+
+Text in a section is not a question.
+
+## ? Welk UML diagram hoort bij het Decorator pattern?
+
+- (x) a. Een \`wrapper\` die het onderdeel omhult
+- ( ) b. Een **losse** klasse zonder relatie
+
+## ? Welke uitspraken kloppen? (2 pt)
+
+! Denk aan de relaties.
+
+- [x] a. Het is een structureel patroon
+- [ ] b. Het is een creatiepatroon
+- [x] c. Het gebruikt compositie
+
+## Nog een sectie
+
+## @ Testen van FizzBuzz
+
+Gedeelde code:
+
+\`\`\`java
+class FizzBuzz {}
+\`\`\`
+
+### ? Welke test is nuttig? (2 pt)
+
+- (x) De test met 9
+- ( ) De test op null
+
+### ? Wat geeft 5? (1)
+
+= Buzz ~10
+
+## ? Een losse vraag na de opdracht
+
+- (x) ja
+- ( ) nee
+`;
+
+Deno.test("heading form: questions, sections and assignments with free titles", () => {
+  assertEquals(isQuizDown(headingQuiz), true);
+  const quiz = parseQuizMarkdown(headingQuiz);
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.title, "Quiz Design Patterns & UML");
+  assertEquals(quiz.blocks?.map((block) => block.type), [
+    "question",
+    "question",
+    "assignment",
+    "question",
+  ]);
+  assertEquals(
+    quiz.questions[0].text.split("\n")[0],
+    "Welk UML diagram hoort bij het Decorator pattern?",
+  );
+  assertEquals(
+    quiz.questions[0].title,
+    "Welk UML diagram hoort bij het Decorator pattern?",
+  );
+  assertEquals(quiz.questions[0].options.map((o) => o.text), [
+    "Een `wrapper` die het onderdeel omhult",
+    "Een **losse** klasse zonder relatie",
+  ]);
+  assertEquals(quiz.questions[1].responseType, "multiple");
+  assertEquals(quiz.questions[1].points, 2);
+  assertEquals(quiz.questions[1].hint, "Denk aan de relaties.");
+  const assignment = quiz.blocks![2];
+  if (assignment.type !== "assignment") throw new Error("not an assignment");
+  assertEquals(assignment.assignment.title, "Testen van FizzBuzz");
+  assertStringIncludes(assignment.assignment.text, "class FizzBuzz {}");
+  assertEquals(
+    assignment.assignment.questions.map((
+      q,
+    ) => [q.label, q.responseType, q.points]),
+    [["1a", "single", 2], ["1b", "open_short", 1]],
+  );
+  assertEquals(validateQuiz(quiz), []);
+  assertEquals(lintQuizDown(headingQuiz), []);
+  assertEquals(
+    generateQtiXml(quiz, "quiz-test").match(/<section /g)?.length,
+    3,
+  );
+});
+
+Deno.test("heading form reports line numbers in the file", () => {
+  const issues = lintQuizDown(
+    "# Quiz\n\n## ? Vraag\n\n- (x) a\n- ( ) b\nstray text\n",
+  );
+  assertEquals(issues.map((i) => [i.rule, i.line]), [
+    ["quizdown-unindented-option-content", 7],
+  ]);
+});
+
+Deno.test("fenced form reports line numbers in the file, not in the block", () => {
+  const issues = lintQuizDown(
+    "# Quiz\n\nIntro\n\n```quiz\n? Q?\n- (x) a\n- ( ) b\nstray\n```\n",
+  );
+  assertEquals(issues.map((i) => [i.rule, i.line]), [
+    ["quizdown-unindented-option-content", 9],
+  ]);
+});
+
+const rules = (markdown: string) =>
+  lintQuizDown(markdown).map((i) => `${i.rule}@${i.line}`);
+
+Deno.test("heading form rejects a heading inside a question and a nested question", () => {
+  assertEquals(
+    rules("# Q\n\n## ? Vraag\n\n- (x) a\n- ( ) b\n\n### Extra\n"),
+    ["quizdown-invalid-subheading-in-question@8"],
+  );
+  assertEquals(
+    rules("# Q\n\n## ? Vraag\n\n### ? Deelvraag\n\n- (x) a\n- ( ) b\n")
+      .includes("quizdown-nested-question@5"),
+    true,
+  );
+});
+
+Deno.test("heading form needs a title on question and assignment headings", () => {
+  assertEquals(
+    rules("# Q\n\n## ?\n\n- (x) a\n- ( ) b\n").includes(
+      "quizdown-heading-title@3",
+    ),
+    true,
+  );
+});
+
+Deno.test("heading form: an assignment ends at a heading of its own level", () => {
+  const quiz = parseQuizMarkdown(
+    "# Q\n\n## @ Opdracht\n\nContext\n\n### ? A\n\n- (x) a\n- ( ) b\n\n## ? Los\n\n- (x) a\n- ( ) b\n",
+  );
+  assertEquals(quiz.blocks?.map((b) => b.type), ["assignment", "question"]);
+});
+
+Deno.test("headings inside fenced code are never structure", () => {
+  const quiz = parseQuizMarkdown(
+    "# Q\n\n## ? Vraag met code\n\n```md\n## ? not a question\n## @ nor this\n```\n\n- (x) a\n- ( ) b\n",
+  );
+  assertEquals(quiz.questions.length, 1);
+  assertEquals(
+    lintQuizDown("# Q\n\n## ? V\n\n```md\n## ? x\n```\n\n- (x) a\n- ( ) b\n"),
+    [],
+  );
+});
+
+Deno.test("legacy files without QuizDown markers are unaffected", () => {
+  assertEquals(isQuizDown("# Quiz\n\n## Vraag 1\n\nText\n- A. x\n"), false);
+});
+
+Deno.test("option labels: matching labels are stripped, wrong ones are errors", () => {
+  const ok = parseQuizMarkdown(
+    "```quiz\n? Q?\n- (x) a. First\n- ( ) b) Second\n- ( ) Third\n```\n",
+  );
+  assertEquals(ok.issues, []);
+  assertEquals(ok.questions[0].options.map((o) => o.text), [
+    "First",
+    "Second",
+    "Third",
+  ]);
+  assertEquals(
+    rules("```quiz\n? Q?\n- (x) b. First\n- ( ) a. Second\n```\n"),
+    ["quizdown-option-label@3", "quizdown-option-label@4"],
+  );
+});
+
+const explained = `# Quiz
+
+## ? Welke methode is idempotent?
+
+- (x) PUT
+- ( ) POST
+
+### Toelichting
+
+PUT vervangt de resource; **twee keer** hetzelfde geeft hetzelfde resultaat.
+
+\`\`\`http
+PUT /items/1
+\`\`\`
+
+#### Detail
+
+Een diepere kop blijft tekst.
+
+## @ Opdracht
+
+Context.
+
+### ? Deelvraag (1 pt)
+
+- (x) a
+- ( ) b
+
+#### Explanation
+
+Because a.
+
+### ? Tweede deelvraag
+
+= x
+`;
+
+Deno.test("an explanation section under a question or sub-question is kept (Toelichting / Explanation)", () => {
+  const quiz = parseQuizMarkdown(explained);
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.questions.length, 3);
+  assertStringIncludes(quiz.questions[0].explanation!, "**twee keer**");
+  assertStringIncludes(quiz.questions[0].explanation!, "PUT /items/1");
+  assertStringIncludes(quiz.questions[0].explanation!, "#### Detail");
+  assertEquals(quiz.questions[0].options.length, 2);
+  assertEquals(quiz.questions[1].explanation, "Because a.");
+  assertEquals(quiz.questions[2].explanation, undefined);
+  assertEquals(lintQuizDown(explained), []);
+});
+
+Deno.test("the explanation is exported as item feedback next to the hint", () => {
+  const xml = generateQtiXml(parseQuizMarkdown(explained), "quiz-test");
+  assertEquals(xml.match(/_explanation"/g)?.length, 2);
+  assertStringIncludes(xml, "&lt;strong&gt;twee keer&lt;/strong&gt;");
+});
+
+Deno.test("explanation rules: duplicate and empty sections are errors; other deeper headings still are", () => {
+  assertEquals(
+    rules(
+      "# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n### Toelichting\n\nx\n\n### Toelichting\n\ny\n",
+    ),
+    ["quizdown-duplicate-explanation@12"],
+  );
+  assertEquals(
+    rules("# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n### Toelichting\n"),
+    ["quizdown-explanation-empty@8"],
+  );
+  assertEquals(
+    rules("# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n#### Toelichting\n"),
+    ["quizdown-invalid-subheading-in-question@8"],
+  );
+});
+
+Deno.test("an explanation ends at the next question or section", () => {
+  const quiz = parseQuizMarkdown(
+    "# Q\n\n## ? V\n\n- (x) a\n- ( ) b\n\n### Explanation\n\ntext\n\n## Sectie\n\nIntro\n\n## ? W\n\n- (x) a\n- ( ) b\n",
+  );
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.questions[0].explanation, "text");
+  assertEquals(quiz.questions[1].explanation, undefined);
+});
+
+Deno.test("an assignment's shared context may have subheadings, a question may not", () => {
+  const source = (extra: string) =>
+    `# Q\n\n## @ Opdracht\n\nContext\n\n### Achtergrond\n\nMore context.\n\n#### Detail\n\nEven more.\n\n### ? Deelvraag\n\n- (x) a\n- ( ) b\n${extra}`;
+  const quiz = parseQuizMarkdown(source(""));
+  assertEquals(quiz.issues, []);
+  const assignment = quiz.blocks![0];
+  if (assignment.type !== "assignment") throw new Error("not an assignment");
+  assertStringIncludes(assignment.assignment.text, "### Achtergrond");
+  assertStringIncludes(assignment.assignment.text, "#### Detail");
+  assertEquals(lintQuizDown(source("")), []);
+  assertEquals(
+    rules(source("\n#### Extra\n")),
+    ["quizdown-invalid-subheading-in-question@20"],
+  );
+});
+
+import { remarkQuizPreview } from "../src/quiz-preview.ts";
+
+Deno.test("heading form: the heading is the name, the text under it is the prompt (#90)", () => {
+  const quiz = parseQuizMarkdown(
+    "# Q\n\n## ? 29. Gegenereerde interface\n\nWat is het voordeel?\n\n- (x) a\n- ( ) b\n\n## ? Welke is juist?\n\n- (x) a\n- ( ) b\n",
+  );
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.questions[0].title, "29. Gegenereerde interface");
+  assertEquals(quiz.questions[0].text, "Wat is het voordeel?");
+  // Without text under the heading, the name is also the prompt.
+  assertEquals(quiz.questions[1].title, "Welke is juist?");
+  assertEquals(quiz.questions[1].text, "Welke is juist?");
+});
+
+Deno.test("the fenced form has no names: the text of '?' is the prompt", () => {
+  const quiz = parseQuizMarkdown("```quiz\n? Which?\n- (x) a\n- ( ) b\n```\n");
+  assertEquals(quiz.questions[0].title, undefined);
+});
+
+Deno.test("the name goes to the QTI item title and to the preview legend (#90)", () => {
+  const markdown =
+    "# Q\n\n## ? 29. Gegenereerde interface\n\nWat is het voordeel?\n\n- (x) a\n- ( ) b\n";
+  const xml = generateQtiXml(parseQuizMarkdown(markdown), "quiz-t");
+  assertStringIncludes(xml, 'title="29. Gegenereerde interface"');
+  const tree = {
+    type: "root",
+    children: [{ type: "heading", depth: 1, children: [] }],
+  };
+  // deno-lint-ignore no-explicit-any
+  remarkQuizPreview({ locale: "nl" })(tree as any, {
+    path: "quiz-t.md",
+    value: markdown,
+  });
+  const text = JSON.stringify(tree);
+  assertStringIncludes(text, "Vraag 1: 29. Gegenereerde interface");
+  assertStringIncludes(text, "Toon het juiste antwoord");
+});
+
+Deno.test("a question named only by a number is a lint warning (#90)", () => {
+  assertEquals(
+    rules("# Q\n\n## ? 29.\n\nWhich?\n\n- (x) a\n- ( ) b\n"),
+    ["quizdown-question-name@3"],
+  );
+  assertEquals(
+    lintQuizDown("# Q\n\n## ? 29.\n\nWhich?\n\n- (x) a\n- ( ) b\n")[0].severity,
+    "warning",
+  );
+});

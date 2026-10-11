@@ -210,6 +210,7 @@ module.exports = {
     include: [
       "software-guidebook.md",
       "user-manual.md",
+      "quizzosaurus-syntax.md",
       "definition-of-done.md",
       "adr/*.md",
     ],

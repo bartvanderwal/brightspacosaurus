@@ -66,6 +66,22 @@ Deno.test("reverse length bias fires when the correct option is the shortest", (
     ),
     ["quiz-reverse-length-bias"],
   );
+  assertEquals(
+    rules(
+      quiz(
+        ["A", shortest],
+        ["A", shortest],
+        ["B", equal()],
+        ["C", equal()],
+        ["D", equal()],
+      ),
+    ),
+    [],
+  );
+  assertEquals(
+    rules(quiz(["A", shortest], ["A", shortest], ["B", equal()])),
+    [],
+  );
 });
 
 Deno.test("length ratio is reported per question and ignores empty options", () => {
@@ -91,6 +107,19 @@ Deno.test("signal-word options that are never correct are reported", () => {
   assertEquals(rules(quiz(["A", giveaway], ["B", equal()])), [
     "quiz-only-giveaway",
   ]);
+  for (
+    const signal of [
+      "Alle bovenstaande",
+      "Alle van bovenstaande",
+      "Geen van bovenstaande",
+    ]
+  ) {
+    assertEquals(
+      rules(quiz(["A", ["Aaaa", signal, "Cccc", "Dddd"]])),
+      ["quiz-only-giveaway"],
+      signal,
+    );
+  }
   // Once a signal-word option is correct, the quiz is fine.
   assertEquals(rules(quiz(["A", giveaway], ["B", giveaway])), []);
   assertEquals(
@@ -109,6 +138,14 @@ Deno.test("position bias needs six questions and more than 45% for one letter", 
   assertEquals(rules(letters("BBBACD")), ["quiz-position-bias"]);
   assertEquals(rules(letters("BBACDA")), []);
   assertEquals(rules(letters("BBBAC")), []);
+  assertEquals(
+    rules(letters("AAABCD"), undefined, { maxLetterShare: 0.5 }),
+    [],
+  );
+  assertEquals(
+    rules(letters("AAAABC"), undefined, { maxLetterShare: 0.5 }),
+    ["quiz-position-bias"],
+  );
 });
 
 Deno.test("teacher answers are read from every documented layout", () => {
@@ -123,6 +160,67 @@ Deno.test("teacher answers are read from every documented layout", () => {
     ]
   ) assertEquals(parseTeacherAnswers(layout), expected, layout);
   assertEquals(parseTeacherAnswers("Nothing here"), new Map());
+});
+
+Deno.test("teacher answer models can match grouped subquestion labels", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+## Opdracht 27
+Shared context.
+
+### Deelvraag 27a (2 pt)
+Which option is correct?
+- A. First
+- B. Second
+Correct antwoord: A
+`);
+  const answers = parseTeacherAnswers(`# Antwoorden
+
+## Opdracht 27
+### Deelvraag 27a
+Correct antwoord: **B**
+
+## Vraag 28
+Another question
+Correct antwoord: **C**
+`);
+  assertEquals(
+    answers,
+    new Map<number | string, string>([["27a", "B"], [28, "C"]]),
+  );
+  assertEquals(
+    checkQuizBias(quiz, answers).map((finding) => [
+      finding.rule,
+      finding.question,
+    ]),
+    [["quiz-answer-key-mismatch", 1]],
+  );
+
+  assertEquals(
+    parseTeacherAnswers(
+      "### Question 4a\nCorrect answer: B",
+    ),
+    new Map([["4a", "B"]]),
+  );
+  const localizedQuiz = `# Quiz
+
+## Opgave 4
+Shared context.
+
+### Vraag 4a
+Which option is correct?
+- A. First
+- B. Second
+Correct answer: A
+`;
+  assertEquals(
+    lintMarkdown(localizedQuiz, "quiz-localized.md", {
+      assignmentPrefix: "Opgave",
+      questionPrefix: "Vraag",
+      teacherAnswers: "### Vraag 4a\nCorrect answer: B",
+    }).map((issue) => issue.rule),
+    ["quiz-answer-key-mismatch"],
+  );
 });
 
 Deno.test("a teacher answer model that disagrees is an error; a missing one is fine", () => {

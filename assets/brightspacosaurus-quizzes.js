@@ -1,3 +1,4 @@
+// @ts-self-types="./brightspacosaurus-quizzes.d.ts"
 /** Stable option identities survive Fisher-Yates shuffling of their DOM nodes. */
 function shuffleOptions(options, random) {
   const shuffled = Array.from(options);
@@ -42,6 +43,11 @@ function initializeQuizzes(root, random = Math.random) {
         const answer = question.querySelector(".bso-quiz-answer");
         answer.hidden = true;
         answer.open = false;
+        const explanation = question.querySelector(".bso-quiz-explanation");
+        if (explanation) {
+          explanation.hidden = true;
+          explanation.open = false;
+        }
       });
       feedback.textContent = "";
     }
@@ -64,7 +70,7 @@ function initializeQuizzes(root, random = Math.random) {
         feedback.textContent = "Choose an answer for every question.";
         return;
       }
-      const correct = questions.filter((question, index) =>
+      const correctAnswers = questions.map((question, index) =>
         questionIsOpenShort(question)
           ? JSON.parse(question.dataset.correctAnswers ?? "[]").some(
             (answer) =>
@@ -78,10 +84,27 @@ function initializeQuizzes(root, random = Math.random) {
                   JSON.stringify([question.dataset.correctAnswer]),
               ).sort(),
             )
-      ).length;
-      feedback.textContent = `${correct} / ${questions.length} correct`;
+      );
+      if (questions.some((question) => question.dataset.points !== undefined)) {
+        const points = questions.map((question) =>
+          Number(question.dataset.points ?? 1)
+        );
+        const score = correctAnswers.reduce(
+          (sum, correct, index) => sum + (correct ? points[index] : 0),
+          0,
+        );
+        const totalPoints = points.reduce((sum, value) => sum + value, 0);
+        feedback.textContent = `${Number(score.toPrecision(12))} / ${
+          Number(totalPoints.toPrecision(12))
+        } points`;
+      } else {
+        const correct = correctAnswers.filter(Boolean).length;
+        feedback.textContent = `${correct} / ${questions.length} correct`;
+      }
       questions.forEach((question) => {
         question.querySelector(".bso-quiz-answer").hidden = false;
+        const explanation = question.querySelector(".bso-quiz-explanation");
+        if (explanation) explanation.hidden = false;
       });
     });
     restart.addEventListener("click", function () {
@@ -99,6 +122,12 @@ function questionIsOpenShort(question) {
 
 function normalizeShortAnswer(value) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+// Also a global, so a bundler (Docusaurus) can import this file as a side-effect
+// module and call globalThis.bsoQuizzes.initialize...(document), like the tabs script.
+if (typeof globalThis !== "undefined") {
+  globalThis.bsoQuizzes = { initializeQuizzes, shuffleOptions };
 }
 
 if (typeof module !== "undefined" && module.exports) {
