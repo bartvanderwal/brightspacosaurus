@@ -4,6 +4,10 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- QuizDown: an indented fenced block after a blank line under an option stays part of that option, as in GFM; it was dropped without an error (#84).
+
 ## 0.20.0 - 2026-10-11
 
 ### Added

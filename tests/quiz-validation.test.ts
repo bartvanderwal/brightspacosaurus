@@ -753,3 +753,52 @@ Correct antwoord: A
     );
   }
 });
+
+Deno.test("QuizDown keeps an indented fenced block after a blank line in the option (#84)", () => {
+  const source = (gap: string) =>
+    `\`\`\`\`quiz
+? Which tests?
+- [x] Test A:${gap}
+  \`\`\`java
+  @Test
+
+  void a() {}
+  \`\`\`
+- [ ] Test B:
+  \`\`\`java
+  void b() {}
+  \`\`\`
+\`\`\`\`
+`;
+  for (const gap of ["", "\n"]) {
+    const quiz = parseQuizMarkdown(source(gap));
+    assertEquals(quiz.issues, []);
+    assertEquals(quiz.questions[0].options.length, 2);
+    assertEquals(
+      quiz.questions[0].options[0].text.includes("void a() {}"),
+      true,
+      `blank line gap: ${JSON.stringify(gap)}`,
+    );
+    assertEquals(
+      quiz.questions[0].options[0].text.includes("@Test\n\nvoid a() {}"),
+      true,
+    );
+    assertEquals(
+      quiz.questions[0].options[1].text.includes("void b() {}"),
+      true,
+    );
+  }
+});
+
+Deno.test("QuizDown ends an option at an unindented line after a blank line", () => {
+  const quiz = parseQuizMarkdown(`\`\`\`quiz
+? Which?
+- ( ) A
+
+  indented belongs to A
+- (x) B
+\`\`\`
+`);
+  assertEquals(quiz.questions[0].options[0].text, "A\n\nindented belongs to A");
+  assertEquals(quiz.questions[0].options[1].text, "B");
+});

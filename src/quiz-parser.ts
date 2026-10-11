@@ -601,6 +601,7 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
   // blank lines matter in code, and QuizDown markers inside it are not syntax.
   let codeFence: string | null = null;
   let optionIndent = 0;
+  let blankAfterOption = false;
   const stripIndent = (line: string, indent: number) =>
     line.replace(new RegExp(`^ {0,${indent}}`), "");
   const appendText = (line: string) => {
@@ -630,9 +631,15 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       continue;
     }
     if (!trimmed) {
-      currentOption = undefined;
+      // As in GFM, indented content after a blank line still belongs to the
+      // option; only a line that is not indented ends it.
+      blankAfterOption = currentOption !== undefined;
       continue;
     }
+    const continuesOption = blankAfterOption && /^\s+/.test(raw);
+    if (continuesOption) appendText("");
+    if (!continuesOption && blankAfterOption) currentOption = undefined;
+    blankAfterOption = false;
     const prompt = trimmed.match(/^\?\s+(.+)$/);
     if (prompt) {
       finalizeQuestion(index + 1);
