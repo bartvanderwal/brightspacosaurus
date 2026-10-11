@@ -91,6 +91,7 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
 - Publishing to JSR (`deno publish`) is done by the user, unless agreed otherwise (auth prompt).
 - Publish from the intended commit on `main` and tag it `vX.Y.Z` (ADR 018).
 - After a fix that affects JSR behavior: verify locally first, then publish, and only then test the JSR variant (chicken-and-egg: the JSR version can only be tested after publishing).
+- **Releasing to JSR and npm in one go:** `deno task release` (`utils/release.ts`, #83) checks branch `main`, a clean tree, tag `vX.Y.Z` on HEAD and that HEAD is pushed, then runs `deno publish` and `deno task release:npm`. `--dry-run` passes through to both. Run by the user (auth prompts).
 - **Publishing to JSR:** `deno publish` (done by the user).
 - **Publishing to npm:** run `deno task release:npm` (`utils/release-npm.ts`, #77) from the clean, tagged commit. It runs every step in order, and `deno task release:npm --dry-run` does the same without publishing. The steps:
   - Check `npm whoami` first. A publish without a valid login fails with a misleading `404 Not Found`; run `npm login` first.
