@@ -38,7 +38,8 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 
 ## Engineering conventions
 
-- **Easy to use, hard to make.** The effort belongs in the tool, not with the user, as long as the feature is valuable to end users. Prefer one command that does the right thing in context (for example `bso lint` follows the configuration of the current directory and says what it scanned) over several specialized commands, flags or settings. Support both of two reasonable syntaxes instead of adding a setting to choose. Do not add configuration for a choice BSO can make itself.
+- **Easy to use, hard to make.** The effort belongs in the tool, not with the user, as long as the feature is valuable to end users. Prefer one command that does the right thing in context (for example `bso lint` follows the configuration of the current directory and says what it scanned) over several specialized commands, flags or settings. Support both of two reasonable syntaxes instead of adding a setting to choose. Do not add configuration for a choice BSO can make itself. Make the right way the easiest way, so users fall into the pit of success (Atwood, 2007; see ADR 021).
+- **Conceptual integrity: strict, not forgiving.** One canonical form per concept, shared by BSO and Quizzosaurus. Do not silently repair or guess malformed input; reject it with an actionable error (a warning only for pure style). Recognise formats from explicit markers and give breaking syntax changes an explicit version. Rationale and sources: `docs/quizzosaurus-syntax.md`, section 10 (Spolsky, 2008; Thomson & Schinazi, 2023).
 - Commands are idempotent: repeated execution on the same input produces identical output.
 - Fail fast with useful error messages to `stderr`; progress to `stdout`.
 - Deterministic file ordering when creating archives.
@@ -51,6 +52,12 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 
 - ADRs in `docs/adr/` are immutable once accepted. Only typo fixes and small corrections shortly after writing are allowed. To change a decision, write a new ADR and mark the old one as deprecated or superseded, with a link to the new one.
 - Design and code-level explanations (how something is implemented, plugin choices within an existing architecture) belong in the Software Guidebook, chapter 7 "Code", not in an ADR.
+- **Put images in the text, never hidden in an appendix.** Place every image exactly where the reader needs it, not in a "Bijlagen"/"Appendix" section (except material that is truly supplementary). Give each image a figure number and a short caption ("Figure 3. ..." in English, "Figuur 3. ..." in Dutch), refer to it from the running text, add a short explanation that says what to look at and what to take away (in Dutch docs: "Toelichting"), and give it meaningful alt text. Write the caption first, keep it brief, limit a diagram to about one paragraph's worth of information, and use a callout or crop to focus attention. Reason: readers love pictures. Google's Technical Writing course puts it this way: "when it comes to reading technical material, the vast majority of adults are still little kids—still yearning for pictures rather than text" (Google, n.d.).
+- Cite sources in APA 7 style: an in-text citation like (Google, n.d.) and a "Sources" section at the end of the document with the full references. Only cite pages you actually read; say so when a page could not be fetched and you relied on a search snippet or on text supplied by the user.
+
+Reference for the rule on images:
+
+Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developers. <https://developers.google.com/tech-writing/two/illustrations>
 
 ## Testing
 
@@ -84,14 +91,15 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 - Publishing to JSR (`deno publish`) is done by the user, unless agreed otherwise (auth prompt).
 - Publish from the intended commit on `main` and tag it `vX.Y.Z` (ADR 018).
 - After a fix that affects JSR behavior: verify locally first, then publish, and only then test the JSR variant (chicken-and-egg: the JSR version can only be tested after publishing).
+- **Releasing to JSR and npm in one go:** `deno task release` (`utils/release.ts`, #83) checks branch `main`, a clean tree, tag `vX.Y.Z` on HEAD and that HEAD is pushed, then runs `deno publish` and `deno task release:npm`. `--dry-run` passes through to both. Run by the user (auth prompts).
 - **Publishing to JSR:** `deno publish` (done by the user).
-- **Publishing to npm — important:** do NOT publish directly from the `.tgz` tarball (`npm publish ./file.tgz`). Due to a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)), publishing from a tarball leaves the per-version `readme` field empty, so the npm website shows "This package does not have a README". Instead, publish from the extracted package directory so npm picks up the README:
-  ```sh
-  deno pack --ignore='tests/' --ignore='**/*_test.ts' --ignore='**/*.test.ts' --ignore='src/marp-exporter.ts'
-  tar -xzf bartvanderwal-brightspacosaurus-<version>.tgz
-  cd package && npm publish --access public && cd ..
-  rm -rf package
-  ```
+- **Publishing to npm:** run `deno task release:npm` (`utils/release-npm.ts`, #77) from the clean, tagged commit. It runs every step in order, and `deno task release:npm --dry-run` does the same without publishing. The steps:
+  - Check `npm whoami` first. A publish without a valid login fails with a misleading `404 Not Found`; run `npm login` first.
+  - Pack into `build/npm-release/`, so no `package/` or `.tgz` lands in the repo root.
+  - Fix two `deno pack` quirks: delete the empty `assets/*.d.ts.d.ts` file, and add the `types` condition for the `./tabs` export.
+  - Publish from the extracted folder, not from the `.tgz` tarball. Publishing from a tarball leaves the npm README empty because of a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)).
+  - Clean up `build/npm-release/`.
+- `deno pack` reports "Could not generate types" for internal modules such as `assets.ts`, `quiz-markdown.ts` and `teacher-dashboard.ts`. This is expected. It only emits `.d.ts` files for modules that the public type surface references, and no published `.d.ts` imports these modules.
 - The first publish of the scoped package needs `--access public`; npm remembers it afterwards.
 
 ## Spec workflow

@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.19.0",
+  "version": "0.21.1",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -17,7 +17,9 @@
     "./lint": "./src/course-linter.ts",
     "./quiz-preview": "./src/quiz-preview.ts",
     "./teacher-page": "./src/teacher-page.ts",
-    "./tabs": "./assets/brightspacosaurus-tabs.js"
+    "./tabs": "./assets/brightspacosaurus-tabs.js",
+    "./quizzes-client": "./assets/brightspacosaurus-quizzes.js",
+    "./flashcards-client": "./assets/brightspacosaurus-flashcards.js"
   },
   "tasks": {
     "prepare": "deno run --allow-read --allow-write --allow-run=pandoc,git --allow-env --allow-net --node-modules-dir=auto src/main.ts prepare",
@@ -27,10 +29,12 @@
     "test": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 tests/",
     "test:fast": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 --ignore=tests/reader-pdf-converter.test.ts,tests/include-filter.test.ts tests/",
     "test:pdf": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 tests/reader-pdf-converter.test.ts tests/include-filter.test.ts",
-    "demo": "cd examples/demo-course && deno run -A ../../src/main.ts prepare && deno run -A ../../src/main.ts pack",
-    "demo:preview": "deno run --allow-read --allow-write=build --allow-env --allow-run=npm src/main.ts preview",
+    "demo": "deno run --allow-read --allow-write=build --allow-env --allow-run=npm src/main.ts preview",
+    "demo:pack": "cd examples/demo-course && deno run -A ../../src/main.ts prepare && deno run -A ../../src/main.ts pack",
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
-    "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs"
+    "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs",
+    "release": "deno run --allow-read --allow-run=git,deno utils/release.ts",
+    "release:npm": "deno run --allow-read --allow-write=build --allow-run=npm,deno,tar utils/release-npm.ts"
   },
   "fmt": {
     "proseWrap": "never",
@@ -67,6 +71,8 @@
       "src/mod.ts",
       "assets/brightspacosaurus.css",
       "assets/brightspacosaurus-flashcards.js",
+      "assets/brightspacosaurus-flashcards.d.ts",
+      "assets/brightspacosaurus-quizzes.d.ts",
       "assets/brightspacosaurus-navigation.js",
       "assets/brightspacosaurus-tabs.js",
       "assets/brightspacosaurus-tabs.d.ts",
@@ -78,6 +84,7 @@
       "assets/section-number-filter.lua",
       "CHANGELOG.md",
       "docs/user-manual.md",
+      "docs/quizzosaurus-syntax.md",
       "docs/software-guidebook.md",
       "README.md",
       "deno.json",

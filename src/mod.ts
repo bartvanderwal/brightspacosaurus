@@ -107,6 +107,20 @@ export {
   parseQuizMarkdown,
   validateQuiz,
 } from "./quiz-parser.ts";
-export type { ParsedQuiz, QuizIssue, QuizQuestion } from "./quiz-parser.ts";
+export type {
+  ParsedQuiz,
+  QuizAssignment,
+  QuizBlock,
+  QuizHeadingOptions,
+  QuizIssue,
+  QuizQuestion,
+  QuizValidationOptions,
+} from "./quiz-parser.ts";
+export {
+  checkQuizBias,
+  defaultQuizBiasOptions,
+  parseTeacherAnswers,
+} from "./quiz-bias.ts";
+export type { QuizBiasFinding, QuizBiasOptions } from "./quiz-bias.ts";
 export { resolveQuizOptions } from "./quiz-config.ts";
 export { remarkQuizPreview } from "./quiz-preview.ts";

@@ -16,8 +16,8 @@ Correct answer: **A**
 What should a reader PDF contain before its content?
 
 - A. A separate cover page and table of contents
-- B. Only a ZIP manifest
-- C. A Brightspace quiz
-- D. No metadata
+- B. Only a ZIP manifest with all the files
+- C. A Brightspace quiz about the reader text
+- D. No metadata, only the chapter text
 
 Correct answer: **A**

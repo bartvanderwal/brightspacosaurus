@@ -8,15 +8,35 @@
  * @module
  */
 
-import { basename, dirname, join, relative, resolve } from "@std/path";
+import { basename, dirname, extname, join, relative, resolve } from "@std/path";
+import { unified } from "unified";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
 
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
-import type { ParsedQuiz } from "./quiz-parser.ts";
+import type {
+  ParsedQuiz,
+  QuizHeadingOptions,
+  QuizQuestion,
+} from "./quiz-parser.ts";
+import { parseQuizText } from "./quiz-markdown.ts";
 export { parseQuizMarkdown } from "./quiz-parser.ts";
-export type { ParsedQuiz, QuizQuestion } from "./quiz-parser.ts";
+export type {
+  ParsedQuiz,
+  QuizAssignment,
+  QuizBlock,
+  QuizHeadingOptions,
+  QuizQuestion,
+  QuizValidationOptions,
+} from "./quiz-parser.ts";
+
+// Same mdast as the preview (quiz-markdown.ts); only the last step differs.
+const quizHtmlProcessor = unified()
+  .use(remarkRehype)
+  .use(rehypeStringify);
 
 /** Options for converting a quiz Markdown file. */
-export interface QuizConvertOptions {
+export interface QuizConvertOptions extends QuizHeadingOptions {
   /** Absolute path to the quiz Markdown source file. */
   sourcePath: string;
   /** Absolute path to the quiz output directory (build/brightspace/quiz/). */
@@ -65,8 +85,51 @@ function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
+function renderQuizMarkdown(
+  markdown: string,
+  resolveImage?: (url: string) => string,
+): string {
+  const parsed = parseQuizText(markdown);
+  if (resolveImage) {
+    const resolveImages = (node: typeof parsed) => {
+      if (node.type === "image" && typeof node.url === "string") {
+        node.url = resolveImage(node.url);
+      }
+      for (const child of node.children ?? []) resolveImages(child);
+    };
+    resolveImages(parsed);
+  }
+  // deno-lint-ignore no-explicit-any
+  const tree = quizHtmlProcessor.runSync(parsed as any);
+  // deno-lint-ignore no-explicit-any
+  return String(quizHtmlProcessor.stringify(tree as any));
+}
+
 function formatBrightspaceMaxAttempts(maxAttempts: number): string {
   return maxAttempts === 0 ? "unlimited" : String(maxAttempts);
+}
+
+function imageUrls(markdown: string): string[] {
+  const urls: string[] = [];
+  const visit = (node: ReturnType<typeof parseQuizText>) => {
+    if (node.type === "image" && typeof node.url === "string") {
+      urls.push(node.url);
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(parseQuizText(markdown));
+  return urls;
+}
+
+function imagePathFromUrl(url: string): string | undefined {
+  if (/^(?:[a-z][a-z\d+.-]*:|\/\/|\/)/i.test(url)) return undefined;
+  let path = url.split(/[?#]/, 1)[0];
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    throw new Error(`Invalid image URL in quiz Markdown: '${url}'.`);
+  }
+  return path || undefined;
 }
 
 /**
@@ -92,6 +155,7 @@ export function generateQtiXml(
   ident: string,
   maxAttempts = 0,
   shuffleAnswers = false,
+  resolveImage?: (url: string) => string,
 ): string {
   assertValidQuiz(quiz);
   const sectionIdent = `sectie-${ident.replace(/^quiz-/, "")}`;
@@ -118,62 +182,173 @@ export function generateQtiXml(
   }</fieldentry>\n`;
   xml += `      </qtimetadatafield>\n`;
   xml += `    </qtimetadata>\n\n`;
-  xml += `    <section ident="${escapeXml(sectionIdent)}">\n`;
-
-  for (const question of quiz.questions) {
+  const appendQuestion = (question: QuizQuestion) => {
     const qIdent = `q${question.number}`;
     const respIdent = `${qIdent}_resp`;
-    const correctLabel = `${qIdent}_${question.correctAnswer.toLowerCase()}`;
+    const correctLabels = (question.correctAnswers ?? [question.correctAnswer])
+      .filter(Boolean)
+      .map((answer) => `${qIdent}_${answer.toLowerCase()}`);
+    const questionType = question.responseType ?? "single";
+    const multipleResponse = questionType === "multiple";
 
-    xml += `      <item ident="${qIdent}">\n`;
+    xml += `      <item ident="${qIdent}"${
+      question.title ? ` title="${escapeXml(question.title)}"` : ""
+    }>\n`;
     xml += `        <itemmetadata>\n`;
     xml += `          <qtimetadata>\n`;
     xml += `            <qtimetadatafield>\n`;
     xml += `              <fieldlabel>cc_profile</fieldlabel>\n`;
-    xml += `              <fieldentry>cc.multiple_choice.v0p1</fieldentry>\n`;
+    xml += `              <fieldentry>${
+      questionType === "open_short"
+        ? "cc.fib.v0p1"
+        : multipleResponse
+        ? "cc.multiple_response.v0p1"
+        : "cc.multiple_choice.v0p1"
+    }</fieldentry>\n`;
     xml += `            </qtimetadatafield>\n`;
     xml += `            <qtimetadatafield>\n`;
     xml += `              <fieldlabel>cc_weighting</fieldlabel>\n`;
-    xml += `              <fieldentry>1</fieldentry>\n`;
+    xml += `              <fieldentry>${question.points ?? 1}</fieldentry>\n`;
     xml += `            </qtimetadatafield>\n`;
     xml += `          </qtimetadata>\n`;
     xml += `        </itemmetadata>\n`;
     xml += `        <presentation>\n`;
     xml += `          <material>\n`;
-    xml += `            <mattext texttype="text/html">&lt;p&gt;${
-      escapeXml(question.text)
-    }&lt;/p&gt;</mattext>\n`;
+    xml += `            <mattext texttype="text/html">${
+      escapeXml(renderQuizMarkdown(question.text, resolveImage))
+    }</mattext>\n`;
     xml += `          </material>\n`;
-    xml +=
-      `          <response_lid ident="${respIdent}" rcardinality="Single">\n`;
-    xml += `            <render_choice shuffle="${
-      shuffleAnswers ? "Yes" : "No"
-    }">\n`;
-
-    for (const option of question.options) {
-      const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
+    if (questionType === "open_short") {
       xml +=
-        `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">&lt;p&gt;${
-          escapeXml(option.text)
-        }&lt;/p&gt;</mattext></material></response_label>\n`;
-    }
+        `          <response_str ident="${respIdent}" rcardinality="Single">\n`;
+      xml += `            <render_fib fibtype="String" prompt="Box"${
+        question.maxLength !== undefined
+          ? ` maxchars="${question.maxLength}"`
+          : ""
+      } />\n`;
+      xml += `          </response_str>\n`;
+    } else {
+      const hasForcedOrder = question.options.some((option) =>
+        option.forcedOrder !== undefined
+      );
+      xml += `          <response_lid ident="${respIdent}" rcardinality="${
+        multipleResponse ? "Multiple" : "Single"
+      }">\n`;
+      xml += `            <render_choice shuffle="${
+        shuffleAnswers && !hasForcedOrder ? "Yes" : "No"
+      }">\n`;
 
-    xml += `            </render_choice>\n`;
-    xml += `          </response_lid>\n`;
+      for (const option of question.options) {
+        const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
+        xml +=
+          `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">${
+            escapeXml(renderQuizMarkdown(option.text, resolveImage))
+          }</mattext></material></response_label>\n`;
+      }
+
+      xml += `            </render_choice>\n`;
+      xml += `          </response_lid>\n`;
+    }
     xml += `        </presentation>\n`;
     xml += `        <resprocessing>\n`;
     xml +=
       `          <outcomes><decvar minvalue="0" maxvalue="100" varname="SCORE" vartype="Decimal" /></outcomes>\n`;
-    xml += `          <respcondition continue="No">\n`;
-    xml +=
-      `            <conditionvar><varequal respident="${respIdent}">${correctLabel}</varequal></conditionvar>\n`;
-    xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
-    xml += `          </respcondition>\n`;
+    if (questionType === "open_short") {
+      for (const answer of question.acceptedAnswers ?? []) {
+        xml += `          <respcondition continue="No">\n`;
+        xml +=
+          `            <conditionvar><varequal respident="${respIdent}" case="No">${
+            escapeXml(answer)
+          }</varequal></conditionvar>\n`;
+        xml +=
+          `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
+        xml += `          </respcondition>\n`;
+      }
+    } else {
+      xml += `          <respcondition continue="No">\n`;
+      if (multipleResponse) {
+        const correctConditions = correctLabels.map((label) =>
+          `<varequal respident="${respIdent}">${label}</varequal>`
+        ).join("");
+        const incorrectConditions = question.options
+          .filter((option) =>
+            !correctLabels.includes(
+              `${qIdent}_${option.label.toLowerCase()}`,
+            )
+          )
+          .map((option) =>
+            `<not><varequal respident="${respIdent}">${qIdent}_${option.label.toLowerCase()}</varequal></not>`
+          ).join("");
+        xml +=
+          `            <conditionvar><and>${correctConditions}${incorrectConditions}</and></conditionvar>\n`;
+      } else {
+        xml += `            <conditionvar><varequal respident="${respIdent}">${
+          correctLabels[0]
+        }</varequal></conditionvar>\n`;
+      }
+      xml += `            <setvar action="Set" varname="SCORE">100</setvar>\n`;
+      xml += `          </respcondition>\n`;
+    }
     xml += `        </resprocessing>\n`;
+    if (question.hint) {
+      xml +=
+        `        <itemfeedback ident="${qIdent}_feedback"><flow_mat><material><mattext texttype="text/html">${
+          escapeXml(renderQuizMarkdown(question.hint, resolveImage))
+        }</mattext></material></flow_mat></itemfeedback>\n`;
+    }
+    if (question.explanation) {
+      xml +=
+        `        <itemfeedback ident="${qIdent}_explanation"><flow_mat><material><mattext texttype="text/html">${
+          escapeXml(renderQuizMarkdown(question.explanation, resolveImage))
+        }</mattext></material></flow_mat></itemfeedback>\n`;
+    }
     xml += `      </item>\n\n`;
+  };
+
+  const blocks = quiz.blocks ?? quiz.questions.map((question) => ({
+    type: "question" as const,
+    question,
+  }));
+  let looseSectionOpen = false;
+  let looseSectionCount = 0;
+  for (const [index, block] of blocks.entries()) {
+    if (block.type === "question") {
+      if (!looseSectionOpen) {
+        const looseSectionIdent = looseSectionCount === 0
+          ? sectionIdent
+          : `${sectionIdent}_${index + 1}`;
+        xml += `    <section ident="${escapeXml(looseSectionIdent)}">\n`;
+        looseSectionCount++;
+        looseSectionOpen = true;
+      }
+      appendQuestion(block.question);
+      continue;
+    }
+    if (looseSectionOpen) {
+      xml += `    </section>\n`;
+      looseSectionOpen = false;
+    }
+    const assignment = block.assignment;
+    const assignmentIdent = `${sectionIdent}_opdracht_${assignment.number}_${
+      index + 1
+    }`;
+    xml += `    <section ident="${escapeXml(assignmentIdent)}" title="${
+      escapeXml(assignment.title)
+    }">\n`;
+    if (assignment.text.trim()) {
+      xml += `      <rubric view="All">\n`;
+      xml += `        <material>\n`;
+      xml += `          <mattext texttype="text/html">${
+        escapeXml(renderQuizMarkdown(assignment.text, resolveImage))
+      }</mattext>\n`;
+      xml += `        </material>\n`;
+      xml += `      </rubric>\n`;
+    }
+    for (const part of assignment.questions) appendQuestion(part);
+    xml += `    </section>\n`;
   }
 
-  xml += `    </section>\n`;
+  if (looseSectionOpen) xml += `    </section>\n`;
   xml += `  </assessment>\n`;
   xml += `</questestinterop>\n`;
 
@@ -193,15 +368,76 @@ export async function convertQuiz(
   const content = await Deno.readTextFile(sourcePath);
 
   // Parse the quiz
-  const quiz = parseQuizMarkdown(content);
-  assertValidQuiz(quiz, sourcePath);
+  const quiz = parseQuizMarkdown(content, options);
+  assertValidQuiz(quiz, sourcePath, options);
 
   const filename = basename(sourcePath);
   const ident = deriveQuizIdent(filename);
 
   // Determine the relative path from the source directory for the output structure
   const resolvedSourcesDir = resolve(sourcesDir);
+  const realSourcesDir = await Deno.realPath(resolvedSourcesDir);
   const relFromSource = relative(resolvedSourcesDir, dirname(sourcePath));
+  const outputSubDir = join(outputDir, relFromSource);
+  const imageAssets = new Map<string, string>();
+  const markdownFields = [
+    ...quiz.questions.flatMap((question) => [
+      question.text,
+      question.hint ?? "",
+      ...question.options.map((option) => option.text),
+    ]),
+    ...(quiz.blocks ?? []).flatMap((block) =>
+      block.type === "assignment" ? [block.assignment.text] : []
+    ),
+  ];
+  for (const url of markdownFields.flatMap(imageUrls)) {
+    const imagePath = imagePathFromUrl(url);
+    if (!imagePath) continue;
+    const sourceImage = resolve(dirname(sourcePath), imagePath);
+    let realSourceImage: string;
+    try {
+      realSourceImage = await Deno.realPath(sourceImage);
+    } catch {
+      throw new Error(
+        `${sourcePath}: referenced quiz image '${url}' does not exist.`,
+      );
+    }
+    const sourceRelative = relative(realSourcesDir, realSourceImage);
+    if (sourceRelative.startsWith("..")) {
+      throw new Error(
+        `${sourcePath}: quiz images must be inside the configured source directory: '${url}'.`,
+      );
+    }
+    if (imageAssets.has(sourceImage)) continue;
+    try {
+      const info = await Deno.stat(realSourceImage);
+      if (!info.isFile) throw new Error("not a file");
+    } catch {
+      throw new Error(
+        `${sourcePath}: referenced quiz image '${url}' does not exist.`,
+      );
+    }
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(sourceRelative.replaceAll("\\", "/")),
+    );
+    const hash = [...new Uint8Array(digest)].map((byte) =>
+      byte.toString(16).padStart(2, "0")
+    ).join("");
+    const assetRelative = join("assets", `${hash}${extname(sourceImage)}`);
+    const assetOutput = join(outputSubDir, assetRelative);
+    await Deno.mkdir(dirname(assetOutput), { recursive: true });
+    await Deno.copyFile(realSourceImage, assetOutput);
+    imageAssets.set(sourceImage, assetRelative.replaceAll("\\", "/"));
+  }
+  const resolveImage = (url: string) => {
+    const imagePath = imagePathFromUrl(url);
+    if (!imagePath) return url;
+    const sourceImage = resolve(dirname(sourcePath), imagePath);
+    const assetRelative = imageAssets.get(sourceImage);
+    const suffix = url.match(/[?#].*$/)?.[0] ?? "";
+    return assetRelative ? `${assetRelative}${suffix}` : url;
+  };
 
   // Generate QTI XML
   const qtiXml = generateQtiXml(
@@ -209,10 +445,10 @@ export async function convertQuiz(
     ident,
     options.maxAttempts ?? 0,
     options.shuffleAnswers ?? false,
+    resolveImage,
   );
 
   // Write to output directory
-  const outputSubDir = join(outputDir, relFromSource);
   await Deno.mkdir(outputSubDir, { recursive: true });
 
   const outputFilename = `qti-${ident.replace(/^quiz-/, "")}.xml`;

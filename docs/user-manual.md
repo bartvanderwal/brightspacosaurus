@@ -144,6 +144,10 @@ The most important fields:
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
+| `quiz.locale`          | no       | Default quiz heading language: `en` (default) or `nl`                                       |
+| `quiz.assignmentPrefix` | no       | Custom assignment heading prefix; overrides the locale default                              |
+| `quiz.questionPrefix`  | no       | Custom prefix for standalone questions; overrides the locale default (`Question`, `Vraag`)               |
+| `quiz.subquestionPrefix`  | no       | Custom prefix for assignment subquestions; overrides the locale default (`Subquestion`, `Deelvraag`)               |
 | `diagrams.krokiUrl`    | no       | Kroki endpoint for PlantUML/Mermaid rendering (default `https://kroki.io`)                   |
 | `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
 | `diagrams.locale`      | no       | Language of generated labels: diagram UI and reader PDF cover and document language (`nl` or `en`, default `nl`) |
@@ -232,7 +236,7 @@ This is an optional fragment to add to your existing course configuration. The l
 - **statuscode:** HTTP-code die het resultaat van een request aanduidt, bijvoorbeeld `200`.
 ```
 
-BSO always supports both syntaxes, without a setting. Lists under these headings stay a compact bulleted list: the term is a clickable button and only the definition is hidden, so a long glossary does not fill the screen. Explicit `::::flashcards` sets show boxed cards, also under a flashcard heading. The "Show definitions" / "Hide definitions" button follows `diagrams.locale` (`Toon definities` / `Verberg definities` for `nl`). Terms are real buttons with `aria-expanded`, so keyboard and screen readers work.
+BSO always supports both syntaxes, without a setting. Lists under these headings stay real bulleted lists: each clickable term and its short definition share a line, and only the definition is hidden, so a long glossary stays compact. Rich definitions with multiple paragraphs or lists keep their block layout. Explicit `::::flashcards` sets show boxed cards, also under a flashcard heading. The "Show definitions" / "Hide definitions" button follows `diagrams.locale` (`Toon definities` / `Verberg definities` for `nl`). Terms are real buttons with `aria-expanded`, so keyboard and screen readers work.
 
 Heading titles match exactly after trimming and ignoring letter case and a leading section number, so `## 7. Kernbegrippen` and `### 2.3 Kernbegrippen` match `Kernbegrippen`; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists or a `::::flashcards` set, so a heading without any flashcards is reported. The default heading `Core concepts` (any letter case) is checked even when `flashcards` is not configured. Place introductory prose before the heading or in a separate section.
 
@@ -255,6 +259,29 @@ The `error` or `warning` word is colored (red and dark orange) only when stderr 
 `lesson-frontmatter` (warning) reports a YAML frontmatter block at the top of a lesson file. BSO uses frontmatter only for readers (`title`, `author`, `version`, `date`, `updated`, `coverImage`, `coverAlt`); it is not processed in lesson pages. Put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
 
 `hard-wrapped-lines` (warning) reports a paragraph that looks wrapped at a fixed column: three or more lines that are all at least 50 characters long and differ by at most 25 characters. Markdown renders such line breaks as spaces, so the output does not change, but diffs get noisy and AI-assisted editing has to rewrap text. Write each paragraph on one line and let the editor wrap it. Breaks that end in two spaces or a backslash are intentional and ignored.
+
+Quiz bias rules check that students cannot score without knowing the material. `quiz-length-bias` and `quiz-reverse-length-bias` (warnings) report a quiz where the correct option is the unique longest or shortest option in more than 40% of the questions (from four questions). `quiz-answer-length-ratio` (warning) reports a question whose correct option is more than twice as long as its shortest option. `quiz-only-giveaway` (warning) reports signal words such as "Alleen", "Alle bovenstaande" and "Geen van bovenstaande" at the start of options that are never correct. `quiz-position-bias` (warning) reports one letter that is correct in more than 45% of the questions (from six questions). `quiz-answer-key-mismatch` (error) reports a quiz and its `quiz-*-antwoorden-docent.md` that name a different correct answer. Adjust the thresholds and signal words to match the course language:
+
+```json
+{
+  "lint": {
+    "quizBias": {
+      "maxLongestShare": 0.4,
+      "maxShortestShare": 0.4,
+      "maxLetterShare": 0.45,
+      "maxLengthRatio": 2,
+      "minQuestionsForLength": 4,
+      "minQuestionsForPosition": 6,
+      "giveawayWords": [
+        "alleen",
+        "alle bovenstaande",
+        "alle van bovenstaande",
+        "geen van bovenstaande"
+      ]
+    }
+  }
+}
+```
 
 By default, lint scans `sourcesDir`, `readersDir` and their linked Markdown includes. To select only specific folders or subfolders, add this fragment to your configuration:
 
@@ -601,18 +628,81 @@ BSO generates an `.imscc` package conforming to IMS Common Cartridge 1.3 from Ma
 
 ## 7. Quizzes and QTI
 
-The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO parses a quiz Markdown file based on this format:
+The Source Scanner classifies files with the `quiz-` prefix as quiz files. BSO supports the **Quizzosaurus / QuizDown** syntax: place a `quiz` fenced block in the file. Each question starts with `?`, an optional hint with `!`, and its response type is inferred from its markers:
 
-- **H1** as the quiz title
-- **H2** as the question number
-- Options as `- A. text` through `- D. text`
-- `Correct antwoord: **X**` as the indicator of the correct answer
+- `- ( )` / `- (x)` for single-choice options; if no `(x)` is marked, the first option is used.
+- `- [ ]` / `- [x]` for multiple-response options; at least one `[x]` is required.
+- `= answer / accepted variant ~20` for an auto-graded short answer with accepted variants and an optional maximum input length.
+
+Question and option order is kept deterministic; numbered options can reserve their display position. Mixing round and square option markers, or combining options with short-answer syntax, is invalid. See the [QuizDown syntax](quizzosaurus-syntax.md) for all markers, the heading form and the lint rules.
 
 For each quiz Markdown file, BSO generates one valid QTI 1.2 XML file conforming to the IMS CC QTI profile (`cc.exam.v0p1`). The QTI files appear in Brightspace both in the Quizzes tool and in the content navigation.
 
 Generated quizzes get a maximum attempt count through QTI metadata. Configure it with `quiz.maxAttempts` in `brightspacosaurus.config.json`; when omitted, BSO uses `0`, which means unlimited attempts. The value must be a non-negative integer. In the IMS Common Cartridge output, BSO writes Brightspace's `cc_maxattempts` metadata field; `0` is exported as `unlimited`, matching Brightspace's own Common Cartridge export.
 
-Answer markers accept `Correct answer`, `Answer`, `Correct antwoord`, `Goed antwoord`, `Goede antwoord`, `Juiste antwoord` and `Antwoord`, followed by a colon and one letter. The letter may be plain, bold or inline code; `**Antwoord:** c` is also supported. Options accept `- A. ...`, `a) ...` and `**a)** ...`; letters are normalized to uppercase. Invalid, missing or duplicate answers, missing options, duplicate labels/question numbers and answer keys without a matching option stop export with a source path and question number. No correct answer is inferred.
+The earlier H1/H2 format with lettered options and a `Correct answer: X` answer key remains accepted for existing course files. New quizzes should use the linked QuizDown syntax; it keeps the answer key with each question instead of relying on a separate teacher-answer file. BSO exports single-choice as `cc.multiple_choice.v0p1`, multi-select as `cc.multiple_response.v0p1`, and auto-graded short answers as `cc.fib.v0p1`. Long-form essay and matching questions are not part of the currently documented QuizDown syntax. Verify QTI import and scoring in a Brightspace sandbox.
+
+The legacy format also supports a shared-context assignment with independently answered subquestions. English headings are the generic defaults:
+
+```markdown
+## Assignment 27
+
+The shared case, image or code block goes here.
+
+### Question 27a (2 pt)
+
+Which answer is correct?
+- A. The first option
+- B. The second option
+Correct answer: A
+
+### Question 27b (3 pt)
+
+What is the short answer?
+Correct answer: accepted answer / accepted variant
+```
+
+The assignment context is written once and shown before its subquestions in the Docusaurus preview and in a Brightspace quiz section. Each part can use its own question type and optional positive point value; a part without an explicit value is worth 1 point. Brightspace weights the part by that value, and the assignment score is the sum of its parts. Relative Markdown images in the shared context are included in the cartridge. A `## Question N` outside an assignment remains a standalone question. Dutch legacy headings (`## Opdracht N`, `### Deelvraag 27a`) and existing `Vraag` headings remain accepted.
+
+Set `quiz.locale` to `"nl"` to derive the defaults `Opdracht`, `Vraag` and `Deelvraag`; `quiz.subquestionPrefix` sets the prefix of assignment subquestions. A client can instead set `quiz.assignmentPrefix` and/or `quiz.questionPrefix` to its own terms; an explicit prefix takes precedence over the locale. These settings are shared by QTI export, Docusaurus preview and course lint. QuizDown's fenced `quiz` syntax is unchanged. A companion `-antwoorden-docent.md` can mirror the assignment/subquestion headings; lint compares its answer letters by part label. Lint reports assignments without parts, nonconsecutive part letters, malformed heading syntax and assignment/question headings at the wrong level. A subquestion heading outside an assignment is reported as an error. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
+
+In QuizDown, an assignment starts with `@ title`. The Markdown up to the first `?` is the shared context (text, code, images); every `?` after it is a sub-question with its own type, so single choice, multiple response and short answers can be mixed. Points go at the end of the `?` line as `(2 pt)` or `(2)`; other spellings such as `(2 punten)` are errors. A `?` before the first `@` is a standalone question. Sub-questions are labelled `1a`, `1b`, ... per assignment. Indented fenced code under an option, also after a blank line, belongs to that option.
+
+````markdown
+```quiz
+@ Testing FizzBuzz
+Given this class:
+
+   ...code...
+
+? Which test is useful? (2 pt)
+- (x) A test that asserts `"Fizz"` for 9
+- ( ) A test that only checks for null
+
+? What does `fizzbuzzer(5)` return? (1)
+= Buzz ~10
+```
+````
+
+QuizDown also has a heading form, so a question can have a name instead of a number. A heading that starts with `?` is a question, a heading that starts with `@` is an assignment, and a plain heading is a section. The heading text is the name of the question; the text under it is the prompt, and without text under the heading the name is also the prompt. The name is the title in the preview and the item title in QTI; a name that is only a number is a lint warning. Sub-questions are `?` headings one level below their `@` heading. A question ends at the next heading of the same or a higher level; an assignment ends at a heading of its own or a higher level. An explanation is a heading named `Toelichting` or `Explanation`, exactly one level below the question or sub-question; its Markdown is shown after the answer (a second QTI item feedback next to the hint, and a block in the preview). Verify how Brightspace displays it in a sandbox. A file uses either a fenced `quiz` block or heading form. Options may carry the label `a.` or `b)`, which must match their position.
+
+```markdown
+## ? Which UML diagram belongs to the Decorator pattern?
+
+- (x) a. A wrapper that adds behaviour around a component
+- ( ) b. A class that has exactly one instance
+
+## @ Testing FizzBuzz
+
+Shared context, with code if needed.
+
+### ? Which test is useful? (2 pt)
+
+- (x) A test for input 15
+- ( ) A test for null
+```
+
+`bso lint` checks QuizDown with the standalone QuizDown linter (`src/quizdown-lint.ts`): assignments without sub-questions, invalid point spellings, unindented content after an option, a legacy `## Vraag` heading in a file with a QuizDown block (errors), and an assignment without shared context (warning). The heading form adds `quizdown-invalid-subheading-in-question`, `quizdown-nested-question`, `quizdown-heading-title` and `quizdown-option-label` (errors). Line numbers refer to the file. See [QuizDown syntax](quizzosaurus-syntax.md) and ADR 020.
 
 Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
 answer order per attempt. Default `false` preserves source order. BSO writes

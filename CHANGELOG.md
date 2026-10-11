@@ -2,6 +2,81 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Changed
+
+- QuizDown heading form: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt). The preview shows the name in the legend (`Vraag 29: Gegenereerde interface`), QTI writes it as the item title, and a name that is only a number is the warning `quizdown-question-name` (#90).
+- Standalone questions and assignment subquestions have separate prefixes: `quiz.questionPrefix` (`Question`/`Vraag`) and the new `quiz.subquestionPrefix` (`Subquestion`/`Deelvraag`). With `locale: "nl"`, `questionPrefix` was `Deelvraag` before.
+- The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
+
+## 0.21.1
+
+### Added
+
+- `bso preview` (and `deno task demo`) runs `npm ci` (or `npm install` without a lockfile) first when the Docusaurus app has no `node_modules`.
+- `deno task release` and `release:npm` let npm ask for the one-time password of a 2FA account (authenticator code or passkey) and accept `--otp=<code>` (#88).
+- `docs/quizzosaurus-syntax.md` is part of the package, so the links in the manual and the guidebook work.
+
+### Fixed
+
+- `bso preview` from a checkout failed since 0.19.1: `Cannot find module 'remark-gfm'` (the Docusaurus config loads BSO's `src/*.ts`; the preview now sets `NODE_PATH` to the Docusaurus app's `node_modules`) and `remarkKrokiA11y is not a function` (the diagram plugin is found whichever way the loader shapes the import) (#91).
+
+## 0.21.0 - 2026-10-12
+
+### Added
+
+- QuizDown assignments: `@ title` starts an assignment whose Markdown up to the first `?` is shared context; each `?` after it is a sub-question with its own response type and points, labelled `1a`, `1b`, ... Exported as QTI sections and grouped in the Docusaurus preview (#80).
+- Points in QuizDown as `(2 pt)` or `(2)` at the end of the `?` line.
+- QuizDown heading form: `## ? Question` (the heading is the question, with a free title and no required number), `## @ Assignment` with `### ?` sub-questions, and plain headings as sections. Questions end at a heading of the same or a higher level (#80).
+- QuizDown explanation section: a `### Toelichting` or `### Explanation` heading one level below a question or sub-question holds Markdown (code, images) shown after the answer. Exported as a second QTI `itemfeedback`, shown in the preview after checking (#80).
+- Option labels `a.` / `b)` in QuizDown options, checked against their position.
+- Standalone QuizDown linter `src/quizdown-lint.ts`; `bso lint` calls it for quiz files that contain QuizDown. Rules (errors): `quiz-assignment-empty`, `quiz-points-syntax`, `quizdown-unindented-option-content`, `quizdown-mixed-formats`, `quizdown-invalid-subheading-in-question`, `quizdown-nested-question`, `quizdown-heading-title`, `quizdown-option-label`, `quizdown-duplicate-explanation`, `quizdown-explanation-empty`; warning: `quizdown-assignment-no-context`. Each rule has a fixture in `examples/demo-course-antipatterns`; demo quizzes 2.5 and 2.6 show assignments and the heading form.
+- `@bartvanderwal/brightspacosaurus/quizzes-client` and `/flashcards-client` exports, with types: importing them defines `globalThis.bsoQuizzes` and `globalThis.bsoFlashcards`, so Docusaurus can call `initializeQuizzes(document)` and `initializeFlashcards(document)` without a `DOMContentLoaded` workaround. The scripts stay classic scripts in Brightspace (#86).
+
+### Fixed
+
+- Legacy question headings accept free text after the number, such as `## Vraag 12 (optioneel)` or `## Vraag 13 Bella`. 0.20.0 reported a lint error for it. The text is kept as the question's `title`.
+- A subquestion outside an assignment in the legacy format is an error, not a warning.
+- QuizDown: an indented fenced block after a blank line under an option stays part of that option, as in GFM; it was dropped without an error (#84).
+- QuizDown lint issues in a fenced `quiz` block report the line in the file, not the line in the block.
+- `deno lint` accepts the quiz and flashcard client scripts (`@ts-self-types`).
+
+## 0.20.0 - 2026-10-11
+
+### Added
+
+- Quiz assignments in the legacy format: `## Opdracht N` (or `## Assignment N`) holds shared Markdown context, with `### Deelvraag Na` sub-questions that each have their own response type and optional points. Points are written `(2 pt)` or `(2)`. QTI export writes a section per assignment, the Docusaurus preview groups the sub-questions and reports weighted points, and teacher answer keys use the part labels (#80, #81).
+- Quiz headings are English by default, with configurable locale-derived or explicit assignment and question prefixes.
+- `bso lint` reports assignments without sub-questions, labels that do not ascend, invalid point spellings, and a sub-question outside an assignment. Lint issues carry a severity (`error` or `warning`).
+- Quiz bias lint covers giveaway phrases ("Alleen", "Alle bovenstaande", "Geen van bovenstaande"), with configurable words, and a clean demo quiz (#68, #75).
+- `deno task release` checks branch, clean tree, tag and push (ADR 018), then runs `deno publish` and `release:npm`; `--dry-run` passes through (#83).
+- `deno task release:npm` (and `--dry-run`) publishes to npm in one step: login check, pack into `build/`, the fixes below, publish from the extracted folder, clean-up (#77).
+- ADR 020 (QuizDown as preferred, strict quiz syntax in a Quizzosaurus package) and `docs/quizzosaurus-syntax.md`, with the proposed QuizDown assignment syntax (not implemented yet), and ADR 021 (convention over configuration and good defaults) (#82).
+
+### Changed
+
+- `deno task demo` now starts the Docusaurus preview (was `demo:preview`); `deno task demo:pack` builds the demo `.imscc` (was `demo`) (#83).
+
+### Fixed
+
+- Relative quiz images are copied into the cartridge and referenced as quiz resource dependencies.
+- The npm package declares types for the `./tabs` export and no longer contains an empty `assets/brightspacosaurus-tabs.d.ts.d.ts` (#77).
+
+## 0.19.1 - 2026-10-09
+
+### Fixed
+
+- Quiz QTI export renders Markdown code in questions, answer options and feedback; fenced code is preserved in legacy question prompts.
+- A `quiz` block may use a four-backtick fence around three-backtick code blocks; the closing fence was read as a nested opening, so no questions were found.
+- Fenced code in a QuizDown prompt or answer option keeps its indentation and blank lines.
+- The Docusaurus quiz preview renders inline code and fenced code in prompts, answer options, hints and the correct answer, instead of literal backticks. Preview and QTI export now parse quiz text with the same Markdown parser (`src/quiz-markdown.ts`), so both targets show the same output.
+- Mixing `[ ]` and lettered options in one question reports one error instead of three.
+
+### Added
+
+- Demo quiz 2.4 with single choice, multiple response, open short answer and Java/JSX code in prompts and answer options.
+
 ## Project Stability
 
 Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the project should be treated as release-candidate quality rather than a stable LTS tool: configuration names, CLI behavior, generated package structure and public TypeScript APIs may still change between minor versions.
@@ -13,6 +88,8 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 ### Added
 
 - The Voortgangsverkenner can focus on a configured, date-aware course week, switch weeks manually, and refresh the selected week while retaining other weeks' data in memory.
+- Quiz export and preview support for Quizzosaurus/QuizDown single-choice, multi-select and open short-answer syntax (#50).
+- `bso lint` rules for bias in multiple-choice quizzes (#68): `quiz-length-bias`, `quiz-reverse-length-bias`, `quiz-answer-length-ratio`, `quiz-only-giveaway` and `quiz-position-bias` (warnings), and `quiz-answer-key-mismatch` (error) when `quiz-*-vragen-en-antwoorden.md` and its `*-antwoorden-docent.md` name a different correct answer. Thresholds and signal words are configurable in `lint.quizBias`. The rules replace owe-1's `scripts/check-quiz-bias.py`; they also find quizzes whose question headings have a title (`## Vraag 1 — Titel`), which the script skipped.
 
 ## 0.18.0 - 2026-10-05
 
@@ -117,8 +194,8 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 
 ### Changed
 
-- `flashcards.sectionHeadings` now defaults to `["Core concepts"]`; set `[]` to disable automatic conversion. Existing `Core concepts` sections with term/definition lists become flashcards, and `bso lint` checks them (#31).
-- Ignore a leading section number when matching flashcard headings, so `## 7. Kernbegrippen` matches `Kernbegrippen` (#31).
+- `flashcards.sectionHeadings` now defaults to `["Core concepts"]`; set `[]` to disable automatic conversion. Existing `Core concepts` sections with term/definition lists become flashcards, and `bso lint` checks them (issue #31).
+- Ignore a leading section number when matching flashcard headings, so `## 7. Kernbegrippen` matches `Kernbegrippen` (issue #31).
 
 ### Removed
 

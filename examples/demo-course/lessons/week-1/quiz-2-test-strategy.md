@@ -15,9 +15,9 @@ Correct answer: **B**
 
 What is the main purpose of a test strategy?
 
-- A. To remove all manual testing
+- A. To remove the need for manual testing and testers from the project
 - B. To choose appropriate tests for the risks and levels of a system
-- C. To make every test an end-to-end test
-- D. To avoid writing test code
+- C. To make every test an end-to-end test for safety
+- D. To avoid writing test code in the repository itself
 
 Correct answer: **B**

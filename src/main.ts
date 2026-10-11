@@ -15,6 +15,7 @@ import {
 } from "./course-linter.ts";
 import {
   basename,
+  DELIMITER,
   dirname,
   extname,
   fromFileUrl,
@@ -321,6 +322,10 @@ export async function runPrepare(
         sourcesDir: config.sourcesDir,
         maxAttempts: config.quiz.maxAttempts,
         shuffleAnswers: config.quiz.shuffleAnswers,
+        locale: config.quiz.locale,
+        assignmentPrefix: config.quiz.assignmentPrefix,
+        questionPrefix: config.quiz.questionPrefix,
+      subquestionPrefix: config.quiz.subquestionPrefix,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
@@ -663,11 +668,25 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
             "",
           );
           const title = extractAssessmentTitle(xml, fallbackTitle);
+          const dependencies = new Set<string>();
+          for (const [, source] of xml.matchAll(/src=&quot;([^&"]+)&quot;/gi)) {
+            let assetPath = source;
+            try {
+              assetPath = decodeURIComponent(assetPath.split(/[?#]/, 1)[0]);
+            } catch {
+              continue;
+            }
+            const assetFullPath = resolve(dirname(fullPath), assetPath);
+            const assetRelative = relative(quizDir, assetFullPath);
+            if (assetRelative.startsWith("..")) continue;
+            dependencies.add(`quiz/${assetRelative}`);
+          }
           entries.push({
             id,
             title,
             href: relPath,
             type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+            dependencies: [...dependencies],
           });
         }
       }
@@ -730,6 +749,42 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
 }
 
 /** Runs the `preview` command using an already resolved configuration. */
+/**
+ * The npm arguments that install the Docusaurus dependencies before a preview,
+ * or null when they are already installed. `npm ci` follows the lockfile; without
+ * one, `npm install` is the only option.
+ */
+export function previewInstallArgs(
+  hasNodeModules: boolean,
+  hasLockfile: boolean,
+): string[] | null {
+  if (hasNodeModules) return null;
+  return [hasLockfile ? "ci" : "install"];
+}
+
+/**
+ * `NODE_PATH` for the preview. The Docusaurus config loads BSO's own `src/*.ts`
+ * files, which import packages such as `remark-gfm`. From a checkout those are
+ * not under `src/`, so Node also looks in the Docusaurus app's `node_modules`,
+ * where they are installed.
+ */
+export function previewNodePath(
+  docusaurusDir: string,
+  existing?: string,
+): string {
+  const own = join(docusaurusDir, "node_modules");
+  return existing ? `${own}${DELIMITER}${existing}` : own;
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function runPreview(config: ResolvedConfig): Promise<void> {
   const repoRoot = config.repoRoot;
 
@@ -783,9 +838,36 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     // No reader PDFs built yet: reader pages show only the web version.
   }
 
+  const installArgs = previewInstallArgs(
+    await pathExists(join(config.docusaurusDir, "node_modules")),
+    await pathExists(join(config.docusaurusDir, "package-lock.json")),
+  );
+  if (installArgs) {
+    console.log(
+      `Installing the Docusaurus dependencies first (npm ${installArgs[0]}); this happens once.`,
+    );
+    const install = await new Deno.Command("npm", {
+      args: installArgs,
+      cwd: config.docusaurusDir,
+      stdout: "inherit",
+      stderr: "inherit",
+    }).output();
+    if (!install.success) {
+      const err = new Error(
+        `npm ${installArgs[0]} failed in ${config.docusaurusDir}; fix the error above and run the preview again.`,
+      ) as Error & { exitCode?: number };
+      err.exitCode = install.code || 1;
+      throw err;
+    }
+  }
+
   const cmd = new Deno.Command("npm", {
     args: ["start"],
     env: {
+      NODE_PATH: previewNodePath(
+        config.docusaurusDir,
+        Deno.env.get("NODE_PATH"),
+      ),
       BSO_PREVIEW_STATIC_DIR: previewStaticDir,
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),

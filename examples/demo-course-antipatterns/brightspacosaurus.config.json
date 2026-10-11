@@ -11,6 +11,11 @@
   "lint": {
     "includeDirs": [
       "lessons"
-    ]
+    ],
+    "quizBias": {
+      "giveawayWords": [
+        "only"
+      ]
+    }
   }
 }

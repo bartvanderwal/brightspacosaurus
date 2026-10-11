@@ -8,6 +8,28 @@ export function resolveQuizOptions(value: unknown = {}): ResolvedQuizConfig {
   }
   const quiz = value as Record<string, unknown>;
   if (
+    quiz.locale !== undefined &&
+    quiz.locale !== "en" && quiz.locale !== "nl"
+  ) {
+    throw new Error("Field 'quiz.locale' must be 'en' or 'nl'.");
+  }
+  for (
+    const field of [
+      "assignmentPrefix",
+      "questionPrefix",
+      "subquestionPrefix",
+    ] as const
+  ) {
+    if (
+      quiz[field] !== undefined &&
+      (typeof quiz[field] !== "string" || !quiz[field].trim())
+    ) {
+      throw new Error(
+        `Field 'quiz.${field}' must be a non-empty string if provided.`,
+      );
+    }
+  }
+  if (
     quiz.maxAttempts !== undefined &&
     (typeof quiz.maxAttempts !== "number" ||
       !Number.isInteger(quiz.maxAttempts) || quiz.maxAttempts < 0)
@@ -24,8 +46,17 @@ export function resolveQuizOptions(value: unknown = {}): ResolvedQuizConfig {
       "Field 'quiz.shuffleAnswers' must be a boolean if it is provided.",
     );
   }
+  const locale = (quiz.locale as "en" | "nl" | undefined) ?? "en";
   return {
     maxAttempts: (quiz.maxAttempts as number | undefined) ?? 0,
     shuffleAnswers: (quiz.shuffleAnswers as boolean | undefined) ?? false,
+    locale,
+    assignmentPrefix: ((quiz.assignmentPrefix as string | undefined)?.trim()) ??
+      (locale === "nl" ? "Opdracht" : "Assignment"),
+    questionPrefix: ((quiz.questionPrefix as string | undefined)?.trim()) ??
+      (locale === "nl" ? "Vraag" : "Question"),
+    subquestionPrefix:
+      ((quiz.subquestionPrefix as string | undefined)?.trim()) ??
+        (locale === "nl" ? "Deelvraag" : "Subquestion"),
   };
 }
