@@ -84,6 +84,7 @@
       "assets/section-number-filter.lua",
       "CHANGELOG.md",
       "docs/user-manual.md",
+      "docs/quizzosaurus-syntax.md",
       "docs/software-guidebook.md",
       "README.md",
       "deno.json",
