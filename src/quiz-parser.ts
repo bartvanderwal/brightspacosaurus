@@ -483,6 +483,11 @@ export function parseQuizMarkdown(
   return quiz;
 }
 
+/** True when the Markdown holds a fenced `quiz` block, the QuizDown syntax. */
+export function isQuizDown(content: string): boolean {
+  return extractQuizDownBlock(content) !== null;
+}
+
 function extractQuizDownBlock(content: string): string | null {
   const lines = content.split(/\r?\n/);
   for (let index = 0; index < lines.length; index++) {
@@ -532,8 +537,10 @@ function extractQuizDownBlock(content: string): string | null {
 
 function parseQuizDown(source: string, markdown: string): ParsedQuiz {
   const title = markdown.match(/^#\s+(.+?)\s*#*\s*$/m)?.[1] ?? "";
-  const quiz: ParsedQuiz = { title, questions: [], issues: [] };
+  const quiz: ParsedQuiz = { title, questions: [], blocks: [], issues: [] };
   let question: QuizQuestion | undefined;
+  let assignment: QuizAssignment | undefined;
+  let assignmentCount = 0;
   let currentOption: { text: string; forcedOrder?: number } | undefined;
   let questionHasRoundMarkers = false;
   let questionHasSquareMarkers = false;
@@ -610,7 +617,9 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
   const stripIndent = (line: string, indent: number) =>
     line.replace(new RegExp(`^ {0,${indent}}`), "");
   const appendText = (line: string) => {
-    if (currentOption) {
+    if (!question && assignment) {
+      assignment.text += `${assignment.text ? "\n" : ""}${line}`;
+    } else if (currentOption) {
       const lastOption = question!.options.at(-1)!;
       const text = stripIndent(line, optionIndent);
       lastOption.text += `${lastOption.text ? "\n" : ""}${text}`;
@@ -645,29 +654,69 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
     if (continuesOption) appendText("");
     if (!continuesOption && blankAfterOption) currentOption = undefined;
     blankAfterOption = false;
+    const assignmentStart = trimmed.match(/^@\s+(.+)$/);
+    if (assignmentStart) {
+      finalizeQuestion(index + 1);
+      question = undefined;
+      currentOption = undefined;
+      assignment = {
+        number: ++assignmentCount,
+        title: assignmentStart[1].trim(),
+        text: "",
+        questions: [],
+        line: index + 1,
+      };
+      quiz.blocks!.push({ type: "assignment", assignment });
+      continue;
+    }
     const prompt = trimmed.match(/^\?\s+(.+)$/);
     if (prompt) {
       finalizeQuestion(index + 1);
+      const { text, points, invalidPoints } = splitQuizDownPoints(prompt[1]);
+      if (invalidPoints) {
+        quiz.issues!.push({
+          rule: "quiz-points-syntax",
+          line: index + 1,
+          message:
+            `Write points as '(2 pt)' or '(2)' at the end of the '?' line, not '${invalidPoints}'.`,
+        });
+      }
       question = {
         number: quiz.questions.length + 1,
-        text: prompt[1].trim(),
+        text,
         options: [],
         correctAnswer: "",
         correctAnswers: [],
         acceptedAnswers: [],
         line: index + 1,
+        ...(points === undefined ? {} : { points }),
       };
       quiz.questions.push(question);
+      if (assignment) {
+        question.label = `${assignment.number}${
+          String.fromCharCode(97 + assignment.questions.length)
+        }`;
+        assignment.questions.push(question);
+      } else {
+        quiz.blocks!.push({ type: "question", question });
+      }
       questionHasRoundMarkers = false;
       questionHasSquareMarkers = false;
       currentOption = undefined;
+      continue;
+    }
+    if (!question && assignment) {
+      // Shared context: only '?' and '@' are markers here, so a list such as
+      // '- [ ] item' or a line starting with '!' stays Markdown text.
+      codeFence = fenceOpening(raw);
+      appendText(raw);
       continue;
     }
     if (!question) {
       issue(
         "quiz-question",
         index + 1,
-        "QuizDown content must start with a question using '? prompt'.",
+        "QuizDown content must start with a question using '? prompt' or an assignment using '@ title'.",
       );
       continue;
     }
@@ -732,12 +781,38 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       appendText(raw);
       continue;
     }
+    if (question.options.length) {
+      issue(
+        "quizdown-unindented-option-content",
+        index + 1,
+        "Text or a fenced block after the options must be indented under its option (two spaces); it is not part of the option.",
+      );
+    }
     currentOption = undefined;
     codeFence = fenceOpening(raw);
     appendText(codeFence === null ? trimmed : raw);
   }
   finalizeQuestion(lines.length);
   return quiz;
+}
+
+/**
+ * Splits trailing points off a QuizDown prompt. Only '(2 pt)' and '(2)' are
+ * points; a spelling such as '(2 punten)' is reported, not silently kept.
+ */
+function splitQuizDownPoints(
+  value: string,
+): { text: string; points?: number; invalidPoints?: string } {
+  const valid = value.match(/^(.*?)\s*\((\d+)(?:\s*pt)?\)\s*$/);
+  if (valid) return { text: valid[1].trim(), points: Number(valid[2]) };
+  const invalid = value.match(/\(\s*\d+(?:[.,]\d+)?\s*[a-z.]+\s*\)\s*$/i);
+  const looksLikePoints = invalid &&
+    /^\(\s*\d+(?:[.,]\d+)?\s*(?:pts?|punt(?:en)?|points?|p)\.?\s*\)$/i
+      .test(invalid[0].trim());
+  return {
+    text: value.trim(),
+    ...(looksLikePoints ? { invalidPoints: invalid![0].trim() } : {}),
+  };
 }
 
 function splitQuizDownAnswers(value: string): string[] {

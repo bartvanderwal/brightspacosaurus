@@ -35,5 +35,10 @@
   "lessons/quizzes/quiz-only-giveaway.md": "quiz-only-giveaway",
   "lessons/quizzes/quiz-position-bias.md": "quiz-position-bias",
   "lessons/quizzes/quiz-answer-key-mismatch-vragen-en-antwoorden.md": "quiz-answer-key-mismatch",
+  "lessons/quizzes/quiz-assignment-empty.md": "quiz-assignment-empty",
+  "lessons/quizzes/quiz-points-syntax.md": "quiz-points-syntax",
+  "lessons/quizzes/quiz-unindented-option-content.md": "quizdown-unindented-option-content",
+  "lessons/quizzes/quiz-assignment-no-context.md": "quizdown-assignment-no-context",
+  "lessons/quizzes/quiz-mixed-formats.md": "quizdown-mixed-formats",
   "lessons/quizzes/quiz-no-bias.md": null
 }

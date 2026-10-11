@@ -579,7 +579,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "25 errors, 11 warnings",
+        "29 errors, 12 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),

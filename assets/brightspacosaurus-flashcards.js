@@ -1,3 +1,4 @@
+// @ts-self-types="./brightspacosaurus-flashcards.d.ts"
 /** Enhance shared flashcard markup; safe to call after each preview navigation. */
 function initializeFlashcards(root) {
   root.querySelectorAll(".bso-flashcards").forEach(function (section) {

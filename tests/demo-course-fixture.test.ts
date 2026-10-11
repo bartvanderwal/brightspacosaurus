@@ -69,7 +69,7 @@ Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios
     );
     assertEquals(
       entries.filter((name) => name.startsWith("quiz-")).length,
-      week === "week-1" ? 3 : 4,
+      week === "week-1" ? 3 : 5,
     );
   }
 

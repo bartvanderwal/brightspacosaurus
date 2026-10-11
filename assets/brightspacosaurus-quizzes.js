@@ -1,3 +1,4 @@
+// @ts-self-types="./brightspacosaurus-quizzes.d.ts"
 /** Stable option identities survive Fisher-Yates shuffling of their DOM nodes. */
 function shuffleOptions(options, random) {
   const shuffled = Array.from(options);

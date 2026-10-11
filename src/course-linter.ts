@@ -12,7 +12,8 @@ import {
 } from "./flashcards.ts";
 import remarkDirective from "remark-directive";
 import { detectDiagramIssues } from "./diagram-validation.ts";
-import { parseQuizMarkdown, validateQuiz } from "./quiz-parser.ts";
+import { isQuizDown, parseQuizMarkdown, validateQuiz } from "./quiz-parser.ts";
+import { lintQuizDown } from "./quizdown-lint.ts";
 import type { QuizHeadingOptions } from "./quiz-parser.ts";
 import {
   checkQuizBias,
@@ -132,7 +133,8 @@ function inspectMarkdown(
 
   // Consecutive lines form one paragraph in Markdown, so "_Label_: a" and
   // "_Label_: b" on separate plain lines render as one run-on line.
-  const metadataField = /(?:_[^_\s][^_\n]*_|\*\*[^*\n]+?\*\*):|\*\*[^*\n]+?:\*\*/g;
+  const metadataField =
+    /(?:_[^_\s][^_\n]*_|\*\*[^*\n]+?\*\*):|\*\*[^*\n]+?:\*\*/g;
   function checkMetadataFields(paragraph: Node): void {
     const { start, end } = paragraph.position!;
     const raw = lines.slice(start.line - 1, end.line).join("\n");
@@ -358,7 +360,10 @@ function inspectMarkdown(
 
   if (basename(sourceFile).startsWith("quiz-")) {
     const quiz = parseQuizMarkdown(markdown, options);
-    for (const issue of validateQuiz(quiz, options)) {
+    const quizIssues = isQuizDown(markdown)
+      ? lintQuizDown(markdown)
+      : validateQuiz(quiz, options);
+    for (const issue of quizIssues) {
       diagnostics.push({
         sourceFile,
         line: issue.line,
@@ -503,7 +508,11 @@ export function formatLintScope(result: LintResult): string[] {
       `  ${dir}/ (${count(files)})`
     ),
     ...(result.includedFiles
-      ? [`  + ${result.includedFiles} linked include file${result.includedFiles === 1 ? "" : "s"}`]
+      ? [
+        `  + ${result.includedFiles} linked include file${
+          result.includedFiles === 1 ? "" : "s"
+        }`,
+      ]
       : []),
   ];
 }
@@ -541,7 +550,9 @@ export function formatLintDiagnostic(
 }
 
 /** The `*-antwoorden-docent.md` next to `quiz-*-vragen-en-antwoorden.md`, if any. */
-async function readTeacherAnswers(quizFile: string): Promise<string | undefined> {
+async function readTeacherAnswers(
+  quizFile: string,
+): Promise<string | undefined> {
   if (!basename(quizFile).startsWith("quiz-")) return undefined;
   const teacherFile = quizFile.replace(
     /-vragen-en-antwoorden\.md$/,
