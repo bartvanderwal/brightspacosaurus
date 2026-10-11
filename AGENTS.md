@@ -39,6 +39,7 @@ Every new asset must also be included in `publish.include` in `deno.json`, other
 ## Engineering conventions
 
 - **Easy to use, hard to make.** The effort belongs in the tool, not with the user, as long as the feature is valuable to end users. Prefer one command that does the right thing in context (for example `bso lint` follows the configuration of the current directory and says what it scanned) over several specialized commands, flags or settings. Support both of two reasonable syntaxes instead of adding a setting to choose. Do not add configuration for a choice BSO can make itself.
+- **Conceptual integrity: strict, not forgiving.** One canonical form per concept, shared by BSO and Quizzosaurus. Do not silently repair or guess malformed input; reject it with an actionable error (a warning only for pure style). Recognise formats from explicit markers and give breaking syntax changes an explicit version. Rationale and sources: `docs/quizzosaurus-syntax.md`, section 10 (Spolsky, 2008; Thomson, 2019).
 - Commands are idempotent: repeated execution on the same input produces identical output.
 - Fail fast with useful error messages to `stderr`; progress to `stdout`.
 - Deterministic file ordering when creating archives.
