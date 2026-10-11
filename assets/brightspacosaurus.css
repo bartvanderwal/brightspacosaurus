@@ -492,6 +492,12 @@ article.markdown details[open] summary {
   padding: 1rem;
   margin-bottom: 1rem;
 }
+.bso-quiz-assignment {
+  border-left: 4px solid var(--han-red);
+  margin-block: 1.5rem;
+  padding-left: 1rem;
+}
+.bso-quiz-assignment-context { margin-bottom: 1.25rem; }
 .bso-quiz-options label { cursor: pointer; }
 .bso-quiz-options input { margin-right: 0.5rem; }
 .bso-quiz > button {

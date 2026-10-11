@@ -19,3 +19,6 @@ demo-course-docs/playwright-report/
 
 # Agent working notes (task investigations, run artifacts)
 .agents/
+
+# Extracted npm tarball during release (see AGENTS.md)
+package/

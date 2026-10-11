@@ -65,10 +65,24 @@ Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios
       entries.filter((name) =>
         name.endsWith(".md") && name.startsWith("lesson-")
       ).length,
-      week === "week-1" ? 4 : 3,
+      4,
     );
-    assertEquals(entries.filter((name) => name.startsWith("quiz-")).length, 3);
+    assertEquals(
+      entries.filter((name) => name.startsWith("quiz-")).length,
+      week === "week-1" ? 3 : 4,
+    );
   }
+
+  // Quiz 2.4 is the regression scenario for Quizzosaurus question types and
+  // code in prompts and answer options (#50, #72).
+  const questionTypes = await Deno.readTextFile(
+    join(demoRoot, "lessons", "week-2", "quiz-4-question-types.md"),
+  );
+  assertStringIncludes(questionTypes, "````quiz");
+  assertStringIncludes(questionTypes, "- (x) ");
+  assertStringIncludes(questionTypes, "- [x] ");
+  assertStringIncludes(questionTypes, "\n= POST");
+  assertStringIncludes(questionTypes, "  ```jsx\n");
 
   const flashcards = await Deno.readTextFile(
     join(demoRoot, "lessons", "week-1", "lesson-4-core-concepts.md"),

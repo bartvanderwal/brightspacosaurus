@@ -41,6 +41,17 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
     .toHaveCount(1);
   const questions = quiz.locator(".bso-quiz-question");
   await expect(questions).toHaveCount(3);
+  await expect(quiz.locator(".bso-quiz-assignment")).toHaveCount(1);
+  await expect(
+    quiz.locator(".bso-quiz-assignment-context code"),
+  ).toHaveText(
+    "class FizzBuzz {\n    String of(int number) { /* implementation */ }\n}",
+  );
+  await expect(questions.locator("legend")).toHaveText([
+    "Deelvraag 1a (2 punten)",
+    "Deelvraag 1b (3 punten)",
+    "Question 3",
+  ]);
   const order = () =>
     questions.first().locator("input").evaluateAll((inputs) =>
       inputs.map((input) => input.value)
@@ -59,7 +70,7 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
   }
   await quiz.getByRole("button", { name: "Check answers", exact: true })
     .click();
-  await expect(quiz.getByRole("status")).toHaveText("3 / 3 correct");
+  await expect(quiz.getByRole("status")).toHaveText("6 / 6 points");
   expect(await order()).toEqual(initial);
   await page.evaluate(() => {
     location.hash = "practice";
@@ -68,7 +79,7 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
   await expect(questions.first().locator("input[value=C]")).toBeChecked();
   await quiz.getByRole("button", { name: "Check answers", exact: true })
     .click();
-  await expect(quiz.getByRole("status")).toHaveText("3 / 3 correct");
+  await expect(quiz.getByRole("status")).toHaveText("6 / 6 points");
   await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
   await expect(quiz.locator("input:checked")).toHaveCount(0);
   await expect(questions.first().locator("input").first()).toBeFocused();

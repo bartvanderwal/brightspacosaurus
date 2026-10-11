@@ -2,6 +2,40 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Added
+
+- Legacy quiz assignments with shared Markdown context, ordered subquestions, optional points, lint rules and matching QTI/Docusaurus sections (#80).
+- English-default quiz headings with configurable locale-derived or explicit assignment and question prefixes.
+
+### Changed
+
+- Quiz previews report weighted points when subquestion points are supplied.
+
+### Fixed
+
+- Relative quiz images are copied into the cartridge and referenced as quiz resource dependencies.
+- The npm package declares types for the `./tabs` export and no longer contains an empty `assets/brightspacosaurus-tabs.d.ts.d.ts` (#77).
+
+### Added
+
+- `deno task release:npm` (and `--dry-run`) publishes to npm in one step: login check, pack into `build/`, the fixes above, publish from the extracted folder, clean-up (#77).
+
+## 0.19.1 - 2026-10-09
+
+### Fixed
+
+- Quiz QTI export renders Markdown code in questions, answer options and feedback; fenced code is preserved in legacy question prompts.
+- A `quiz` block may use a four-backtick fence around three-backtick code blocks; the closing fence was read as a nested opening, so no questions were found.
+- Fenced code in a QuizDown prompt or answer option keeps its indentation and blank lines.
+- The Docusaurus quiz preview renders inline code and fenced code in prompts, answer options, hints and the correct answer, instead of literal backticks. Preview and QTI export now parse quiz text with the same Markdown parser (`src/quiz-markdown.ts`), so both targets show the same output.
+- Mixing `[ ]` and lettered options in one question reports one error instead of three.
+
+### Added
+
+- Demo quiz 2.4 with single choice, multiple response, open short answer and Java/JSX code in prompts and answer options.
+
 ## Project Stability
 
 Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the project should be treated as release-candidate quality rather than a stable LTS tool: configuration names, CLI behavior, generated package structure and public TypeScript APIs may still change between minor versions.
@@ -14,7 +48,6 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 
 - Quiz export and preview support for Quizzosaurus/QuizDown single-choice, multi-select and open short-answer syntax (#50).
 - `bso lint` rules for bias in multiple-choice quizzes (#68): `quiz-length-bias`, `quiz-reverse-length-bias`, `quiz-answer-length-ratio`, `quiz-only-giveaway` and `quiz-position-bias` (warnings), and `quiz-answer-key-mismatch` (error) when `quiz-*-vragen-en-antwoorden.md` and its `*-antwoorden-docent.md` name a different correct answer. Thresholds and signal words are configurable in `lint.quizBias`. The rules replace owe-1's `scripts/check-quiz-bias.py`; they also find quizzes whose question headings have a title (`## Vraag 1 — Titel`), which the script skipped.
-
 
 ## 0.18.0 - 2026-10-05
 
@@ -119,8 +152,8 @@ This changelog was introduced during the `0.8.0` release. Earlier entries were r
 
 ### Changed
 
-- `flashcards.sectionHeadings` now defaults to `["Core concepts"]`; set `[]` to disable automatic conversion. Existing `Core concepts` sections with term/definition lists become flashcards, and `bso lint` checks them (#31).
-- Ignore a leading section number when matching flashcard headings, so `## 7. Kernbegrippen` matches `Kernbegrippen` (#31).
+- `flashcards.sectionHeadings` now defaults to `["Core concepts"]`; set `[]` to disable automatic conversion. Existing `Core concepts` sections with term/definition lists become flashcards, and `bso lint` checks them (issue #31).
+- Ignore a leading section number when matching flashcard headings, so `## 7. Kernbegrippen` matches `Kernbegrippen` (issue #31).
 
 ### Removed
 

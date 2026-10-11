@@ -191,6 +191,12 @@ export interface QuizConfig {
   maxAttempts?: number;
   /** Shuffle answer choices per attempt. Default: false. */
   shuffleAnswers?: boolean;
+  /** Language used for default assignment and question headings. Default: "en". */
+  locale?: "en" | "nl";
+  /** Heading prefix for shared-context assignments; overrides the locale default. */
+  assignmentPrefix?: string;
+  /** Heading prefix for questions and assignment subquestions; overrides the locale default. */
+  questionPrefix?: string;
 }
 
 /**
@@ -286,6 +292,12 @@ export interface ResolvedQuizConfig {
   maxAttempts: number;
   /** Shuffle answer choices per attempt. */
   shuffleAnswers: boolean;
+  /** Language used for default assignment and question headings. */
+  locale: "en" | "nl";
+  /** Heading prefix for shared-context assignments. */
+  assignmentPrefix: string;
+  /** Heading prefix for questions and assignment subquestions. */
+  questionPrefix: string;
 }
 
 /** Resolved instructor manual configuration with absolute paths. */
