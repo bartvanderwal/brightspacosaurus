@@ -3,7 +3,8 @@
  * working tree, branch and tag are in order (ADR 018), publishes to JSR with
  * `deno publish`, and then publishes to npm with `deno task release:npm`.
  *
- * `--dry-run` passes through to both publish steps.
+ * `--dry-run` passes through to both publish steps. npm asks for a 2FA code
+ * itself at its step (no `--otp` needed); `--otp=<code>` is passed on if given (#88).
  *
  * @module
  */
@@ -98,6 +99,11 @@ if (import.meta.main) {
   }
   console.log(`Releasing ${version}${dryRun ? " (dry run)" : ""}`);
   await step(["publish", ...(dryRun ? ["--dry-run"] : [])]);
-  await step(["task", "release:npm", ...(dryRun ? ["--dry-run"] : [])]);
+  await step([
+    "task",
+    "release:npm",
+    ...(dryRun ? ["--dry-run"] : []),
+    ...Deno.args.filter((arg) => arg.startsWith("--otp")),
+  ]);
   console.log(`\nReleased ${version} to JSR and npm.`);
 }

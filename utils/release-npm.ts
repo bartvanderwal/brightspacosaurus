@@ -12,7 +12,8 @@
  * 5. Remove `build/npm-release/`.
  *
  * `--dry-run` runs everything, but calls `npm publish --dry-run` and keeps the
- * folder for inspection.
+ * folder for inspection. npm asks for the one-time password of a 2FA account
+ * itself; `--otp=<code>` passes it up front (#88).
  *
  * @module
  */
@@ -68,6 +69,32 @@ export function fixPackage(
   };
 }
 
+/**
+ * The `--otp=<code>` argument, if any. npm asks for the one-time password of an
+ * account with 2FA at publish time; without this option npm prompts for it.
+ * Throws on a malformed value so a typo does not cost a wasted publish.
+ */
+export function parseOtp(args: string[]): string | undefined {
+  const arg = args.find((value) => value.startsWith("--otp"));
+  if (arg === undefined) return undefined;
+  const match = arg.match(/^--otp=([A-Za-z0-9-]+)$/);
+  if (!match) {
+    throw new Error("Use --otp=<code> with the code from your authenticator.");
+  }
+  return match[1];
+}
+
+/** The arguments of `npm publish` for a real release or a dry run. */
+export function npmPublishArgs(dryRun: boolean, otp?: string): string[] {
+  return [
+    "publish",
+    "--access",
+    "public",
+    ...(dryRun ? ["--dry-run"] : []),
+    ...(otp ? [`--otp=${otp}`] : []),
+  ];
+}
+
 async function run(
   command: string,
   args: string[],
@@ -97,7 +124,7 @@ async function listFiles(root: string, dir = ""): Promise<string[]> {
   return files;
 }
 
-async function main(dryRun: boolean): Promise<void> {
+async function main(dryRun: boolean, otp?: string): Promise<void> {
   const whoami = await run("npm", ["whoami"]);
   if (whoami.code !== 0) {
     console.error(
@@ -147,15 +174,20 @@ async function main(dryRun: boolean): Promise<void> {
     console.log(`Removed ${file}`);
   }
 
-  const publish = await run(
-    "npm",
-    ["publish", "--access", "public", ...(dryRun ? ["--dry-run"] : [])],
-    packageDir,
-  );
-  console.log(publish.stdout);
-  if (publish.code !== 0) {
-    console.error(publish.stderr);
-    Deno.exit(1);
+  // Inherit the terminal so npm can ask for the one-time password itself
+  // (authenticator code, or a browser link for a passkey).
+  const publish = await new Deno.Command("npm", {
+    args: npmPublishArgs(dryRun, otp),
+    cwd: packageDir,
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  }).output();
+  if (!publish.success) {
+    console.error(
+      "npm publish failed. With 2FA, run again and enter the code when npm asks, or pass --otp=<code>.",
+    );
+    Deno.exit(publish.code || 1);
   }
   if (dryRun) {
     console.log(`Dry run: inspect ${packageDir}`);
@@ -168,5 +200,12 @@ async function main(dryRun: boolean): Promise<void> {
 }
 
 if (import.meta.main) {
-  await main(Deno.args.includes("--dry-run"));
+  let otp: string | undefined;
+  try {
+    otp = parseOtp(Deno.args);
+  } catch (error) {
+    console.error((error as Error).message);
+    Deno.exit(1);
+  }
+  await main(Deno.args.includes("--dry-run"), otp);
 }

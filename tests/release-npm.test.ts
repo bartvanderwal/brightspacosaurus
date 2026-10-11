@@ -1,9 +1,9 @@
 /**
  * Tests for the npm release fix-ups (#77).
  */
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import fc from "fast-check";
-import { fixPackage } from "../utils/release-npm.ts";
+import { fixPackage, npmPublishArgs, parseOtp } from "../utils/release-npm.ts";
 
 const files = [
   "package.json",
@@ -92,4 +92,23 @@ Deno.test("property: fixPackage is idempotent and only removes .d.ts.d.ts files"
     ),
     { numRuns: 100 },
   );
+});
+
+Deno.test("parseOtp reads --otp=<code> and rejects a malformed option (#88)", () => {
+  assertEquals(parseOtp(["--dry-run"]), undefined);
+  assertEquals(parseOtp(["--dry-run", "--otp=123456"]), "123456");
+  assertThrows(() => parseOtp(["--otp"]));
+  assertThrows(() => parseOtp(["--otp="]));
+  assertThrows(() => parseOtp(["--otp=12 34"]));
+});
+
+Deno.test("npmPublishArgs adds --dry-run and --otp only when asked (#88)", () => {
+  assertEquals(npmPublishArgs(false), ["publish", "--access", "public"]);
+  assertEquals(npmPublishArgs(true, "123456"), [
+    "publish",
+    "--access",
+    "public",
+    "--dry-run",
+    "--otp=123456",
+  ]);
 });
