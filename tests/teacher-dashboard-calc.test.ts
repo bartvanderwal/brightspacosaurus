@@ -456,8 +456,10 @@ Deno.test("dashboard page loads calc.js before app.js and app.js does not redefi
   const { loadAssetText } = await import("../src/assets.ts");
   const html = await loadAssetText("teacher-dashboard/index.html");
   const app = await loadAssetText("teacher-dashboard/app.js");
+  const stateAt = html.indexOf('<script src="state.js">');
   const calcAt = html.indexOf('<script src="calc.js">');
   const appAt = html.indexOf('<script src="app.js">');
+  assertEquals(stateAt >= 0 && calcAt >= 0 && stateAt < appAt && calcAt < appAt, true);
   assertEquals(calcAt >= 0 && calcAt < appAt, true, "calc.js must load before app.js");
   for (
     const name of [

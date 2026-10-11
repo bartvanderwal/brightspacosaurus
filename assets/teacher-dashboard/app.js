@@ -10,6 +10,7 @@
   const { useState, useMemo, useCallback, useEffect, useRef } = React;
   const html = htm.bind(React.createElement);
   const calc = globalThis.bsoDashboardCalc;
+  const state = globalThis.bsoDashboardState;
 
   // --- Configuration (embedded by BSO prepare) ---
 
@@ -357,34 +358,36 @@
     });
     const attention = (l) => !["ok", "idle"].includes(l);
     const agg = studentAggregate(s, visible, settings);
-    const studentId = parentId ? `${parentId}/${s.studentId}` : s.studentId;
+    const studentId = state.studentNodeId(parentId, s.studentId);
     const repos = visibleRepos(s, visible).map((repo) => {
       const ragg = repoAggregate(repo, settings);
+      const repoId = state.repoNodeId(studentId, repo.prefix);
       const items = repo.workItems
         .map((it) => ({ it, cl: classifyItem(it, settings) }))
         .filter(({ cl }) => !filter || attention(cl.light))
         .map(({ it, cl }) => {
+          const itemId = state.itemNodeId(repoId, it.iid);
           const commits = it.commits.map((c) =>
-            node(`${studentId}/${repo.prefix}/${it.iid}/${c.id}`, "commit", c.title, null, c.shortId, {
+            node(state.commitNodeId(itemId, c.id), "commit", c.title, null, c.shortId, {
               student: s,
               repo,
               item: it,
               commit: c,
             }, [])
           );
-          return node(`${studentId}/${repo.prefix}/${it.iid}`, "item", `#${it.iid} ${it.title}`, cl.light,
+          return node(itemId, "item", `#${it.iid} ${it.title}`, cl.light,
             it.commits.length ? `${it.commits.length} commit${it.commits.length > 1 ? "s" : ""}` : (it.statusLabel || it.state),
             { student: s, repo, item: it }, commits);
         });
       const meta = !repo.exists ? "geen repo" : repo.error ? "fout" : `${ragg.n.ok}/${ragg.total}`;
-      return node(`${studentId}/${repo.prefix}`, "repo", repo.label, ragg.light, meta, { student: s, repo }, items);
+      return node(repoId, "repo", repo.label, ragg.light, meta, { student: s, repo }, items);
     }).filter((r) => !filter || attention(r.light));
     return node(studentId, "student", s.studentId, agg.light,
       `${agg.n.ok}/${agg.total}`, { student: s }, repos);
   }
 
   function weekNodeId(klas, week) {
-    return `klas/${klas}/week/${week.startsOn}`;
+    return state.weekNodeId(klas, week);
   }
 
   function buildTree(students, klas, visible, settings, filter, query) {
@@ -402,14 +405,7 @@
     const matchingStudents = students.filter((s) => !q || s.studentId.toLowerCase().includes(q));
     if (config.weeks && config.weeks.length) {
       const currentWeek = calc.currentWeekIndex(config.weeks);
-      const orderedWeeks = config.weeks.map((week, index) => ({ week, index })).sort((a, b) => {
-        if (a.index === currentWeek) return -1;
-        if (b.index === currentWeek) return 1;
-        const aIsPast = a.index < currentWeek;
-        const bIsPast = b.index < currentWeek;
-        if (aIsPast !== bIsPast) return aIsPast ? -1 : 1;
-        return aIsPast ? b.index - a.index : a.index - b.index;
-      });
+      const orderedWeeks = state.orderedWeeks(config.weeks, currentWeek);
       const weeks = orderedWeeks.map(({ week, index }) => {
         const weekVisible = new Set([...visible].filter((prefix) => week.repos.includes(prefix)));
         const id = weekNodeId(klas, week);
@@ -433,18 +429,6 @@
       if (open.has(n.id)) n.children.forEach((c) => walk(c, depth + 1, n));
     })(root, 0, null);
     return out;
-  }
-
-  function findPath(root, id) {
-    const path = [];
-    (function walk(n) {
-      path.push(n);
-      if (n.id === id) return true;
-      for (const c of n.children) if (walk(c)) return true;
-      path.pop();
-      return false;
-    })(root);
-    return path;
   }
 
   function Tree({ root, open, setOpen, selected, select }) {
@@ -526,7 +510,7 @@
       <div className="scroll"><table>
         <thead><tr><th>Student</th><th>Totaal</th>${repos.map((r) => html`<th key=${r.prefix}>${r.label}</th>`)}<th>Verdeling</th></tr></thead>
         <tbody>${all.map(({ s, agg, repos: ras }) => html`<tr key=${s.studentId} className="click"
-          onClick=${() => onPick(weekId ? `${weekId}/${s.studentId}` : s.studentId)}>
+          onClick=${() => onPick(state.studentNodeId(weekId, s.studentId))}>
           <td><strong>${s.studentId}</strong></td>
           <td><${Light} l=${agg.light} /></td>
           ${ras.map((a, i) => html`<td key=${i} title=${a.reason}><${Light} l=${a.light}
@@ -549,7 +533,8 @@
         <span className="muted">Start ${fmtDate(week.startsOn)} · ${repos.length} van ${week.repos.length} repo's getoond</span></div>
       ${repos.length ? html`<div className="scroll"><table>
         <thead><tr><th>Student</th><th>Weekstatus</th>${repos.map((r) => html`<th key=${r.prefix}>${r.label}</th>`)}</tr></thead>
-        <tbody>${all.map(({ s, agg, repos: ras }) => html`<tr key=${s.studentId} className="click" onClick=${() => onPick(`${weekId}/${s.studentId}`)}>
+        <tbody>${all.map(({ s, agg, repos: ras }) => html`<tr key=${s.studentId} className="click"
+          onClick=${() => onPick(state.studentNodeId(weekId, s.studentId))}>
           <td><strong>${s.studentId}</strong></td><td><${Light} l=${agg.light} /></td>
           ${ras.map((a, i) => html`<td key=${i} title=${a.reason}><${Light} l=${a.light}
             label=${a.reason === "Repo niet aangemaakt" ? "geen repo" : a.total ? `${a.n.ok}/${a.total}` : "–"} /></td>`)}</tr>`)}</tbody>
@@ -581,7 +566,7 @@
         <thead><tr><th>Repo</th><th>Stoplicht</th><th className="num">Groen</th><th className="num">Oranje</th><th className="num">Rood</th><th className="num">Nog niet</th><th>Verdeling</th></tr></thead>
         <tbody>${visibleRepos(s, scopedVisible).map((r) => {
           const a = repoAggregate(r, settings);
-          return html`<tr key=${r.prefix} className="click" onClick=${() => onPick(`${nodeId}/${r.prefix}`)}>
+          return html`<tr key=${r.prefix} className="click" onClick=${() => onPick(state.repoNodeId(nodeId, r.prefix))}>
             <td><strong>${r.label}</strong>${!r.exists || r.error ? html`<div className="reason">${a.reason}</div>` : null}</td>
             <td><${Light} l=${a.light} /></td><td className="num">${a.n.ok}</td><td className="num">${a.n.warn}</td>
             <td className="num">${a.n.bad}</td><td className="num muted">${a.idle}</td><td><${Stack} n=${a.n} total=${a.total} /></td></tr>`;
@@ -606,7 +591,8 @@
         <thead><tr><th>Work item</th><th>Stoplicht</th><th>Reden</th><th className="num">Commits</th><th className="num">MR's</th><th>Deadline</th></tr></thead>
         <tbody>${repo.workItems.map((it) => {
           const cl = classifyItem(it, settings);
-          return html`<tr key=${it.iid} className="click" onClick=${() => onPick(`${nodeId}/${repo.prefix}/${it.iid}`)}>
+          return html`<tr key=${it.iid} className="click"
+            onClick=${() => onPick(state.itemNodeId(state.repoNodeId(nodeId, repo.prefix), it.iid))}>
             <td><span className="mono muted">#${it.iid}</span> ${it.title}</td><td><${Light} l=${cl.light} /></td>
             <td className="reason">${cl.reason}</td><td className="num">${it.commits.length}</td>
             <td className="num">${it.mergeRequests.length}</td><td className="mono">${fmtDate(it.dueDate)}</td></tr>`;
@@ -789,19 +775,14 @@
       setSelected(selectedId);
     }, [klas]);
 
-    const path = findPath(root, selected);
+    const path = state.findPath(root, selected);
     const node = path.length ? path[path.length - 1] : root;
     const pick = useCallback((id) => {
-      const p = findPath(root, id);
-      const weekNode = p.find((n) => n.type === "week");
-      if (weekNode) setSelectedWeekTitle(weekNode.data.week.title);
-      setOpen((o) => {
-        const x = new Set(o);
-        p.slice(0, -1).forEach((n) => x.add(n.id));
-        return x;
-      });
+      const selection = state.selectPath(root, id, open);
+      if (selection.weekTitle) setSelectedWeekTitle(selection.weekTitle);
+      setOpen(selection.open);
       setSelected(id);
-    }, [root]);
+    }, [root, open]);
 
     async function refreshClass() {
       setError("");
@@ -819,19 +800,12 @@
         await mapLimit(entries, 2, async (entry) => {
           const previous = existing?.students[entry.studentId];
           const fresh = await fetchStudent(token, entry, previous ? updateRepos : config.repos);
-          const repos = previous
-            ? [
-              ...previous.repos.filter((repo) => !updatedPrefixes.has(repo.prefix)),
-              ...fresh.repos,
-            ]
-            : fresh.repos;
-          result[entry.studentId] = {
-            ...fresh,
-            repos: repos.sort((a, b) =>
-              config.repos.findIndex((repo) => repo.prefix === a.prefix) -
-              config.repos.findIndex((repo) => repo.prefix === b.prefix)
-            ),
-          };
+          result[entry.studentId] = state.mergeStudent(
+            previous,
+            fresh,
+            updatedPrefixes,
+            config.repos.map((repo) => repo.prefix),
+          );
           setBusy({ done: ++done, total: entries.length });
         });
         setDataByKlas((prev) => ({ ...prev, [klas]: { students: result, fetchedAt: new Date().toISOString() } }));
@@ -854,22 +828,18 @@
           : config.repos;
         const fresh = await fetchStudent(token, entry, updateRepos);
         const updatedPrefixes = new Set(updateRepos.map((repo) => repo.prefix));
-        const repos = previous
-          ? [...previous.repos.filter((repo) => !updatedPrefixes.has(repo.prefix)), ...fresh.repos]
-          : fresh.repos;
         setDataByKlas((prev) => ({
           ...prev,
           [klas]: {
             ...prev[klas],
             students: {
               ...prev[klas].students,
-              [studentId]: {
-                ...fresh,
-                repos: repos.sort((a, b) =>
-                  config.repos.findIndex((repo) => repo.prefix === a.prefix) -
-                  config.repos.findIndex((repo) => repo.prefix === b.prefix)
-                ),
-              },
+              [studentId]: state.mergeStudent(
+                previous,
+                fresh,
+                updatedPrefixes,
+                config.repos.map((repo) => repo.prefix),
+              ),
             },
             fetchedAt: new Date().toISOString(),
           },
@@ -889,7 +859,7 @@
         ? `Nog niets opgehaald voor ${klas || config.groupPath}. Kies "Haal status uit GitLab".`
         : "Plak eerst een GitLab-token (fine-grained, alleen lezen). Zie de handleiding voor de benodigde rechten."}</div>`;
     } else if (node.type === "klas") {
-      const weekId = selectedWeek ? weekNodeId(klas, selectedWeek) : "";
+      const weekId = selectedWeek ? weekNodeId(klas, selectedWeek) : null;
       detail = html`<${KlasDetail} klas=${klas} students=${students} visible=${visible} settings=${settings} weekId=${weekId} onPick=${pick} />`;
     } else if (node.type === "week") {
       detail = html`<${WeekDetail} week=${d.week} weekId=${node.id} students=${students} visible=${visible} settings=${settings} onPick=${pick} />`;
@@ -915,9 +885,9 @@
             const next = config.weeks.find((item) => item.title === e.target.value);
             if (!next) return;
             setSelectedWeekTitle(next.title);
-            const id = weekNodeId(klas, next);
-            setOpen((o) => new Set([...o, `klas/${klas}`, id]));
-            setSelected(id);
+            const focus = state.focusWeek(klas, next, open);
+            setOpen(focus.open);
+            setSelected(focus.id);
           }}>${config.weeks.map((item, index) => html`<option key=${item.title} value=${item.title}>
             ${item.title}${index > currentWeekIndex ? " · later" : ""}
           </option>`)}</select></label>` : null}
