@@ -51,6 +51,10 @@ interface DashboardCalc {
   ): boolean;
   isWorkItemCommit(commitMessage: string, issueIid: number): boolean;
   currentWeekIndex(weeks: Array<{ startsOn: string }>, referenceDate?: Date): number;
+  oldestRepoFetchedAt(
+    students: Array<{ repos: Array<{ prefix: string; fetchedAt?: string }> }>,
+    repoPrefixes: string[],
+  ): string | null;
   evaluateWorkItem(input: WorkItemEvaluationInput): WorkItemEvaluationResult;
   evaluateRepoStoplight(
     workItems: WorkItemEvaluationResult[],
@@ -70,6 +74,7 @@ export const {
   isTeacherCommit,
   isWorkItemCommit,
   currentWeekIndex,
+  oldestRepoFetchedAt,
   evaluateWorkItem,
   evaluateRepoStoplight,
 } = sandbox.bsoDashboardCalc!;

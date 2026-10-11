@@ -11,6 +11,7 @@ import {
   evaluateRepoStoplight,
   evaluateWorkItem,
   currentWeekIndex,
+  oldestRepoFetchedAt,
   extractStudentIdentifier,
   isTeacherCommit,
   isWorkItemCommit,
@@ -380,6 +381,31 @@ Deno.test("Property: evaluateRepoStoplight preserves mathematical bounds and thr
     ),
     { numRuns: 100 },
   );
+});
+
+// ---------------------------------------------------------------------------
+// Per-repository freshness
+// ---------------------------------------------------------------------------
+
+Deno.test("oldestRepoFetchedAt reports the oldest timestamp for selected repositories only", () => {
+  const students = [
+    {
+      repos: [
+        { prefix: "week-one", fetchedAt: "2026-10-01T10:00:00.000Z" },
+        { prefix: "week-two", fetchedAt: "2026-10-10T10:00:00.000Z" },
+      ],
+    },
+    {
+      repos: [
+        { prefix: "week-one", fetchedAt: "2026-10-03T10:00:00.000Z" },
+        { prefix: "week-two", fetchedAt: "2026-10-11T10:00:00.000Z" },
+      ],
+    },
+  ];
+
+  assertEquals(oldestRepoFetchedAt(students, ["week-one"]), "2026-10-01T10:00:00.000Z");
+  assertEquals(oldestRepoFetchedAt(students, ["week-two"]), "2026-10-10T10:00:00.000Z");
+  assertEquals(oldestRepoFetchedAt(students, ["missing"]), null);
 });
 
 // ---------------------------------------------------------------------------

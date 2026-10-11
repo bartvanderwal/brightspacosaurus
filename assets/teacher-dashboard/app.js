@@ -211,7 +211,15 @@
   }
 
   async function fetchRepo(token, repo, project) {
-    if (!project) return { prefix: repo.prefix, label: repo.label, exists: false, workItems: [] };
+    if (!project) {
+      return {
+        prefix: repo.prefix,
+        label: repo.label,
+        exists: false,
+        workItems: [],
+        fetchedAt: new Date().toISOString(),
+      };
+    }
     try {
       let warning = "";
       const [repoCommits, issues] = await Promise.all([
@@ -225,7 +233,15 @@
         fetchWorkItem(token, project, issue, repoCommits, weekByRepo.get(repo.prefix)?.startsOn)
       );
       workItems.sort((a, b) => a.iid - b.iid);
-      return { prefix: repo.prefix, label: repo.label, exists: true, webUrl: project.web_url, workItems, warning };
+      return {
+        prefix: repo.prefix,
+        label: repo.label,
+        exists: true,
+        webUrl: project.web_url,
+        workItems,
+        warning,
+        fetchedAt: new Date().toISOString(),
+      };
     } catch (e) {
       return {
         prefix: repo.prefix,
@@ -234,6 +250,7 @@
         error: e.message,
         errorDetails: e.details || "",
         workItems: [],
+        fetchedAt: new Date().toISOString(),
       };
     }
   }
@@ -753,6 +770,9 @@
     const data = dataByKlas[klas];
     const students = useMemo(() => (data ? Object.values(data.students)
       .sort((a, b) => a.studentId.localeCompare(b.studentId, "nl", { sensitivity: "base" })) : []), [data]);
+    const fetchedAt = selectedWeek
+      ? calc.oldestRepoFetchedAt(students, selectedWeek.repos) || data?.fetchedAt
+      : data?.fetchedAt;
     const root = useMemo(() => buildTree(students, klas, visible, settings, filter, query),
       [students, klas, visible, settings, filter, query]);
 
@@ -902,7 +922,7 @@
       </header>
       <div className="status">
         <span className="note">Studentgegevens staan alleen in het geheugen van deze pagina en verdwijnen bij sluiten.</span>
-        ${data ? html`<span className="muted">Laatst ververst ${fmtDateTime(data.fetchedAt)}</span>` : null}
+        ${data ? html`<span className="muted">Laatst ververst ${fmtDateTime(fetchedAt)}</span>` : null}
         <button className="btn primary" disabled=${!token || !!busy} onClick=${refreshClass}>
           ${data && selectedWeek ? `Ververs ${selectedWeek.title} uit GitLab` : data ? "Ververs status uit GitLab" : "Haal status uit GitLab"}</button>
         ${busy ? html`<span className="status" role="status"><span className="spinner" aria-hidden="true"></span>${

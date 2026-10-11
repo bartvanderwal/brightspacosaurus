@@ -73,6 +73,29 @@
   }
 
   /**
+   * Oldest fetch timestamp among the selected repositories for all students.
+   * @param {Array<{ repos: Array<{ prefix: string, fetchedAt?: string }> }>} students
+   * @param {string[]} repoPrefixes
+   * @returns {string | null}
+   */
+  function oldestRepoFetchedAt(students, repoPrefixes) {
+    const selected = new Set(repoPrefixes);
+    let oldest = null;
+    let oldestTime = Infinity;
+    for (const student of students) {
+      for (const repo of student.repos) {
+        if (!selected.has(repo.prefix) || !repo.fetchedAt) continue;
+        const fetchedTime = Date.parse(repo.fetchedAt);
+        if (Number.isFinite(fetchedTime) && fetchedTime < oldestTime) {
+          oldest = repo.fetchedAt;
+          oldestTime = fetchedTime;
+        }
+      }
+    }
+    return oldest;
+  }
+
+  /**
    * Stoplight for one work item.
    * @param {{ state: string, statusLabel?: string | null, dueDate?: string | null, availableFrom?: string | null,
    *   studentCommitsCount: number, studentCommentsCount: number,
@@ -199,6 +222,7 @@
     isTeacherCommit,
     isWorkItemCommit,
     currentWeekIndex,
+    oldestRepoFetchedAt,
     evaluateWorkItem,
     evaluateRepoStoplight,
   };
