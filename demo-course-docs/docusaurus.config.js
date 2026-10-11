@@ -173,6 +173,8 @@ function sortLikeBrightspace(items, titles, positions, firstId) {
 module.exports = {
   title: "Demo Course Preview",
   tagline: "Preview for Brightspacosaurus demo course",
+  // The Brightspacosaurus dinosaur, served from demo-course-docs/static/img.
+  favicon: "img/favicon.png",
   // GitHub Pages sets these (see .github/workflows/demo-preview-pages.yml).
   url: process.env.DOCS_URL || "http://localhost:3000",
   baseUrl,
@@ -195,7 +197,10 @@ module.exports = {
         : markdown;
     },
   },
-  staticDirectories: previewStaticDir ? [previewStaticDir] : [],
+  staticDirectories: [
+    path.join(__dirname, "static"),
+    ...(previewStaticDir ? [previewStaticDir] : []),
+  ],
   clientModules: [
     require.resolve("./src/flashcards-client.js"),
     require.resolve("./src/teacher-tabs-client.js"),
