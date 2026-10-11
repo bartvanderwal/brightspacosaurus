@@ -8,9 +8,12 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import fc from "fast-check";
 import {
+  buildDocusaurusSidebars,
   buildManifest,
+  buildNavigationModel,
   buildTimeFromEnv,
   deriveReaderMenuTitle,
+  firstNavigationParityIssue,
   formatBuildInfo,
   sortManifestEntriesForNavigation,
 } from "../src/manifest-builder.ts";
@@ -325,6 +328,134 @@ Deno.test("Module-titel komt uit de H1 van index.html; zonder index blijft de ma
     xml,
     '<item identifier="group_week_2">\n        <title>week-2</title>',
   );
+});
+
+Deno.test("gedeeld navigatiemodel gebruikt weekintro als moduletitel en behoudt manifestvolgorde", () => {
+  const entries: ManifestEntry[] = [
+    page("content/week-4/les-4.4.html", "Les 4.4", 2),
+    page("content/week-4/weekintro-4.html", "Week 4 - Niveau 2"),
+    {
+      id: "quiz-4-4",
+      title: "Oefentoets backend (MC)",
+      href: "quiz/week-4/qti-les-4-4-oefentoets-backend.xml",
+      type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+    },
+    page("content/week-4/transcript-les-4.html", "Transcript"),
+    page("content/week-4/quiz-4.4-antwoorden-docent.html", "Docentantwoorden"),
+  ];
+  const sorted = sortManifestEntriesForNavigation(entries);
+  const model = buildNavigationModel(sorted, {
+    docIdForEntry: (entry) =>
+      entry.href.replace(/^(?:content|quiz)\//, "").replace(
+        /\.(?:html|xml)$/,
+        "",
+      ),
+  });
+  assertEquals(model.version, 1);
+  assertEquals(model.modules, [{
+    id: "week-4",
+    title: "Week 4 - Niveau 2",
+    indexId: "week-4/weekintro-4",
+    items: [
+      {
+        kind: "lesson",
+        docId: "week-4/weekintro-4",
+        href: "content/week-4/weekintro-4.html",
+        title: "Week 4 - Niveau 2",
+        code: null,
+        position: null,
+      },
+      {
+        kind: "lesson",
+        docId: "week-4/les-4.4",
+        href: "content/week-4/les-4.4.html",
+        title: "Les 4.4",
+        code: "4.4",
+        position: 2,
+      },
+      {
+        kind: "quiz",
+        docId: "week-4/qti-les-4-4-oefentoets-backend",
+        href: "quiz/week-4/qti-les-4-4-oefentoets-backend.xml",
+        title: "Oefentoets backend (MC)",
+        code: "4.4",
+        position: null,
+      },
+    ],
+  }]);
+  assertEquals(buildDocusaurusSidebars(model), {
+    docs: [{
+      type: "category",
+      label: "Week 4 - Niveau 2",
+      link: { type: "doc", id: "week-4/weekintro-4" },
+      items: [
+        "week-4/weekintro-4",
+        "week-4/les-4.4",
+        "week-4/qti-les-4-4-oefentoets-backend",
+      ],
+    }],
+  });
+  assertEquals(
+    model.modules.flatMap((module) => module.items).map((item) => item.href),
+    sorted.filter((entry) => !/transcript-|antwoorden-docent/i.test(entry.href))
+      .map((entry) => entry.href),
+  );
+  const manifest = buildManifest("Cursus", sorted);
+  for (const excluded of sorted.filter((entry) => /transcript-|antwoorden-docent/i.test(entry.href))) {
+    assertEquals(manifest.includes(`identifierref="${excluded.id}"`), false);
+  }
+  assertEquals(
+    firstNavigationParityIssue(model, buildDocusaurusSidebars(model)),
+    null,
+  );
+  assertEquals(
+    firstNavigationParityIssue(model, {
+      docs: [{ items: ["week-4/les-4.4"] }],
+    }),
+    "'week-4/weekintro-4' is in navigation.json but not docusaurus-sidebars.json.",
+  );
+});
+
+Deno.test("readers verschijnen als reader-items maar niet als Docusaurus-documenten", () => {
+  const model = buildNavigationModel([{
+    id: "reader-git",
+    title: "Reader Git",
+    href: "readers/reader-git.pdf",
+    type: "webcontent",
+  }], { docIdForEntry: () => null });
+  assertEquals(model.modules[0].items[0].kind, "reader");
+  assertEquals(model.modules[0].items[0].docId, null);
+  assertEquals(buildDocusaurusSidebars(model), { docs: [] });
+
+  const joined = buildNavigationModel([
+    page("content/week-1/index.html", "Week 1"),
+    page("content/week-1/lesson.html", "Lesson"),
+    {
+      id: "reader-git",
+      title: "Reader Git",
+      href: "readers/reader-git.pdf",
+      type: "webcontent",
+    },
+  ], {
+    readersModule: { slug: "week-1", title: "Course materials" },
+  });
+  assertEquals(joined.modules[0].title, "Course materials");
+  assertEquals(joined.modules[0].items.map((item) => item.kind), [
+    "lesson",
+    "lesson",
+    "reader",
+  ]);
+});
+
+Deno.test("niet-gegroepeerde documenten vormen na de cursusmodules de module Algemeen", () => {
+  const sorted = sortManifestEntriesForNavigation([
+    page("content/week-1/les-1.html", "Les 1"),
+    page("content/faq.html", "FAQ"),
+  ]);
+  const model = buildNavigationModel(sorted);
+  assertEquals(model.modules.map((module) => module.id), ["week-1", "general"]);
+  assertEquals(model.modules[1].title, "Algemeen");
+  assertEquals(model.modules[1].items[0].href, "content/faq.html");
 });
 
 Deno.test("Reader-menu titels worden gehumanized in plaats van slugtitels", () => {

@@ -85,6 +85,8 @@ Deno.test("Docentenmateriaal (docenten/ in de build-root) komt nooit in het .ims
     await Deno.mkdir(join(sourceDir, "content", "docenten"), { recursive: true });
     await Deno.mkdir(join(sourceDir, "docenten"), { recursive: true });
     await Deno.writeTextFile(join(sourceDir, "imsmanifest.xml"), "<manifest/>");
+    await Deno.writeTextFile(join(sourceDir, "navigation.json"), "{}");
+    await Deno.writeTextFile(join(sourceDir, "docusaurus-sidebars.json"), "{}");
     await Deno.writeTextFile(join(sourceDir, "docenten", "antwoorden.pdf"), "geheim");
     await Deno.writeTextFile(join(sourceDir, "content", "docenten", "les.html"), "<p/>");
 

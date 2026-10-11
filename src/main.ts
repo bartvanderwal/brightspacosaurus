@@ -25,15 +25,21 @@ import {
 } from "@std/path";
 import { scanSources } from "./source-scanner.ts";
 import { convertMarkdown } from "./markdown-converter.ts";
-import { convertQuiz } from "./quiz-converter.ts";
-import { extractAssessmentTitle } from "./quiz-converter.ts";
+import {
+  convertQuiz,
+  deriveQuizIdent,
+  extractAssessmentTitle,
+} from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import {
+  buildDocusaurusSidebars,
   buildManifest,
+  buildNavigationModel,
   buildTimeFromEnv,
   deriveReaderMenuTitle,
+  firstNavigationParityIssue,
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
@@ -203,6 +209,10 @@ export async function runPrepare(
       undefined
     );
     await Deno.remove(join(buildDir, "imsmanifest.xml")).catch(() => undefined);
+    await Deno.remove(join(buildDir, "navigation.json")).catch(() => undefined);
+    await Deno.remove(join(buildDir, "docusaurus-sidebars.json")).catch(() =>
+      undefined
+    );
   }
   await Deno.remove(readersOutputDir, { recursive: true }).catch(() =>
     undefined
@@ -575,7 +585,216 @@ export async function runPrepare(
     }
   }
 
+  if (!readersOnly) {
+    await writeManifestAndNavigation(config, scanResult.quizFiles);
+  }
+
   console.log(`Prepare complete.`);
+}
+
+function normalizePath(path: string): string {
+  return path.split(/[\\/]/).join("/");
+}
+
+async function collectManifestEntries(
+  config: ResolvedConfig,
+): Promise<ManifestEntry[]> {
+  const buildDir = config.outputDir;
+  const entries: ManifestEntry[] = [];
+  const contentDir = join(buildDir, "content");
+
+  async function scanHtml(dir: string): Promise<void> {
+    for await (const entry of Deno.readDir(dir)) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory) {
+        await scanHtml(fullPath);
+      } else if (entry.isFile && entry.name.endsWith(".html")) {
+        const relPath = `content/${
+          normalizePath(relative(contentDir, fullPath))
+        }`;
+        const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
+        // HTML titles are already entity-escaped; decode before the manifest escapes XML.
+        const html = await Deno.readTextFile(fullPath);
+        const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+        const title = h1Match
+          ? decodeHtmlEntities(h1Match[1].trim())
+          : basename(fullPath, extname(fullPath));
+        const assetRegex =
+          /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js|woff2))"/gi;
+        const dependencies: string[] = [];
+        let match: RegExpExecArray | null;
+        while ((match = assetRegex.exec(html)) !== null) {
+          const assetSrc = match[1];
+          if (
+            !assetSrc.startsWith("http://") &&
+            !assetSrc.startsWith("https://") && !assetSrc.startsWith("#")
+          ) {
+            // Resolve relative paths against the HTML file.
+            const assetAbs = resolve(dirname(fullPath), assetSrc);
+            dependencies.push(
+              `content/${normalizePath(relative(contentDir, assetAbs))}`,
+            );
+          }
+        }
+        const positionMatch = html.match(
+          /<meta name="bso-sidebar-position" content="(-?\d+(?:\.\d+)?)">/,
+        );
+        entries.push({
+          id,
+          title,
+          href: relPath,
+          type: "webcontent",
+          dependencies,
+          ...(positionMatch ? { position: Number(positionMatch[1]) } : {}),
+        });
+      }
+    }
+  }
+  await scanHtml(contentDir);
+
+  const quizDir = join(buildDir, "quiz");
+  try {
+    await Deno.stat(quizDir);
+    const scanQuiz = async (dir: string): Promise<void> => {
+      for await (const entry of Deno.readDir(dir)) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory) {
+          await scanQuiz(fullPath);
+        } else if (entry.isFile && entry.name.endsWith(".xml")) {
+          const relPath = `quiz/${normalizePath(relative(quizDir, fullPath))}`;
+          const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
+          const xml = await Deno.readTextFile(fullPath);
+          const fallbackTitle = basename(fullPath, extname(fullPath)).replace(
+            /^qti-/,
+            "",
+          );
+          const title = extractAssessmentTitle(xml, fallbackTitle);
+          const dependencies = new Set<string>();
+          for (const [, source] of xml.matchAll(/src=&quot;([^&"]+)&quot;/gi)) {
+            let assetPath = source;
+            try {
+              assetPath = decodeURIComponent(assetPath.split(/[?#]/, 1)[0]);
+            } catch {
+              continue;
+            }
+            const assetFullPath = resolve(dirname(fullPath), assetPath);
+            const assetRelative = relative(quizDir, assetFullPath);
+            if (assetRelative.startsWith("..")) continue;
+            dependencies.add(`quiz/${normalizePath(assetRelative)}`);
+          }
+          entries.push({
+            id,
+            title,
+            href: relPath,
+            type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+            dependencies: [...dependencies],
+          });
+        }
+      }
+    };
+    await scanQuiz(quizDir);
+  } catch {
+    // No quiz directory
+  }
+
+  const readersDir = join(buildDir, "readers");
+  try {
+    await Deno.stat(readersDir);
+    for await (const entry of Deno.readDir(readersDir)) {
+      if (entry.isFile && entry.name.endsWith(".pdf")) {
+        const relPath = `readers/${entry.name}`;
+        entries.push({
+          id: "res_" + relPath.replace(/[^a-z0-9]/gi, "_"),
+          title: deriveReaderMenuTitle(entry.name),
+          href: relPath,
+          type: "webcontent",
+        });
+      }
+    }
+  } catch {
+    // No readers directory — PDF conversion is optional
+  }
+  return entries;
+}
+
+async function writeManifestAndNavigation(
+  config: ResolvedConfig,
+  scannedQuizFiles?: string[],
+): Promise<void> {
+  const buildDir = config.outputDir;
+  const teacherPageHref = config.teacherPage
+    ? `content/${
+      normalizePath(
+        relative(config.sourcesDir, config.teacherPage.path).replace(
+          /\.md$/,
+          ".html",
+        ),
+      )
+    }`
+    : undefined;
+  const sortedEntries = sortManifestEntriesForNavigation(
+    await collectManifestEntries(config),
+    { firstHref: teacherPageHref },
+  );
+  const quizDocIds = new Map<string, string>();
+  const quizFiles = scannedQuizFiles ??
+    (await pathExists(config.sourcesDir)
+      ? (await scanSources({
+        sourcesDir: config.sourcesDir,
+        repoRoot: config.repoRoot,
+      })).quizFiles
+      : []);
+  for (const sourcePath of quizFiles) {
+    const relativeSource = normalizePath(
+      relative(config.sourcesDir, sourcePath),
+    );
+    const relativeDirectory = dirname(relativeSource);
+    const ident = deriveQuizIdent(basename(sourcePath));
+    const outputName = `qti-${ident.replace(/^quiz-/, "")}.xml`;
+    const href = `quiz/${
+      relativeDirectory === "." ? "" : `${relativeDirectory}/`
+    }${outputName}`;
+    quizDocIds.set(
+      href,
+      `${basename(config.sourcesDir)}/${relativeSource.replace(/\.md$/, "")}`,
+    );
+  }
+  const docIdForEntry = (entry: ManifestEntry): string | null => {
+    if (entry.href.startsWith("readers/")) return null;
+    if (entry.href.startsWith("quiz/")) {
+      return quizDocIds.get(entry.href) ?? null;
+    }
+    const contentPath = entry.href.replace(/^content\//, "");
+    if (contentPath === "week-1/README.html") return null;
+    return `${basename(config.sourcesDir)}/${
+      contentPath.replace(/\.html$/, "")
+    }`;
+  };
+  const navigation = buildNavigationModel(sortedEntries, {
+    readersModule: config.readersModule,
+    docIdForEntry,
+  });
+  const manifestXml = buildManifest(
+    config.courseName,
+    sortedEntries,
+    config.readersModule,
+    { module: config.teacherDashboard?.module ?? null, teacherPageHref },
+    {
+      bsoVersion: await loadPackageVersion(),
+      courseName: config.courseName,
+      courseVersion: config.version,
+      buildTime: buildTimeFromEnv(),
+    },
+  );
+  await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
+  await Deno.writeTextFile(
+    join(buildDir, "navigation.json"),
+    `${JSON.stringify(navigation, null, 2)}\n`,
+  );
+  await Deno.writeTextFile(
+    join(buildDir, "docusaurus-sidebars.json"),
+    `${JSON.stringify(buildDocusaurusSidebars(navigation), null, 2)}\n`,
+  );
 }
 
 /** Runs the `pack` command using an already resolved configuration. */
@@ -595,150 +814,9 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
     await runPrepare(config, false);
   }
 
-  // Generate imsmanifest.xml
+  // Generate the manifest and navigation formats from one sorted entry list.
   console.log("Generating imsmanifest.xml...");
-  const entries: ManifestEntry[] = [];
-  const contentDir = join(buildDir, "content");
-
-  async function scanHtml(dir: string): Promise<void> {
-    for await (const entry of Deno.readDir(dir)) {
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory) {
-        await scanHtml(fullPath);
-      } else if (entry.isFile && entry.name.endsWith(".html")) {
-        const relPath = "content/" + relative(contentDir, fullPath);
-        const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
-
-        // Look for image references in the HTML for manifest dependencies
-        const html = await Deno.readTextFile(fullPath);
-
-        // Use the H1 from the HTML as title (falls back to the file name).
-        // decodeHtmlEntities prevents double encoding: rehype already escapes to &amp; etc.,
-        // and escapeXml() in buildManifest does that again if we don't decode first.
-        const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-        const title = h1Match
-          ? decodeHtmlEntities(h1Match[1].trim())
-          : basename(fullPath, extname(fullPath));
-
-        const assetRegex = /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js|woff2))"/gi;
-        const dependencies: string[] = [];
-        let match: RegExpExecArray | null;
-        while ((match = assetRegex.exec(html)) !== null) {
-          const assetSrc = match[1];
-          if (!assetSrc.startsWith("http://") && !assetSrc.startsWith("https://") && !assetSrc.startsWith("#")) {
-            // Resolve relative path with respect to the HTML file
-            const htmlDir = dirname(fullPath);
-            const assetAbs = resolve(htmlDir, assetSrc);
-            const assetRel = "content/" + relative(contentDir, assetAbs);
-            dependencies.push(assetRel);
-          }
-        }
-
-        const positionMatch = html.match(
-          /<meta name="bso-sidebar-position" content="(-?\d+(?:\.\d+)?)">/,
-        );
-        entries.push({
-          id,
-          title,
-          href: relPath,
-          type: "webcontent",
-          dependencies,
-          ...(positionMatch ? { position: Number(positionMatch[1]) } : {}),
-        });
-      }
-    }
-  }
-  await scanHtml(contentDir);
-
-  // Scan QTI/quiz files in build
-  const quizDir = join(buildDir, "quiz");
-  try {
-    await Deno.stat(quizDir);
-    const scanQuiz = async (dir: string): Promise<void> => {
-      for await (const entry of Deno.readDir(dir)) {
-        const fullPath = join(dir, entry.name);
-        if (entry.isDirectory) {
-          await scanQuiz(fullPath);
-        } else if (entry.isFile && entry.name.endsWith(".xml")) {
-          const relPath = "quiz/" + relative(quizDir, fullPath);
-          const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
-          const xml = await Deno.readTextFile(fullPath);
-          const fallbackTitle = basename(fullPath, extname(fullPath)).replace(
-            /^qti-/,
-            "",
-          );
-          const title = extractAssessmentTitle(xml, fallbackTitle);
-          const dependencies = new Set<string>();
-          for (const [, source] of xml.matchAll(/src=&quot;([^&"]+)&quot;/gi)) {
-            let assetPath = source;
-            try {
-              assetPath = decodeURIComponent(assetPath.split(/[?#]/, 1)[0]);
-            } catch {
-              continue;
-            }
-            const assetFullPath = resolve(dirname(fullPath), assetPath);
-            const assetRelative = relative(quizDir, assetFullPath);
-            if (assetRelative.startsWith("..")) continue;
-            dependencies.add(`quiz/${assetRelative}`);
-          }
-          entries.push({
-            id,
-            title,
-            href: relPath,
-            type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
-            dependencies: [...dependencies],
-          });
-        }
-      }
-    };
-    await scanQuiz(quizDir);
-  } catch {
-    // No quiz directory
-  }
-
-  // Scan PDF readers in build/brightspace/readers/
-  const readersDir = join(buildDir, "readers");
-  try {
-    await Deno.stat(readersDir);
-    for await (const entry of Deno.readDir(readersDir)) {
-      if (entry.isFile && entry.name.endsWith(".pdf")) {
-        const relPath = "readers/" + entry.name;
-        const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
-        const title = deriveReaderMenuTitle(entry.name);
-        entries.push({ id, title, href: relPath, type: "webcontent" });
-      }
-    }
-  } catch {
-    // No readers directory — PDF conversion is optional
-  }
-
-  // Instructor PDFs are NOT included in the .imscc (security risk: answers visible to students).
-  // They do remain as standalone files in build/brightspace/docenten/ for internal use.
-  // There is no instructor landing page: GitLab is the source of truth for instructor material.
-
-  // The teacher page always comes first in its module (#37).
-  const teacherPageHref = config.teacherPage
-    ? "content/" +
-      relative(config.sourcesDir, config.teacherPage.path).replace(/\.md$/, ".html")
-        .split(/[\\/]/).join("/")
-    : undefined;
-  const sortedEntries = sortManifestEntriesForNavigation(entries, {
-    firstHref: teacherPageHref,
-  });
-
-  const manifestXml = buildManifest(
-    config.courseName,
-    sortedEntries,
-    config.readersModule,
-    { module: config.teacherDashboard?.module ?? null, teacherPageHref },
-    {
-      bsoVersion: await loadPackageVersion(),
-      courseName: config.courseName,
-      courseVersion: config.version,
-      buildTime: buildTimeFromEnv(),
-    },
-  );
-  await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
+  await writeManifestAndNavigation(config);
   console.log("  ✓ imsmanifest.xml");
 
   // Pack
@@ -810,6 +888,12 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     throw err;
   }
 
+  if (!await pathExists(join(config.outputDir, "content"))) {
+    await runPrepare(config, false, { skipReaders: true });
+  } else {
+    await writeManifestAndNavigation(config);
+  }
+
   console.log(
     `Starting Docusaurus dev server in ${
       relative(repoRoot, config.docusaurusDir)
@@ -824,17 +908,28 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   const staticDir = join(dirname(config.outputDir), "preview-static");
   let previewStaticDir = "";
   const { renderPreviewSlides } = await import("./slides-preview.ts");
-  const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir);
+  const slides = await renderPreviewSlides(
+    config.slides,
+    repoRoot,
+    config.sourcesDir,
+    staticDir,
+  );
   if (Object.keys(slides).length) previewStaticDir = staticDir;
   if (config.teacherDashboard) {
     previewStaticDir = staticDir;
-    await writeTeacherDashboard(join(staticDir, "docenten"), config.teacherDashboard);
+    await writeTeacherDashboard(
+      join(staticDir, "docenten"),
+      config.teacherDashboard,
+    );
   }
   try {
     for await (const entry of Deno.readDir(join(config.outputDir, "readers"))) {
       if (!entry.isFile || !entry.name.endsWith(".pdf")) continue;
       await Deno.mkdir(join(staticDir, "readers"), { recursive: true });
-      await Deno.copyFile(join(config.outputDir, "readers", entry.name), join(staticDir, "readers", entry.name));
+      await Deno.copyFile(
+        join(config.outputDir, "readers", entry.name),
+        join(staticDir, "readers", entry.name),
+      );
       previewStaticDir = staticDir;
     }
   } catch {
@@ -847,7 +942,9 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   );
   if (installArgs) {
     console.log(
-      `Installing the Docusaurus dependencies first (npm ${installArgs[0]}); this happens once.`,
+      `Installing the Docusaurus dependencies first (npm ${
+        installArgs[0]
+      }); this happens once.`,
     );
     const install = await new Deno.Command("npm", {
       args: installArgs,
@@ -857,7 +954,9 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     }).output();
     if (!install.success) {
       const err = new Error(
-        `npm ${installArgs[0]} failed in ${config.docusaurusDir}; fix the error above and run the preview again.`,
+        `npm ${
+          installArgs[0]
+        } failed in ${config.docusaurusDir}; fix the error above and run the preview again.`,
       ) as Error & { exitCode?: number };
       err.exitCode = install.code || 1;
       throw err;
@@ -880,7 +979,9 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
         courseName: config.courseName,
         courseVersion: config.version,
         bsoVersion: await loadPackageVersion(),
-        dashboardSrc: config.teacherDashboard ? "/docenten/voortgangsverkenner.html" : null,
+        dashboardSrc: config.teacherDashboard
+          ? "/docenten/voortgangsverkenner.html"
+          : null,
       }),
     },
     cwd: config.docusaurusDir,
@@ -899,9 +1000,88 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   }
 }
 
+function firstManifestNavigationIssue(
+  navigation: { modules: { items: { href: string }[] }[] },
+  manifestXml: string,
+): string | null {
+  const resourceHrefs = new Map(
+    [...manifestXml.matchAll(
+      /<resource identifier="([^"]+)"[^>]*href="([^"]+)"/g,
+    )].map(([, id, href]) => [id, decodeHtmlEntities(href)] as [string, string]),
+  );
+  const actual = [
+    ...manifestXml.matchAll(
+      /<item identifier="item_[^"]+" identifierref="([^"]+)"/g,
+    ),
+  ].flatMap(([, id]) => {
+    const href = resourceHrefs.get(id);
+    return href && !href.startsWith("content/docenten/") &&
+        !href.startsWith("docenten/")
+      ? [href]
+      : [];
+  });
+  const expected = navigation.modules.flatMap((module) =>
+    module.items.map((item) => item.href)
+  );
+  const missingFromManifest = expected.find((href) => !actual.includes(href));
+  if (missingFromManifest) {
+    return `'${missingFromManifest}' is in navigation.json but not in imsmanifest.xml.`;
+  }
+  const missingFromNavigation = actual.find((href) => !expected.includes(href));
+  if (missingFromNavigation) {
+    return `'${missingFromNavigation}' is in imsmanifest.xml but not in navigation.json.`;
+  }
+  const mismatch = expected.findIndex((href, index) => actual[index] !== href);
+  if (mismatch !== -1) {
+    return `Manifest navigation order differs at position ${mismatch + 1}: navigation.json has '${expected[mismatch]}' but imsmanifest.xml has '${actual[mismatch]}'.`;
+  }
+  if (expected.length !== actual.length) {
+    return `Navigation item counts differ: navigation.json has ${expected.length} items but imsmanifest.xml has ${actual.length}.`;
+  }
+  return null;
+}
+
 /** Report authoring diagnostics without generating course output. */
 export async function runLint(config: ResolvedConfig): Promise<void> {
   const result = await lintCourse(config);
+  const navigationPath = join(config.outputDir, "navigation.json");
+  const sidebarsPath = join(config.outputDir, "docusaurus-sidebars.json");
+  const manifestPath = join(config.outputDir, "imsmanifest.xml");
+  const hasNavigation = await pathExists(navigationPath);
+  const hasSidebars = await pathExists(sidebarsPath);
+  const hasManifest = await pathExists(manifestPath);
+  if (hasNavigation || hasSidebars || hasManifest) {
+    let message: string | null = null;
+    if (!hasNavigation || !hasSidebars || !hasManifest) {
+      message = [
+        !hasNavigation && "navigation.json",
+        !hasSidebars && "docusaurus-sidebars.json",
+        !hasManifest && "imsmanifest.xml",
+      ].filter(Boolean).join(", ") + " missing from generated navigation outputs.";
+    } else {
+      try {
+        const navigation = JSON.parse(await Deno.readTextFile(navigationPath));
+        const sidebars = JSON.parse(await Deno.readTextFile(sidebarsPath));
+        message = firstNavigationParityIssue(navigation, sidebars) ??
+          firstManifestNavigationIssue(
+            navigation,
+            await Deno.readTextFile(manifestPath),
+          );
+      } catch {
+        message = "Navigation files must contain valid JSON.";
+      }
+    }
+    if (message) {
+      result.diagnostics.push({
+        sourceFile: navigationPath,
+        line: 1,
+        column: 1,
+        severity: "error",
+        rule: "navigation-parity",
+        message,
+      });
+    }
+  }
   const color = shouldColorLint(Deno.stderr.isTerminal(), Deno.env);
   for (const line of formatLintScope(result)) console.log(line);
   for (const diagnostic of result.diagnostics) {
@@ -1015,7 +1195,9 @@ async function main(): Promise<void> {
 
   try {
     if (parsed.command === "prepare") {
-      await runPrepare(resolvedConfig, parsed.readersOnly, { skipReaders: parsed.skipReaders });
+      await runPrepare(resolvedConfig, parsed.readersOnly, {
+        skipReaders: parsed.skipReaders,
+      });
     } else if (parsed.command === "pack") {
       await runPack(resolvedConfig);
     } else if (parsed.command === "preview") {

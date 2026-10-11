@@ -28,6 +28,19 @@ async function removeDir(path: string): Promise<void> {
   }
 }
 
+Deno.test("transcripts are excluded from lesson sources for both output formats", async () => {
+  const tempRoot = await makeTempDir();
+  const sourcesDir = join(tempRoot, "Lesbeschrijvingen");
+  try {
+    await writeFile(join(sourcesDir, "week-1", "transcript-les-1.md"), "# Transcript");
+    await writeFile(join(sourcesDir, "week-1", "les-1.md"), "# Lesson");
+    const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
+    assertEquals(result.markdownFiles, [join(sourcesDir, "week-1", "les-1.md")]);
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Eigenschap 4: Uitvoerstructuur weerspiegelt bronstructuur
 // Valideert: Requirements 3.5

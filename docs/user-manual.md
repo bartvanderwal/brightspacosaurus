@@ -791,12 +791,12 @@ _Figure 9_: Brightspace Manage Files — reader PDFs are linked from lesson page
 
 ### 8.2 Menu module and order
 
-The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name, so a folder `algemeen` comes before `week-1`. The module title is the H1 of the folder's `index.md`, otherwise the folder name.
+The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name, so a folder `algemeen` comes before `week-1`. The module title is the H1 of its lead page (`index`, `weekintro-N`, `weekindex-N`, `intro`, or `overview`), otherwise the folder name.
 
 Within a module BSO orders the pages like the Docusaurus sidebar:
 
 1. the teacher page (`teacherPage`), always first in its module;
-2. the folder's `index.md`;
+2. the folder's lead page;
 3. pages with `sidebar_position` in their front matter, ascending;
 4. the rest by lesson code (for example `1.2`) and title.
 
@@ -806,7 +806,9 @@ Reader PDFs get their own module by default. To put them in a content module ins
 "readersModule": { "slug": "algemeen", "title": "Algemeen" }
 ```
 
-`title` sets the module title; without it the module keeps the H1 of its `index.md` or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+`title` sets the module title; without it the module keeps the lead page's H1 or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+
+`prepare` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both come from the same sorted manifest entries; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. Readers remain available through the separate reader page. `bso lint` checks that document IDs and order agree between these files. The navigation includes content from `sourcesDir` and the generated parent `README.md`; other Docusaurus documents outside that content are not added to the Brightspace navigation model.
 
 The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 

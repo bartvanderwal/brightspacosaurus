@@ -4,6 +4,10 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+### Added
+
+- `prepare` and `preview` generate a shared `navigation.json` model and `docusaurus-sidebars.json` from the sorted manifest entries; the module title uses its lead page, including `weekintro-N` (#78).
+
 ### Changed
 
 - The demo course preview shows the Brightspacosaurus dinosaur as its favicon.

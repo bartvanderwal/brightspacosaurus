@@ -31,6 +31,10 @@ async function collectFiles(
         // Exclude previously generated .imscc archives
         if (entry.name.endsWith(".imscc")) continue;
         const relPath = relative(baseDir, fullPath);
+        if (
+          relPath === "navigation.json" ||
+          relPath === "docusaurus-sidebars.json"
+        ) continue;
         files.push({ relPath, absPath: fullPath });
       }
     }

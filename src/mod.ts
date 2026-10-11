@@ -65,9 +65,18 @@ export type {
 export { convertQuiz } from "./quiz-converter.ts";
 export { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 export {
+  buildDocusaurusSidebars,
   buildManifest,
+  buildNavigationModel,
   deriveReaderMenuTitle,
+  firstNavigationParityIssue,
   sortManifestEntriesForNavigation,
+} from "./manifest-builder.ts";
+export type {
+  NavigationItem,
+  NavigationModel,
+  NavigationModelOptions,
+  NavigationModule,
 } from "./manifest-builder.ts";
 export { pack } from "./packer.ts";
 export {

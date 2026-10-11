@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { DELIMITER, join, resolve } from "@std/path";
 import JSZip from "jszip";
 import { resolveConfig } from "../src/config-loader.ts";
@@ -9,6 +9,7 @@ import {
   unknownCommandMessage,
   runPack,
   runPrepare,
+  runLint,
   previewInstallArgs,
   previewNodePath,
   runPreview,
@@ -139,6 +140,10 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
     await Deno.mkdir(join(config.sourcesDir, "week-1"), { recursive: true });
     await Deno.mkdir(config.readersDir!, { recursive: true });
     await Deno.writeTextFile(
+      join(config.sourcesDir, "week-1", "weekintro-1.md"),
+      "# Week 1 - Niveau 2\n",
+    );
+    await Deno.writeTextFile(
       join(config.sourcesDir, "week-1", "les-1.1.md"),
       "# Les 1.1 & intro\n\n![plaatje](image.png)\n\n## Kernbegrippen\n\n- **request:** Bericht van een client.\n",
     );
@@ -156,6 +161,11 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
     );
 
     await runPrepare(config, false, { skipReaders: true });
+    assertEquals(await exists(join(config.outputDir, "navigation.json")), true);
+    assertEquals(
+      await exists(join(config.outputDir, "docusaurus-sidebars.json")),
+      true,
+    );
     await runPack(config);
 
     const html = await Deno.readTextFile(
@@ -163,6 +173,16 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
     );
     const manifest = await Deno.readTextFile(
       join(config.outputDir, "imsmanifest.xml"),
+    );
+    const navigation = JSON.parse(
+      await Deno.readTextFile(
+        join(config.outputDir, "navigation.json"),
+      ),
+    );
+    const sidebars = JSON.parse(
+      await Deno.readTextFile(
+        join(config.outputDir, "docusaurus-sidebars.json"),
+      ),
     );
     const archive = await Deno.stat(
       join(config.outputDir, "coverage-course.v0.9.0.imscc"),
@@ -182,10 +202,99 @@ Deno.test("runPrepare en runPack bouwen een minimale cartridge met lessen, quiz 
     assertEquals(manifest.includes("&amp;amp;"), false);
     assertStringIncludes(manifest, "<title>Quiz 1.1</title>");
     assertStringIncludes(manifest, "<title>Reader PlantUML essentials</title>");
+    const navigationHrefs = navigation.modules.flatMap((
+      module: { items: { href: string }[] },
+    ) => module.items.map((item) => item.href));
+    const resourceHrefs = new Map(
+      [...manifest.matchAll(
+        /<resource identifier="([^"]+)"[^>]*href="([^"]+)"/g,
+      )]
+        .map(([, id, href]) => [id, href] as [string, string]),
+    );
+    const manifestNavigationHrefs = [
+      ...manifest.matchAll(
+        /<item identifier="item_[^"]+" identifierref="([^"]+)"/g,
+      ),
+    ].map(([, id]) => resourceHrefs.get(id)!);
+    assertEquals(navigationHrefs, manifestNavigationHrefs);
+    assertEquals(
+      navigationHrefs,
+      [
+        "content/week-1/weekintro-1.html",
+        "content/week-1/les-1.1.html",
+        "quiz/week-1/qti-les-1-1.xml",
+        "readers/reader-plantuml-essentials.pdf",
+      ],
+    );
+    assertEquals(navigation.modules[0].title, "Week 1 - Niveau 2");
+    assertEquals(navigation.modules[0].indexId, "lessons/week-1/weekintro-1");
+    assertEquals(sidebars.docs[0].items, [
+      "lessons/week-1/weekintro-1",
+      "lessons/week-1/les-1.1",
+      "lessons/week-1/quiz-1.1",
+    ]);
     assertEquals(archive.isFile, true);
   } finally {
     await Deno.remove(repoRoot, { recursive: true });
   }
+});
+
+Deno.test("bso lint reports navigation items missing from the manifest", async () => {
+  const repoRoot = await Deno.makeTempDir();
+  const reported: string[] = [];
+  const originalError = console.error;
+  try {
+    const config = testConfig(repoRoot);
+    await Deno.mkdir(config.sourcesDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "lesson.md"),
+      "# Lesson\n",
+    );
+    await Deno.mkdir(config.outputDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(config.outputDir, "navigation.json"),
+      JSON.stringify({
+        version: 1,
+        modules: [{
+          id: "week-1",
+          title: "Week 1",
+          indexId: null,
+          items: [{
+            kind: "lesson",
+            docId: "lessons/week-1/lesson",
+            href: "content/week-1/lesson.html",
+            title: "Lesson",
+            code: null,
+            position: null,
+          }],
+        }],
+      }),
+    );
+    await Deno.writeTextFile(
+      join(config.outputDir, "docusaurus-sidebars.json"),
+      JSON.stringify({
+        docs: [{
+          type: "category",
+          label: "Week 1",
+          items: ["lessons/week-1/lesson"],
+        }],
+      }),
+    );
+    await Deno.writeTextFile(
+      join(config.outputDir, "imsmanifest.xml"),
+      '<manifest><resource identifier="lesson" href="content/week-1/lesson.html"/></manifest>',
+    );
+    console.error = (...args: unknown[]) => reported.push(args.join(" "));
+    await assertRejects(() => runLint(config), Error, "Course lint failed");
+  } finally {
+    console.error = originalError;
+    await Deno.remove(repoRoot, { recursive: true });
+  }
+  assertStringIncludes(reported.join("\n"), "navigation-parity");
+  assertStringIncludes(
+    reported.join("\n"),
+    "content/week-1/lesson.html is in navigation.json but not in imsmanifest.xml",
+  );
 });
 
 Deno.test("runPrepare readers-only kopieert vooraf gebouwde PDF-readers zonder contentmanifest", async () => {

@@ -8,6 +8,7 @@
  */
 
 import type { ManifestEntry, ReadersModuleConfig } from "./types.ts";
+import { isNavigationExcludedFile } from "./source-scanner.ts";
 
 /**
  * Escapes XML special characters in a string.
@@ -88,6 +89,13 @@ export function deriveReaderMenuTitle(filename: string): string {
 }
 
 function extractNavigationCode(entry: ManifestEntry): number[] | null {
+  const code = getNavigationCode(entry);
+  return code
+    ? code.split(/[.-]/).map((part) => Number(part)).filter(Number.isFinite)
+    : null;
+}
+
+function getNavigationCode(entry: ManifestEntry): string | null {
   const candidates = [
     entry.title,
     getFileStem(entry.href).replace(/^qti-/, ""),
@@ -98,10 +106,7 @@ function extractNavigationCode(entry: ManifestEntry): number[] | null {
     const specific = matches.find((match) => /[.-]/.test(match));
     const selected = specific ?? matches[0];
     if (!selected) continue;
-
-    return selected.split(/[.-]/)
-      .map((part) => Number(part))
-      .filter((part) => Number.isFinite(part));
+    return selected.replace(/-/g, ".");
   }
 
   return null;
@@ -191,15 +196,221 @@ export function sortManifestEntriesForNavigation(
 }
 
 /**
- * Module title: the author-written title of the module's `index` page (same
- * convention as a Docusaurus category index), otherwise the folder name.
+ * Module title: the author-written title of its lead page, otherwise the folder name.
  */
-function moduleTitle(groupLabel: string, groupEntries: ManifestEntry[]): string {
-  const index = groupEntries.find((entry) =>
-    entry.type === "webcontent" &&
-    entry.href.replace(/^content\//, "") === `${groupLabel}/index.html`
+function moduleTitle(
+  groupLabel: string,
+  groupEntries: ManifestEntry[],
+): string {
+  const leadPage = groupEntries.find((entry) =>
+    entry.type === "webcontent" && moduleLeadPageWeight(entry) === 0
   );
-  return index?.title ?? groupLabel;
+  return leadPage?.title ?? groupLabel;
+}
+
+export interface NavigationItem {
+  kind: "lesson" | "quiz" | "reader";
+  docId: string | null;
+  href: string;
+  title: string;
+  code: string | null;
+  position: number | null;
+}
+
+export interface NavigationModule {
+  id: string;
+  title: string;
+  indexId: string | null;
+  items: NavigationItem[];
+}
+
+export interface NavigationModel {
+  version: 1;
+  modules: NavigationModule[];
+}
+
+export interface NavigationModelOptions {
+  readersModule?: ReadersModuleConfig;
+  docIdForEntry?: (entry: ManifestEntry) => string | null;
+}
+
+function isNavigationExcluded(entry: ManifestEntry): boolean {
+  return isNavigationExcludedFile(entry.href);
+}
+
+function navigationGroupId(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/** Creates the format-neutral navigation model from already-sorted manifest entries. */
+export function buildNavigationModel(
+  sortedEntries: ManifestEntry[],
+  options: NavigationModelOptions = {},
+): NavigationModel {
+  const readersModule = options.readersModule ??
+    { slug: "readers", title: null };
+  const groups = new Map<string, ManifestEntry[]>();
+  const readerEntries: ManifestEntry[] = [];
+
+  for (const entry of sortedEntries) {
+    if (
+      isNavigationExcluded(entry) ||
+      entry.href.startsWith("content/docenten/") ||
+      entry.href.startsWith("docenten/")
+    ) continue;
+    if (entry.href.startsWith("readers/")) {
+      readerEntries.push(entry);
+      continue;
+    }
+    const label = getGroupLabel(entry.href) ?? "";
+    const groupEntries = groups.get(label) ?? [];
+    groupEntries.push(entry);
+    groups.set(label, groupEntries);
+  }
+
+  const hasContentReaderGroup = groups.has(readersModule.slug);
+  const readerGroup = groups.get(readersModule.slug);
+  if (readerGroup) {
+    readerGroup.push(...readerEntries);
+  } else if (readerEntries.length) {
+    groups.set(readersModule.slug, readerEntries);
+  }
+
+  const orderedGroups = [...groups.entries()];
+  const modules = orderedGroups
+    .filter(([label]) => label !== "" && (hasContentReaderGroup || label !== readersModule.slug))
+    .sort(([a], [b]) => naturalCompare(a, b))
+    .concat(orderedGroups.filter(([label]) => label === ""))
+    .concat(
+      hasContentReaderGroup
+        ? []
+        : orderedGroups.filter(([label]) => label === readersModule.slug),
+    )
+    .map(([groupLabel, entries]) => {
+    const holdsReaders = groupLabel === readersModule.slug;
+    const isSeparateReadersModule = holdsReaders && !hasContentReaderGroup;
+    const items = entries.map((entry): NavigationItem => {
+      const isReader = entry.href.startsWith("readers/");
+      return {
+        kind: isReader
+          ? "reader"
+          : entry.type === "imsqti_xmlv1p2/imscc_xmlv1p3/assessment"
+          ? "quiz"
+          : "lesson",
+        docId: isReader
+          ? null
+          : options.docIdForEntry
+          ? options.docIdForEntry(entry)
+          : entry.href.replace(/^(?:content|quiz)\//, "").replace(
+            /\.[^.]+$/,
+            "",
+          ),
+        href: entry.href,
+        title: entry.title,
+        code: moduleLeadPageWeight(entry) === 0
+          ? null
+          : getNavigationCode(entry),
+        position: entry.position ?? null,
+      };
+    });
+    const leadPage = entries.find((entry) =>
+      entry.type === "webcontent" && moduleLeadPageWeight(entry) === 0
+    );
+    const title = holdsReaders && readersModule.title
+      ? readersModule.title
+      : isSeparateReadersModule
+      ? "Readers"
+      : groupLabel === ""
+      ? moduleTitle("Algemeen", entries)
+      : moduleTitle(groupLabel, entries);
+    return {
+      id: groupLabel ? navigationGroupId(groupLabel) : "general",
+      title,
+      indexId: leadPage
+        ? (options.docIdForEntry
+          ? options.docIdForEntry(leadPage)
+          : leadPage.href.replace(/^(?:content|quiz)\//, "").replace(
+            /\.[^.]+$/,
+            "",
+          ))
+        : null,
+      items,
+    };
+  });
+  return { version: 1, modules };
+}
+
+/** Converts the shared model to the Docusaurus SidebarsConfig shape. */
+export function buildDocusaurusSidebars(
+  navigation: NavigationModel,
+): Record<string, unknown> {
+  const docs = navigation.modules.flatMap((module) => {
+    const items = module.items
+      .filter((item) => item.kind !== "reader" && item.docId !== null)
+      .map((item) => item.docId!);
+    if (!items.length) return [];
+    return [{
+      type: "category",
+      label: module.title,
+      ...(module.indexId ? { link: { type: "doc", id: module.indexId } } : {}),
+      items,
+    }];
+  });
+  return { docs };
+}
+
+export function firstNavigationParityIssue(
+  navigation: NavigationModel,
+  sidebars: Record<string, unknown>,
+): string | null {
+  const expected = navigation.modules.flatMap((module) =>
+    module.items
+      .filter((item) => item.kind !== "reader" && item.docId !== null)
+      .map((item) => item.docId!)
+  );
+  const sidebarDocs = sidebars.docs;
+  if (!Array.isArray(sidebarDocs)) {
+    return "docusaurus-sidebars.json must contain a docs array.";
+  }
+  const actual: string[] = [];
+  for (const category of sidebarDocs) {
+    if (
+      !category || typeof category !== "object" || !("items" in category) ||
+      !Array.isArray(category.items)
+    ) {
+      return "Each Docusaurus sidebar category must contain an items array.";
+    }
+    for (const item of category.items) {
+      if (typeof item !== "string") {
+        return "Docusaurus sidebar items must be document IDs.";
+      }
+      actual.push(item);
+    }
+  }
+  const missingFromSidebars = expected.find((docId) => !actual.includes(docId));
+  if (missingFromSidebars) {
+    return `'${missingFromSidebars}' is in navigation.json but not docusaurus-sidebars.json.`;
+  }
+  const missingFromNavigation = actual.find((docId) =>
+    !expected.includes(docId)
+  );
+  if (missingFromNavigation) {
+    return `'${missingFromNavigation}' is in docusaurus-sidebars.json but not navigation.json.`;
+  }
+  const mismatch = expected.findIndex((docId, index) =>
+    actual[index] !== docId
+  );
+  if (mismatch !== -1) {
+    return `Navigation order differs at position ${
+      mismatch + 1
+    }: navigation.json has '${
+      expected[mismatch]
+    }' but docusaurus-sidebars.json has '${actual[mismatch]}'.`;
+  }
+  if (expected.length !== actual.length) {
+    return `Navigation item counts differ: navigation.json has ${expected.length} items but docusaurus-sidebars.json has ${actual.length}.`;
+  }
+  return null;
 }
 
 function itemXml(entry: ManifestEntry): string {
@@ -229,6 +440,7 @@ function buildOrganizationItems(
   const docentenEntries: ManifestEntry[] = [];
 
   for (const entry of entries) {
+    if (isNavigationExcluded(entry)) continue;
     // Instructor items go into a separate hidden module
     if (
       entry.href.startsWith("content/docenten/") ||
