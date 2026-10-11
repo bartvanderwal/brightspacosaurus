@@ -20,13 +20,18 @@ import {
 import {
   buildReaderPandocArgs,
   convertReaderToPdf,
+  coverDatesHeader,
   coverImageHeader,
   coverLogoHeader,
-  coverDatesHeader,
   deriveReaderPdfMetadata,
   gitLastCommitDate,
   pandocAvailable,
 } from "../src/reader-pdf-converter.ts";
+import { numberReaderHeadings } from "../src/reader-headings.ts";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
 
 async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "brightspacosaurus_pbt_" });
@@ -125,7 +130,6 @@ Deno.test("buildReaderPandocArgs stuurt titlepage metadata en TOC naar pandoc", 
     headerPath: "/tmp/reader-header.tex",
     includeFilterPath: "/tmp/include-filter.lua",
     diagramFilterPath: "/tmp/diagram-filter.lua",
-    sectionNumberFilterPath: "/tmp/section-number-filter.lua",
     metadata: {
       title: "Reader Test",
       author: "OWE 1",
@@ -138,7 +142,11 @@ Deno.test("buildReaderPandocArgs stuurt titlepage metadata en TOC naar pandoc", 
   assertEquals(args.includes("--metadata=author:OWE 1"), true);
   assertEquals(args.includes("--metadata=date:Versie 2.1.0"), true);
   assertEquals(args.includes("--toc"), true);
-  assertEquals(args.includes("--number-sections"), true);
+  assertEquals(args.includes("--number-sections"), false);
+  assertEquals(
+    args.some((arg) => arg.includes("section-number-filter.lua")),
+    false,
+  );
   assertEquals(args.includes("lang=nl"), true);
   assertEquals(
     args.includes("--include-in-header=/tmp/reader-header.tex"),
@@ -186,7 +194,6 @@ Deno.test("buildReaderPandocArgs zet de omslag-header vóór de reader-header", 
     headerPath: "/h/reader-header.tex",
     includeFilterPath: "/f/include.lua",
     diagramFilterPath: "/f/diagram.lua",
-    sectionNumberFilterPath: "/tmp/section-number-filter.lua",
     metadata: { title: "T", date: "D", coverLines: [] },
   };
   const withCover = buildReaderPandocArgs({
@@ -736,7 +743,6 @@ const pandocBase = {
   headerPath: "/tmp/h.tex",
   includeFilterPath: "/tmp/i.lua",
   diagramFilterPath: "/tmp/d.lua",
-  sectionNumberFilterPath: "/tmp/section-number-filter.lua",
   metadata: { title: "T", date: "", coverLines: [] },
 };
 
@@ -804,7 +810,6 @@ Deno.test("buildReaderPandocArgs zet de documenttaal uit de locale", () => {
     headerPath: "h.tex",
     includeFilterPath: "i.lua",
     diagramFilterPath: "d.lua",
-    sectionNumberFilterPath: "n.lua",
     locale: "en",
     metadata: { title: "T", date: "", coverLines: [] },
   });
@@ -821,46 +826,85 @@ Deno.test("diagrams.locale must be nl or en", () => {
   validateConfig({ courseName: "C", version: "1", sourcesDir: "s", diagrams: { locale: "en" } });
 });
 
-async function latexWithSectionNumbers(markdown: string, title: string): Promise<string> {
-  const { materializeAsset } = await import("../src/assets.ts");
-  const filter = await materializeAsset("section-number-filter.lua");
-  const cmd = new Deno.Command("pandoc", {
-    args: ["-f", "markdown", "-t", "latex", `--metadata=title:${title}`, `--lua-filter=${filter}`],
-    stdin: "piped",
-    stdout: "piped",
-  }).spawn();
-  const writer = cmd.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(markdown));
-  await writer.close();
-  return new TextDecoder().decode((await cmd.output()).stdout);
-}
+Deno.test("opt-in reader numbers are the same Markdown headings rendered as HTML", async () => {
+  const source = `---
+numberSections: true
+---
 
-const headings = (latex: string) =>
-  latex.split("\n").filter((line) => /section\*?\{/.test(line)).map((line) => line.replace(/\\label\{[^}]*\}/, ""));
+# Reader
 
-Deno.test({
-  name: "section numbers: a single title equal to the cover title is dropped and chapters move up",
-  ignore: !pandocAvailable(),
-  fn: async () => {
-    const latex = await latexWithSectionNumbers("# Titel\n\n## Een\n\n### Sub\n\n## Twee\n", "Titel");
-    assertEquals(headings(latex), ["\\section{Een}", "\\subsection{Sub}", "\\section{Twee}"]);
-  },
+## 2. Inleiding
+
+### 2.3 Eerste onderdeel
+
+## 4. Afsluiting
+`;
+  const numbered = numberReaderHeadings(source);
+  const html = String(
+    await unified().use(remarkParse).use(remarkRehype).use(rehypeStringify)
+      .process(numbered),
+  );
+  assertEquals(html.includes("<h2>1 Inleiding</h2>"), true);
+  assertEquals(html.includes("<h3>1.1 Eerste onderdeel</h3>"), true);
+  assertEquals(html.includes("<h2>2 Afsluiting</h2>"), true);
 });
 
-Deno.test({
-  name: "section numbers: a single title that differs from the cover title stays, unnumbered",
-  ignore: !pandocAvailable(),
-  fn: async () => {
-    const latex = await latexWithSectionNumbers("# Anders\n\n## Een\n", "Titel");
-    assertEquals(headings(latex), ["\\section*{Anders}", "\\section{Een}"]);
-  },
+Deno.test("reader headings stay as written unless numberSections is true", () => {
+  const source = "---\nnumberSections: false\n---\n\n## 4. Inleiding\n";
+  assertEquals(numberReaderHeadings(source), source);
 });
 
-Deno.test({
-  name: "section numbers: several top-level headings keep their levels",
-  ignore: !pandocAvailable(),
-  fn: async () => {
-    const latex = await latexWithSectionNumbers("# A\n\n## Sub\n\n# B\n", "Titel");
-    assertEquals(headings(latex), ["\\section{A}", "\\subsection{Sub}", "\\section{B}"]);
-  },
+Deno.test("opt-in numbering starts at one without an H1 and ignores code fences", () => {
+  const source = `---
+numberSections: true
+---
+
+## 3. First
+
+### 3.2 Subsection
+
+\`\`\`md
+## 8. Example heading
+\`\`\`
+
+## 7. Second
+
+## 9. Bijlage C: Appendix
+
+## 10. Bronnen
+
+## A. Sources
+`;
+  assertEquals(
+    numberReaderHeadings(source),
+    `---
+numberSections: true
+---
+
+## 1 First
+
+### 1.1 Subsection
+
+\`\`\`md
+## 8. Example heading
+\`\`\`
+
+## 2 Second
+
+## Bijlage A: Appendix
+
+## Bronnen
+
+## Sources
+`,
+  );
+});
+
+Deno.test("a single H2 chapter is not mistaken for a reader title", () => {
+  const source =
+    "---\nnumberSections: true\n---\n\n## 4. Chapter\n\n### 4.1 Detail\n";
+  assertEquals(
+    numberReaderHeadings(source),
+    "---\nnumberSections: true\n---\n\n## 1 Chapter\n\n### 1.1 Detail\n",
+  );
 });

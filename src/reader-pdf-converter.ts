@@ -10,6 +10,11 @@
 import type { ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
 import { materializeAsset } from "./assets.ts";
 import { basename, dirname, join, resolve } from "@std/path";
+import { expandIncludes } from "./includes.ts";
+import {
+  numberReaderHeadings,
+  readerSectionsNumberingEnabled,
+} from "./reader-headings.ts";
 
 /** Metadata passed to pandoc for the generated reader PDF cover page. */
 export interface ReaderPdfMetadata {
@@ -243,8 +248,6 @@ export function buildReaderPandocArgs(options: {
   headerPath: string;
   includeFilterPath: string;
   diagramFilterPath: string;
-  /** Lua filter that numbers chapters and sections. */
-  sectionNumberFilterPath: string;
   /** Document language, from `diagrams.locale`; default "nl". */
   locale?: "nl" | "en";
   /** Lua filter that starts every chapter on a new page; omitted when disabled. */
@@ -276,12 +279,10 @@ export function buildReaderPandocArgs(options: {
     `--include-in-header=${options.headerPath}`,
     `--lua-filter=${options.includeFilterPath}`,
     `--lua-filter=${options.diagramFilterPath}`,
-    `--lua-filter=${options.sectionNumberFilterPath}`,
     ...(options.chapterFilterPath
       ? [`--lua-filter=${options.chapterFilterPath}`]
       : []),
     "--syntax-highlighting=tango",
-    "--number-sections",
     "--toc",
   ];
 
@@ -339,11 +340,36 @@ export async function convertReaderToPdf(
   const headerPath = await materializeAsset("reader-header.tex");
   const includeFilterPath = await materializeAsset("include-filter.lua");
   const diagramFilterPath = await materializeAsset("diagram-filter.lua");
-  const sectionNumberFilterPath = await materializeAsset("section-number-filter.lua");
   const chapterFilterPath = options.chapterNewPage === false
     ? undefined
     : await materializeAsset("chapter-filter.lua");
   const sourceContent = await Deno.readTextFile(sourcePath);
+  let inputPath = sourcePath;
+  let tempInputPath: string | undefined;
+  let numberedInput: string | undefined;
+  let resourceDirs = [resourcePath];
+  if (readerSectionsNumberingEnabled(sourceContent)) {
+    const includeDirs = new Set([resourcePath]);
+    const includeWarnings: string[] = [];
+    const expanded = expandIncludes(sourceContent, resourcePath, {
+      resolve: (fromDir, target) => resolve(fromDir, target),
+      dirname,
+      readFile: (path) => {
+        includeDirs.add(dirname(path));
+        try {
+          return Deno.readTextFileSync(path);
+        } catch {
+          return null;
+        }
+      },
+      warn: (message) => includeWarnings.push(message),
+    });
+    if (includeWarnings.length > 0) {
+      throw new Error(includeWarnings.join("\n"));
+    }
+    numberedInput = numberReaderHeadings(expanded);
+    resourceDirs = [...includeDirs];
+  }
   const sourceDate = await gitLastCommitDate(sourcePath, options.repoRoot);
   const metadata = deriveReaderPdfMetadata(sourceContent, sourceFilename, {
     courseName: options.courseName,
@@ -380,15 +406,28 @@ export async function convertReaderToPdf(
   }
 
   // Invoke pandoc
+  if (numberedInput !== undefined) {
+    tempInputPath = await Deno.makeTempFile({
+      dir: outputDir,
+      prefix: `.${pdfFilename}-`,
+      suffix: ".md",
+    });
+    try {
+      await Deno.writeTextFile(tempInputPath, numberedInput);
+    } catch (error) {
+      await Deno.remove(tempInputPath).catch(() => {});
+      throw error;
+    }
+    inputPath = tempInputPath;
+  }
   const command = new Deno.Command("pandoc", {
     args: buildReaderPandocArgs({
-      sourcePath,
+      sourcePath: inputPath,
       outputPath,
-      resourcePath,
+      resourcePath: resourceDirs.join(Deno.build.os === "windows" ? ";" : ":"),
       headerPath,
       includeFilterPath,
       diagramFilterPath,
-      sectionNumberFilterPath,
       locale: options.locale,
       chapterFilterPath,
       metadata,
@@ -400,6 +439,7 @@ export async function convertReaderToPdf(
 
   const process = await command.output().finally(async () => {
     if (coverHeaderPath) await Deno.remove(coverHeaderPath).catch(() => {});
+    if (tempInputPath) await Deno.remove(tempInputPath).catch(() => {});
   });
 
   if (!process.success) {

@@ -85,7 +85,6 @@
       "assets/include-filter.lua",
       "assets/diagram-filter.lua",
       "assets/chapter-filter.lua",
-      "assets/section-number-filter.lua",
       "CHANGELOG.md",
       "docs/user-manual.md",
       "docs/quizzosaurus-syntax.md",
