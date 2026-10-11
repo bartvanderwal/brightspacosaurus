@@ -197,13 +197,28 @@ function remarkNormalizeDiagramMeta(sourceFile: string) {
   };
 }
 
+/** The plugin function of `remark-kroki-a11y`, however the module loader shapes the import. */
+function pluginFunction(
+  module: typeof import("remark-kroki-a11y"),
+): typeof module.default {
+  const candidates: unknown[] = [
+    (module as { default?: unknown }).default,
+    ((module as { default?: { default?: unknown } }).default)?.default,
+    module,
+  ];
+  const found = candidates.find((candidate) => typeof candidate === "function");
+  return found as typeof module.default;
+}
+
 function remarkKrokiA11yLazy(
   options: ReturnType<typeof buildKrokiA11yOptions>,
   sourceFile: string,
 ) {
   return async (tree: unknown, file: unknown) => {
     const module = await import("remark-kroki-a11y");
-    const remarkKrokiA11y = module.default;
+    // Deno gives `default`. A CommonJS loader (Docusaurus' jiti) can give the
+    // plugin function itself, or wrap `default` once more.
+    const remarkKrokiA11y = pluginFunction(module);
     const transformer = remarkKrokiA11y(options);
     try {
       return await transformer(tree, file);
