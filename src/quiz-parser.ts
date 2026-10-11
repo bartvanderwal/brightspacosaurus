@@ -20,6 +20,8 @@ export interface QuizQuestion {
   number: number;
   /** Student-facing prompt. */
   text: string;
+  /** Free text after the number in a legacy heading, such as 'Bella' or '(optioneel)'. */
+  title?: string;
   /** Stable labels and their corresponding answer texts. */
   options: { label: string; text: string; forcedOrder?: number }[];
   /** Uppercase first correct label, retained for single-answer consumers. */
@@ -292,9 +294,10 @@ export function parseQuizMarkdown(
       const nested = questionAtH3 !== null;
       const heading = nested ? questionAtH3! : questionAtH2!;
       const detail = heading.tail.match(
-        /^\s+(\d+[a-z]?|[a-z])(?:\s*\((\d+)(?:\s*pt)?\))?(?:\s*[-—:]\s*(.*))?\s*$/i,
+        /^\s+(\d+[a-z]?|[a-z])(?:\s*\((\d+)(?:\s*pt)?\))?(?:\s*[-—:]\s*(.*)|\s+(.+))?\s*$/i,
       );
-      if (!detail) {
+      // '(2 punten)' must not pass as a title: points are '(2 pt)' or '(2)'.
+      if (!detail || (detail[4] && /^\(\s*\d/.test(detail[4]))) {
         if (!nested) assignment = undefined;
         quiz.issues!.push({
           rule: "quiz-heading-syntax",
@@ -336,6 +339,8 @@ export function parseQuizMarkdown(
           : Number(detail[1].match(/^\d+/)![0]),
       );
       if (detail[3]) parsedQuestion.text = detail[3].trim();
+      // Free text after the number is a name for the question, as in '## Vraag 12 (optioneel)'.
+      if (detail[4]) parsedQuestion.title = detail[4].trim();
       continue;
     }
     if (assignment && !question) {

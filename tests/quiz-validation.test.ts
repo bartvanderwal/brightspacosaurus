@@ -802,3 +802,29 @@ Deno.test("QuizDown ends an option at an unindented line after a blank line", ()
   assertEquals(quiz.questions[0].options[0].text, "A\n\nindented belongs to A");
   assertEquals(quiz.questions[0].options[1].text, "B");
 });
+
+Deno.test("legacy question headings accept free text after the number as a title", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+## Vraag 12 (optioneel)
+
+Which?
+- A. First
+- B. Second
+Correct antwoord: A
+
+## Vraag 13 Bella de koe
+
+Which again?
+- A. First
+- B. Second
+Correct antwoord: B
+`);
+  assertEquals(quiz.issues, []);
+  assertEquals(quiz.questions.map((q) => q.number), [12, 13]);
+  assertEquals(quiz.questions.map((q) => q.title), [
+    "(optioneel)",
+    "Bella de koe",
+  ]);
+  assertEquals(quiz.questions[0].text, "Which?");
+});
