@@ -3,7 +3,7 @@
 ````quiz
 ? Which keyword limits a field to its own class?
 
-! Look for the access modifier in `class Account { ... }`.
+! It is an access modifier. Think of a field like the balance of a bank account that other classes must not change directly.
 
 - ( ) `public`
 - (x) `private`
