@@ -292,7 +292,7 @@ export function parseQuizMarkdown(
       const nested = questionAtH3 !== null;
       const heading = nested ? questionAtH3! : questionAtH2!;
       const detail = heading.tail.match(
-        /^\s+(\d+[a-z]?|[a-z])(?:\s*\((\d+(?:[.,]\d+)?)\s+(?:points?|punten?)\))?(?:\s*[-—:]\s*(.*))?\s*$/i,
+        /^\s+(\d+[a-z]?|[a-z])(?:\s*\((\d+)(?:\s*pt)?\))?(?:\s*[-—:]\s*(.*))?\s*$/i,
       );
       if (!detail) {
         if (!nested) assignment = undefined;
@@ -301,15 +301,13 @@ export function parseQuizMarkdown(
           line: index + 1,
           message: `Use '${
             nested ? "###" : "##"
-          } ${heading.prefix} N' for a question heading.`,
+          } ${heading.prefix} N' for a question heading; points go in the heading as '(2 pt)' or '(2)'.`,
         });
         question = undefined;
         continue;
       }
       const label = detail[1].match(/[a-z]$/i) ? detail[1] : undefined;
-      const points = detail[2]
-        ? Number(detail[2].replace(",", "."))
-        : undefined;
+      const points = detail[2] ? Number(detail[2]) : undefined;
       if (nested && assignment) {
         assignment.text = assignment.text.trim();
       } else {
@@ -322,8 +320,9 @@ export function parseQuizMarkdown(
             line: index + 1,
             message: `Subquestion '${
               detail[1]
-            }' is parsed as a standalone question without shared assignment context.`,
-            severity: "warning",
+            }' has no assignment: put it under '## ${
+              options.locale === "nl" ? "Opdracht" : "Assignment"
+            } N', or write a standalone question.`,
           });
         }
         assignment = undefined;

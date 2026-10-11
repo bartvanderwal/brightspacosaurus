@@ -10,7 +10,7 @@ class FizzBuzz {
 }
 ```
 
-### Deelvraag 1a (2 punten)
+### Deelvraag 1a (2 pt)
 
 What does FizzBuzz print for the number 15?
 
@@ -21,7 +21,7 @@ What does FizzBuzz print for the number 15?
 
 Correct answer: **C**
 
-### Deelvraag 1b (3 punten)
+### Deelvraag 1b (3 pt)
 
 What does FizzBuzz print for the number 7?
 

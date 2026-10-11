@@ -245,7 +245,7 @@ De gedeelde context.
 class FizzBuzz {}
 \`\`\`
 
-### Deelvraag 27a (2 punten)
+### Deelvraag 27a (2 pt)
 
 Welke klasse wordt gedeeld?
 
@@ -254,7 +254,7 @@ Welke klasse wordt gedeeld?
 
 Correct antwoord: A
 
-### Deelvraag 27b (3 punten)
+### Deelvraag 27b (3 pt)
 
 Wat is de naam van de klasse?
 
@@ -355,7 +355,7 @@ Deno.test("quiz heading prefixes default to English and follow locale or explici
 ## Assignment 7
 Shared context.
 
-### Question 7a (2 points)
+### Question 7a (2 pt)
 Part prompt.
 - A. Yes
 - B. No
@@ -371,7 +371,7 @@ Correct answer: A
 ## Opdracht 7
 Gedeelde context.
 
-### Deelvraag 7a (2 punten)
+### Deelvraag 7a (2 pt)
 Deelvraag.
 - A. Ja
 - B. Nee
@@ -652,7 +652,7 @@ Deno.test("assignment context images are included as quiz cartridge dependencies
 ## Opdracht 1
 ![A shared diagram](images/context.png)
 
-### Deelvraag 1a (2 punten)
+### Deelvraag 1a (2 pt)
 What is shown?
 - A. A diagram
 - B. A table
@@ -702,7 +702,7 @@ Deno.test("quiz images cannot escape sources through symlinks", async () => {
 ## Opdracht 1
 ![A shared diagram](context.png)
 
-### Deelvraag 1a (2 punten)
+### Deelvraag 1a (2 pt)
 What is shown?
 - A. A diagram
 - B. A table
@@ -722,5 +722,34 @@ Correct antwoord: A
     );
   } finally {
     await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("assignment points accept only '(2 pt)' and '(2)'; other spellings are errors", () => {
+  const source = (points: string) =>
+    `# Quiz
+
+## Opdracht 1
+
+Shared context.
+
+### Deelvraag 1a ${points}
+
+Which?
+- A. First
+- B. Second
+Correct antwoord: A
+`;
+  assertEquals(parseQuizMarkdown(source("(2 pt)")).questions[0].points, 2);
+  assertEquals(parseQuizMarkdown(source("(2)")).questions[0].points, 2);
+  for (const bad of ["(2 punten)", "(2 points)", "(2,5 pt)"]) {
+    const issues = parseQuizMarkdown(source(bad)).issues ?? [];
+    assertEquals(
+      issues.some((issue) =>
+        issue.rule === "quiz-heading-syntax" && issue.message.includes("2 pt")
+      ),
+      true,
+      bad,
+    );
   }
 });

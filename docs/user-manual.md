@@ -627,14 +627,14 @@ The legacy format also supports a shared-context assignment with independently a
 
 The shared case, image or code block goes here.
 
-### Question 27a (2 points)
+### Question 27a (2 pt)
 
 Which answer is correct?
 - A. The first option
 - B. The second option
 Correct answer: A
 
-### Question 27b (3 points)
+### Question 27b (3 pt)
 
 What is the short answer?
 Correct answer: accepted answer / accepted variant

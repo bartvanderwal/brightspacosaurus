@@ -131,7 +131,7 @@ Deno.test("teacher answer models can match grouped subquestion labels", () => {
 ## Opdracht 27
 Shared context.
 
-### Deelvraag 27a (2 punten)
+### Deelvraag 27a (2 pt)
 Which option is correct?
 - A. First
 - B. Second
