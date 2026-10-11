@@ -2,22 +2,24 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
-## Unreleased
-
-### Changed
-
-- The demo course preview shows the Brightspacosaurus dinosaur as its favicon.
-- QuizDown heading form: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt). The preview shows the name in the legend (`Vraag 29: Gegenereerde interface`), QTI writes it as the item title, and a name that is only a number is the warning `quizdown-question-name` (#90).
-- Standalone questions and assignment subquestions have separate prefixes: `quiz.questionPrefix` (`Question`/`Vraag`) and the new `quiz.subquestionPrefix` (`Subquestion`/`Deelvraag`). With `locale: "nl"`, `questionPrefix` was `Deelvraag` before.
-- The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
-
-## 0.21.1
+## 0.22.0
 
 ### Added
 
+- QuizDown question names: in heading form a number at the start of the name is the question number (`## ? 29. Generated interface` is question 29, named "Generated interface"). The preview shows `Vraag 29 — Generated interface` (the name may hold inline Markdown such as code), QTI writes the name as the item title, and a question whose name is only a number gets the warning `quizdown-question-name` (#90).
 - `bso preview` (and `deno task demo`) runs `npm ci` (or `npm install` without a lockfile) first when the Docusaurus app has no `node_modules`.
 - `deno task release` and `release:npm` let npm ask for the one-time password of a 2FA account (authenticator code or passkey) and accept `--otp=<code>` (#88).
 - `docs/quizzosaurus-syntax.md` is part of the package, so the links in the manual and the guidebook work.
+- A default permission set: `deno test -P` runs the tests with the permissions of `deno task test`.
+- Preview-only Marp presentations mapped through `slides.lessons`: hidden Alt/Option+P opens the current lesson's slides, with local images, presenter notes and a configurable development disclaimer. Slides are not included in the Brightspace cartridge (#69).
+- The Voortgangsverkenner can focus on a configured, date-aware course week, switch weeks manually, and refresh the selected week while retaining other weeks' data in memory.
+
+### Changed
+
+- Standalone questions and assignment subquestions have separate prefixes: `quiz.questionPrefix` (`Question`/`Vraag`) and the new `quiz.subquestionPrefix` (`Subquestion`/`Deelvraag`). With `locale: "nl"`, `questionPrefix` was `Deelvraag` before (#90).
+- The heading form of QuizDown: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt).
+- The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
+- The demo course preview shows the Brightspacosaurus dinosaur as its favicon.
 
 ### Fixed
 
@@ -84,17 +86,10 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
-## 0.20.0 - 2026-10-09
-
-### Added
-
-- Preview-only Marp presentations mapped through `slides.lessons`: hidden Alt/Option+P opens the current lesson's slides, with local images, presenter notes and a configurable development disclaimer. Slides are not included in the Brightspace cartridge (#69).
-
 ## 0.19.0 - 2026-10-06
 
 ### Added
 
-- The Voortgangsverkenner can focus on a configured, date-aware course week, switch weeks manually, and refresh the selected week while retaining other weeks' data in memory.
 - Quiz export and preview support for Quizzosaurus/QuizDown single-choice, multi-select and open short-answer syntax (#50).
 - `bso lint` rules for bias in multiple-choice quizzes (#68): `quiz-length-bias`, `quiz-reverse-length-bias`, `quiz-answer-length-ratio`, `quiz-only-giveaway` and `quiz-position-bias` (warnings), and `quiz-answer-key-mismatch` (error) when `quiz-*-vragen-en-antwoorden.md` and its `*-antwoorden-docent.md` name a different correct answer. Thresholds and signal words are configurable in `lint.quizBias`. The rules replace owe-1's `scripts/check-quiz-bias.py`; they also find quizzes whose question headings have a title (`## Vraag 1 — Titel`), which the script skipped.
 
