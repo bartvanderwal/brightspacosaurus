@@ -1,6 +1,11 @@
 # Quiz
 
-## ? Question?
+## Question 1
 
-- (x) a. First
-- ( ) c. Second, but the label should be b.
+Question?
+
+- A. Yes
+- A. No
+
+Correct answer: A
+
