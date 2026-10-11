@@ -4,8 +4,17 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+### Added
+
+- Legacy quiz assignments with shared Markdown context, ordered subquestions, optional points, lint rules and matching QTI/Docusaurus sections (#80).
+
+### Changed
+
+- Quiz previews report weighted points when subquestion points are supplied.
+
 ### Fixed
 
+- Relative quiz images are copied into the cartridge and referenced as quiz resource dependencies.
 - The npm package declares types for the `./tabs` export and no longer contains an empty `assets/brightspacosaurus-tabs.d.ts.d.ts` (#77).
 
 ### Added

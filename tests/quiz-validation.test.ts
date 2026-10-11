@@ -234,6 +234,87 @@ class A {
   assertEquals(xml.includes("`"), false);
 });
 
+Deno.test("legacy assignments share context across typed, scored subquestions", () => {
+  const markdown = `# FizzBuzz
+
+## Opdracht 27
+
+De gedeelde context.
+
+\`\`\`java
+class FizzBuzz {}
+\`\`\`
+
+### Deelvraag 27a (2 punten)
+
+Welke klasse wordt gedeeld?
+
+- A. FizzBuzz
+- B. BuzzFizz
+
+Correct antwoord: A
+
+### Deelvraag 27b (3 punten)
+
+Wat is de naam van de klasse?
+
+Correct antwoord: Paris / New York
+`;
+  const quiz = parseQuizMarkdown(markdown);
+  assertEquals(validateQuiz(quiz), []);
+  assertEquals(quiz.questions.length, 2);
+  assertEquals(quiz.questions[0].label, "27a");
+  assertEquals(quiz.questions[0].points, 2);
+  assertEquals(quiz.questions[1].label, "27b");
+  assertEquals(quiz.questions[1].points, 3);
+  assertEquals(quiz.questions[1].responseType, "open_short");
+  assertEquals(quiz.questions[1].acceptedAnswers, ["Paris", "New York"]);
+
+  const block = quiz.blocks?.[0];
+  assertEquals(block?.type, "assignment");
+  if (block?.type !== "assignment") {
+    throw new Error("Expected assignment block");
+  }
+  assertStringIncludes(block.assignment.text, "De gedeelde context.");
+  assertStringIncludes(block.assignment.text, "class FizzBuzz {}");
+  assertEquals(block.assignment.questions, quiz.questions);
+
+  const xml = generateQtiXml(quiz, "quiz-fizzbuzz");
+  assertEquals((xml.match(/<section\b/g) ?? []).length, 1);
+  assertStringIncludes(
+    xml,
+    '<section ident="sectie-fizzbuzz_opdracht_27_1" title="Opdracht 27">',
+  );
+  assertStringIncludes(xml, '<rubric view="All">');
+  assertStringIncludes(xml, "De gedeelde context.");
+  assertEquals((xml.match(/De gedeelde context/g) ?? []).length, 1);
+  assertStringIncludes(xml, "<fieldentry>cc.multiple_choice.v0p1</fieldentry>");
+  assertStringIncludes(xml, "<fieldentry>cc.fib.v0p1</fieldentry>");
+  assertStringIncludes(xml, "<fieldentry>2</fieldentry>");
+  assertStringIncludes(xml, "<fieldentry>3</fieldentry>");
+
+  const tree: FlashcardNode = { type: "root", children: [] };
+  remarkQuizPreview()(tree, { path: "quiz-fizzbuzz.md", value: markdown });
+  const assignment = tree.children?.[0]?.children?.[0];
+  assertEquals(assignment?.data?.hProperties?.className, "bso-quiz-assignment");
+  assertEquals(assignment?.data?.hProperties?.["data-points"], "5");
+  assertEquals(assignment?.children?.[0]?.children?.[0]?.value, "Opdracht 27");
+  const context = assignment?.children?.[1];
+  assertEquals(
+    context?.data?.hProperties?.className,
+    "bso-quiz-assignment-context",
+  );
+  assertEquals(context?.children?.some((node) => node.type === "code"), true);
+  assertEquals(
+    assignment?.children?.[2]?.children?.[0]?.children?.[0]?.value,
+    "Deelvraag 27a (2 punten)",
+  );
+  assertEquals(
+    assignment?.children?.[3]?.children?.[0]?.children?.[0]?.value,
+    "Deelvraag 27b (3 punten)",
+  );
+});
+
 Deno.test("QuizDown syntax supports multiple-choice, hints and open answers", () => {
   const markdown = `# UML Quiz
 
@@ -428,6 +509,95 @@ Deno.test("#35 shuffle settings survive prepare and pack with deterministic answ
         generateQtiXml(parsed, "quiz", 0, shuffleAnswers),
       );
     }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("assignment context images are included as quiz cartridge dependencies", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const sources = join(root, "lessons");
+    await Deno.mkdir(join(sources, "images"), { recursive: true });
+    await Deno.writeFile(
+      join(sources, "images", "context.png"),
+      new Uint8Array([137, 80, 78, 71]),
+    );
+    await Deno.writeTextFile(
+      join(sources, "quiz-assignment.md"),
+      `# Assignment quiz
+
+## Opdracht 1
+![A shared diagram](images/context.png)
+
+### Deelvraag 1a (2 punten)
+What is shown?
+- A. A diagram
+- B. A table
+Correct antwoord: A
+`,
+    );
+    const config = resolveConfig(
+      { courseName: "Quiz", version: "1.0", sourcesDir: "lessons" },
+      {},
+      root,
+    );
+    await runPrepare(config, false, { skipReaders: true });
+    await runPack(config);
+
+    const packageFile = join(
+      config.outputDir,
+      `${config.name}.v${config.version}.imscc`,
+    );
+    const zip = await JSZip.loadAsync(await Deno.readFile(packageFile));
+    const qtiName = Object.keys(zip.files).find((name) =>
+      name.startsWith("quiz/") && name.endsWith(".xml")
+    )!;
+    const qti = await zip.file(qtiName)!.async("string");
+    const imageRef = qti.match(/src=&quot;(assets\/[^&"]+)&quot;/)?.[1];
+    assertEquals(Boolean(imageRef), true);
+    assertEquals(Boolean(zip.file(`quiz/${imageRef}`)), true);
+    const manifest = await zip.file("imsmanifest.xml")!.async("string");
+    assertStringIncludes(manifest, `href="quiz/${imageRef}"`);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("quiz images cannot escape sources through symlinks", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const sources = join(root, "lessons");
+    await Deno.mkdir(sources);
+    const outsideImage = join(root, "outside.png");
+    await Deno.writeFile(outsideImage, new Uint8Array([137, 80, 78, 71]));
+    await Deno.symlink(outsideImage, join(sources, "context.png"));
+    const sourcePath = join(sources, "quiz-assignment.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      `# Assignment quiz
+
+## Opdracht 1
+![A shared diagram](context.png)
+
+### Deelvraag 1a (2 punten)
+What is shown?
+- A. A diagram
+- B. A table
+Correct antwoord: A
+`,
+    );
+    await assertRejects(
+      () =>
+        convertQuiz({
+          sourcePath,
+          sourcesDir: sources,
+          repoRoot: root,
+          outputDir: join(root, "out"),
+        }),
+      Error,
+      "quiz images must be inside the configured source directory",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

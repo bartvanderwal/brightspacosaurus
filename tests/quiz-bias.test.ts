@@ -125,6 +125,41 @@ Deno.test("teacher answers are read from every documented layout", () => {
   assertEquals(parseTeacherAnswers("Nothing here"), new Map());
 });
 
+Deno.test("teacher answer models can match grouped subquestion labels", () => {
+  const quiz = parseQuizMarkdown(`# Quiz
+
+## Opdracht 27
+Shared context.
+
+### Deelvraag 27a (2 punten)
+Which option is correct?
+- A. First
+- B. Second
+Correct antwoord: A
+`);
+  const answers = parseTeacherAnswers(`# Antwoorden
+
+## Opdracht 27
+### Deelvraag 27a
+Correct antwoord: **B**
+
+## Vraag 28
+Another question
+Correct antwoord: **C**
+`);
+  assertEquals(
+    answers,
+    new Map<number | string, string>([["27a", "B"], [28, "C"]]),
+  );
+  assertEquals(
+    checkQuizBias(quiz, answers).map((finding) => [
+      finding.rule,
+      finding.question,
+    ]),
+    [["quiz-answer-key-mismatch", 1]],
+  );
+});
+
 Deno.test("a teacher answer model that disagrees is an error; a missing one is fine", () => {
   const markdown = quiz(["A", equal()], ["B", equal()]);
   const found = checkQuizBias(

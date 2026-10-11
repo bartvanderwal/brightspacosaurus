@@ -1,5 +1,6 @@
 /** Docusaurus remark adapter using the same quiz model and settings as QTI export. */
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
+import type { QuizQuestion } from "./quiz-parser.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
 import { quizTextNodes } from "./quiz-markdown.ts";
 import type { FlashcardNode } from "./flashcards.ts";
@@ -44,19 +45,33 @@ export function remarkQuizPreview(
     if (!/(?:^|[/\\])quiz-[^/\\]+\.md$/i.test(file.path ?? "")) return;
     const quiz = parseQuizMarkdown(String(file.value));
     assertValidQuiz(quiz, file.path);
-    const questions = quiz.questions.map((question) => {
+    const renderQuestion = (question: QuizQuestion) => {
       const responseType = question.responseType ?? "single";
       const correctAnswers = responseType === "open_short"
         ? question.acceptedAnswers ?? []
         : question.correctAnswers ?? [question.correctAnswer];
+      const points = question.points === undefined
+        ? ""
+        : ` (${question.points} ${question.points === 1 ? "punt" : "punten"})`;
       const properties = {
         className: "bso-quiz-question",
         "data-correct-answer": question.correctAnswer,
         "data-correct-answers": JSON.stringify(correctAnswers),
         "data-response-type": responseType,
+        ...(question.points === undefined
+          ? {}
+          : { "data-points": String(question.points) }),
       };
       const children = [
-        element("legend", {}, [text(`Question ${question.number}`)]),
+        element("legend", {}, [
+          text(
+            `${
+              question.label
+                ? `Deelvraag ${question.label}`
+                : `Question ${question.number}`
+            }${points}`,
+          ),
+        ]),
         richText("p", question.text, { className: "bso-quiz-prompt" }),
       ];
       if (responseType === "open_short") {
@@ -118,6 +133,34 @@ export function remarkQuizPreview(
         ]));
       }
       return element("fieldset", properties, children);
+    };
+    const blocks = quiz.blocks ?? quiz.questions.map((question) => ({
+      type: "question" as const,
+      question,
+    }));
+    const content = blocks.map((block) => {
+      if (block.type === "question") return renderQuestion(block.question);
+      const assignment = block.assignment;
+      return element("section", {
+        className: "bso-quiz-assignment",
+        "data-assignment-number": String(assignment.number),
+        "data-points": String(
+          assignment.questions.reduce(
+            (sum, question) => sum + (question.points ?? 1),
+            0,
+          ),
+        ),
+      }, [
+        element("h2", {}, [text(assignment.title)]),
+        ...(assignment.text.trim()
+          ? [
+            richText("p", assignment.text, {
+              className: "bso-quiz-assignment-context",
+            }),
+          ]
+          : []),
+        ...assignment.questions.map(renderQuestion),
+      ]);
     });
     // Run before Docusaurus' defaults so they derive metadata from this tree.
     const title = tree.children?.find((node) =>
@@ -128,7 +171,7 @@ export function remarkQuizPreview(
       element("section", {
         className: "bso-quiz",
         "data-shuffle-answers": String(config.shuffleAnswers),
-      }, questions),
+      }, content),
     ];
   };
 }

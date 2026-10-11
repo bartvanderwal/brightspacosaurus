@@ -87,6 +87,56 @@ Deno.test("lint shares quiz validation and formats source locations for editors"
   assertEquals(lintMarkdown(source.replace("Z", "a"), "quiz-test.md"), []);
 });
 
+Deno.test("lint reports assignment structure and standalone deelvragen", () => {
+  const empty = lintMarkdown(
+    "# Quiz\n\n## Opdracht 27\n\nGedeelde context",
+    "quiz-test.md",
+  );
+  assertEquals(
+    empty.some((issue) => issue.rule === "quiz-assignment-empty"),
+    true,
+  );
+
+  const outOfOrder = lintMarkdown(
+    `# Quiz
+
+## Opdracht 27
+Context.
+
+### Deelvraag 27a
+First?
+- A. Yes
+- B. No
+Correct antwoord: A
+
+### Deelvraag 27c
+Third?
+- A. Yes
+- B. No
+Correct antwoord: A
+`,
+    "quiz-test.md",
+  );
+  assertEquals(
+    outOfOrder.some((issue) => issue.rule === "quiz-subquestion-order"),
+    true,
+  );
+
+  const standalone = lintMarkdown(
+    `# Quiz
+
+### Deelvraag 27a
+Question?
+- A. Yes
+- B. No
+Correct antwoord: A
+`,
+    "quiz-test.md",
+  );
+  assertEquals(standalone[0].rule, "quiz-subquestion-without-assignment");
+  assertEquals(standalone[0].severity, "warning");
+});
+
 Deno.test("lint output colors only the severity word, and only when asked", () => {
   const warning = {
     severity: "warning" as const,

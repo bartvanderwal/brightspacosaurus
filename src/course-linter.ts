@@ -362,7 +362,7 @@ function inspectMarkdown(
         sourceFile,
         line: issue.line,
         column: 1,
-        severity: "error",
+        severity: issue.severity ?? "error",
         rule: issue.rule,
         message: `${
           issue.question !== undefined ? `Question ${issue.question}: ` : ""

@@ -10,11 +10,13 @@ export interface QuizIssue {
   question?: number;
   /** Actionable validation message. */
   message: string;
+  /** Warnings are lint findings, but do not block quiz export. */
+  severity?: "error" | "warning";
 }
 
 /** A parsed multiple-choice question. */
 export interface QuizQuestion {
-  /** Author-supplied question number; used in stable QTI identifiers. */
+  /** Question number used in stable QTI identifiers. */
   number: number;
   /** Student-facing prompt. */
   text: string;
@@ -30,11 +32,34 @@ export interface QuizQuestion {
   acceptedAnswers?: string[];
   /** Maximum input length for an open short-answer question. */
   maxLength?: number;
+  /** Author-facing label for a question, such as `27a`. */
+  label?: string;
+  /** Maximum score for this question, when explicitly set. */
+  points?: number;
   /** Optional student-facing hint. */
   hint?: string;
   /** One-based heading line, if parsed from Markdown. */
   line?: number;
 }
+
+/** A group of questions that share one student-facing Markdown context. */
+export interface QuizAssignment {
+  /** Author-supplied assignment number. */
+  number: number;
+  /** Heading text for the assignment. */
+  title: string;
+  /** Markdown shown once before all of the assignment's questions. */
+  text: string;
+  /** Questions belonging to the assignment, in source order. */
+  questions: QuizQuestion[];
+  /** One-based heading line, if parsed from Markdown. */
+  line?: number;
+}
+
+/** An ordered, format-independent top-level quiz content block. */
+export type QuizBlock =
+  | { type: "question"; question: QuizQuestion }
+  | { type: "assignment"; assignment: QuizAssignment };
 
 /** Quiz model shared by lint, QTI export and Docusaurus preview. */
 export interface ParsedQuiz {
@@ -42,6 +67,8 @@ export interface ParsedQuiz {
   title: string;
   /** Questions in author order. */
   questions: QuizQuestion[];
+  /** Ordered standalone questions and shared-context assignments. */
+  blocks?: QuizBlock[];
   /** Syntax errors found while parsing; export must reject these. */
   issues?: QuizIssue[];
 }
@@ -51,14 +78,37 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
   const quizDownBlock = extractQuizDownBlock(content);
   if (quizDownBlock !== null) return parseQuizDown(quizDownBlock, content);
 
-  const quiz: ParsedQuiz = { title: "", questions: [], issues: [] };
+  const quiz: ParsedQuiz = { title: "", questions: [], blocks: [], issues: [] };
   let question: QuizQuestion | undefined;
+  let assignment: QuizAssignment | undefined;
   let answerSeen = false;
   let checkboxOptionCount = 0;
   let regularOptionCount = 0;
   let fence: { character: string; length: number } | undefined;
   const issue = (rule: string, line: number, message: string) => {
     quiz.issues!.push({ rule, line, question: question?.number, message });
+  };
+  const startQuestion = (
+    line: number,
+    label?: string,
+    points?: number,
+  ): QuizQuestion => {
+    question = {
+      number: quiz.questions.length + 1,
+      text: "",
+      options: [],
+      correctAnswer: "",
+      line,
+      ...(label ? { label } : {}),
+      ...(points === undefined ? {} : { points }),
+    };
+    quiz.questions.push(question);
+    if (assignment && label) assignment.questions.push(question);
+    else quiz.blocks!.push({ type: "question", question });
+    answerSeen = false;
+    checkboxOptionCount = 0;
+    regularOptionCount = 0;
+    return question;
   };
 
   for (const [index, raw] of content.split(/\r?\n/).entries()) {
@@ -69,6 +119,8 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
         fence = { character: fenceMatch[1][0], length: fenceMatch[1].length };
         if (question && !question.options.length) {
           question.text += `${question.text ? "\n" : ""}${raw}`;
+        } else if (assignment && !question) {
+          assignment.text += `${assignment.text ? "\n" : ""}${raw}`;
         }
       } else if (
         fenceMatch[1][0] === fence.character &&
@@ -77,6 +129,8 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
         fence = undefined;
         if (question && !question.options.length) {
           question.text += `\n${raw}`;
+        } else if (assignment && !question) {
+          assignment.text += `${assignment.text ? "\n" : ""}${raw}`;
         }
       }
       continue;
@@ -85,6 +139,8 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       // A fenced example must never supply an answer key or question heading.
       if (question && !question.options.length) {
         question.text += `${question.text ? "\n" : ""}${raw}`;
+      } else if (assignment && !question) {
+        assignment.text += `${assignment.text ? "\n" : ""}${raw}`;
       }
       continue;
     }
@@ -92,19 +148,58 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
       if (!quiz.title) quiz.title = line.slice(2).trim();
       continue;
     }
-    const heading = line.match(/^##\s+(?:Question|Vraag)\s+(\d+)\b/i);
-    if (heading) {
-      question = {
-        number: Number(heading[1]),
+    const assignmentHeading = line.match(
+      /^##\s+Opdracht\s+(\d+)\b(?:\s*[-—:]\s*(.*))?$/i,
+    );
+    if (assignmentHeading) {
+      question = undefined;
+      const number = Number(assignmentHeading[1]);
+      assignment = {
+        number,
+        title: assignmentHeading[2]
+          ? `Opdracht ${assignmentHeading[1]} — ${assignmentHeading[2].trim()}`
+          : `Opdracht ${assignmentHeading[1]}`,
         text: "",
-        options: [],
-        correctAnswer: "",
+        questions: [],
         line: index + 1,
       };
-      quiz.questions.push(question);
-      answerSeen = false;
-      checkboxOptionCount = 0;
-      regularOptionCount = 0;
+      quiz.blocks!.push({ type: "assignment", assignment });
+      continue;
+    }
+    const subquestionHeading = line.match(
+      /^###\s+(?:Deelvraag|Subquestion)\s+(\d*[a-z])\b(?:\s*\((\d+(?:[.,]\d+)?)\s+punten?\))?(?:\s*[-—:]\s*(.*))?$/i,
+    );
+    if (subquestionHeading) {
+      const label = subquestionHeading[1];
+      const points = subquestionHeading[2]
+        ? Number(subquestionHeading[2].replace(",", "."))
+        : undefined;
+      if (assignment) {
+        assignment.text = assignment.text.trim();
+      } else {
+        quiz.issues!.push({
+          rule: "quiz-subquestion-without-assignment",
+          line: index + 1,
+          message:
+            `Deelvraag ${label} is parsed as a standalone question without shared assignment context.`,
+          severity: "warning",
+        });
+      }
+      const parsedQuestion = startQuestion(index + 1, label, points);
+      if (subquestionHeading[3]) {
+        parsedQuestion.text = subquestionHeading[3].trim();
+      }
+      continue;
+    }
+    const heading = line.match(/^##\s+(?:Question|Vraag)\s+(\d+)\b/i);
+    if (heading) {
+      assignment = undefined;
+      const parsedQuestion = startQuestion(index + 1);
+      parsedQuestion.number = Number(heading[1]);
+      continue;
+    }
+    if (assignment && !question) {
+      assignment.text += `${assignment.text ? "\n" : ""}${raw}`;
       continue;
     }
     if (!question || !line) continue;
@@ -129,13 +224,39 @@ export function parseQuizMarkdown(content: string): ParsedQuiz {
           "Use checked options or a correct-answer declaration, not both.",
         );
       }
-      const labels = parseCorrectAnswers(answer[1]);
-      if (!labels) {
-        issue(
-          "quiz-answer-syntax",
-          index + 1,
-          "Specify one or more answer letters, for example 'Correct answer: A' or 'Correct answer: A, C'.",
+      const answerText = answer[1].trim();
+      const labels = parseCorrectAnswers(answerText);
+      if (
+        !question.options.length && question.label &&
+        !looksLikeAnswerKey(answerText)
+      ) {
+        const shortAnswer = answer[1].match(/^(.*?)\s+~(\d+)\s*$/);
+        const accepted = splitQuizDownAnswers(
+          shortAnswer ? shortAnswer[1] : answer[1],
         );
+        if (accepted.length) {
+          question.responseType = "open_short";
+          question.acceptedAnswers = accepted;
+          if (shortAnswer) question.maxLength = Number(shortAnswer[2]);
+        } else {
+          issue("quiz-answer-syntax", index + 1, "Specify an answer.");
+        }
+      } else if (!labels) {
+        const shortAnswer = answer[1].match(/^(.*?)\s+~(\d+)\s*$/);
+        const accepted = splitQuizDownAnswers(
+          shortAnswer ? shortAnswer[1] : answer[1],
+        );
+        if (!question.options.length && accepted.length) {
+          question.responseType = "open_short";
+          question.acceptedAnswers = accepted;
+          if (shortAnswer) question.maxLength = Number(shortAnswer[2]);
+        } else {
+          issue(
+            "quiz-answer-syntax",
+            index + 1,
+            "Specify answer letters, for example 'Correct answer: A' or 'Correct answer: A, C', or provide accepted short answers.",
+          );
+        }
       } else {
         question.correctAnswer = labels[0];
         if (labels.length > 1) {
@@ -521,6 +642,12 @@ function parseCorrectAnswers(value: string): string[] | null {
   return new Set(labels).size === labels.length ? labels : null;
 }
 
+function looksLikeAnswerKey(value: string): boolean {
+  return /^[a-z]$/i.test(value) || /^[A-Z]{2,}$/.test(value) ||
+    /^[a-z](?:\s+[a-z])+$/i.test(value) ||
+    /[,;&]|\b(?:and|en)\b/i.test(value);
+}
+
 /** Check that each exported question has one reachable, unambiguous scoring key. */
 export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
   const issues = [...(quiz.issues ?? [])];
@@ -532,6 +659,31 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
     });
   }
   const seen = new Set<number>();
+  for (const block of quiz.blocks ?? []) {
+    if (block.type !== "assignment") continue;
+    if (!block.assignment.questions.length) {
+      issues.push({
+        rule: "quiz-assignment-empty",
+        line: block.assignment.line ?? 1,
+        message: `Opdracht ${block.assignment.number} has no deelvragen.`,
+      });
+      continue;
+    }
+    for (
+      const [index, part] of block.assignment.questions.entries()
+    ) {
+      const letter = part.label?.at(-1)?.toLowerCase();
+      if (!letter || letter.charCodeAt(0) !== "a".charCodeAt(0) + index) {
+        issues.push({
+          rule: "quiz-subquestion-order",
+          line: part.line ?? block.assignment.line ?? 1,
+          question: part.number,
+          message:
+            `Deelvragen in Opdracht ${block.assignment.number} must use consecutive letters starting with a.`,
+        });
+      }
+    }
+  }
   for (const question of quiz.questions) {
     const issue = (rule: string, message: string) =>
       issues.push({
@@ -552,6 +704,12 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
     seen.add(question.number);
     if (!question.text.trim()) {
       issue("quiz-prompt", "The question prompt is empty.");
+    }
+    if (
+      question.points !== undefined &&
+      (!Number.isFinite(question.points) || question.points <= 0)
+    ) {
+      issue("quiz-points", "Question points must be a positive number.");
     }
     const labels = question.options.map((option) => option.label);
     if (question.responseType === "open_short") {
@@ -624,7 +782,9 @@ export function validateQuiz(quiz: ParsedQuiz): QuizIssue[] {
 
 /** Fail before producing invalid QTI or an ungradable quiz preview. */
 export function assertValidQuiz(quiz: ParsedQuiz, sourceFile = "Quiz"): void {
-  const issues = validateQuiz(quiz);
+  const issues = validateQuiz(quiz).filter((issue) =>
+    issue.severity !== "warning"
+  );
   if (!issues.length) return;
   const message = issues.map((issue) =>
     `${sourceFile}:${issue.line}: ${

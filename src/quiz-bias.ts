@@ -51,11 +51,13 @@ export const defaultQuizBiasOptions: Required<QuizBiasOptions> = {
 const length = (text: string) => [...text].length;
 
 /**
- * Reads the correct answer per question number from a teacher answer model.
- * Supports the five layouts used in owe-1: `1. **B**`, `## Vraag 1 — Correct: B`,
- * `## Vraag 1 … Correct antwoord: **B**`, `| 1 | les | B |` and `| 1 | B |`.
+ * Reads correct answers from a teacher answer model.
+ * Supports numbered legacy layouts and `### Deelvraag 27a` headings.
  */
-export function parseTeacherAnswers(markdown: string): Map<number, string> {
+export function parseTeacherAnswers(
+  markdown: string,
+): Map<number | string, string> {
+  let numbered = new Map<number | string, string>();
   for (
     const pattern of [
       /^(\d+)\. \**([A-E])\**\s*$/gm,
@@ -65,22 +67,39 @@ export function parseTeacherAnswers(markdown: string): Map<number, string> {
       /^\| *(\d+) *\| *\**([A-E])\** *\|/gm,
     ]
   ) {
-    const found = new Map<number, string>();
+    const found = new Map<number | string, string>();
     for (const [, number, letter] of markdown.matchAll(pattern)) {
       found.set(Number(number), letter);
     }
-    if (found.size) return found;
+    if (found.size) {
+      numbered = found;
+      break;
+    }
   }
-  return new Map();
+  const answers = new Map(numbered);
+  const headings = [
+    ...markdown.matchAll(
+      /^###\s+(?:Deelvraag|Subquestion)\s+(\d*[a-z])\b[^\n]*$/gim,
+    ),
+  ];
+  for (const [index, heading] of headings.entries()) {
+    const start = heading.index! + heading[0].length;
+    const end = headings[index + 1]?.index ?? markdown.length;
+    const answer = markdown.slice(start, end).replaceAll("**", "").match(
+      /^\s*(?:Correct answer|Correcte? antwoord|Antwoord|Answer)\s*:\s*([A-E])\s*$/im,
+    );
+    if (answer) answers.set(heading[1].toLowerCase(), answer[1].toUpperCase());
+  }
+  return answers;
 }
 
 /**
  * Checks a parsed quiz for bias. Questions without a recognised correct option
  * or with fewer than two options are skipped, as they are reported by `validateQuiz`.
  */
-export function checkQuizBias(
+export function checkQuizBias<K extends number | string = number>(
   quiz: ParsedQuiz,
-  teacherAnswers: Map<number, string> = new Map(),
+  teacherAnswers: ReadonlyMap<K, string> = new Map<K, string>(),
   options: QuizBiasOptions = {},
 ): QuizBiasFinding[] {
   const limits = { ...defaultQuizBiasOptions, ...options };
@@ -174,7 +193,10 @@ export function checkQuizBias(
   }
   if (teacherAnswers.size) {
     for (const question of questions) {
-      const teacher = teacherAnswers.get(question.number);
+      const teacher = teacherAnswers.get(question.number as K) ??
+        (question.label
+          ? teacherAnswers.get(question.label.toLowerCase() as K)
+          : undefined);
       if (teacher !== undefined && teacher !== question.correctAnswer) {
         findings.push({
           rule: "quiz-answer-key-mismatch",

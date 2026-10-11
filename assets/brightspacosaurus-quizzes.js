@@ -64,7 +64,7 @@ function initializeQuizzes(root, random = Math.random) {
         feedback.textContent = "Choose an answer for every question.";
         return;
       }
-      const correct = questions.filter((question, index) =>
+      const correctAnswers = questions.map((question, index) =>
         questionIsOpenShort(question)
           ? JSON.parse(question.dataset.correctAnswers ?? "[]").some(
             (answer) =>
@@ -78,8 +78,23 @@ function initializeQuizzes(root, random = Math.random) {
                   JSON.stringify([question.dataset.correctAnswer]),
               ).sort(),
             )
-      ).length;
-      feedback.textContent = `${correct} / ${questions.length} correct`;
+      );
+      if (questions.some((question) => question.dataset.points !== undefined)) {
+        const points = questions.map((question) =>
+          Number(question.dataset.points ?? 1)
+        );
+        const score = correctAnswers.reduce(
+          (sum, correct, index) => sum + (correct ? points[index] : 0),
+          0,
+        );
+        const totalPoints = points.reduce((sum, value) => sum + value, 0);
+        feedback.textContent = `${Number(score.toPrecision(12))} / ${
+          Number(totalPoints.toPrecision(12))
+        } points`;
+      } else {
+        const correct = correctAnswers.filter(Boolean).length;
+        feedback.textContent = `${correct} / ${questions.length} correct`;
+      }
       questions.forEach((question) => {
         question.querySelector(".bso-quiz-answer").hidden = false;
       });

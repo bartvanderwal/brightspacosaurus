@@ -617,6 +617,28 @@ Generated quizzes get a maximum attempt count through QTI metadata. Configure it
 
 The earlier H1/H2 format with lettered options and a `Correct answer: X` answer key remains accepted for existing course files. New quizzes should use the linked QuizDown syntax; it keeps the answer key with each question instead of relying on a separate teacher-answer file. BSO exports single-choice as `cc.multiple_choice.v0p1`, multi-select as `cc.multiple_response.v0p1`, and auto-graded short answers as `cc.fib.v0p1`. Long-form essay and matching questions are not part of the currently documented QuizDown syntax. Verify QTI import and scoring in a Brightspace sandbox.
 
+The legacy format also supports a shared-context assignment with independently answered subquestions:
+
+```markdown
+## Opdracht 27
+
+The shared case, image or code block goes here.
+
+### Deelvraag 27a (2 punten)
+
+Which answer is correct?
+- A. The first option
+- B. The second option
+Correct antwoord: A
+
+### Deelvraag 27b (3 punten)
+
+What is the short answer?
+Correct antwoord: accepted answer / accepted variant
+```
+
+The assignment context is written once and shown before its subquestions in the Docusaurus preview and in a Brightspace quiz section. Each part can use its own question type and optional positive point value; a part without an explicit value is worth 1 point. Brightspace weights the part by that value, and the assignment score is the sum of its parts. Relative Markdown images in the shared context are included in the cartridge. `## Vraag N` remains a standalone question. A companion `-antwoorden-docent.md` can mirror the `## Opdracht` / `### Deelvraag` headings; lint compares its answer letters by part label. Lint reports assignments without parts and nonconsecutive part letters; a `### Deelvraag` outside an assignment is treated as a standalone question and reported as a warning. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
+
 Set `quiz.shuffleAnswers` to `true` in `brightspacosaurus.config.json` to randomize
 answer order per attempt. Default `false` preserves source order. BSO writes
 `<render_choice shuffle="Yes">` or `shuffle="No"`, keeping stable option identifiers

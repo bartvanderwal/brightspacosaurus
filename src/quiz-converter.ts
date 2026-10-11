@@ -8,16 +8,21 @@
  * @module
  */
 
-import { basename, dirname, join, relative, resolve } from "@std/path";
+import { basename, dirname, extname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
-import type { ParsedQuiz } from "./quiz-parser.ts";
+import type { ParsedQuiz, QuizQuestion } from "./quiz-parser.ts";
 import { parseQuizText } from "./quiz-markdown.ts";
 export { parseQuizMarkdown } from "./quiz-parser.ts";
-export type { ParsedQuiz, QuizQuestion } from "./quiz-parser.ts";
+export type {
+  ParsedQuiz,
+  QuizAssignment,
+  QuizBlock,
+  QuizQuestion,
+} from "./quiz-parser.ts";
 
 // Same mdast as the preview (quiz-markdown.ts); only the last step differs.
 const quizHtmlProcessor = unified()
@@ -74,15 +79,51 @@ function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function renderQuizMarkdown(markdown: string): string {
+function renderQuizMarkdown(
+  markdown: string,
+  resolveImage?: (url: string) => string,
+): string {
+  const parsed = parseQuizText(markdown);
+  if (resolveImage) {
+    const resolveImages = (node: typeof parsed) => {
+      if (node.type === "image" && typeof node.url === "string") {
+        node.url = resolveImage(node.url);
+      }
+      for (const child of node.children ?? []) resolveImages(child);
+    };
+    resolveImages(parsed);
+  }
   // deno-lint-ignore no-explicit-any
-  const tree = quizHtmlProcessor.runSync(parseQuizText(markdown) as any);
+  const tree = quizHtmlProcessor.runSync(parsed as any);
   // deno-lint-ignore no-explicit-any
   return String(quizHtmlProcessor.stringify(tree as any));
 }
 
 function formatBrightspaceMaxAttempts(maxAttempts: number): string {
   return maxAttempts === 0 ? "unlimited" : String(maxAttempts);
+}
+
+function imageUrls(markdown: string): string[] {
+  const urls: string[] = [];
+  const visit = (node: ReturnType<typeof parseQuizText>) => {
+    if (node.type === "image" && typeof node.url === "string") {
+      urls.push(node.url);
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(parseQuizText(markdown));
+  return urls;
+}
+
+function imagePathFromUrl(url: string): string | undefined {
+  if (/^(?:[a-z][a-z\d+.-]*:|\/\/|\/)/i.test(url)) return undefined;
+  let path = url.split(/[?#]/, 1)[0];
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    throw new Error(`Invalid image URL in quiz Markdown: '${url}'.`);
+  }
+  return path || undefined;
 }
 
 /**
@@ -108,6 +149,7 @@ export function generateQtiXml(
   ident: string,
   maxAttempts = 0,
   shuffleAnswers = false,
+  resolveImage?: (url: string) => string,
 ): string {
   assertValidQuiz(quiz);
   const sectionIdent = `sectie-${ident.replace(/^quiz-/, "")}`;
@@ -134,9 +176,7 @@ export function generateQtiXml(
   }</fieldentry>\n`;
   xml += `      </qtimetadatafield>\n`;
   xml += `    </qtimetadata>\n\n`;
-  xml += `    <section ident="${escapeXml(sectionIdent)}">\n`;
-
-  for (const question of quiz.questions) {
+  const appendQuestion = (question: QuizQuestion) => {
     const qIdent = `q${question.number}`;
     const respIdent = `${qIdent}_resp`;
     const correctLabels = (question.correctAnswers ?? [question.correctAnswer])
@@ -160,14 +200,14 @@ export function generateQtiXml(
     xml += `            </qtimetadatafield>\n`;
     xml += `            <qtimetadatafield>\n`;
     xml += `              <fieldlabel>cc_weighting</fieldlabel>\n`;
-    xml += `              <fieldentry>1</fieldentry>\n`;
+    xml += `              <fieldentry>${question.points ?? 1}</fieldentry>\n`;
     xml += `            </qtimetadatafield>\n`;
     xml += `          </qtimetadata>\n`;
     xml += `        </itemmetadata>\n`;
     xml += `        <presentation>\n`;
     xml += `          <material>\n`;
     xml += `            <mattext texttype="text/html">${
-      escapeXml(renderQuizMarkdown(question.text))
+      escapeXml(renderQuizMarkdown(question.text, resolveImage))
     }</mattext>\n`;
     xml += `          </material>\n`;
     if (questionType === "open_short") {
@@ -194,7 +234,7 @@ export function generateQtiXml(
         const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
         xml +=
           `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">${
-            escapeXml(renderQuizMarkdown(option.text))
+            escapeXml(renderQuizMarkdown(option.text, resolveImage))
           }</mattext></material></response_label>\n`;
       }
 
@@ -245,13 +285,56 @@ export function generateQtiXml(
     if (question.hint) {
       xml +=
         `        <itemfeedback ident="${qIdent}_feedback"><flow_mat><material><mattext texttype="text/html">${
-          escapeXml(renderQuizMarkdown(question.hint))
+          escapeXml(renderQuizMarkdown(question.hint, resolveImage))
         }</mattext></material></flow_mat></itemfeedback>\n`;
     }
     xml += `      </item>\n\n`;
+  };
+
+  const blocks = quiz.blocks ?? quiz.questions.map((question) => ({
+    type: "question" as const,
+    question,
+  }));
+  let looseSectionOpen = false;
+  let looseSectionCount = 0;
+  for (const [index, block] of blocks.entries()) {
+    if (block.type === "question") {
+      if (!looseSectionOpen) {
+        const looseSectionIdent = looseSectionCount === 0
+          ? sectionIdent
+          : `${sectionIdent}_${index + 1}`;
+        xml += `    <section ident="${escapeXml(looseSectionIdent)}">\n`;
+        looseSectionCount++;
+        looseSectionOpen = true;
+      }
+      appendQuestion(block.question);
+      continue;
+    }
+    if (looseSectionOpen) {
+      xml += `    </section>\n`;
+      looseSectionOpen = false;
+    }
+    const assignment = block.assignment;
+    const assignmentIdent = `${sectionIdent}_opdracht_${assignment.number}_${
+      index + 1
+    }`;
+    xml += `    <section ident="${escapeXml(assignmentIdent)}" title="${
+      escapeXml(assignment.title)
+    }">\n`;
+    if (assignment.text.trim()) {
+      xml += `      <rubric view="All">\n`;
+      xml += `        <material>\n`;
+      xml += `          <mattext texttype="text/html">${
+        escapeXml(renderQuizMarkdown(assignment.text, resolveImage))
+      }</mattext>\n`;
+      xml += `        </material>\n`;
+      xml += `      </rubric>\n`;
+    }
+    for (const part of assignment.questions) appendQuestion(part);
+    xml += `    </section>\n`;
   }
 
-  xml += `    </section>\n`;
+  if (looseSectionOpen) xml += `    </section>\n`;
   xml += `  </assessment>\n`;
   xml += `</questestinterop>\n`;
 
@@ -279,7 +362,68 @@ export async function convertQuiz(
 
   // Determine the relative path from the source directory for the output structure
   const resolvedSourcesDir = resolve(sourcesDir);
+  const realSourcesDir = await Deno.realPath(resolvedSourcesDir);
   const relFromSource = relative(resolvedSourcesDir, dirname(sourcePath));
+  const outputSubDir = join(outputDir, relFromSource);
+  const imageAssets = new Map<string, string>();
+  const markdownFields = [
+    ...quiz.questions.flatMap((question) => [
+      question.text,
+      question.hint ?? "",
+      ...question.options.map((option) => option.text),
+    ]),
+    ...(quiz.blocks ?? []).flatMap((block) =>
+      block.type === "assignment" ? [block.assignment.text] : []
+    ),
+  ];
+  for (const url of markdownFields.flatMap(imageUrls)) {
+    const imagePath = imagePathFromUrl(url);
+    if (!imagePath) continue;
+    const sourceImage = resolve(dirname(sourcePath), imagePath);
+    let realSourceImage: string;
+    try {
+      realSourceImage = await Deno.realPath(sourceImage);
+    } catch {
+      throw new Error(
+        `${sourcePath}: referenced quiz image '${url}' does not exist.`,
+      );
+    }
+    const sourceRelative = relative(realSourcesDir, realSourceImage);
+    if (sourceRelative.startsWith("..")) {
+      throw new Error(
+        `${sourcePath}: quiz images must be inside the configured source directory: '${url}'.`,
+      );
+    }
+    if (imageAssets.has(sourceImage)) continue;
+    try {
+      const info = await Deno.stat(realSourceImage);
+      if (!info.isFile) throw new Error("not a file");
+    } catch {
+      throw new Error(
+        `${sourcePath}: referenced quiz image '${url}' does not exist.`,
+      );
+    }
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(sourceRelative.replaceAll("\\", "/")),
+    );
+    const hash = [...new Uint8Array(digest)].map((byte) =>
+      byte.toString(16).padStart(2, "0")
+    ).join("");
+    const assetRelative = join("assets", `${hash}${extname(sourceImage)}`);
+    const assetOutput = join(outputSubDir, assetRelative);
+    await Deno.mkdir(dirname(assetOutput), { recursive: true });
+    await Deno.copyFile(realSourceImage, assetOutput);
+    imageAssets.set(sourceImage, assetRelative.replaceAll("\\", "/"));
+  }
+  const resolveImage = (url: string) => {
+    const imagePath = imagePathFromUrl(url);
+    if (!imagePath) return url;
+    const sourceImage = resolve(dirname(sourcePath), imagePath);
+    const assetRelative = imageAssets.get(sourceImage);
+    const suffix = url.match(/[?#].*$/)?.[0] ?? "";
+    return assetRelative ? `${assetRelative}${suffix}` : url;
+  };
 
   // Generate QTI XML
   const qtiXml = generateQtiXml(
@@ -287,10 +431,10 @@ export async function convertQuiz(
     ident,
     options.maxAttempts ?? 0,
     options.shuffleAnswers ?? false,
+    resolveImage,
   );
 
   // Write to output directory
-  const outputSubDir = join(outputDir, relFromSource);
   await Deno.mkdir(outputSubDir, { recursive: true });
 
   const outputFilename = `qti-${ident.replace(/^quiz-/, "")}.xml`;
