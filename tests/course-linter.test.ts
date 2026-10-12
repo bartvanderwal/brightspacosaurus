@@ -799,3 +799,28 @@ Deno.test("lint says what it scanned: directories, file counts and linked includ
     ["Scanning:"],
   );
 });
+
+Deno.test("lint finds diagram authoring errors inside a QuizDown block (#101)", () => {
+  const source = [
+    "# Quiz",
+    "",
+    "````quiz",
+    "? Welk diagram?",
+    "",
+    "```plantuml",
+    "```",
+    "",
+    "- (x) Ja",
+    "- ( ) Nee",
+    "````",
+    "",
+  ].join("\n");
+  const issues = lintMarkdown(source, "/repo/quiz-diagram.md");
+  assertEquals(issues.map((issue) => issue.rule), ["diagram-empty-diagram"]);
+  assertEquals(issues[0].severity, "error");
+});
+
+Deno.test("lint accepts a valid diagram inside a QuizDown block", () => {
+  const source = "# Quiz\n\n````quiz\n? Welk?\n\n```plantuml\n@startuml\nclass A\n@enduml\n```\n\n- (x) Ja\n- ( ) Nee\n````\n";
+  assertEquals(lintMarkdown(source, "/repo/quiz-diagram.md"), []);
+});

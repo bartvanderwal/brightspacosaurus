@@ -14,6 +14,8 @@ import remarkDirective from "remark-directive";
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { isQuizDown, parseQuizMarkdown, validateQuiz } from "./quiz-parser.ts";
 import { lintQuizDown } from "./quizdown-lint.ts";
+import { quizDiagramFields } from "./quiz-diagram-fields.ts";
+import { resolveQuizOptions } from "./quiz-config.ts";
 import type { QuizHeadingOptions } from "./quiz-parser.ts";
 import {
   checkQuizBias,
@@ -374,6 +376,21 @@ function inspectMarkdown(
           issue.question !== undefined ? `Question ${issue.question}: ` : ""
         }${issue.message}`,
       });
+    }
+    // Diagrams inside a ````quiz block are not visible to the file-level check above.
+    if (isQuizDown(markdown)) {
+      for (const field of quizDiagramFields(quiz, resolveQuizOptions(options))) {
+        for (const issue of detectDiagramIssues(field.markdown, sourceFile)) {
+          diagnostics.push({
+            sourceFile,
+            line: field.line ?? 1,
+            column: 1,
+            severity: "error",
+            rule: `diagram-${issue.kind}`,
+            message: issue.message,
+          });
+        }
+      }
     }
     const teacherAnswers = options.teacherAnswers === undefined
       ? undefined
