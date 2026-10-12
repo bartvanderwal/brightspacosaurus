@@ -498,11 +498,11 @@ The Voortgangsverkenner (see [1.6](#16-voortgangsverkenner-in-context)) appears 
 | Remark plugin | `remarkTeacherDashboard` from `@bartvanderwal/brightspacosaurus/teacher-page`, for the teacher page only, with `src: "/docenten/voortgangsverkenner.html"`. |
 | Static directory | A directory that contains `docenten/voortgangsverkenner.html`: `BSO_PREVIEW_STATIC_DIR` when you start the preview with `bso preview`, or the `content` directory of a previous `build` (for example `build/brightspace/content`). |
 | Client module | A module that imports `@bartvanderwal/brightspacosaurus/tabs` and calls `globalThis.bsoTabs?.initializeTabs(document)` in `onRouteDidUpdate`. |
-| Shared stylesheet | `@import '@bartvanderwal/brightspacosaurus/css';` in the app's registered custom stylesheet, using the npm package (0.23.0 or newer). Includes quiz, flashcard, tab and copy-control styles. |
+| Shared stylesheet | `@import '../generated/brightspacosaurus.css';` at the start of the app's registered `src/css/custom.css`. `bso preview` writes that file (#95). Includes quiz, flashcard, tab and copy-control styles. |
 
 A course that loads BSO via the package, for example `npm:@jsr/bartvanderwal__brightspacosaurus`, adds these itself.
 
-The `/css` subpath is exported by the npm package `@bartvanderwal/brightspacosaurus`, not the JSR-generated npm package. Deno rejects CSS entries in the module exports graph during both packing and JSR publication. Therefore `fixPackage` in `utils/release-npm.ts` adds `"./css": "./assets/brightspacosaurus.css"` to the generated npm exports map when the asset is present (#95). The stylesheet remains in `publish.include` for both registries; the export points at that same file without copying or generating a second stylesheet. A Webpack integration test packs the actual package, applies the release fix-ups, and compiles a consumer's CSS import through `css-loader`.
+The stylesheet cannot be a package export: Deno rejects CSS entries in the module exports graph during both packing and JSR publication, so neither the JSR-generated npm package nor the npm release has a `/css` subpath. Instead `writePreviewStylesheet` in `src/preview-styles.ts` copies `assets/brightspacosaurus.css`, loaded with `loadAssetText` so it also works from the JSR cache, to `<docusaurusDir>/src/generated/brightspacosaurus.css` before `bso preview` starts `npm start`. It writes a `.gitignore` containing `*` next to it and only rewrites a file whose content changed, so a running dev server does not reload for nothing. The stylesheet stays in `publish.include`. A Playwright test runs the real `bso preview` on a fixture project and compiles the documented `@import` through Webpack and `css-loader`.
 
 #### Reference setup and fallback
 

@@ -323,13 +323,13 @@ Packages the contents of the build directory into a `.imscc` archive including `
 
 ### Preview (Docusaurus dev server)
 
-For a course's own Docusaurus app, install the npm package (0.23.0 or newer) and import the complete BSO styles in its registered `src/css/custom.css`:
+For a course's own Docusaurus app, `bso preview` writes the complete BSO stylesheet to `src/generated/brightspacosaurus.css` in that app (git-ignored). Import it at the start of the app's registered `src/css/custom.css`, before your own overrides:
 
 ```css
-@import '@bartvanderwal/brightspacosaurus/css';
+@import '../generated/brightspacosaurus.css';
 ```
 
-This npm export avoids paths to a BSO checkout or `node_modules`. See [Loading BSO styles in your Docusaurus preview](docs/user-manual.md#101-loading-bso-styles-in-your-docusaurus-preview).
+No path to a BSO checkout or `node_modules`, and no extra npm package, is needed. See [Loading BSO styles in your Docusaurus preview](docs/user-manual.md#101-loading-bso-styles-in-your-docusaurus-preview).
 
 ```sh
 bso preview

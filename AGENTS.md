@@ -98,7 +98,6 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
   - Check `npm whoami` first. A publish without a valid login fails with a misleading `404 Not Found`; run `npm login` first.
   - Pack into `build/npm-release/`, so no `package/` or `.tgz` lands in the repo root.
   - Fix two `deno pack` quirks: delete the empty `assets/*.d.ts.d.ts` file, and add the `types` condition for the `./tabs` export.
-  - Add the npm `./css` export for `assets/brightspacosaurus.css` after packing; Deno's module graph rejects direct CSS exports in `deno.json` (#95).
   - Publish from the extracted folder, not from the `.tgz` tarball. Publishing from a tarball leaves the npm README empty because of a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)).
   - Clean up `build/npm-release/`.
 - `deno pack` reports "Could not generate types" for internal modules such as `assets.ts`, `quiz-markdown.ts` and `teacher-dashboard.ts`. This is expected. It only emits `.d.ts` files for modules that the public type surface references, and no published `.d.ts` imports these modules.

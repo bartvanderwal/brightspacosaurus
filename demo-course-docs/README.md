@@ -39,9 +39,10 @@ attempt limits. Brightspace handles those through its native quiz tool.
 cancelling preserves the current attempt.
 Code-block copy buttons remain visible without hovering, including the JSON
 configuration examples on the feature overview page.
-The demo loads BSO's stylesheet from this checkout. A course's own app uses
-`@import '@bartvanderwal/brightspacosaurus/css';` from the npm package instead;
-see [Loading BSO styles](../docs/user-manual.md#101-loading-bso-styles-in-your-docusaurus-preview).
+The demo loads BSO's stylesheet from this checkout. A course's own app gets it
+from `bso preview` instead, which writes `src/generated/brightspacosaurus.css`
+into the app; see
+[Loading BSO styles](../docs/user-manual.md#101-loading-bso-styles-in-your-docusaurus-preview).
 
 Browser regression tests build both Docusaurus and a standalone Brightspace
 flashcard page, then test keyboard/mouse controls, navigation, no-JS fallback,

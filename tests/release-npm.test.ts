@@ -102,28 +102,6 @@ Deno.test("parseOtp reads --otp=<code> and rejects a malformed option (#88)", ()
   assertThrows(() => parseOtp(["--otp=12 34"]));
 });
 
-Deno.test("fixPackage exports the complete stylesheet only when it is packaged (#95)", async () => {
-  const config = JSON.parse(await Deno.readTextFile("deno.json"));
-  assertEquals(
-    config.publish.include.includes("assets/brightspacosaurus.css"),
-    true,
-  );
-  const input = { exports: { ".": "./src/mod.js" } };
-  const withCss = fixPackage(input, [...files, "assets/brightspacosaurus.css"]);
-  assertEquals(
-    withCss.packageJson.exports?.["./css"],
-    "./assets/brightspacosaurus.css",
-  );
-  assertEquals(
-    fixPackage(withCss.packageJson, [...files, "assets/brightspacosaurus.css"]),
-    withCss,
-  );
-  assertEquals(
-    fixPackage(input, files).packageJson.exports?.["./css"],
-    undefined,
-  );
-});
-
 Deno.test("npmPublishArgs adds --dry-run and --otp only when asked (#88)", () => {
   assertEquals(npmPublishArgs(false), ["publish", "--access", "public"]);
   assertEquals(npmPublishArgs(true, "123456"), [

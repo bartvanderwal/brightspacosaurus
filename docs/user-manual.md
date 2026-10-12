@@ -878,10 +878,10 @@ Merge this fragment into your existing course configuration to add a stylesheet 
 
 ### 10.1 Loading BSO styles in your Docusaurus preview
 
-Install the npm package `@bartvanderwal/brightspacosaurus` (0.23.0 or newer) in your Docusaurus app. At the start of the app's `src/css/custom.css`, before your own overrides, add:
+`bso preview` writes the complete BSO stylesheet to `src/generated/brightspacosaurus.css` inside your Docusaurus app (the folder gets a `.gitignore`, so the file is not committed). At the start of the app's `src/css/custom.css`, before your own overrides, add:
 
 ```css
-@import '@bartvanderwal/brightspacosaurus/css';
+@import '../generated/brightspacosaurus.css';
 ```
 
 Keep that custom stylesheet registered in `docusaurus.config.js`:
@@ -892,9 +892,9 @@ theme: {
 }
 ```
 
-The import loads the complete shared stylesheet: practice quizzes, flashcards, teacher-page tabs and code-block copy controls. No path to a neighbouring BSO checkout or hardcoded `node_modules` directory is needed. `bso preview`'s generated flashcard-only stylesheet is not a replacement for it. Brightspace export already includes the complete stylesheet automatically; the BSO `customCss` configuration field does not register a stylesheet with Docusaurus.
+The import loads the complete shared stylesheet: practice quizzes, flashcards, teacher-page tabs and code-block copy controls. No path to a neighbouring BSO checkout, no hardcoded `node_modules` directory and no extra npm package is needed; this works with the `bso` you already run from JSR. Brightspace export already includes the complete stylesheet automatically; the BSO `customCss` configuration field does not register a stylesheet with Docusaurus.
 
-The `/css` export is available in the **npm package**. JSR and `deno pack` currently reject direct CSS module exports, so the npm release step adds it after packing. JSR still bundles the stylesheet as an asset, but does not expose this CSS import path. Update the Docusaurus dependency after the npm release is published; updating a separate CLI installation is not enough.
+Start the preview with `bso preview` (or `deno task demo` from a BSO checkout). The file is created before Docusaurus starts, so a bare `npm start` on a fresh clone fails to resolve the import; run `bso preview` once first. Every start refreshes the file after you update BSO.
 
 ---
 

@@ -30,6 +30,7 @@ import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
+import { PREVIEW_GENERATED_DIR, PREVIEW_STYLESHEET, writePreviewStylesheet } from "./preview-styles.ts";
 import {
   buildManifest,
   buildTimeFromEnv,
@@ -816,6 +817,12 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     `Starting Docusaurus dev server in ${
       relative(repoRoot, config.docusaurusDir)
     }...`,
+  );
+
+  // The app's custom.css imports this file (#95); written before npm starts.
+  await writePreviewStylesheet(config.docusaurusDir);
+  console.log(
+    `Wrote ${join(PREVIEW_GENERATED_DIR, PREVIEW_STYLESHEET)} for the preview styles.`,
   );
 
   // Dev/prod parity: the preview serves the same dashboard files as the
