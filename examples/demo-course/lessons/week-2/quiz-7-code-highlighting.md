@@ -10,9 +10,9 @@ let label = `Total: ${total}`;
 console.log(label, 42, true);
 ```
 
-- (x) `const`
 - ( ) `total`
 - ( ) `console`
+- (x) `const`
 - ( ) `42`
 
 ? What does this Java method return for `func(2, 5)`?
@@ -23,8 +23,8 @@ public static int func(int a, int b) {
 }
 ```
 
-- ( ) `5`
-- (x) `2`
+- ( ) `2`
+- (x) `5`
 - ( ) `true`
 - ( ) Nothing, it does not compile
 
@@ -36,10 +36,10 @@ public static int func(int a, int b) {
 }
 ```
 
-- (x) min
-- ( ) max
+- ( ) min
 - ( ) add
 - ( ) naming things well is not important
+- (x) max
 
 ? Which setting does this YAML file turn on?
 
@@ -66,9 +66,9 @@ quiz:
 </manifest>
 ```
 
-- (x) `<resources>`
 - ( ) `<manifest root>`
 - ( ) `<quiz type>`
+- (x) `<resources>`
 - ( ) `<item id>`
 
 ? Which option is valid code?

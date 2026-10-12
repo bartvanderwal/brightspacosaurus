@@ -817,6 +817,16 @@ Practical convention for filenames:
 
 Brightspace itself already has a separate tool/navigation for tests and quizzes. BSO therefore converts quiz Markdown to QTI assessments and does not build an extra content module for tests.
 
+### 7.4 Code in questions and answer options
+
+Fenced code blocks and inline code work in a question, an answer option, a hint and an explanation. A QTI question has no stylesheet, so BSO writes the styling into the question itself (inline `style`). Code blocks are syntax highlighted at build time with Prism, on a dark block with a border, in the same Palenight colors as the Docusaurus preview. Inline code gets the grey background and border of lesson pages. A language Prism does not know, or a block without a language, stays plain code.
+
+![Brightspace quiz preview with highlighted JavaScript and Java code blocks and inline code in questions and answer options](images/brightspace-quiz-code-highlighting.png)
+
+_Figure 9_: Code in quiz questions and answer options in the Brightspace preview (demo quiz 2.7).
+
+Look at the dark blocks in the questions: keywords, strings, numbers and comments each have their own color. The inline code in the question text and in the answer options has a grey background, so it stands out from the prose. The demo course shows this with JavaScript, Java, YAML and XML in `quiz-7-code-highlighting.md`.
+
 ---
 
 ## 8. Readers: reference material as PDF
@@ -857,7 +867,7 @@ In Brightspace you can offer the reader PDFs as follows:
 
 ![Brightspace Manage Files with reader PDFs in the readers directory](images/brightspace-readers-bestanden-beheren.png)
 
-_Figure 9_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
+_Figure 10_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
 
 ---
 
