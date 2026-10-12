@@ -227,3 +227,29 @@ test("a quiz without a stated language keeps the English texts", async ({ page }
   await page.evaluate(() => globalThis.bsoQuizzes.initializeQuizzes(document));
   await expect(page.getByRole("button", { name: "New attempt", exact: true })).toBeVisible();
 });
+
+test("quiz preview renders diagrams in questions and answer options with source and description (#101)", async ({ page }) => {
+  await page.goto("/lessons/week-2/quiz-1-diagrams");
+  const images = page.locator(".bso-quiz img.kroki-image");
+  // Three diagrams, plus the correct option repeated in "Show correct answer".
+  await expect(images).toHaveCount(4);
+  // Sorted: the demo shuffles answer options, so the DOM order varies.
+  expect((await images.evaluateAll((nodes) => nodes.map((node) => node.alt))).sort()).toEqual([
+    "Question 3",
+    "Question 4, answer A",
+    "Question 4, answer A",
+    "Question 4, answer B",
+  ]);
+  // The drawn diagram, not the PlantUML text, is what the student sees.
+  const visible = page.locator(".bso-quiz-prompt img.kroki-image, .bso-quiz-options img.kroki-image");
+  await expect(visible).toHaveCount(3);
+  for (const image of await visible.all()) {
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate((node) => node.complete && node.naturalWidth > 0)).toBe(true);
+  }
+  await expect(page.locator(".bso-quiz details.diagram-expandable-source")).toHaveCount(4);
+  // The source only appears inside the disclosure, never as plain text in the question.
+  await expect(page.locator(".bso-quiz pre:not(details pre)")).toHaveCount(0);
+  await expect(page.locator(".bso-quiz .diagram-a11y-description-text").first())
+    .toContainText("Class diagram");
+});

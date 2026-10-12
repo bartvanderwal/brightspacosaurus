@@ -325,6 +325,7 @@ export async function runBuild(
         sourcesDir: config.sourcesDir,
         maxAttempts: config.quiz.maxAttempts,
         shuffleAnswers: config.quiz.shuffleAnswers,
+        diagrams: config.diagrams,
         locale: config.quiz.locale,
         assignmentPrefix: config.quiz.assignmentPrefix,
         questionPrefix: config.quiz.questionPrefix,
