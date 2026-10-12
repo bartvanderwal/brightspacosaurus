@@ -2,6 +2,23 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.23.0
+
+### Added
+
+- Voortgangsverkenner caches progress locally with per-repository timestamps, 5-minute/24-hour freshness, seven-day retention, explicit refresh/clear controls and a shared-origin privacy warning. Tokens stay in memory (#61).
+- Public npm stylesheet export `@bartvanderwal/brightspacosaurus/css` for Docusaurus CSS imports without checkout-specific paths (#95).
+- `bso build` and `deno task build` generate Brightspace HTML, QTI quizzes, PDFs and assets.
+
+### Changed
+
+- **Breaking:** `build` replaces `prepare` without a compatibility alias. Update CLI commands and Deno tasks; library callers use `runBuild` and `BuildOptions` instead of `runPrepare` and `PrepareOptions`.
+
+### Fixed
+
+- Practice quizzes ask for confirmation before "New attempt" clears answers and feedback. Cancelling preserves the current attempt.
+- Demo configuration examples use copyable JSON blocks, with code-block copy buttons always visible in the Docusaurus preview.
+
 ## 0.22.0
 
 ### Added

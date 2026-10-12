@@ -91,7 +91,7 @@ Or via a package manager: `brew install deno` (macOS), `choco install deno` / `w
 **Prefer not to install anything?** Run it on demand instead:
 
 ```sh
-deno run -A jsr:@bartvanderwal/brightspacosaurus/cli prepare
+deno run -A jsr:@bartvanderwal/brightspacosaurus/cli build
 ```
 
 </details>
@@ -117,7 +117,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks (any language, with a copy button and syntax highlighting for every language Prism supports) are all supported.
    - **Quizzes** — files with the `quiz-` prefix are converted to QTI 1.2 and imported into the Brightspace Quizzes tool.
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
-   - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso prepare` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
+   - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso build` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
   - **Flashcards** — use `::::flashcards` with inner `:::flashcard` cards, lightweight `- **term:** definition` lists inside `:::flashcards`, or automatically convert glossary sections via `flashcards.sectionHeadings: ["Kernbegrippen"]`. Definitions support normal Markdown and remain readable without JavaScript. See the [flashcard guide](docs/user-manual.md#44-core-concept-flashcards).
 
@@ -142,7 +142,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
 4. **Build the package** — convert your Markdown to HTML + QTI and package it into a `.imscc`:
 
    ```sh
-   bso prepare
+   bso build
    bso pack
    ```
 
@@ -150,7 +150,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
 
 5. **Import into Brightspace** — upload the generated `.imscc` (see [Importing into Brightspace](#importing-into-brightspace)).
 
-6. **Iterate.** Editing course material is a repeating cycle: adjust your Markdown, re-run `bso prepare && bso pack`, and re-import. A few things to keep in mind:
+6. **Iterate.** Editing course material is a repeating cycle: adjust your Markdown, re-run `bso build && bso pack`, and re-import. A few things to keep in mind:
 
    - **Preview first.** Use `bso preview` to check your changes locally before every import — it is faster than the import round-trip and catches most issues early.
    - **Brightspace import is additive.** Re-importing does not overwrite existing modules or quizzes; it adds duplicates. Remove the old content in Brightspace before re-importing (you can delete an entire week/module at once via the module's ⋮ menu → Delete Module).
@@ -267,7 +267,7 @@ BSO's Brightspace output does not rely on custom JavaScript: source and generate
 Usage: brightspacosaurus <command> [options]
 
 Commands:
-  prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
+  build     Generate Brightspace HTML, QTI quizzes, PDFs and assets
   pack      Package the build directory into a .imscc archive
   preview   Start the Docusaurus dev server (requires docusaurusDir in config)
 
@@ -283,7 +283,11 @@ CLI arguments always take precedence over values from the configuration file.
 
 ## Commands
 
-When working from the source repo, you can also use `deno task prepare` / `deno task pack` instead of the installed `bso` command.
+When working from the source repo, use **`deno task build`** / **`deno task pack`** instead of the installed `bso` command.
+
+**Do not use `deno prepare` (or `deno build`).** These are project tasks, not built-in Deno commands: write `deno task build`. An unrecognised command such as `deno build` is treated as a module to run (like `deno run build`), so it can fail with a directory-import error for the existing `build/` directory. `deno task build` looks up the project task in `deno.json` instead. `deno compile` is a different, built-in command for creating a standalone executable, not for generating course content.
+
+From BSO 0.23.0 onwards, **`build` replaces `prepare`**, without a compatibility alias. Update scripts to `bso build` or `deno task build`. An older installed `bso` still uses the old command; updating this repository does not update that installed CLI. Use the local task until the new version is published and installed.
 
 ### Running tests
 
@@ -293,10 +297,10 @@ deno task test
 
 Runs all unit and property-based tests.
 
-### Prepare (Markdown → HTML + QTI)
+### Build (Markdown → HTML + QTI + PDF + assets)
 
 ```sh
-bso prepare
+bso build
 ```
 
 Scans the configured source directory and:
@@ -307,6 +311,8 @@ Scans the configured source directory and:
 - Generates the instructor manual PDF (if configured)
 - Copies referenced images into the build directory
 
+This builds the **Brightspace export artifacts** in `outputDir`; `bso pack` turns them into the `.imscc` archive. Docusaurus renders the same Markdown sources itself: it does **not** consume the generated Brightspace HTML or QTI. `bso preview` can reuse the generated reader PDFs, alongside its own web versions of the readers.
+
 ### Pack (HTML + QTI → .imscc)
 
 ```sh
@@ -316,6 +322,14 @@ bso pack
 Packages the contents of the build directory into a `.imscc` archive including `imsmanifest.xml`.
 
 ### Preview (Docusaurus dev server)
+
+For a course's own Docusaurus app, install the npm package (0.23.0 or newer) and import the complete BSO styles in its registered `src/css/custom.css`:
+
+```css
+@import '@bartvanderwal/brightspacosaurus/css';
+```
+
+This npm export avoids paths to a BSO checkout or `node_modules`. See [Loading BSO styles in your Docusaurus preview](docs/user-manual.md#101-loading-bso-styles-in-your-docusaurus-preview).
 
 ```sh
 bso preview

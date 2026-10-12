@@ -17,7 +17,7 @@ This manual describes:
 
 - How Brightspace organizes course material under the hood (data model, import/export)
 - How you install and configure BSO
-- How you publish course material from Markdown source files (`prepare` and `pack`)
+- How you publish course material from Markdown source files (`build` and `pack`)
 - How quizzes are converted to QTI and readers to PDF
 - The import procedure in Brightspace and the additive import behavior
 
@@ -329,7 +329,7 @@ Place the directive `{@bso-versions}` on its own line where the version table be
 
 BSO replaces the directive with a table containing the course name and `version` from the configuration and the Brightspacosaurus version. Without the directive, the table follows the page's first H1. Directives in code blocks and on other pages stay unchanged. The Docusaurus preview shows the same table.
 
-If the default page does not exist, BSO skips it without a message. If a configured `teacherPage` does not exist, `bso prepare` fails. The page is a normal topic in the cartridge: hide it for students in Brightspace after each import. It contains no secrets.
+If the default page does not exist, BSO skips it without a message. If a configured `teacherPage` does not exist, `bso build` fails. The page is a normal topic in the cartridge: hide it for students in Brightspace after each import. It contains no secrets.
 
 ---
 
@@ -385,7 +385,7 @@ For date-aware week focus, optionally add a `weeks` calendar. Each repository pr
 }
 ```
 
-The dashboard opens the current week by default, leaves earlier weeks collapsed and dims later weeks. Use **Weekfocus** to switch weeks manually. Work items are grouped by their configured repository; unfinished work in a future week is neutral and does not count as backlog. Refreshing a week updates its repositories and keeps the other weeks' data in the page's in-memory cache. Without `weeks`, the dashboard keeps its existing class-wide behavior.
+The dashboard opens the current week by default, leaves earlier weeks collapsed and dims later weeks. Use **Weekfocus** to switch weeks manually. Work items are grouped by their configured repository; unfinished work in a future week is neutral and does not count as backlog. Refreshing a week updates its repositories and keeps the other weeks' cached data. Without `weeks`, refresh applies to the whole class. See the local-cache behavior and privacy warning under **Using the dashboard** below.
 
 #### Security and token handling
 
@@ -435,7 +435,11 @@ The dashboard ships its own fonts (Atkinson Hyperlegible, SIL OFL 1.1) and libra
 5. Open a student, repository and work item in the tree on the left. The work item shows its linked commits and merge requests; each link opens the commit, the merge request changes or the work item in GitLab in a new tab.
 6. Adjust the thresholds under **Instellingen stoplicht**; colours update immediately. The defaults come from the configuration.
 
-All fetched data stays in the page's memory and disappears when you close it. Use **Ververs deze student** to update one student without fetching the whole class again.
+Fetched progress is cached in `localStorage` on this browser and device by default (#61). After validating your token, the dashboard restores data for this GitLab server, course, class and repository/week configuration. Current and future weeks are reused for **5 minutes**, earlier weeks for **24 hours**; without a week calendar the freshness limit is 5 minutes. Stale repositories are refreshed automatically when you enter the dashboard or switch classes. **Ververs nu** bypasses the freshness limit for the selected week (or the class without a calendar). Use **Ververs deze student** to update one student without fetching the whole class again. The displayed **Laatst ververst** timestamp shows the oldest repository fetch in the selected week.
+
+Cached data includes student identifiers, work-item titles and status, counts of comments, and linked commit/MR metadata. The token is **never** cached. Data older than **7 days** is removed when the dashboard opens and every minute while it is open; a closed page cannot run cleanup. **Cache wissen** removes all Voortgangsverkenner caches on this browser-origin and clears the displayed data. **Vergeet token** removes the token and displayed data from memory but does not erase the cache; use **Cache wissen** too on a shared device.
+
+**Privacy:** this is local storage, not encryption or an access-control boundary. Other scripts on the same origin (including other course content on the same Brightspace host) can read it. Use a trusted browser profile/device and clear the cache before sharing it. The dashboard shows this warning beside the cache controls. If browser storage is blocked, full or corrupt, an explicit warning is shown; fetching from GitLab remains available with in-memory data.
 
 ![Voortgangsverkenner class overview with fictitious students](images/voortgangsverkenner-klasoverzicht.png)
 
@@ -467,7 +471,7 @@ start
 :Schrijf of wijzig Markdown in Git;
 :Controleer bestandsnamen en relatieve links;
 :Preview lokaal met Docusaurus;
-:Voer `deno task prepare` uit;
+:Voer `deno task build` uit;
 fork
   :Zet lespagina's om naar HTML;
   :Kopieer gekoppelde afbeeldingen mee;
@@ -496,11 +500,11 @@ The source files remain authoritative:
 Run the export from the root of your course project:
 
 ```sh
-deno task prepare
+deno task build
 deno task pack
 ```
 
-`prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive in the same build directory, for example `build/brightspace/cursus.v1.0.0.imscc`: the name comes from `name`/`courseName` and the postfix from the course `version` in the config.
+`build` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive in the same build directory, for example `build/brightspace/cursus.v1.0.0.imscc`: the name comes from `name`/`courseName` and the postfix from the course `version` in the config.
 
 `imsmanifest.xml` records how the package was made: the LOM description holds the BSO version, course name and course version, for example `Brightspacosaurus 0.18.0; course: Demo Course; course version: 0.10.0`. Read it without Brightspace with `unzip -p cursus.v1.0.0.imscc imsmanifest.xml`. No build time is written by default, so repeated builds stay identical; set `SOURCE_DATE_EPOCH` (seconds since 1970) to add `built: <ISO 8601 time>`.
 
@@ -597,7 +601,7 @@ Preferably choose a clean sandbox course for tests.
 
 ### 5.5 PlantUML and Mermaid diagrams in lesson pages
 
-BSO renders PlantUML and Mermaid fenced code blocks in lesson Markdown during `prepare`. The renderer uses `remark-kroki-a11y` and a Kroki-compatible HTTP service. By default BSO uses the public `https://kroki.io` endpoint and embeds rendered SVG as a base64 image in the generated Brightspace HTML.
+BSO renders PlantUML and Mermaid fenced code blocks in lesson Markdown during `build`. The renderer uses `remark-kroki-a11y` and a Kroki-compatible HTTP service. By default BSO uses the public `https://kroki.io` endpoint and embeds rendered SVG as a base64 image in the generated Brightspace HTML.
 
 Example:
 
@@ -691,6 +695,16 @@ The assignment context is written once and shown before its subquestions in the 
 
 Set `quiz.locale` to `"nl"` to derive the defaults `Opdracht`, `Vraag` and `Deelvraag`; `quiz.subquestionPrefix` sets the prefix of assignment subquestions. A client can instead set `quiz.assignmentPrefix` and/or `quiz.questionPrefix` to its own terms; an explicit prefix takes precedence over the locale. These settings are shared by QTI export, Docusaurus preview and course lint. QuizDown's fenced `quiz` syntax is unchanged. A companion `-antwoorden-docent.md` can mirror the assignment/subquestion headings; lint compares its answer letters by part label. Lint reports assignments without parts, nonconsecutive part letters, malformed heading syntax and assignment/question headings at the wrong level. A subquestion heading outside an assignment is reported as an error. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
 
+For Dutch quiz labels, merge this fragment into your existing course configuration:
+
+```json
+{
+  "quiz": {
+    "locale": "nl"
+  }
+}
+```
+
 In QuizDown, an assignment starts with `@ title`. The Markdown up to the first `?` is the shared context (text, code, images); every `?` after it is a sub-question with its own type, so single choice, multiple response and short answers can be mixed. Points go at the end of the `?` line as `(2 pt)` or `(2)`; other spellings such as `(2 punten)` are errors. A `?` before the first `@` is a standalone question. Sub-questions are labelled `1a`, `1b`, ... per assignment. Indented fenced code under an option, also after a blank line, belongs to that option.
 
 ````markdown
@@ -735,9 +749,22 @@ answer order per attempt. Default `false` preserves source order. BSO writes
 and the correct scoring reference. See the [Common Cartridge specification](https://www.imsglobal.org/node/51891).
 The Docusaurus demo uses the same setting and parser for interactive practice;
 answers are shuffled on page entry/new attempt, and stay in place while answering.
+Choosing **New attempt** opens a confirmation dialog before clearing answers,
+score and feedback. Cancelling keeps the current attempt unchanged.
 Preview scores are local feedback, not stored grades; Brightspace enforces native
 assessment rules and attempt limits. Restart preview after changing configuration.
 Verify native randomization and correct scoring after importing into Brightspace.
+
+To enable shuffling with unlimited attempts, merge these quiz settings into your existing course configuration:
+
+```json
+{
+  "quiz": {
+    "maxAttempts": 0,
+    "shuffleAnswers": true
+  }
+}
+```
 
 ### 7.1 Images in quizzes
 
@@ -771,6 +798,15 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - In CI with a shallow clone (for example GitLab's `GIT_DEPTH`) the last commit that touched a file may be missing, or replaced by a later one. BSO detects a shallow clone and then ignores the Git date, falling back to `updated`. For the real date in CI, fetch the full history (`GIT_DEPTH: 0`) for the job that builds the readers.
 - Add a cover image with `coverImage` in the frontmatter, relative to the reader file, for example `coverImage: img/git-branches.png`. The image appears between author and date, scaled to at most 80% of the page width and 45% of its height. Use PNG or JPG, and a path without spaces or LaTeX special characters (`%`, `#`, `{`, `}`). If the file is missing or the path is unusable, BSO prints a warning and builds the cover without image. `coverAlt` may hold a description for editors; the PDF does not use it yet.
 - Add a logo to every reader cover page with `readerCoverLogo` in `brightspacosaurus.config.json`, relative to the repository root, for example `"readerCoverLogo": "shared/han-logo.png"`. The logo appears at the bottom of the cover, above the date, at most 4 cm wide and 3 cm high. The same path rules and warnings apply as for `coverImage`.
+
+To disable chapter page breaks and add a cover logo, merge this fragment into the existing course configuration:
+
+```json
+{
+  "readerChapterNewPage": false,
+  "readerCoverLogo": "shared/han-logo.png"
+}
+```
 
 BSO includes reader PDFs in the IMSCC package as webcontent resources. By default they get their own "Readers" module in the menu; see [8.2](#82-menu-module-and-order) to put them in another module.
 
@@ -831,6 +867,34 @@ In addition to the images referenced from Markdown, you can supply extra static 
 BSO ships a default CSS stylesheet (`brightspacosaurus.css`), based on the HAN house style. This stylesheet is generic and contains no course-specific colors or selectors.
 
 If you want to add your own styling, you configure a `customCss` path in the configuration file. BSO then adds that stylesheet alongside the default stylesheet. Without `customCss`, BSO uses only the default stylesheet.
+
+Merge this fragment into your existing course configuration to add a stylesheet to the Brightspace export:
+
+```json
+{
+  "customCss": "assets/custom.css"
+}
+```
+
+### 10.1 Loading BSO styles in your Docusaurus preview
+
+Install the npm package `@bartvanderwal/brightspacosaurus` (0.23.0 or newer) in your Docusaurus app. At the start of the app's `src/css/custom.css`, before your own overrides, add:
+
+```css
+@import '@bartvanderwal/brightspacosaurus/css';
+```
+
+Keep that custom stylesheet registered in `docusaurus.config.js`:
+
+```js
+theme: {
+  customCss: require.resolve('./src/css/custom.css'),
+}
+```
+
+The import loads the complete shared stylesheet: practice quizzes, flashcards, teacher-page tabs and code-block copy controls. No path to a neighbouring BSO checkout or hardcoded `node_modules` directory is needed. `bso preview`'s generated flashcard-only stylesheet is not a replacement for it. Brightspace export already includes the complete stylesheet automatically; the BSO `customCss` configuration field does not register a stylesheet with Docusaurus.
+
+The `/css` export is available in the **npm package**. JSR and `deno pack` currently reject direct CSS module exports, so the npm release step adds it after packing. JSR still bundles the stylesheet as an asset, but does not expose this CSS import path. Update the Docusaurus dependency after the npm release is published; updating a separate CLI installation is not enough.
 
 ---
 

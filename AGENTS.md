@@ -14,7 +14,7 @@ These instructions apply to this repository and are the primary context for AI a
 
 The core consists of separate modules under `src/`:
 
-- `main.ts` — CLI entry point (commands `prepare` and `pack`), guarded with `import.meta.main`.
+- `main.ts` — CLI entry point (commands `build` and `pack`), guarded with `import.meta.main`.
 - `config-loader.ts` — loads, validates and resolves `brightspacosaurus.config.json`.
 - `source-scanner.ts` — scans source directories and classifies files by prefix.
 - `markdown-converter.ts` — Markdown to HTML (unified/remark/rehype).
@@ -64,9 +64,9 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
 - Test runner: Deno's built-in `deno test`. A bare `deno test` has no permissions and fails; use `deno task test` (or `deno test -P`, which loads the `default` permission set from `deno.json`).
 - Property-based tests with fast-check (via JSR), at least 100 iterations per property.
 - When making code changes, add or update tests: argument validation, deterministic output, error scenarios.
-- While developing, run `deno task test:fast` (under a minute): all tests except the pandoc PDF conversion tests. Tests that call `runPrepare` without testing PDFs pass `{ skipReaders: true }`.
+- While developing, run `deno task test:fast` (under a minute): all tests except the pandoc PDF conversion tests. Tests that call `runBuild` without testing PDFs pass `{ skipReaders: true }`.
 - Run the full `deno task test` (several minutes, includes `test:pdf`) before considering anything "done" or committing, and when touching reader, instructor-manual or pandoc code.
-- For local builds where PDFs do not matter, use `prepare --skip-readers`: it skips all PDF generation with pandoc (readers, instructor manual, user manual) and still copies pre-built PDFs.
+- For local builds where PDFs do not matter, use `build --skip-readers`: it skips all PDF generation with pandoc (readers, instructor manual, user manual) and still copies pre-built PDFs.
 - Run long test suites in the background and keep working or reporting in the meantime; do not leave the user waiting on a silent foreground run.
 - Follow the project Definition of Done in `docs/definition-of-done.md`, including **80% or higher line coverage**. Also report branch and function coverage, because line coverage alone does not prove both sides of conditional behavior are tested.
 - For security-sensitive or build-wide changes: state what you verified and what you did not.
@@ -98,6 +98,7 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
   - Check `npm whoami` first. A publish without a valid login fails with a misleading `404 Not Found`; run `npm login` first.
   - Pack into `build/npm-release/`, so no `package/` or `.tgz` lands in the repo root.
   - Fix two `deno pack` quirks: delete the empty `assets/*.d.ts.d.ts` file, and add the `types` condition for the `./tabs` export.
+  - Add the npm `./css` export for `assets/brightspacosaurus.css` after packing; Deno's module graph rejects direct CSS exports in `deno.json` (#95).
   - Publish from the extracted folder, not from the `.tgz` tarball. Publishing from a tarball leaves the npm README empty because of a known npm CLI bug ([npm/cli#3548](https://github.com/npm/cli/issues/3548)).
   - Clean up `build/npm-release/`.
 - `deno pack` reports "Could not generate types" for internal modules such as `assets.ts`, `quiz-markdown.ts` and `teacher-dashboard.ts`. This is expected. It only emits `.d.ts` files for modules that the public type surface references, and no published `.d.ts` imports these modules.

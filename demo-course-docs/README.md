@@ -5,7 +5,7 @@ This is the Docusaurus app that shows the demo course as a website. It holds no 
 | | `examples/demo-course` | `demo-course-docs` |
 | --- | --- | --- |
 | Is | The demo course: Markdown source, config, readers | Docusaurus app (config, React components, Playwright tests) |
-| Used for | `bso prepare` / `pack` into a `.imscc`; test set for BSO features | `bso preview`, GitHub Pages, browser regression tests |
+| Used for | `bso build` / `pack` into a `.imscc`; test set for BSO features | `bso preview`, GitHub Pages, browser regression tests |
 | Contains | Lessons, quizzes, readers, `brightspacosaurus.config.json` | `docusaurus.config.js`, `src/`, `tests/`, no course content |
 
 From the repository root:
@@ -35,6 +35,13 @@ module as the Brightspace export. Diagram fences render through
 `remark-kroki-a11y`, including its source/natural-language tabs.
 Quiz previews are local practice: they do not save grades or enforce the LMS's
 attempt limits. Brightspace handles those through its native quiz tool.
+**New attempt** asks for confirmation before clearing answers and feedback;
+cancelling preserves the current attempt.
+Code-block copy buttons remain visible without hovering, including the JSON
+configuration examples on the feature overview page.
+The demo loads BSO's stylesheet from this checkout. A course's own app uses
+`@import '@bartvanderwal/brightspacosaurus/css';` from the npm package instead;
+see [Loading BSO styles](../docs/user-manual.md#101-loading-bso-styles-in-your-docusaurus-preview).
 
 Browser regression tests build both Docusaurus and a standalone Brightspace
 flashcard page, then test keyboard/mouse controls, navigation, no-JS fallback,
