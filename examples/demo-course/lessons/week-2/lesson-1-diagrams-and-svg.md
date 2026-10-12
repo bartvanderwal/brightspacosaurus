@@ -20,7 +20,7 @@ Main ..> FizzBuzzer : uses
 
 ```mermaid
 flowchart LR
-  Source[Markdown] --> BSO[BSO prepare]
+  Source[Markdown] --> BSO[BSO build]
   BSO --> IMSCC[IMSCC]
   IMSCC --> Brightspace
 ```
