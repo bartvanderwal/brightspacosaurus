@@ -772,7 +772,42 @@ To enable shuffling with unlimited attempts, merge these quiz settings into your
 
 A quiz can be given a **header image** via the quiz settings in Brightspace (manually). In the QTI format that BSO generates, you can embed images in question texts via HTML img tags. A quiz banner as a whole is a Brightspace UI setting, not part of QTI.
 
-### 7.2 Teacher and student variants
+### 7.2 Diagrams in questions
+
+A PlantUML or Mermaid block works in a question, an answer option, a hint, an explanation and in the shared text of an assignment, with the same Kroki rendering as lesson pages (section 5.5):
+
+`````markdown
+````quiz
+? Which diagram shows that a `Course` is a kind of `Subject`?
+
+- (x) This diagram:
+  ```plantuml
+  @startuml
+  Course --|> Subject
+  @enduml
+  ```
+- ( ) That diagram:
+  ```plantuml
+  @startuml
+  Subject --|> Course
+  @enduml
+  ```
+````
+`````
+
+`bso build` renders every diagram from its source, so the picture can never get out of step with the code. The QTI export stores each diagram as an SVG file in `quiz/week-N/assets/`, and `bso preview` shows the same quiz with the same diagrams. Below the image, native `<details>` blocks hold the diagram source and a natural-language description generated from it, for screen-reader users and as a text alternative.
+
+The image gets the question as its accessible title (`Question 3`, `Question 4, answer A`; `Vraag 3` with `quiz.locale` `nl`). Give a fence its own title with `imgTitle`:
+
+````markdown
+```plantuml imgTitle="Student enrolls in a course"
+````
+
+`diagrams.failOnError` and `diagrams.krokiUrl` apply as for lessons: with the default `true`, an invalid diagram or an unreachable Kroki endpoint fails the build; with `false` BSO warns and keeps the fenced block. `bso lint` reports diagram authoring errors in quizzes without contacting Kroki.
+
+Use the QuizDown form (a `quiz` block) for diagrams in answer options. Whether Brightspace shows the SVG and the `<details>` blocks inside a quiz question is not yet verified with a real import; check it in a sandbox course before using it in a graded quiz.
+
+### 7.3 Teacher and student variants
 
 Practical convention for filenames:
 

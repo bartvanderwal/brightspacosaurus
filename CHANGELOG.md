@@ -6,6 +6,8 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
+- PlantUML and Mermaid blocks in quiz questions, answer options, hints, explanations and assignment text were left as raw text in the QTI. `bso build` now renders them (Kroki and `remark-kroki-a11y`, as for lessons): the SVG is stored in `quiz/week-N/assets/`, followed by the diagram source and a natural-language description in `<details>` blocks. Each image is titled after its question (`Question 4, answer A`) unless the fence has an `imgTitle`; the preview uses the same titles. A quiz with a diagram now needs the Kroki endpoint at build time; an unreachable endpoint fails the build unless `diagrams.failOnError` is `false` (#101, #45).
+- `bso lint` reports diagram authoring errors inside a `quiz` block (#101).
 - The practice quiz's own texts follow `quiz.locale`: buttons, the missing-answer message, the score and the "New attempt" confirmation were always English. With `nl` they read `Controleer antwoorden`, `Nieuwe poging`, `2 / 2 punten` and so on. A course that sets neither `quiz.locale` nor `diagrams.locale` still gets English, as documented.
 
 ## 0.23.1
