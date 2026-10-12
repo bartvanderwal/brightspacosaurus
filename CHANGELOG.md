@@ -2,12 +2,17 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.23.1
+
+### Fixed
+
+- `bso preview` writes the complete BSO stylesheet to `src/generated/brightspacosaurus.css` in the Docusaurus app (with a `.gitignore` for the generated folder). A course app loads it with `@import '../generated/brightspacosaurus.css';` in its `src/css/custom.css`, without a path to a BSO checkout or `node_modules`, and without installing BSO from npm. The package-style `/css` import described in 0.23.0 only existed in the npm package, never reached courses that load BSO from JSR, and is removed (#95).
+
 ## 0.23.0
 
 ### Added
 
 - Voortgangsverkenner caches progress locally with per-repository timestamps, 5-minute/24-hour freshness, seven-day retention, explicit refresh/clear controls and a shared-origin privacy warning. Tokens stay in memory (#61).
-- Public npm stylesheet export `@bartvanderwal/brightspacosaurus/css` for Docusaurus CSS imports without checkout-specific paths (#95).
 - `bso build` and `deno task build` generate Brightspace HTML, QTI quizzes, PDFs and assets.
 
 ### Changed
