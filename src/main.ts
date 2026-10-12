@@ -768,7 +768,11 @@ async function collectManifestEntries(
             } catch {
               continue;
             }
-            const assetFullPath = resolve(dirname(fullPath), assetPath);
+            // Links are package-relative (`quiz/week-2/assets/…`), because
+            // Brightspace resolves them from the course root.
+            const assetFullPath = assetPath.startsWith("quiz/")
+              ? resolve(dirname(quizDir), assetPath)
+              : resolve(dirname(fullPath), assetPath);
             const assetRelative = relative(quizDir, assetFullPath);
             if (assetRelative.startsWith("..")) continue;
             dependencies.add(`quiz/${normalizePath(assetRelative)}`);

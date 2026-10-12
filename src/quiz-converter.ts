@@ -85,6 +85,12 @@ export interface QuizConvertOptions extends QuizHeadingOptions {
   outputDir: string;
   /** Repository root for path calculation. */
   repoRoot: string;
+  /**
+   * Directory of the QTI files inside the package. Brightspace resolves the
+   * image links of a question from the course root, not from the QTI file, so
+   * links are written relative to the package root. Defaults to `quiz`.
+   */
+  packageDir?: string;
   /** Source directory for relative path calculation. */
   sourcesDir: string;
   /** Maximum number of attempts for the generated Brightspace quiz. 0 means unlimited. */
@@ -482,6 +488,11 @@ export async function convertQuiz(
   const relFromSource = relative(resolvedSourcesDir, dirname(sourcePath));
   const outputSubDir = join(outputDir, relFromSource);
   const imageAssets = new Map<string, string>();
+  // Package-relative, with a trailing slash: `quiz/week-2/`.
+  const assetBase = `${
+    [options.packageDir ?? "quiz", relFromSource].filter(Boolean).join("/")
+  }/`
+    .replaceAll("\\", "/");
   const markdownFields = [
     ...quiz.questions.flatMap((question) => [
       question.text,
@@ -530,7 +541,10 @@ export async function convertQuiz(
     const assetOutput = join(outputSubDir, assetRelative);
     await Deno.mkdir(dirname(assetOutput), { recursive: true });
     await Deno.copyFile(realSourceImage, assetOutput);
-    imageAssets.set(sourceImage, assetRelative.replaceAll("\\", "/"));
+    imageAssets.set(
+      sourceImage,
+      `${assetBase}${assetRelative.replaceAll("\\", "/")}`,
+    );
   }
   const resolveImage = (url: string) => {
     const imagePath = imagePathFromUrl(url);
@@ -548,6 +562,7 @@ export async function convertQuiz(
       options.diagrams,
       sourcePath,
       outputSubDir,
+      assetBase,
     )
     : undefined;
 

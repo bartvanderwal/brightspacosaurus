@@ -682,11 +682,11 @@ Correct antwoord: A
       name.startsWith("quiz/") && name.endsWith(".xml")
     )!;
     const qti = await zip.file(qtiName)!.async("string");
-    const imageRef = qti.match(/src=&quot;(assets\/[^&"]+)&quot;/)?.[1];
+    const imageRef = qti.match(/src=&quot;(quiz\/assets\/[^&"]+)&quot;/)?.[1];
     assertEquals(Boolean(imageRef), true);
-    assertEquals(Boolean(zip.file(`quiz/${imageRef}`)), true);
+    assertEquals(Boolean(zip.file(imageRef!)), true);
     const manifest = await zip.file("imsmanifest.xml")!.async("string");
-    assertStringIncludes(manifest, `href="quiz/${imageRef}"`);
+    assertStringIncludes(manifest, `href="${imageRef}"`);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
