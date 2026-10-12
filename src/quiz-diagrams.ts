@@ -40,10 +40,14 @@ const diagramHtml = unified()
   .use(rehypeBrightspaceDiagramAdapter)
   .use(rehypeStringify, { allowDangerousHtml: true });
 
-/** Writes the SVG of every `data:` image to `assets/<sha256>.svg` and links to it. */
+/**
+ * Writes the SVG of every `data:` image to `assets/<sha256>.svg` and links to it
+ * as `<assetBase>assets/<sha256>.svg`.
+ */
 async function materializeSvgAssets(
   html: string,
   outputSubDir: string,
+  assetBase: string,
 ): Promise<string> {
   const dataUri = /data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/g;
   let result = "";
@@ -54,7 +58,7 @@ async function materializeSvgAssets(
     const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
     await Deno.mkdir(join(outputSubDir, "assets"), { recursive: true });
     await Deno.writeFile(join(outputSubDir, "assets", `${hash}.svg`), bytes);
-    result += html.slice(last, match.index) + `assets/${hash}.svg`;
+    result += html.slice(last, match.index) + `${assetBase}assets/${hash}.svg`;
     last = match.index + match[0].length;
   }
   return result + html.slice(last);
@@ -72,6 +76,7 @@ export async function renderQuizDiagrams(
   config: ResolvedDiagramConfig,
   sourceFile: string,
   outputSubDir: string,
+  assetBase = "",
 ): Promise<Map<string, string>> {
   const rendered = new Map<string, string>();
   const slots: { key: string; container: QuizMarkdownNode }[] = [];
@@ -123,7 +128,7 @@ export async function renderQuizDiagrams(
     htmlBySlot.set(slot.key, html);
   });
   for (const [key, html] of htmlBySlot) {
-    rendered.set(key, await materializeSvgAssets(html, outputSubDir));
+    rendered.set(key, await materializeSvgAssets(html, outputSubDir, assetBase));
   }
   return rendered;
 }
