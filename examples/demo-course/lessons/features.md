@@ -38,7 +38,13 @@ Do not omit `task`: `deno build` tries to run a module named `build`, not the pr
 
 Quiz files (`quiz-` prefix) become QTI 1.2 assessments that Brightspace imports as real, scored quizzes, not as static pages. Inline code and formatting in questions and answers are kept.
 
-See it in the demo: [Quiz 1.1: FizzBuzz](week-1/quiz-1-fizzbuzz.md).
+Code in questions and answer options is syntax highlighted: code blocks are dark with Prism colors, inline code has a grey background (Figure 1).
+
+![Brightspace quiz preview with highlighted JavaScript and Java code blocks and inline code in questions and answer options](images/brightspace-quiz-code-highlighting.png)
+
+_Figure 1_: Code in quiz questions and answer options in the Brightspace preview. Look at the dark code blocks with colored keywords and strings, and at the grey inline code in the question and the options.
+
+See it in the demo: [Quiz 1.1: FizzBuzz](week-1/quiz-1-fizzbuzz.md) and [Quiz 2.7: Code highlighting](week-2/quiz-7-code-highlighting.md).
 
 Turn it on: name the file `quiz-….md`. Add these optional settings to your existing `brightspacosaurus.config.json`:
 

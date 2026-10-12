@@ -32,6 +32,12 @@ Brightspacosaurus is a CLI tool that converts Markdown course material into a Br
 
 Each feature is explained, with a page that shows it, in the [online demo course](https://bartvanderwal.github.io/brightspacosaurus/lessons/features).
 
+Quiz questions and answer options can hold syntax-highlighted code (Figure 1).
+
+![Brightspace quiz preview with highlighted JavaScript and Java code blocks and inline code in questions and answer options](https://raw.githubusercontent.com/bartvanderwal/brightspacosaurus/main/docs/images/brightspace-quiz-code-highlighting.png)
+
+_Figure 1_: Code in quiz questions and answer options in Brightspace. Look at the dark code blocks with colored keywords and strings, and at the grey inline code in the question and the options.
+
 > 🤖 Brightspacosaurus was built with substantial help from AI coding assistants, but with human-in-the-loop. See [About: building this with AI](#about-building-this-with-ai) for the full story.
 
 **Note:** Brightspacosaurus is built for [Deno](https://deno.com/) (≥ 2.0). It is published to both [JSR](https://jsr.io/@bartvanderwal/brightspacosaurus) and [npm](https://www.npmjs.com/package/@bartvanderwal/brightspacosaurus) for discoverability, but it requires the Deno runtime — it is not a standalone Node.js CLI. See [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for why.
