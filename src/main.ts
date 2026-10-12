@@ -1,7 +1,7 @@
 /**
  * Command-line interface for Brightspacosaurus.
  *
- * Provides the `prepare`, `pack` and `preview` commands used to convert
+ * Provides the `build`, `pack` and `preview` commands used to convert
  * Markdown course material into Brightspace-ready build output and packages.
  *
  * @module
@@ -72,7 +72,7 @@ export function decodeHtmlEntities(text: string): string {
 const USAGE_BODY = `Usage: brightspacosaurus <command> [options]
 
 Commands:
-  prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
+  build     Generate Brightspace HTML, QTI quizzes, PDFs and assets
   pack      Package the build directory into a .imscc archive
   preview   Start the Docusaurus dev server (requires docusaurusDir in config)
   lint      Check BSO-specific Markdown, includes, diagrams and quiz answers
@@ -109,7 +109,7 @@ function printUsage(
 }
 
 /** Subcommands the CLI accepts as first argument. */
-const COMMANDS = ["prepare", "pack", "preview", "lint"];
+const COMMANDS = ["build", "pack", "preview", "lint"];
 
 /**
  * Returns the error text for an unknown subcommand, or null when the first
@@ -119,6 +119,9 @@ export function unknownCommandMessage(args: string[]): string | null {
   const command = args[0];
   if (command === undefined || command.startsWith("-")) return null;
   if (COMMANDS.includes(command)) return null;
+  if (command === "prepare") {
+    return "Command 'prepare' was renamed to 'build' in BSO 0.23.0.\nUse 'bso build' or 'deno task build' instead.";
+  }
   return `Unknown command '${command}'.\nRun 'bso --help' for available commands.`;
 }
 
@@ -165,7 +168,6 @@ export function parseArgs(
   return { command, sources, readersOnly, skipReaders, output, config };
 }
 
-/** Runs the `prepare` command using an already resolved configuration. */
 /**
  * URL of the Voortgangsverkenner relative to the teacher page's HTML, or null
  * when `teacherDashboard` is not configured (#37).
@@ -176,16 +178,16 @@ function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): s
   return relative(pageDir, join("docenten", "voortgangsverkenner.html")).split(/[\\/]/).join("/");
 }
 
-/** Options for `runPrepare` that do not come from the configuration file. */
-export interface PrepareOptions {
+/** Options for `runBuild` that do not come from the configuration file. */
+export interface BuildOptions {
   /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
   skipReaders?: boolean;
 }
 
-export async function runPrepare(
+export async function runBuild(
   config: ResolvedConfig,
   readersOnly: boolean,
-  options: PrepareOptions = {},
+  options: BuildOptions = {},
 ): Promise<void> {
   const skipReaders = options.skipReaders ?? false;
   const packageVersion = await loadPackageVersion();
@@ -575,7 +577,7 @@ export async function runPrepare(
     }
   }
 
-  console.log(`Prepare complete.`);
+  console.log(`Build complete.`);
 }
 
 /** Runs the `pack` command using an already resolved configuration. */
@@ -585,14 +587,14 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   // Course version, not BSO version: it identifies the imported content (#42).
   const outputPath = join(buildDir, `${config.name}.v${config.version}.imscc`);
 
-  // Run prepare first if build/content/ does not exist
+  // Run build first if build/content/ does not exist
   try {
     await Deno.stat(join(buildDir, "content"));
   } catch {
     console.log(
-      "build/brightspace/content/ not found, running prepare first...",
+      "build/brightspace/content/ not found, running build first...",
     );
-    await runPrepare(config, false);
+    await runBuild(config, false);
   }
 
   // Generate imsmanifest.xml
@@ -819,7 +821,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   // Dev/prod parity: the preview serves the same dashboard files as the
   // export, from a static directory next to the build directory, so `pack`
   // never includes them (#37).
-  // Reader PDFs from an earlier `prepare` are served too, so reader pages can
+  // Reader PDFs from an earlier `build` are served too, so reader pages can
   // link to the PDF as in Brightspace.
   const staticDir = join(dirname(config.outputDir), "preview-static");
   let previewStaticDir = "";
@@ -1014,8 +1016,8 @@ async function main(): Promise<void> {
   }
 
   try {
-    if (parsed.command === "prepare") {
-      await runPrepare(resolvedConfig, parsed.readersOnly, { skipReaders: parsed.skipReaders });
+    if (parsed.command === "build") {
+      await runBuild(resolvedConfig, parsed.readersOnly, { skipReaders: parsed.skipReaders });
     } else if (parsed.command === "pack") {
       await runPack(resolvedConfig);
     } else if (parsed.command === "preview") {

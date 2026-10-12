@@ -1,6 +1,6 @@
 /**
  * DiagramRenderer: registers `remark-kroki-a11y` in-process to render
- * PlantUML/Mermaid fenced blocks during `prepare`, and classifies rendering
+ * PlantUML/Mermaid fenced blocks during `build`, and classifies rendering
  * failures for the strict/fallback policy in `ResolvedDiagramConfig`.
  * Requirements: 1.1, 1.2, 1.3, 1.5, 16-19 (error categories)
  */

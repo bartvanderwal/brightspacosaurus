@@ -85,7 +85,7 @@ jobs:
       - name: Build the reader PDFs
         run: |
           jq '.diagrams.krokiUrl = "http://localhost:8000"' brightspacosaurus.config.json > build/pages-config.json
-          deno run -A src/main.ts prepare --readers-only --config build/pages-config.json
+          deno run -A src/main.ts build --readers-only --config build/pages-config.json
           mkdir -p build/preview-static/readers
           cp build/brightspace/readers/*.pdf build/preview-static/readers/
 

@@ -12,7 +12,7 @@ import { quizTextNodes } from "../src/quiz-markdown.ts";
 import type { FlashcardNode } from "../src/flashcards.ts";
 import { resolveQuizOptions } from "../src/quiz-config.ts";
 import { resolveConfig, validateConfig } from "../src/config-loader.ts";
-import { runPack, runPrepare } from "../src/main.ts";
+import { runPack, runBuild } from "../src/main.ts";
 import JSZip from "jszip";
 
 const question = (
@@ -594,7 +594,7 @@ Deno.test("#35 shared config defaults to fixed order and rejects invalid shuffle
   }
 });
 
-Deno.test("#35 shuffle settings survive prepare and pack with deterministic answer IDs and scoring", async () => {
+Deno.test("#35 shuffle settings survive build and pack with deterministic answer IDs and scoring", async () => {
   const root = await Deno.makeTempDir();
   try {
     await Deno.mkdir(join(root, "lessons"));
@@ -613,7 +613,7 @@ Deno.test("#35 shuffle settings survive prepare and pack with deterministic answ
         {},
         root,
       );
-      await runPrepare(config, false, { skipReaders: true });
+      await runBuild(config, false, { skipReaders: true });
       await runPack(config);
       const zip = await JSZip.loadAsync(
         await Deno.readFile(join(config.outputDir, "quiz.v1.0.imscc")),
@@ -670,7 +670,7 @@ Correct antwoord: A
       {},
       root,
     );
-    await runPrepare(config, false, { skipReaders: true });
+    await runBuild(config, false, { skipReaders: true });
     await runPack(config);
 
     const packageFile = join(

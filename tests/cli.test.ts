@@ -15,7 +15,7 @@ const MAIN_PATH = resolve(new URL(".", import.meta.url).pathname, "..", "src", "
  */
 async function runCli(args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
   const cmd = new Deno.Command("deno", {
-    args: ["run", "--allow-read", "--allow-write", MAIN_PATH, ...args],
+    args: ["run", "--allow-read", "--allow-write", "--allow-env", MAIN_PATH, ...args],
     stdout: "piped",
     stderr: "piped",
   });
@@ -90,11 +90,53 @@ Deno.test("--help geeft usage met versie-header naar stdout en exitcode 0", asyn
   assertEquals(result.stdout.includes("Usage:"), true, "stdout moet usage bevatten");
 });
 
-Deno.test("Eigenschap 6: prepare met niet-bestaande bronmap geeft fout naar stderr en exitcode ongelijk aan nul", async () => {
+Deno.test("Eigenschap 6: build met niet-bestaande bronmap geeft fout naar stderr en exitcode ongelijk aan nul", async () => {
   // Feature: brightspacosaurus, Eigenschap 6: Foutuitvoer volgt het juiste kanaal en exitcode
-  const result = await runCli(["prepare", "--sources", "/niet/bestaand/pad"]);
+  const result = await runCli(["build", "--sources", "/niet/bestaand/pad"]);
   assertEquals(result.code !== 0, true, "Exitcode moet ongelijk aan nul zijn");
   assertEquals(result.stderr.includes("Error:"), true, "stderr moet een foutmelding bevatten");
+});
+
+Deno.test("build generates deterministic course artifacts and rejects the removed prepare command", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({ dir: "build", prefix: "cli-build-" });
+  try {
+    const sources = join(root, "lessons");
+    const output = join(root, "output");
+    const config = join(root, "brightspacosaurus.config.json");
+    await Deno.mkdir(sources);
+    await Deno.writeTextFile(join(sources, "lesson-1.md"), "# Lesson\n\nCourse content.\n");
+    await Deno.writeTextFile(
+      join(sources, "quiz-1.md"),
+      "# Quiz\n\n## Question 1\n\nWhat is correct?\n\n- A. Yes\n- B. No\nCorrect answer: A\n",
+    );
+    await Deno.writeTextFile(
+      config,
+      JSON.stringify({ courseName: "CLI build", version: "1.0.0", sourcesDir: sources, outputDir: output }),
+    );
+    const args = ["--config", config, "--skip-readers"];
+    const built = await runCli(["build", ...args]);
+    assertEquals(built.code, 0, built.stderr);
+    assertStringIncludes(built.stdout, "Build complete.");
+    const htmlPath = join(output, "content", "lesson-1.html");
+    const quizPath = join(output, "quiz", "qti-les-1.xml");
+    const html = await Deno.readTextFile(htmlPath);
+    const quiz = await Deno.readTextFile(quizPath);
+    assertStringIncludes(html, "Course content.");
+    assertStringIncludes(quiz, "<questestinterop");
+    const repeated = await runCli(["build", ...args]);
+    assertEquals(repeated.code, 0, repeated.stderr);
+    assertEquals(await Deno.readTextFile(htmlPath), html);
+    assertEquals(await Deno.readTextFile(quizPath), quiz);
+    const legacy = await runCli(["prepare", ...args]);
+    assertEquals(legacy.code, 1);
+    assertEquals(legacy.stdout, "");
+    assertStringIncludes(legacy.stderr, "Use 'bso build' or 'deno task build' instead.");
+    assertEquals(await Deno.readTextFile(htmlPath), html);
+    assertEquals(await Deno.readTextFile(quizPath), quiz);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 // ---------------------------------------------------------------------------
