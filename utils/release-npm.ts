@@ -6,7 +6,7 @@
  * 1. Check the npm login. npm answers a publish without a valid login with a
  *    misleading `404 Not Found`, so fail early with a clear message instead.
  * 2. `deno pack` into `build/npm-release/` (never next to the sources).
- * 3. Extract the tarball and fix two `deno pack` quirks (see fixPackage).
+ * 3. Extract the tarball, fix `deno pack` quirks and add the CSS export.
  * 4. `npm publish --access public` from the extracted folder. Publishing from the
  *    folder instead of the tarball keeps the README (npm/cli#3548).
  * 5. Remove `build/npm-release/`.
@@ -31,14 +31,15 @@ export const PACK_IGNORES = [
 type ExportEntry = string | Record<string, string>;
 
 /**
- * Fixes the output of `deno pack` for the hand-written declaration of the tabs
- * script, and returns the relative paths of files to delete.
+ * Completes the npm exports of `deno pack` and returns files to delete.
  *
  * - `deno pack` treats `assets/*.d.ts` as a module and emits an empty
  *   `*.d.ts.d.ts` next to it. That file is deleted.
  * - A JavaScript export whose `.js` names its types with `@ts-self-types` gets
  *   no `types` condition in `package.json`, so TypeScript users get no types.
  *   The `types` condition is added when the declaration file is in the package.
+ * - Deno's module graph rejects CSS exports. Add the stylesheet export here,
+ *   after packing, so npm consumers can resolve it without a checkout (#95).
  *
  * Pure function: it only looks at the given file list, for easy testing.
  */
@@ -60,6 +61,9 @@ export function fixPackage(
       }
     }
     exports[key] = entry;
+  }
+  if (packageJson.exports && files.includes("assets/brightspacosaurus.css")) {
+    exports["./css"] = "./assets/brightspacosaurus.css";
   }
   return {
     packageJson: packageJson.exports
