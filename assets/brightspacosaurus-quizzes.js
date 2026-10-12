@@ -108,6 +108,13 @@ function initializeQuizzes(root, random = Math.random) {
       });
     });
     restart.addEventListener("click", function () {
+      if (
+        !globalThis.confirm(
+          "Start a new attempt? All your current answers and feedback will be cleared.",
+        )
+      ) {
+        return;
+      }
       beginAttempt();
       questions[0].querySelector("input").focus();
     });

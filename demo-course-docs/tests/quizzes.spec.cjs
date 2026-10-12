@@ -45,11 +45,11 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
   await expect(
     quiz.locator(".bso-quiz-assignment-context code"),
   ).toHaveText(
-    "class FizzBuzz {\n    String of(int number) { /* implementation */ }\n}",
+    /class FizzBuzz \{\s*String of\(int number\) \{ \/\* implementation \*\/ \}\s*\}/,
   );
   await expect(questions.locator("legend")).toHaveText([
-    "Deelvraag 1a (2 punten)",
-    "Deelvraag 1b (3 punten)",
+    "Subquestion 1a (2 points)",
+    "Subquestion 1b (3 points)",
     "Question 3",
   ]);
   const order = () =>
@@ -80,10 +80,27 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
   await quiz.getByRole("button", { name: "Check answers", exact: true })
     .click();
   await expect(quiz.getByRole("status")).toHaveText("6 / 6 points");
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("confirm");
+    expect(dialog.message()).toBe(
+      "Start a new attempt? All your current answers and feedback will be cleared.",
+    );
+    await dialog.dismiss();
+  });
+  await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
+  await expect(quiz.locator("input:checked")).toHaveCount(3);
+  await expect(quiz.getByRole("status")).toHaveText("6 / 6 points");
+  await expect(questions.first().locator(".bso-quiz-answer")).toBeVisible();
+  expect(await order()).toEqual(initial);
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("confirm");
+    await dialog.accept();
+  });
   await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
   await expect(quiz.locator("input:checked")).toHaveCount(0);
   await expect(questions.first().locator("input").first()).toBeFocused();
   await expect(quiz.getByRole("status")).toHaveText("");
+  await expect(questions.first().locator(".bso-quiz-answer")).toBeHidden();
   expect(errors).toEqual([]);
 });
 
@@ -102,6 +119,52 @@ test("quiz preview initializes after client navigation and supports keyboard ans
   await first.focus();
   await page.keyboard.press("Space");
   await expect(first).toBeChecked();
+});
+
+test("new attempt preserves short and multiple-response answers on cancel and clears them on confirm", async ({ page }) => {
+  await page.setContent(`
+    <div class="bso-quiz">
+      <fieldset class="bso-quiz-question" data-response-type="open_short" data-correct-answers='["FizzBuzz"]'>
+        <input type="text" class="bso-quiz-open-answer">
+        <details class="bso-quiz-answer"><summary>Answer</summary>FizzBuzz</details>
+        <details class="bso-quiz-explanation"><summary>Explanation</summary>Both divisors</details>
+      </fieldset>
+      <fieldset class="bso-quiz-question" data-correct-answers='["A","B"]'>
+        <ul class="bso-quiz-options">
+          <li><input type="checkbox" value="A"></li>
+          <li><input type="checkbox" value="B"></li>
+        </ul>
+        <details class="bso-quiz-answer"><summary>Answer</summary>A and B</details>
+      </fieldset>
+    </div>
+  `);
+  await page.addScriptTag({
+    path: require("node:path").resolve(__dirname, "../../assets/brightspacosaurus-quizzes.js"),
+  });
+  await page.evaluate(() => globalThis.bsoQuizzes.initializeQuizzes(document));
+  const quiz = page.locator(".bso-quiz");
+  const short = quiz.locator('input[type="text"]');
+  await short.fill("FizzBuzz");
+  await quiz.locator('input[value="A"]').check();
+  await quiz.locator('input[value="B"]').check();
+  await quiz.getByRole("button", { name: "Check answers", exact: true }).click();
+  await expect(quiz.getByRole("status")).toHaveText("2 / 2 correct");
+  const explanation = quiz.locator(".bso-quiz-explanation");
+  await explanation.locator("summary").click();
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
+  await expect(short).toHaveValue("FizzBuzz");
+  await expect(quiz.locator("input:checked")).toHaveCount(2);
+  await expect(quiz.getByRole("status")).toHaveText("2 / 2 correct");
+  await expect(explanation).toHaveAttribute("open", "");
+  page.once("dialog", (dialog) => dialog.accept());
+  await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
+  await expect(short).toHaveValue("");
+  await expect(short).toBeFocused();
+  await expect(quiz.locator("input:checked")).toHaveCount(0);
+  await expect(quiz.getByRole("status")).toHaveText("");
+  await expect(explanation).toBeHidden();
+  await expect(explanation).not.toHaveAttribute("open");
 });
 
 test("quiz preview leaves answers accessible without JavaScript", async ({ browser }) => {
