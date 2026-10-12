@@ -81,6 +81,103 @@
     };
   }
 
+  const CACHE_PREFIX = "bso-dashboard-cache-v1:";
+  const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000;
+
+  function cacheKey(config, klas) {
+    return CACHE_PREFIX + JSON.stringify([
+      config.gitlabUrl.replace(/\/+$/, ""), config.groupPath, klas,
+      config.repos, config.weeks || [], config.teacherUsernames || [],
+    ]);
+  }
+
+  function pruneData(data, now) {
+    if (!data || typeof data !== "object" || !data.students ||
+      typeof data.students !== "object" || Array.isArray(data.students) ||
+      !Number.isFinite(Date.parse(data.fetchedAt))) {
+      throw new Error("Ongeldige gegevens in de lokale Voortgangsverkenner-cache.");
+    }
+    const students = {};
+    if (Date.parse(data.fetchedAt) > now) return null;
+    for (const [id, student] of Object.entries(data.students)) {
+      if (!student || student.studentId !== id || !Array.isArray(student.repos)) {
+        throw new Error("Ongeldige student in de lokale Voortgangsverkenner-cache.");
+      }
+      const repos = student.repos.filter((repo) => {
+        if (!repo || typeof repo.prefix !== "string" || !Array.isArray(repo.workItems)) {
+          throw new Error("Ongeldige repository in de lokale Voortgangsverkenner-cache.");
+        }
+        const age = now - Date.parse(repo.fetchedAt);
+        return Number.isFinite(age) && age >= 0 && age < MAX_CACHE_AGE;
+      });
+      if (repos.length) students[id] = { studentId: id, repos, fetchedAt: student.fetchedAt };
+    }
+    if (!Object.keys(students).length && now - Date.parse(data.fetchedAt) >= MAX_CACHE_AGE) return null;
+    return { students, fetchedAt: data.fetchedAt };
+  }
+
+  function pruneCache(storage, now = Date.now()) {
+    const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index))
+      .filter((key) => key && key.startsWith(CACHE_PREFIX));
+    for (const key of keys) {
+      let data;
+      try {
+        const envelope = JSON.parse(storage.getItem(key));
+        if (envelope.version !== 1) throw new Error("Onbekende cacheversie.");
+        data = pruneData(envelope.data, now);
+      } catch (error) {
+        storage.removeItem(key);
+        throw new Error(`Lokale cache kon niet worden gelezen en is verwijderd: ${error.message}`);
+      }
+      if (data) storage.setItem(key, JSON.stringify({ version: 1, data }));
+      else storage.removeItem(key);
+    }
+  }
+
+  function readCache(storage, config, classes, now = Date.now()) {
+    pruneCache(storage, now);
+    const result = {};
+    for (const klas of classes) {
+      const raw = storage.getItem(cacheKey(config, klas));
+      if (raw) result[klas] = JSON.parse(raw).data;
+    }
+    return result;
+  }
+
+  function writeCache(storage, config, dataByKlas, now = Date.now()) {
+    pruneCache(storage, now);
+    for (const [klas, value] of Object.entries(dataByKlas)) {
+      const data = pruneData(value, now);
+      if (data) storage.setItem(cacheKey(config, klas), JSON.stringify({ version: 1, data }));
+      else storage.removeItem(cacheKey(config, klas));
+    }
+  }
+
+  function clearCache(storage) {
+    for (let index = storage.length - 1; index >= 0; index--) {
+      const key = storage.key(index);
+      if (key && key.startsWith(CACHE_PREFIX)) storage.removeItem(key);
+    }
+  }
+
+  function staleRepoPrefixes(config, data, now = Date.now()) {
+    const weeks = config.weeks || [];
+    const currentIndex = globalThis.bsoDashboardCalc.currentWeekIndex(weeks, new Date(now));
+    return config.repos.filter((configured) => {
+      const weekIndex = weeks.findIndex((item) => item.repos.includes(configured.prefix));
+      const ttl = weekIndex >= 0 && weekIndex < currentIndex
+        ? 24 * 60 * 60 * 1000 : 5 * 60 * 1000;
+      const students = Object.values(data?.students || {});
+      const age = now - Date.parse(data?.fetchedAt);
+      return !data || (!students.length && (!Number.isFinite(age) || age < 0 || age >= ttl)) ||
+        students.some((student) => {
+          const repo = student.repos.find((item) => item.prefix === configured.prefix);
+          const age = now - Date.parse(repo?.fetchedAt);
+          return !repo || repo.error || repo.warning || !Number.isFinite(age) || age < 0 || age >= ttl;
+        });
+    }).map((repo) => repo.prefix);
+  }
+
   globalThis.bsoDashboardState = {
     weekNodeId,
     focusWeek,
@@ -93,5 +190,11 @@
     selectPath,
     mergeRepos,
     mergeStudent,
+    cacheKey,
+    pruneCache,
+    readCache,
+    writeCache,
+    clearCache,
+    staleRepoPrefixes,
   };
 })();

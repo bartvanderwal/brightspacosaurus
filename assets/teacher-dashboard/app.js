@@ -1,8 +1,7 @@
 // Brightspacosaurus Voortgangsverkenner (teacher progress dashboard, #37)
 //
 // React 18 + htm, loaded from vendor/ (no CDN, no build step). Calculation
-// rules live in calc.js. The token and all fetched data stay in memory; the
-// page writes nothing to cookies or web storage.
+// rules live in calc.js. Progress data is cached locally; the token stays in memory.
 
 (function () {
   "use strict";
@@ -12,7 +11,7 @@
   const calc = globalThis.bsoDashboardCalc;
   const state = globalThis.bsoDashboardState;
 
-  // --- Configuration (embedded by BSO prepare) ---
+  // --- Configuration (embedded by BSO build) ---
 
   function readConfig() {
     const defaults = {
@@ -723,12 +722,14 @@
   // --- App ---
 
   function App() {
+    const tokenRef = useRef("");
     const [token, setToken] = useState("");
     const [subgroups, setSubgroups] = useState([]);
     const [klas, setKlas] = useState("");
     const [dataByKlas, setDataByKlas] = useState({});
     const [busy, setBusy] = useState(null);
     const [error, setError] = useState("");
+    const [cacheError, setCacheError] = useState("");
     const [filter, setFilter] = useState(false);
     const [query, setQuery] = useState("");
     const [visible, setVisible] = useState(() => new Set(config.repos.map((r) => r.prefix)));
@@ -744,16 +745,58 @@
       config.weeks[Math.max(0, currentWeekIndex)] || null;
 
     const acceptToken = (accepted, classes) => {
+      tokenRef.current = accepted;
+      try {
+        setDataByKlas(state.readCache(globalThis.localStorage, config, classes));
+      } catch (e) {
+        setCacheError(`Lokale cache niet beschikbaar: ${e.message}. Gegevens worden opnieuw uit GitLab opgehaald.`);
+      }
       setToken(accepted);
       setSubgroups(classes);
       setKlas(classes[0]);
     };
     const forgetToken = () => {
+      tokenRef.current = "";
       setToken("");
       setSubgroups([]);
       setKlas("");
       setDataByKlas({});
     };
+    const clearLocalCache = () => {
+      try {
+        state.clearCache(globalThis.localStorage);
+        setDataByKlas({});
+        setCacheError("");
+      } catch (e) {
+        setCacheError(`Cache wissen mislukt: ${e.message}`);
+      }
+    };
+
+    useEffect(() => {
+      if (!token) return;
+      try {
+        state.writeCache(globalThis.localStorage, config, dataByKlas);
+      } catch (e) {
+        setCacheError(`Lokale cache opslaan mislukt: ${e.message}. De gegevens blijven alleen in het geheugen.`);
+      }
+    }, [dataByKlas, token]);
+
+    useEffect(() => {
+      const cleanup = () => {
+        try {
+          state.pruneCache(globalThis.localStorage);
+        } catch (e) {
+          setCacheError(`Lokale cache opruimen mislukt: ${e.message}`);
+        }
+      };
+      cleanup();
+      const timer = setInterval(cleanup, 60_000);
+      return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+      if (token) refreshClass(false);
+    }, [token, klas]);
 
     const data = dataByKlas[klas];
     const students = useMemo(() => (data ? Object.values(data.students)
@@ -784,13 +827,17 @@
       setSelected(id);
     }, [root, open]);
 
-    async function refreshClass() {
+    async function refreshClass(force = true) {
       setError("");
       try {
         const existing = dataByKlas[klas];
-        const updateRepos = config.weeks.length && existing && selectedWeek
+        const stale = force ? null : new Set(state.staleRepoPrefixes(config, existing));
+        const updateRepos = stale
+          ? config.repos.filter((repo) => stale.has(repo.prefix))
+          : config.weeks.length && existing && selectedWeek
           ? config.repos.filter((repo) => selectedWeek.repos.includes(repo.prefix))
           : config.repos;
+        if (!force && !updateRepos.length) return;
         setBusy({ text: config.weeks.length && existing ? `${selectedWeek.title} bijwerken` : "Projecten ophalen" });
         const entries = Object.values(await discoverStudents(token, klas));
         const result = {};
@@ -808,7 +855,9 @@
           );
           setBusy({ done: ++done, total: entries.length });
         });
-        setDataByKlas((prev) => ({ ...prev, [klas]: { students: result, fetchedAt: new Date().toISOString() } }));
+        if (tokenRef.current === token) {
+          setDataByKlas((prev) => ({ ...prev, [klas]: { students: result, fetchedAt: new Date().toISOString() } }));
+        }
       } catch (e) {
         setError(e.message || String(e));
       } finally {
@@ -827,6 +876,7 @@
           ? config.repos.filter((repo) => week.repos.includes(repo.prefix))
           : config.repos;
         const fresh = await fetchStudent(token, entry, updateRepos);
+        if (tokenRef.current !== token) return;
         const updatedPrefixes = new Set(updateRepos.map((repo) => repo.prefix));
         setDataByKlas((prev) => ({
           ...prev,
@@ -894,14 +944,17 @@
         <${TokenField} token=${token} onAccept=${acceptToken} onForget=${forgetToken} />
       </header>
       <div className="status">
-        <span className="note">Studentgegevens staan alleen in het geheugen van deze pagina en verdwijnen bij sluiten.</span>
+        <span className="note">Studentnamen en voortgang worden op dit apparaat bewaard, maximaal 7 dagen.
+          Andere scripts op dezelfde browser-origin kunnen deze cache lezen. Het token wordt nooit opgeslagen.</span>
         ${data ? html`<span className="muted">Laatst ververst ${fmtDateTime(fetchedAt)}</span>` : null}
-        <button className="btn primary" disabled=${!token || !!busy} onClick=${refreshClass}>
-          ${data && selectedWeek ? `Ververs ${selectedWeek.title} uit GitLab` : data ? "Ververs status uit GitLab" : "Haal status uit GitLab"}</button>
+        <button className="btn primary" disabled=${!token || !!busy} onClick=${() => refreshClass(true)}>
+          ${selectedWeek ? `Ververs nu · ${selectedWeek.title}` : "Ververs nu"}</button>
+        <button className="btn" disabled=${!!busy} onClick=${clearLocalCache}>Cache wissen</button>
         ${busy ? html`<span className="status" role="status"><span className="spinner" aria-hidden="true"></span>${
           busy.text || `${busy.done} van ${busy.total} studenten`}</span>` : null}
       </div>
       ${error ? html`<p className="error" role="alert">${error}</p>` : null}
+      ${cacheError ? html`<p className="error" role="alert">${cacheError}</p>` : null}
       <div className="options">
         <${RepoFilter} visible=${visible} setVisible=${setVisible} />
         <${SettingsPanel} settings=${settings} setSettings=${setSettings} />
