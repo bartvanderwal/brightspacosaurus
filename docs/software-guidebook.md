@@ -477,6 +477,7 @@ Error classification:
 - **Parity:** it emits the same Prism token classes (`token keyword`, `token comment`, ...) as the Docusaurus preview, so visual parity only needs CSS and Brightspace pages need no runtime JavaScript.
 - **Unknown languages:** languages Prism does not know stay plain code (`ignoreMissing`).
 - **Colors:** the token colors in `assets/brightspacosaurus.css` are scoped to `.brightspace-content` and follow the hues of the Docusaurus GitHub theme, darkened for readability on the grey code background.
+- **Quizzes (#103):** a QTI question has no stylesheet, so `src/quiz-highlight.ts` runs the same Prism pass over question, option, hint and explanation text and copies the token colors onto the spans as inline `style`. The color table lives next to the CSS rules, and a test checks that both stay equal. In the Docusaurus preview, quiz code goes through Docusaurus's own code block, so the preview needs no extra step; a language outside Prism's defaults must be listed in `themeConfig.prism.additionalLanguages`.
 
 Watch out: this relies on Docusaurus currently using Prism, and BSO imports nothing from Docusaurus. If Docusaurus switches highlighter (for example to Shiki), re-evaluate whether BSO follows for parity or deliberately stays on Prism.
 

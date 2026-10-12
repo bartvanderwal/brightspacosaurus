@@ -12,7 +12,7 @@ import { quizTextNodes } from "../src/quiz-markdown.ts";
 import type { FlashcardNode } from "../src/flashcards.ts";
 import { resolveQuizOptions } from "../src/quiz-config.ts";
 import { resolveConfig, validateConfig } from "../src/config-loader.ts";
-import { runPack, runBuild } from "../src/main.ts";
+import { runBuild, runPack } from "../src/main.ts";
 import JSZip from "jszip";
 
 const question = (
@@ -222,14 +222,14 @@ class A {
 
   // The QTI export renders the same nodes: code elements, no backticks.
   const xml = generateQtiXml(quiz, "quiz-code");
-  assertStringIncludes(xml, "&lt;code&gt;private&lt;/code&gt;");
+  assertStringIncludes(xml, "&gt;private&lt;/code&gt;");
   assertStringIncludes(
     xml,
-    "&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;",
+    "&lt;code class=&quot;language-java code-highlight&quot;&gt;",
   );
   assertStringIncludes(
     xml,
-    "&lt;pre&gt;&lt;code class=&quot;language-jsx&quot;&gt;",
+    "&lt;code class=&quot;language-jsx code-highlight&quot;&gt;",
   );
   assertEquals(xml.includes("`"), false);
 });

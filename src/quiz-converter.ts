@@ -12,6 +12,7 @@ import { basename, dirname, extname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
+import { rehypeQuizHighlight } from "./quiz-highlight.ts";
 
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
 import type {
@@ -44,6 +45,8 @@ export type {
 // allowDangerousHtml); only the `raw` nodes of rendered diagrams reach the output.
 const quizHtmlProcessor = unified()
   .use(remarkRehype)
+  // QTI has no stylesheet, so token colors are inlined (#103).
+  .use(rehypeQuizHighlight)
   .use(rehypeStringify, { allowDangerousHtml: true });
 
 /** Options for converting a quiz Markdown file. */

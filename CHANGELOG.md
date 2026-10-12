@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.24.0
+
+### Added
+
+- Code in quiz questions, answer options, hints and explanations is styled in the QTI export, because a QTI question has no stylesheet and so everything is written as inline `style`: code blocks are syntax highlighted (Prism tokens, Palenight colors as in the Docusaurus preview, all WCAG AA) on a dark block with a border; inline code gets the grey background and border of lesson pages. Unknown or missing languages stay plain code. The generated markup changes: `<pre class="language-java" style="...">` with token spans (#103).
+
 ## 0.23.2
 
 ### Fixed
