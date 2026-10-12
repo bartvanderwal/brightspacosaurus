@@ -751,6 +751,8 @@ The Docusaurus demo uses the same setting and parser for interactive practice;
 answers are shuffled on page entry/new attempt, and stay in place while answering.
 Choosing **New attempt** opens a confirmation dialog before clearing answers,
 score and feedback. Cancelling keeps the current attempt unchanged.
+The buttons (`Check answers` / `Controleer antwoorden`, `New attempt` / `Nieuwe poging`),
+the messages, the score text and this confirmation follow `quiz.locale`.
 Preview scores are local feedback, not stored grades; Brightspace enforces native
 assessment rules and attempt limits. Restart preview after changing configuration.
 Verify native randomization and correct scoring after importing into Brightspace.

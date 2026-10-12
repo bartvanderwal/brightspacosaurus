@@ -201,6 +201,7 @@ export function remarkQuizPreview(
       element("section", {
         className: "bso-quiz",
         "data-shuffle-answers": String(config.shuffleAnswers),
+        "data-locale": config.locale,
       }, content),
     ];
   };

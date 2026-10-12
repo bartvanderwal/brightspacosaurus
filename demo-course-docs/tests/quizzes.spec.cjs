@@ -177,3 +177,53 @@ test("quiz preview leaves answers accessible without JavaScript", async ({ brows
   await expect(answer.locator("p")).toHaveText("FizzBuzz");
   await context.close();
 });
+
+test("a Dutch quiz shows Dutch buttons, messages, score and confirmation (quiz.locale nl)", async ({ page }) => {
+  await page.setContent(`
+    <div class="bso-quiz" data-locale="nl">
+      <fieldset class="bso-quiz-question" data-points="2" data-correct-answers='["A"]'>
+        <ul class="bso-quiz-options">
+          <li><input type="radio" name="q" value="A"></li>
+          <li><input type="radio" name="q" value="B"></li>
+        </ul>
+        <details class="bso-quiz-answer"><summary>Antwoord</summary>A</details>
+      </fieldset>
+    </div>
+  `);
+  await page.addScriptTag({
+    path: require("node:path").resolve(__dirname, "../../assets/brightspacosaurus-quizzes.js"),
+  });
+  await page.evaluate(() => globalThis.bsoQuizzes.initializeQuizzes(document));
+  const quiz = page.locator(".bso-quiz");
+  await quiz.getByRole("button", { name: "Controleer antwoorden", exact: true }).click();
+  await expect(quiz.getByRole("status")).toHaveText("Kies bij elke vraag een antwoord.");
+  await quiz.locator('input[value="A"]').check();
+  await quiz.getByRole("button", { name: "Controleer antwoorden", exact: true }).click();
+  await expect(quiz.getByRole("status")).toHaveText("2 / 2 punten");
+  let message = "";
+  page.once("dialog", (dialog) => {
+    message = dialog.message();
+    return dialog.dismiss();
+  });
+  await quiz.getByRole("button", { name: "Nieuwe poging", exact: true }).click();
+  expect(message).toBe(
+    "Een nieuwe poging starten? Al je huidige antwoorden en feedback worden gewist.",
+  );
+  await expect(quiz.locator('input[value="A"]')).toBeChecked();
+});
+
+test("a quiz without a stated language keeps the English texts", async ({ page }) => {
+  await page.setContent(`
+    <div class="bso-quiz">
+      <fieldset class="bso-quiz-question" data-correct-answers='["A"]'>
+        <ul class="bso-quiz-options"><li><input type="radio" name="q" value="A"></li></ul>
+        <details class="bso-quiz-answer"><summary>Answer</summary>A</details>
+      </fieldset>
+    </div>
+  `);
+  await page.addScriptTag({
+    path: require("node:path").resolve(__dirname, "../../assets/brightspacosaurus-quizzes.js"),
+  });
+  await page.evaluate(() => globalThis.bsoQuizzes.initializeQuizzes(document));
+  await expect(page.getByRole("button", { name: "New attempt", exact: true })).toBeVisible();
+});

@@ -834,3 +834,14 @@ Correct antwoord: B
   ]);
   assertEquals(quiz.questions[0].text, "Which?");
 });
+
+Deno.test("quiz preview tells the client script the quiz language, so its own texts follow quiz.locale", () => {
+  const locales = (options?: { locale?: "nl" | "en" }) => {
+    const tree: FlashcardNode = { type: "root", children: [] };
+    remarkQuizPreview(options)(tree, { path: "quiz-a.md", value: question() });
+    return tree.children?.[0]?.data?.hProperties?.["data-locale"];
+  };
+  assertEquals(locales(), "en");
+  assertEquals(locales({ locale: "en" }), "en");
+  assertEquals(locales({ locale: "nl" }), "nl");
+});

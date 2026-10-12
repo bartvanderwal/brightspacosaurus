@@ -9,11 +9,35 @@ function shuffleOptions(options, random) {
   return shuffled;
 }
 
+/** Texts the script adds itself, in the language of `quiz.locale` (`data-locale`). */
+function quizLabels(locale) {
+  return locale === "nl"
+    ? {
+      check: "Controleer antwoorden",
+      restart: "Nieuwe poging",
+      missing: "Kies bij elke vraag een antwoord.",
+      confirm:
+        "Een nieuwe poging starten? Al je huidige antwoorden en feedback worden gewist.",
+      points: "punten",
+      correct: "goed",
+    }
+    : {
+      check: "Check answers",
+      restart: "New attempt",
+      missing: "Choose an answer for every question.",
+      confirm:
+        "Start a new attempt? All your current answers and feedback will be cleared.",
+      points: "points",
+      correct: "correct",
+    };
+}
+
 /** Initialize practice quizzes once per page, also after Docusaurus navigation. */
 function initializeQuizzes(root, random = Math.random) {
   root.querySelectorAll(".bso-quiz").forEach(function (quiz) {
     if (quiz.dataset.bsoQuizReady) return;
     quiz.dataset.bsoQuizReady = "true";
+    const labels = quizLabels(quiz.dataset.locale);
     const questions = Array.from(quiz.querySelectorAll(".bso-quiz-question"));
     const sourceOptions = questions.map((question) =>
       questionIsOpenShort(question)
@@ -25,10 +49,10 @@ function initializeQuizzes(root, random = Math.random) {
     feedback.setAttribute("role", "status");
     const check = document.createElement("button");
     check.type = "button";
-    check.textContent = "Check answers";
+    check.textContent = labels.check;
     const restart = document.createElement("button");
     restart.type = "button";
-    restart.textContent = "New attempt";
+    restart.textContent = labels.restart;
     function beginAttempt() {
       questions.forEach(function (question, index) {
         const list = question.querySelector(".bso-quiz-options");
@@ -67,7 +91,7 @@ function initializeQuizzes(root, random = Math.random) {
             : !answers.length
         )
       ) {
-        feedback.textContent = "Choose an answer for every question.";
+        feedback.textContent = labels.missing;
         return;
       }
       const correctAnswers = questions.map((question, index) =>
@@ -96,10 +120,10 @@ function initializeQuizzes(root, random = Math.random) {
         const totalPoints = points.reduce((sum, value) => sum + value, 0);
         feedback.textContent = `${Number(score.toPrecision(12))} / ${
           Number(totalPoints.toPrecision(12))
-        } points`;
+        } ${labels.points}`;
       } else {
         const correct = correctAnswers.filter(Boolean).length;
-        feedback.textContent = `${correct} / ${questions.length} correct`;
+        feedback.textContent = `${correct} / ${questions.length} ${labels.correct}`;
       }
       questions.forEach((question) => {
         question.querySelector(".bso-quiz-answer").hidden = false;
@@ -108,13 +132,7 @@ function initializeQuizzes(root, random = Math.random) {
       });
     });
     restart.addEventListener("click", function () {
-      if (
-        !globalThis.confirm(
-          "Start a new attempt? All your current answers and feedback will be cleared.",
-        )
-      ) {
-        return;
-      }
+      if (!globalThis.confirm(labels.confirm)) return;
       beginAttempt();
       questions[0].querySelector("input").focus();
     });
