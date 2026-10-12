@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.23.2
+
+### Fixed
+
+- The practice quiz's own texts follow `quiz.locale`: buttons, the missing-answer message, the score and the "New attempt" confirmation were always English. With `nl` they read `Controleer antwoorden`, `Nieuwe poging`, `2 / 2 punten` and so on. A course that sets neither `quiz.locale` nor `diagrams.locale` still gets English, as documented.
+
 ## 0.23.1
 
 ### Fixed
