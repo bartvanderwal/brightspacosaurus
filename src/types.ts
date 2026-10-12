@@ -96,6 +96,10 @@ export interface ManifestEntry {
   type: "webcontent" | "imsqti_xmlv1p2/imscc_xmlv1p3/assessment";
   /** Relatieve paden naar afhankelijke bestanden (afbeeldingen). */
   dependencies?: string[];
+  /** Identifiers of web content resources this resource depends on (`<dependency>`). */
+  resourceDependencies?: string[];
+  /** A resource that only carries files (no menu item); Brightspace imports them as course files. */
+  hidden?: boolean;
   /** `sidebar_position` from the page's front matter, as in Docusaurus. */
   position?: number;
 }

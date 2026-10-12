@@ -497,7 +497,9 @@ export function buildManifest(
   navigation?: NavigationModel,
 ): string {
   // Brightspace imports QTI items both as assessments and as menu items.
-  const contentEntries = entries;
+  // Entries marked hidden (the web content resource that carries quiz images)
+  // stay in the resources but not in the menu.
+  const contentEntries = entries.filter((entry) => !entry.hidden);
 
   const resourcesXml = entries.map((entry) => {
     const fileElements = [`      <file href="${escapeXml(entry.href)}"/>`];
@@ -506,10 +508,13 @@ export function buildManifest(
         fileElements.push(`      <file href="${escapeXml(dep)}"/>`);
       }
     }
+    const dependencyElements = (entry.resourceDependencies ?? []).map((id) =>
+      `      <dependency identifierref="${escapeXml(id)}"/>`
+    );
     return `    <resource identifier="${escapeXml(entry.id)}" type="${
       escapeXml(entry.type)
     }" href="${escapeXml(entry.href)}">
-${fileElements.join("\n")}
+${[...fileElements, ...dependencyElements].join("\n")}
     </resource>`;
   }).join("\n");
 
