@@ -533,8 +533,6 @@ export async function convertQuiz(
       quizDiagramFields(quiz, resolveQuizOptions(options)),
       options.diagrams,
       sourcePath,
-      outputSubDir,
-      assetBase,
     )
     : undefined;
 

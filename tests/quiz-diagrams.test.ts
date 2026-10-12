@@ -99,14 +99,15 @@ Deno.test("QTI export renders question and option diagrams with source and descr
   const kroki = startMockKroki();
   const { root, outputDir, xml } = await convert(kroki.url);
   try {
-    // The SVG is a file next to the other quiz assets, not an inline data URI.
-    assertEquals(xml.includes("data:image"), false);
-    const svgs = [...xml.matchAll(/assets\/([0-9a-f]{64})\.svg/g)].map((m) => m[1]);
-    assertEquals(svgs.length, 2);
-    for (const hash of svgs) {
-      const svg = await Deno.readTextFile(join(outputDir, "assets", `${hash}.svg`));
-      assertStringIncludes(svg, "<svg");
-    }
+    // Brightspace does not import files only a quiz refers to, so the SVG stays
+    // an inline data URI and no asset file is written (#105).
+    const images = [...xml.matchAll(/src=&quot;data:image\/svg\+xml;base64,[A-Za-z0-9+\/=]+&quot;/g)];
+    assertEquals(images.length, 2);
+    assertEquals(xml.includes("assets/"), false);
+    assertEquals(
+      await Deno.stat(join(outputDir, "assets")).then(() => true, () => false),
+      false,
+    );
     // Source and natural-language description as native <details>, in the quiz language.
     assertStringIncludes(xml, "&lt;details");
     assertStringIncludes(xml, "In natuurlijke taal");

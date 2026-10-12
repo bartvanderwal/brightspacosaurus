@@ -674,6 +674,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           const title = extractAssessmentTitle(xml, fallbackTitle);
           const dependencies = new Set<string>();
           for (const [, source] of xml.matchAll(/src=&quot;([^&"]+)&quot;/gi)) {
+            if (/^data:/i.test(source)) continue;
             let assetPath = source;
             try {
               assetPath = decodeURIComponent(assetPath.split(/[?#]/, 1)[0]);

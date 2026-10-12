@@ -41,30 +41,6 @@ const diagramHtml = unified()
   .use(rehypeStringify, { allowDangerousHtml: true });
 
 /**
- * Writes the SVG of every `data:` image to `assets/<sha256>.svg` and links to it
- * as `<assetBase>assets/<sha256>.svg`.
- */
-async function materializeSvgAssets(
-  html: string,
-  outputSubDir: string,
-  assetBase: string,
-): Promise<string> {
-  const dataUri = /data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/g;
-  let result = "";
-  let last = 0;
-  for (const match of html.matchAll(dataUri)) {
-    const bytes = Uint8Array.from(atob(match[1]), (char) => char.charCodeAt(0));
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-    await Deno.mkdir(join(outputSubDir, "assets"), { recursive: true });
-    await Deno.writeFile(join(outputSubDir, "assets", `${hash}.svg`), bytes);
-    result += html.slice(last, match.index) + `${assetBase}assets/${hash}.svg`;
-    last = match.index + match[0].length;
-  }
-  return result + html.slice(last);
-}
-
-/**
  * Renders the diagrams of a quiz to HTML, keyed by {@link diagramKey}.
  *
  * Follows the lesson policy of `diagrams.failOnError`: an invalid diagram or an
@@ -75,8 +51,6 @@ export async function renderQuizDiagrams(
   fields: QuizDiagramField[],
   config: ResolvedDiagramConfig,
   sourceFile: string,
-  outputSubDir: string,
-  assetBase = "",
 ): Promise<Map<string, string>> {
   const rendered = new Map<string, string>();
   const slots: { key: string; container: QuizMarkdownNode }[] = [];
@@ -128,7 +102,9 @@ export async function renderQuizDiagrams(
     htmlBySlot.set(slot.key, html);
   });
   for (const [key, html] of htmlBySlot) {
-    rendered.set(key, await materializeSvgAssets(html, outputSubDir, assetBase));
+    // The SVG stays an inline `data:` URI: Brightspace does not import files
+    // that only a quiz refers to, so a linked file would be a broken image (#105).
+    rendered.set(key, html);
   }
   return rendered;
 }
