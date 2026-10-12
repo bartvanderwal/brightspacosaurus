@@ -689,12 +689,26 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
             if (assetRelative.startsWith("..")) continue;
             dependencies.add(`quiz/${assetRelative}`);
           }
+          // Brightspace only imports the files of web content resources as
+          // course files, so the images of a quiz get a resource of their own.
+          const assetFiles = [...dependencies];
+          const assetsId = `${id}_assets`;
+          if (assetFiles.length > 0) {
+            entries.push({
+              id: assetsId,
+              title: `${title} (images)`,
+              href: assetFiles[0],
+              type: "webcontent",
+              dependencies: assetFiles.slice(1),
+              hidden: true,
+            });
+          }
           entries.push({
             id,
             title,
             href: relPath,
             type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
-            dependencies: [...dependencies],
+            resourceDependencies: assetFiles.length > 0 ? [assetsId] : undefined,
           });
         }
       }

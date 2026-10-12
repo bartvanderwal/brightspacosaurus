@@ -687,6 +687,14 @@ Correct antwoord: A
     assertEquals(Boolean(zip.file(imageRef!)), true);
     const manifest = await zip.file("imsmanifest.xml")!.async("string");
     assertStringIncludes(manifest, `href="${imageRef}"`);
+    // Brightspace imports only the files of web content resources, so the image
+    // is carried by a hidden web content resource the quiz depends on (#105).
+    assertEquals(
+      /<resource identifier="[^"]+_assets" type="webcontent"/.test(manifest),
+      true,
+    );
+    assertEquals(/<dependency identifierref="[^"]+_assets"\/>/.test(manifest), true);
+    assertEquals(/<item [^>]*identifierref="[^"]+_assets"/.test(manifest), false);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

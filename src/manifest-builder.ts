@@ -390,7 +390,7 @@ export function buildManifest(
 ): string {
   // All entries go into the navigation structure: HTML lessons and QTI quizzes per week.
   // Brightspace imports QTI items both as assessments and as content items in the menu.
-  const contentEntries = entries;
+  const contentEntries = entries.filter((entry) => !entry.hidden);
 
   const resourcesXml = entries.map((entry) => {
     const fileElements = [`      <file href="${escapeXml(entry.href)}"/>`];
@@ -399,10 +399,13 @@ export function buildManifest(
         fileElements.push(`      <file href="${escapeXml(dep)}"/>`);
       }
     }
+    const dependencyElements = (entry.resourceDependencies ?? []).map((id) =>
+      `      <dependency identifierref="${escapeXml(id)}"/>`
+    );
     return `    <resource identifier="${escapeXml(entry.id)}" type="${
       escapeXml(entry.type)
     }" href="${escapeXml(entry.href)}">
-${fileElements.join("\n")}
+${[...fileElements, ...dependencyElements].join("\n")}
     </resource>`;
   }).join("\n");
 
