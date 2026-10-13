@@ -628,14 +628,28 @@ Deno.test("lint warns when 'Label: value' metadata fields run together in one pa
   assertEquals(rules("```\n_Author_: A\n_Version_: 1\n```\n"), []);
 });
 
-Deno.test("lint warns about frontmatter in lesson files only", async () => {
+Deno.test("lint warns about frontmatter keys BSO ignores in lesson files only", async () => {
   const front = "---\ntitle: Lesson\nsidebar_position: 1\n---\n\n# Lesson\n";
   const lesson = (source: string) =>
     lintMarkdown(source, "lesson.md", { lessonFile: true });
+  // Only the keys BSO ignores are named; sidebar_position is used for the menu (#106).
   const [issue] = lesson(front);
   assertEquals(issue.rule, "lesson-frontmatter");
   assertEquals(issue.severity, "warning");
   assertEquals([issue.line, issue.column], [1, 1]);
+  assertStringIncludes(issue.message, "key 'title' is ignored");
+  assertEquals(issue.message.includes("'sidebar_position' is ignored"), false);
+  assertEquals(issue.message.includes("'sidebar_position',"), false);
+  assertStringIncludes(
+    lesson("---\nslug: a\nauthor: B\n---\n# L\n")[0].message,
+    "keys 'slug', 'author' are ignored",
+  );
+  // sidebar_position alone is fine; a non-numeric value is reported.
+  assertEquals(lesson("---\nsidebar_position: 2\n---\n\n# Lesson\n"), []);
+  assertEquals(lesson("---\nsidebar_position: 2.5\n---\n\n# Lesson\n"), []);
+  const [bad] = lesson("---\nsidebar_position: first\n---\n\n# Lesson\n");
+  assertEquals(bad.rule, "lesson-frontmatter");
+  assertStringIncludes(bad.message, "must be a number");
   // Not a lesson (reader, include or single-file check), no frontmatter, or an example.
   assertEquals(lintMarkdown(front, "reader-demo.md"), []);
   assertEquals(lesson("# Lesson\n"), []);

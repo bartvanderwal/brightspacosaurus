@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.24.1
+
+### Fixed
+
+- `bso lint` no longer warns about `sidebar_position` in a lesson's frontmatter: BSO uses it for the menu order. `lesson-frontmatter` now names only the keys BSO ignores (`title`, `slug`, `author`, ...) and reports a `sidebar_position` that is not a number (#106).
+
 ## 0.24.0
 
 ### Added
