@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.25.0
+
+### Added
+
+- `bso preview` can generate Marp slides from lesson H1/H2 headings, lists, tables and images; `slides.lessons` can select generated slides, manual decks, or both (#109).
+
 ## 0.24.1
 
 ### Fixed

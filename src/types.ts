@@ -140,9 +140,16 @@ export interface ReaderConvertResult {
  * Schema van het brightspacosaurus.config.json configuratiebestand.
  * Requirements: 1.3, 1.7
  */
+export interface SlidesLessonConfig {
+  /** Generate preview slides from the lesson Markdown. */
+  generate?: boolean;
+  /** Manual slide glob relative to the repository root. */
+  decks?: string;
+}
+
 export interface SlidesConfig {
-  /** Lesson paths relative to sourcesDir mapped to slide globs relative to Repo_Root. */
-  lessons: Record<string, string>;
+  /** Lesson paths relative to sourcesDir mapped to manual slide globs or generation options. */
+  lessons: Record<string, string | SlidesLessonConfig>;
   /** Empty disables the banner; omitted uses the development disclaimer. */
   disclaimer?: string;
 }

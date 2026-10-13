@@ -10,6 +10,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import type { SlidesConfig } from "./types.ts";
+import { generateLessonSlides } from "./lesson-slides.ts";
 
 export type { SlidesConfig } from "./types.ts";
 
@@ -494,7 +495,7 @@ export async function renderPreviewSlides(
     Array.isArray(config.lessons)
   ) {
     throw new Error(
-      "Slides preview: lessons must be a mapping of lesson paths to slide globs",
+      "Slides preview: lessons must map lesson paths to slide globs or generation options",
     );
   }
   if (
@@ -513,17 +514,42 @@ export async function renderPreviewSlides(
   const mappings = Object.entries(config.lessons).sort(([a], [b]) =>
     a < b ? -1 : a > b ? 1 : 0
   );
-  const plans: { lesson: string; url: string; decks: string[] }[] = [];
+  const plans: {
+    lesson: string;
+    url: string;
+    decks: string[];
+    generate: boolean;
+  }[] = [];
   const files = mappings.length ? await collect(root, output, tools) : [];
   const urls = new Set<string>();
-  for (const [lessonPath, pattern] of mappings) {
+  for (const [lessonPath, selection] of mappings) {
     relativePath(lessonPath, "lesson path");
-    if (typeof pattern !== "string") {
+    const generate = typeof selection === "string"
+      ? false
+      : selection?.generate === true;
+    const pattern = typeof selection === "string"
+      ? selection
+      : selection?.decks;
+    if (
+      (pattern !== undefined && typeof pattern !== "string") ||
+      (typeof selection !== "string" && (
+        !selection || typeof selection !== "object" ||
+        Array.isArray(selection) ||
+        Object.keys(selection).some((key) =>
+          key !== "generate" && key !== "decks"
+        ) ||
+        (selection.generate !== undefined &&
+          typeof selection.generate !== "boolean") ||
+        (selection.decks !== undefined &&
+          typeof selection.decks !== "string") ||
+        (!generate && pattern === undefined)
+      ))
+    ) {
       throw new Error(
-        `Slides preview: slide glob for ${lessonPath} must be a string`,
+        `Slides preview: invalid slide selection for ${lessonPath}`,
       );
     }
-    relativePath(pattern, "slide glob");
+    if (pattern !== undefined) relativePath(pattern, "slide glob");
     const lesson = resolve(sources, lessonPath);
     within(lesson, sources);
     await confined(lesson, root);
@@ -531,19 +557,21 @@ export async function renderPreviewSlides(
     if (!stat?.isFile) {
       throw new Error(`Slides preview: lesson file does not exist: ${lesson}`);
     }
-    const matcher = globToRegExp(pattern.replaceAll("\\", "/"), {
-      extended: true,
-      globstar: true,
-    });
     const decks: string[] = [];
-    for (const file of files) {
-      if (matcher.test(relative(root, file).replaceAll("\\", "/"))) {
-        if (
-          frontmatter((await Deno.readTextFile(file)).replace(/\r\n/g, "\n"))
-        ) decks.push(file);
+    if (pattern !== undefined) {
+      const matcher = globToRegExp(pattern.replaceAll("\\", "/"), {
+        extended: true,
+        globstar: true,
+      });
+      for (const file of files) {
+        if (matcher.test(relative(root, file).replaceAll("\\", "/"))) {
+          if (
+            frontmatter((await Deno.readTextFile(file)).replace(/\r\n/g, "\n"))
+          ) decks.push(file);
+        }
       }
     }
-    if (!decks.length) continue;
+    if (!decks.length && !generate) continue;
     const slug = relative(sources, lesson).replaceAll("\\", "/").replace(
       /\.md$/i,
       "",
@@ -555,7 +583,7 @@ export async function renderPreviewSlides(
       throw new Error(`Slides preview: duplicate lesson output: ${url}`);
     }
     urls.add(url);
-    plans.push({ lesson, url, decks });
+    plans.push({ lesson, url, decks, generate });
   }
   try {
     const stat = await Deno.lstat(slides);
@@ -573,7 +601,19 @@ export async function renderPreviewSlides(
   for (const plan of plans) {
     const chunks: string[] = [];
     const svgImages = new Map<string, string>();
-    for (const source of plan.decks) {
+    if (plan.generate) {
+      chunks.push(
+        await embedImages(
+          generateLessonSlides(
+            (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
+          ),
+          plan.lesson,
+          root,
+          svgImages,
+        ),
+      );
+    }
+    for (const [index, source] of plan.decks.entries()) {
       await confined(source, root);
       const embedded = await embedImages(
         (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
@@ -582,7 +622,13 @@ export async function renderPreviewSlides(
         svgImages,
       );
       const deck = frontmatter(embedded)!;
-      chunks.push(chunks.length ? deck.body : deck.header + deck.body);
+      if (plan.generate && index === 0) {
+        const generated = frontmatter(chunks[0])!;
+        chunks[0] = deck.header + generated.body;
+        chunks.push(deck.body);
+      } else {
+        chunks.push(chunks.length ? deck.body : deck.header + deck.body);
+      }
     }
     const destination = join(
       output,

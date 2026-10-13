@@ -514,20 +514,24 @@ For fast author feedback, use `bso preview` when `docusaurusDir` is configured. 
 
 #### Instructor slides in the local preview
 
-Map lessons to Marp Markdown in the content repository's `brightspacosaurus.config.json`:
+Map lessons to Marp Markdown in the content repository's `brightspacosaurus.config.json`. Existing string values select manual decks; an options object can generate slides from the lesson, select manual decks, or do both:
 
 ```json
 {
   "slides": {
     "lessons": {
-      "lesoverzicht-6.3.md": "instructor-material/week-6/les-3/slides-*.md"
+      "lesoverzicht-6.3.md": {
+        "generate": true,
+        "decks": "instructor-material/week-6/les-3/slides-*.md"
+      },
+      "lesoverzicht-8.1.md": { "generate": true }
     },
     "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
   }
 }
 ```
 
-Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. Only decks with `marp: true` in YAML frontmatter qualify. Matching decks are combined in filename order into one presentation; the first deck's frontmatter supplies the theme and other presentation-wide settings. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
+Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. Generated decks use the lesson H1 as the title slide and create a slide for each H2. They retain lists, tables and images, omit paragraphs, split long lists and tables across slides, and show each `Kernbegrippen`/`Core concepts` definition on its own slide after the term list. Manual decks must have `marp: true` in YAML frontmatter. When both are selected, generated slides come first, followed by matching manual decks in filename order; the first manual deck's frontmatter supplies presentation-wide settings (generated-only decks use the default theme). Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
 
 Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
 

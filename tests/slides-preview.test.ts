@@ -176,6 +176,49 @@ Deno.test("slides preview: deterministic glob selection combines slides and reta
   });
 });
 
+Deno.test("slides preview: generated lesson slides combine with manual decks", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson title\n\n## Learning goals\n\nSome prose.\n\n- Goal one\n- Goal two\n\n## Diagram\n\n![Schema][schema]\n\n[schema]: ./schema.png\n",
+    );
+    await write(root, "lessons/week/schema.png", "png bytes");
+    await write(
+      root,
+      "decks/manual.md",
+      deck.replace("theme: default", "theme: gaia").replace(
+        "# Slide",
+        "# Manual",
+      ),
+    );
+    const captured: string[] = [];
+    const map = await renderPreviewSlides(
+      {
+        lessons: {
+          "week/lesson.md": { generate: true, decks: "decks/*.md" },
+        },
+      },
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+
+    assertEquals(Object.keys(map).length, 1);
+    assertStringIncludes(captured[0], "# Lesson title");
+    assertStringIncludes(
+      captured[0],
+      "# Learning goals\n\n- Goal one\n- Goal two",
+    );
+    assertStringIncludes(captured[0], "# Manual");
+    assertEquals(captured[0].includes("Some prose."), false);
+    assertStringIncludes(captured[0], "theme: gaia");
+    assertStringIncludes(captured[0], "data:image/png;base64,cG5nIGJ5dGVz");
+    assertEquals(captured[0].match(/marp: true/g)?.length, 1);
+  });
+});
+
 Deno.test("slides preview: only top-level true frontmatter selects decks", async () => {
   await fixture(async (root) => {
     const rejected = [
