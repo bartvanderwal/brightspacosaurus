@@ -143,7 +143,7 @@ The most important fields:
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
 | `slides.lessons`       | no       | Mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); the slides go into the preview and the `.imscc`; see below |
-| `slides.disclaimer`    | no       | Banner on every presented slide; default `In ontwikkeling voor 2026/2027, periode 3`; `""` disables it |
+| `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
 | `quiz.locale`          | no       | Language of the quiz labels and default headings: `en` or `nl`. Defaults to `diagrams.locale` (the general language of BSO's generated labels), and to `en` when neither is set |
@@ -524,7 +524,7 @@ Map lessons to Marp Markdown in the content repository's `brightspacosaurus.conf
     "lessons": {
       "lesoverzicht-6.3.md": "instructor-material/week-6/les-3/slides-*.md"
     },
-    "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
+    "disclaimer": "Preview: slides zijn nog in ontwikkeling"
   }
 }
 ```

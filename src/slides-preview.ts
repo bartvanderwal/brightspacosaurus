@@ -16,7 +16,8 @@ export type { SlidesConfig } from "./types.ts";
 /** Injectable command boundary, so selection and rewriting can be tested offline. */
 export type SlidesRunner = (args: string[], cwd: string) => Promise<void>;
 
-const DEFAULT_DISCLAIMER = "In ontwikkeling voor 2026/2027, periode 3";
+/** Neutral on purpose: no school year or period; a course sets its own text (#113). */
+const DEFAULT_DISCLAIMER = "Preview";
 
 function within(path: string, root: string): void {
   const rel = relative(root, path);

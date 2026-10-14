@@ -143,7 +143,7 @@ export interface ReaderConvertResult {
 export interface SlidesConfig {
   /** Lesson paths relative to sourcesDir mapped to slide globs relative to Repo_Root. */
   lessons: Record<string, string>;
-  /** Empty disables the banner; omitted uses the development disclaimer. */
+  /** Empty disables the banner; omitted shows `Preview`. */
   disclaimer?: string;
 }
 

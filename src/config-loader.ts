@@ -44,7 +44,7 @@ export const EXAMPLE_CONFIG = `{
     "lessons": {
       "lesoverzicht-1.1.md": "slides/week-1/les-1/slides-*.md"
     },
-    "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
+    "disclaimer": "Preview: slides zijn nog in ontwikkeling"
   },
   "teacherManual": {
     "inputFiles": ["docs/handleiding.md"],

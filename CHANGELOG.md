@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.26.1
+
+### Changed
+
+- The default `slides.disclaimer` is `Preview` instead of the hardcoded `In ontwikkeling voor 2026/2027, periode 3`, which was wrong for any other course or period and, since 0.26.0, also ended up on every slide in the `.imscc`. A course that wants its own text, or none (`""`), sets `slides.disclaimer` as before (#113).
+
 ## 0.26.0
 
 ### Added

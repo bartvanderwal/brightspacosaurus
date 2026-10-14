@@ -152,7 +152,7 @@ Deno.test("slides preview: deterministic glob selection combines slides and reta
     );
     assertStringIncludes(
       html,
-      'section::before{content:"In ontwikkeling voor 2026/2027, periode 3"',
+      'section::before{content:"Preview"',
     );
     assertStringIncludes(html, "<!-- Notes -->");
     await assertRejects(
