@@ -240,16 +240,29 @@ This chapter lists the fixed constraints the design has to work within: runtime,
 
 ## 5. Principles
 
-This chapter lists the principles that guide design decisions, from configuration to security. The list below applies to all of BSO; section 5.1 adds the principles for integrations that call an external API at runtime.
+This chapter lists the principles that guide design decisions, from configuration to security. Section 5.1 applies to all of BSO; section 5.2 adds the principles for integrations that call an external API at runtime.
 
-- **5.1** Security principles for runtime integrations
+- **5.1** General principles
+- **5.2** Security principles for runtime integrations
 
-- **Convention over configuration.** Sensible defaults everywhere; only three fields are required. The build directory, output name, and instructor-manual location all derive from defaults unless overridden.
+### 5.1 General principles
+
+- **Convention over configuration.** Sensible defaults everywhere; only three fields are required (`courseName`, `version`, `sourcesDir`). The build directory, the package name and the instructor-manual location all derive from defaults unless overridden. Rationale and decision: section 8.9 and [ADR 021](adr/adr021-convention-over-configuration-and-good-defaults.md). This configuration is enough to build a course:
+
+  ```json
+  {
+    "courseName": "Demo Course",
+    "version": "1.0.0",
+    "sourcesDir": "lessons/"
+  }
+  ```
+
+  BSO derives the rest: output goes to `build/brightspace/`, the package name `demo-course` comes from the course name, so the archive is `build/brightspace/demo-course.v1.0.0.imscc`. Each of these has a field to override it (`outputDir`, `name`).
 - **Single source of truth.** Markdown in Git is authoritative. Every artifact (HTML, QTI, PDF, manifest, `.imscc`) is generated and never hand-edited. Brightspace is a distribution channel, not the store of record.
 - **Config-driven, no hardcoded paths.** Nothing project-specific lives in the code; it all comes from `brightspacosaurus.config.json` or CLI arguments.
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
 
-### 5.1 Security principles for runtime integrations
+### 5.2 Security principles for runtime integrations
 
 These apply to the Voortgangsverkenner and to any future page that calls an external API from Brightspace (for example GitHub instead of GitLab).
 
