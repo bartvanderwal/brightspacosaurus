@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.27.0
+
+### Changed
+
+- The slides in the `.imscc` no longer contain the presenter notes (HTML comments in the deck). Marp wrote them into the slides HTML, where every student who opens the topic could read them. Set `slides.notes: true` to keep them; the local preview always shows them. This changes the output of 0.26.x (#117).
+
 ## 0.26.1
 
 ### Changed

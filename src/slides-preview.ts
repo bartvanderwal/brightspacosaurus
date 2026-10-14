@@ -661,6 +661,36 @@ export async function renderPreviewSlides(
   return result;
 }
 
+/**
+ * Removes the presenter notes Marp writes as `<div class="bespoke-marp-note">`
+ * elements, balancing nested divs. The rest of the deck stays byte for byte.
+ */
+export function stripPresenterNotes(html: string): string {
+  const open = /<div class="bespoke-marp-note"[^>]*>/g;
+  const tag = /<(\/?)div\b[^>]*>/g;
+  let result = "";
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = open.exec(html)) !== null) {
+    if (match.index < last) continue;
+    tag.lastIndex = match.index + match[0].length;
+    let depth = 1;
+    let end = html.length;
+    let next: RegExpExecArray | null;
+    while ((next = tag.exec(html)) !== null) {
+      depth += next[1] ? -1 : 1;
+      if (depth === 0) {
+        end = next.index + next[0].length;
+        break;
+      }
+    }
+    result += html.slice(last, match.index);
+    last = end;
+    open.lastIndex = end;
+  }
+  return result + html.slice(last);
+}
+
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(
     /</g,
@@ -673,6 +703,8 @@ function escapeAttribute(value: string): string {
  * the build's content folder as `<lesson>-slides.html` (#112), so `pack` lists it
  * as a topic right after its lesson. The title (`Slides: <lesson title>`) is
  * written as `bso-title`, because a deck's first `<h1>` is a slide title.
+ *
+ * Presenter notes are removed unless `slides.notes` is true.
  *
  * Returns the paths relative to `contentDir`, for example `week-1/lesson-slides.html`.
  */
@@ -705,9 +737,11 @@ export async function exportSlidesToContent(
       .catch(() => "");
     const h1 = lessonHtml.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1].trim();
     const title = `Slides: ${h1 ?? stem.split("/").pop()}`;
-    const html = await Deno.readTextFile(
+    const rendered = await Deno.readTextFile(
       join(staticRoot, ...url.split("/").map(decodeURIComponent)),
     );
+    // The notes are for the teacher; the topic is open to every student (#117).
+    const html = config.notes === true ? rendered : stripPresenterNotes(rendered);
     const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;
     const withTitle = /<head[^>]*>/i.test(html)
       ? html.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)

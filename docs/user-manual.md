@@ -143,6 +143,7 @@ The most important fields:
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
 | `slides.lessons`       | no       | Mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); the slides go into the preview and the `.imscc`; see below |
+| `slides.notes`         | no       | `true` keeps the presenter notes in the slides inside the `.imscc`; default `false` removes them (the preview always shows them) |
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
@@ -535,7 +536,7 @@ Keep slide source files outside `sourcesDir` and `readersDir`, or in an undersco
 
 BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-marp-presentations-in-the-preview-and-the-cartridge).
 
-`bso build` also adds the slides to the `.imscc`: each lesson with slides gets one extra topic `Slides: <lesson title>` right after the lesson in its module, a self-contained HTML file with the images embedded and the disclaimer on every slide. Every student who can see the module can open it, so keep the disclaimer for slides that are not final. Rendering needs npm and takes a while; skip it with `bso build --skip-slides`. A course without `slides` in its configuration needs neither. Check in your Brightspace sandbox that the topic opens and navigates before you rely on it: Marp's HTML contains a script.
+`bso build` also adds the slides to the `.imscc`: each lesson with slides gets one extra topic `Slides: <lesson title>` right after the lesson in its module, a self-contained HTML file with the images embedded and the disclaimer on every slide. Every student who can see the module can open it, so keep the disclaimer for slides that are not final. The presenter notes (HTML comments in the deck) are removed from these slides, because Marp writes them into the HTML where students could read them; set `"notes": true` in `slides` to keep them anyway. The preview always shows them. Rendering needs npm and takes a while; skip it with `bso build --skip-slides`. A course without `slides` in its configuration needs neither. Check in your Brightspace sandbox that the topic opens and navigates before you rely on it: Marp's HTML contains a script.
 
 In the preview, **hidden is not secured:** anyone who knows the URL can open the slides. Keep the preview local; reconsider access control before deploying it online.
 

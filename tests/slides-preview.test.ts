@@ -8,6 +8,7 @@ import { dirname, join, resolve } from "@std/path";
 import {
   exportSlidesToContent,
   renderPreviewSlides,
+  stripPresenterNotes,
   type SlidesConfig,
   type SlidesRunner,
 } from "../src/slides-preview.ts";
@@ -1083,4 +1084,57 @@ Deno.test("slides export: no configuration exports nothing", async () => {
     ),
     [],
   );
+});
+
+Deno.test("stripPresenterNotes removes only the note elements, including nested markup (#117)", () => {
+  const html =
+    '<div id="p"><section>Slide</section></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Secret</p><div>inner</div></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><ul><li>Also secret</li></ul></div><script>x</script>';
+  assertEquals(
+    stripPresenterNotes(html),
+    '<div id="p"><section>Slide</section></div><script>x</script>',
+  );
+  const plain = "<html><body><section>No notes</section></body></html>";
+  assertEquals(stripPresenterNotes(plain), plain);
+});
+
+Deno.test("slides export drops presenter notes unless slides.notes is true (#117)", async () => {
+  const withNotes: SlidesRunner = async (args) => {
+    if (args[0] === "install") {
+      await installedTools(args[2]);
+      return;
+    }
+    await Deno.writeTextFile(
+      args[args.indexOf("--output") + 1],
+      '<html><head></head><body><section>Slide</section><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Teacher only</p></div></body></html>',
+    );
+  };
+  await fixture(async (root) => {
+    await write(root, "decks/a.md", deck);
+    await write(root, "content/week/lesson.html", "<h1>Lesson</h1>");
+    const contentDir = join(root, "content");
+    const read = () =>
+      Deno.readTextFile(join(contentDir, "week", "lesson-slides.html"));
+
+    await exportSlidesToContent(config, root, "lessons", "static", contentDir, withNotes);
+    const stripped = await read();
+    assertStringIncludes(stripped, "<section>Slide</section>");
+    assertEquals(stripped.includes("Teacher only"), false);
+
+    await exportSlidesToContent(
+      { ...config, notes: true },
+      root,
+      "lessons",
+      "static",
+      contentDir,
+      withNotes,
+    );
+    assertStringIncludes(await read(), "Teacher only");
+
+    // The preview keeps the notes: it renders through renderPreviewSlides.
+    await renderPreviewSlides(config, root, "lessons", "static", withNotes);
+    assertStringIncludes(
+      await Deno.readTextFile(join(root, "static", "slides", "week", "lesson", "index.html")),
+      "Teacher only",
+    );
+  });
 });

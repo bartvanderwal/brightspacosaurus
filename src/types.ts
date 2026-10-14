@@ -145,6 +145,12 @@ export interface SlidesConfig {
   lessons: Record<string, string>;
   /** Empty disables the banner; omitted shows `Preview`. */
   disclaimer?: string;
+  /**
+   * Keep the presenter notes (HTML comments) in the slides that go into the
+   * `.imscc`. Omitted or false removes them, because every student who opens the
+   * topic could read them; the local preview always keeps them (#117).
+   */
+  notes?: boolean;
 }
 
 export interface BsoConfig {
