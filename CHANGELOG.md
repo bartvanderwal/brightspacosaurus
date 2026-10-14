@@ -2,6 +2,13 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.26.0
+
+### Added
+
+- `bso build` adds the Marp slides configured in `slides.lessons` to the `.imscc`: one self-contained HTML topic `Slides: <lesson title>` per lesson, right after the lesson in its module, with embedded images and the `slides.disclaimer`. Slides were preview-only before. `bso build --skip-slides` skips rendering, which needs npm (#112).
+- A deck can be marked `slides: true` as well as `marp: true` (one of the two); BSO tells Marp `marp: true`. `slides: true` is the name to move to.
+
 ## 0.25.0
 
 ### Changed

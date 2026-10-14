@@ -6,6 +6,7 @@ import {
 } from "@std/assert";
 import { dirname, join, resolve } from "@std/path";
 import {
+  exportSlidesToContent,
   renderPreviewSlides,
   type SlidesConfig,
   type SlidesRunner,
@@ -1000,4 +1001,86 @@ Deno.test({
       );
     });
   },
+});
+
+Deno.test("slides preview: slides: true selects a deck and is passed to Marp as marp: true (#112)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "decks/a.md",
+      "---\nslides: true # new name\ntheme: gaia\n---\n# Slide A\n",
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(config, root, "lessons", "static", fake(captured));
+    assertEquals(captured.length, 1);
+    assertStringIncludes(captured[0], "marp: true");
+    assertEquals(captured[0].includes("slides:"), false);
+    assertStringIncludes(captured[0], "theme: gaia");
+  });
+});
+
+Deno.test("slides preview: marp and slides together, or slides: false, do not select a deck", async () => {
+  await fixture(async (root) => {
+    await write(root, "decks/both.md", "---\nmarp: true\nslides: true\n---\n# No");
+    await write(root, "decks/off.md", "---\nslides: false\n---\n# No");
+    await write(root, "decks/quoted.md", '---\nslides: "true"\n---\n# No');
+    assertEquals(
+      await renderPreviewSlides(config, root, "lessons", "static", () => {
+        throw new Error("must not run");
+      }),
+      {},
+    );
+  });
+});
+
+Deno.test("slides export: one topic per lesson next to the lesson, titled after it, deterministic (#112)", async () => {
+  await fixture(async (root) => {
+    await write(root, "decks/a.md", deck.replace("# Slide", "# A"));
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>Lesson 1.1: Fizz &amp; Buzz</h1></body></html>",
+    );
+    const contentDir = join(root, "content");
+    const run = () =>
+      exportSlidesToContent(
+        config,
+        root,
+        "lessons",
+        "static",
+        contentDir,
+        fake([]),
+      );
+    const exported = await run();
+    assertEquals(exported, ["week/lesson-slides.html"]);
+    const html = await Deno.readTextFile(
+      join(contentDir, "week", "lesson-slides.html"),
+    );
+    assertStringIncludes(
+      html,
+      '<meta name="bso-title" content="Slides: Lesson 1.1: Fizz &amp;amp; Buzz">',
+    );
+    assertStringIncludes(html, "<section>Slide</section>");
+    assertEquals(await run(), exported);
+    assertEquals(
+      await Deno.readTextFile(join(contentDir, "week", "lesson-slides.html")),
+      html,
+    );
+  });
+});
+
+Deno.test("slides export: no configuration exports nothing", async () => {
+  assertEquals(
+    await exportSlidesToContent(
+      undefined,
+      "missing-root",
+      "lessons",
+      "static",
+      "missing-content",
+      () => {
+        throw new Error("must not run");
+      },
+    ),
+    [],
+  );
 });

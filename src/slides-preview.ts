@@ -79,6 +79,8 @@ async function collect(
 /**
  * Deliberately conservative: only an unquoted top-level YAML boolean enables Marp.
  * Nested keys, block scalars, quoted "true", and ordinary Markdown do not.
+ * `slides: true` is accepted as well as `marp: true` (#112); Marp itself needs
+ * `marp: true`, so the returned header spells it that way.
  */
 function frontmatter(
   text: string,
@@ -88,9 +90,10 @@ function frontmatter(
   );
   if (!match) return undefined;
   const lines = match[1].split("\n");
-  const marp = lines.filter((line) => /^marp[ \t]*:/.test(line));
+  const flags = lines.filter((line) => /^(?:marp|slides)[ \t]*:/.test(line));
   if (
-    marp.length !== 1 || !/^marp[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(marp[0])
+    flags.length !== 1 ||
+    !/^(?:marp|slides)[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(flags[0])
   ) return undefined;
   // Reject prose or malformed top-level YAML rather than interpreting it as a deck.
   if (
@@ -98,7 +101,10 @@ function frontmatter(
       line.trim() && !/^(?:[ \t]+|#|[A-Za-z_][\w-]*[ \t]*:)/.test(line)
     )
   ) return undefined;
-  return { header: match[0], body: text.slice(match[0].length) };
+  return {
+    header: match[0].replace(/^slides[ \t]*:.*$/m, "marp: true"),
+    body: text.slice(match[0].length),
+  };
 }
 
 const MIME: Record<string, string> = {
@@ -652,4 +658,64 @@ export async function renderPreviewSlides(
     }
   }
   return result;
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(
+    /</g,
+    "&lt;",
+  ).replace(/>/g, "&gt;");
+}
+
+/**
+ * Renders the lesson presentations like the preview and copies each one into
+ * the build's content folder as `<lesson>-slides.html` (#112), so `pack` lists it
+ * as a topic right after its lesson. The title (`Slides: <lesson title>`) is
+ * written as `bso-title`, because a deck's first `<h1>` is a slide title.
+ *
+ * Returns the paths relative to `contentDir`, for example `week-1/lesson-slides.html`.
+ */
+export async function exportSlidesToContent(
+  config: SlidesConfig | undefined,
+  repoRoot: string,
+  sourcesDir: string,
+  staticDir: string,
+  contentDir: string,
+  runner: SlidesRunner = runNpm,
+): Promise<string[]> {
+  if (!config) return [];
+  const rendered = await renderPreviewSlides(
+    config,
+    repoRoot,
+    sourcesDir,
+    staticDir,
+    runner,
+  );
+  const root = await Deno.realPath(resolve(repoRoot));
+  const sources = resolve(root, sourcesDir);
+  const staticRoot = resolve(root, staticDir);
+  const exported: string[] = [];
+  for (const [lesson, url] of Object.entries(rendered)) {
+    const stem = relative(sources, lesson).replaceAll("\\", "/").replace(
+      /\.md$/i,
+      "",
+    );
+    const lessonHtml = await Deno.readTextFile(join(contentDir, `${stem}.html`))
+      .catch(() => "");
+    const h1 = lessonHtml.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1].trim();
+    const title = `Slides: ${h1 ?? stem.split("/").pop()}`;
+    const html = await Deno.readTextFile(
+      join(staticRoot, ...url.split("/").map(decodeURIComponent)),
+    );
+    const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;
+    const withTitle = /<head[^>]*>/i.test(html)
+      ? html.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)
+      : `${meta}${html}`;
+    const relativeHref = `${stem}-slides.html`;
+    const destination = join(contentDir, relativeHref);
+    await Deno.mkdir(dirname(destination), { recursive: true });
+    await Deno.writeTextFile(destination, withTitle);
+    exported.push(relativeHref);
+  }
+  return exported;
 }

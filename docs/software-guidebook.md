@@ -430,7 +430,7 @@ This chapter describes code-level conventions and solutions that are not visible
 - **7.5** Diagram rendering and error classification
 - **7.6** Syntax highlighting
 - **7.7** Docusaurus integration of the Voortgangsverkenner
-- **7.8** Preview-only Marp presentations
+- **7.8** Marp presentations in the preview and the cartridge
 
 Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
@@ -525,9 +525,9 @@ The stylesheet cannot be a package export: Deno rejects CSS entries in the modul
 
 ---
 
-### 7.8 Preview-only Marp presentations
+### 7.8 Marp presentations in the preview and the cartridge
 
-`runPreview` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
+`renderPreviewSlides` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. `bso build` reuses it through `exportSlidesToContent` (#112): each presentation is copied to `content/<lesson>-slides.html` with a `bso-title` meta (`Slides: <lesson title>`), which `pack` prefers over the first `<h1>`, because that is a slide title. `pack` then lists it as a web content topic next to its lesson. `--skip-slides` skips this step. The preview keeps its own entry point below. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
 
 For a content repository's own Docusaurus configuration, add:
 
@@ -548,7 +548,7 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
-The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. This is a deliberate preview-only exception to export parity; hidden URLs are not access control.
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
 ## 8. Design Decisions
 

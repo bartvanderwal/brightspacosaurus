@@ -85,6 +85,7 @@ Options:
   --readers-only     Generate reader and instructor PDFs only (skip HTML/QTI conversion)
   --skip-readers     Skip all PDF generation with pandoc (readers, instructor and user manual);
                      pre-built PDFs are still copied. Faster local builds and tests
+  --skip-slides      Do not render the configured slides into the build (Marp needs npm)
   --version, -v      Show version number
   --help, -h         Show this help
 `;
@@ -134,6 +135,7 @@ export function parseArgs(
   sources: string;
   readersOnly: boolean;
   skipReaders: boolean;
+  skipSlides: boolean;
   output: string;
   config: string;
 } | null {
@@ -147,6 +149,7 @@ export function parseArgs(
   let sources = "";
   let readersOnly = false;
   let skipReaders = false;
+  let skipSlides = false;
   let output = "";
   let config = "";
 
@@ -157,6 +160,8 @@ export function parseArgs(
       readersOnly = true;
     } else if (args[i] === "--skip-readers") {
       skipReaders = true;
+    } else if (args[i] === "--skip-slides") {
+      skipSlides = true;
     } else if (args[i] === "--name" && i + 1 < args.length) {
       output = args[++i]; // backwards compat
     } else if (args[i] === "--output" && i + 1 < args.length) {
@@ -166,7 +171,7 @@ export function parseArgs(
     }
   }
 
-  return { command, sources, readersOnly, skipReaders, output, config };
+  return { command, sources, readersOnly, skipReaders, skipSlides, output, config };
 }
 
 /**
@@ -183,6 +188,8 @@ function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): s
 export interface BuildOptions {
   /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
   skipReaders?: boolean;
+  /** Do not render the configured slides into the content folder (#112). */
+  skipSlides?: boolean;
 }
 
 export async function runBuild(
@@ -191,6 +198,7 @@ export async function runBuild(
   options: BuildOptions = {},
 ): Promise<void> {
   const skipReaders = options.skipReaders ?? false;
+  const skipSlides = options.skipSlides ?? false;
   const packageVersion = await loadPackageVersion();
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
@@ -340,6 +348,19 @@ export async function runBuild(
       await writeTeacherDashboard(join(contentOutputDir, "docenten"), config.teacherDashboard);
       console.log(`  ✓ content/docenten/voortgangsverkenner.html`);
     }
+  }
+
+  // Phase 2b: Render the configured Marp slides as one topic per lesson (#112)
+  if (!readersOnly && config.slides && !skipSlides) {
+    const { exportSlidesToContent } = await import("./slides-preview.ts");
+    const exported = await exportSlidesToContent(
+      config.slides,
+      repoRoot,
+      relative(repoRoot, config.sourcesDir) || ".",
+      join(dirname(buildDir), "preview-static"),
+      contentOutputDir,
+    );
+    for (const href of exported) console.log(`  ✓ content/${href}`);
   }
 
   // Phase 3: Convert reader Markdown to PDF via pandoc
@@ -619,8 +640,12 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
         // Use the H1 from the HTML as title (falls back to the file name).
         // decodeHtmlEntities prevents double encoding: rehype already escapes to &amp; etc.,
         // and escapeXml() in buildManifest does that again if we don't decode first.
+        // A slide deck names itself with a `bso-title` meta: its first h1 is a slide title.
+        const metaTitle = html.match(/<meta name="bso-title" content="([^"]*)">/i);
         const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-        const title = h1Match
+        const title = metaTitle
+          ? decodeHtmlEntities(metaTitle[1].trim())
+          : h1Match
           ? decodeHtmlEntities(h1Match[1].trim())
           : basename(fullPath, extname(fullPath));
 
@@ -629,7 +654,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
         let match: RegExpExecArray | null;
         while ((match = assetRegex.exec(html)) !== null) {
           const assetSrc = match[1];
-          if (!assetSrc.startsWith("http://") && !assetSrc.startsWith("https://") && !assetSrc.startsWith("#")) {
+          if (!/^(?:https?:|data:|#)/i.test(assetSrc)) {
             // Resolve relative path with respect to the HTML file
             const htmlDir = dirname(fullPath);
             const assetAbs = resolve(htmlDir, assetSrc);
@@ -1025,7 +1050,10 @@ async function main(): Promise<void> {
 
   try {
     if (parsed.command === "build") {
-      await runBuild(resolvedConfig, parsed.readersOnly, { skipReaders: parsed.skipReaders });
+      await runBuild(resolvedConfig, parsed.readersOnly, {
+        skipReaders: parsed.skipReaders,
+        skipSlides: parsed.skipSlides,
+      });
     } else if (parsed.command === "pack") {
       await runPack(resolvedConfig);
     } else if (parsed.command === "preview") {
