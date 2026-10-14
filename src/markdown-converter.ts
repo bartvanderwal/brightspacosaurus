@@ -30,6 +30,8 @@ import {
   withDiagramRendering,
 } from "./diagram-renderer.ts";
 import { rehypeBrightspaceDiagramAdapter } from "./diagram-adapter.ts";
+import { readSidebarPosition } from "./front-matter.ts";
+export { readSidebarPosition };
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { expandIncludes, parseIncludeTarget } from "./includes.ts";
 import { insertVersionTable, remarkTeacherDashboard } from "./teacher-page.ts";
@@ -160,17 +162,6 @@ export function convertInternalMdLinks(
  */
 async function getContentCss(): Promise<string> {
   return await loadAssetText("brightspacosaurus.css");
-}
-
-/**
- * `sidebar_position` from YAML front matter, as Docusaurus uses it to order a
- * page in its sidebar. BSO uses the same value for the Brightspace menu.
- */
-export function readSidebarPosition(markdown: string): number | undefined {
-  const front = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!front) return undefined;
-  const match = front[1].match(/^sidebar_position:\s*["']?(-?\d+(?:\.\d+)?)["']?\s*$/m);
-  return match ? Number(match[1]) : undefined;
 }
 
 /**

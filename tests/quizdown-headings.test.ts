@@ -285,7 +285,8 @@ Deno.test("heading form: the heading is the name, the text under it is the promp
     "# Q\n\n## ? 29. Gegenereerde interface\n\nWat is het voordeel?\n\n- (x) a\n- ( ) b\n\n## ? Welke is juist?\n\n- (x) a\n- ( ) b\n",
   );
   assertEquals(quiz.issues, []);
-  assertEquals(quiz.questions[0].title, "29. Gegenereerde interface");
+  assertEquals(quiz.questions[0].number, 29);
+  assertEquals(quiz.questions[0].title, "Gegenereerde interface");
   assertEquals(quiz.questions[0].text, "Wat is het voordeel?");
   // Without text under the heading, the name is also the prompt.
   assertEquals(quiz.questions[1].title, "Welke is juist?");
@@ -301,7 +302,8 @@ Deno.test("the name goes to the QTI item title and to the preview legend (#90)",
   const markdown =
     "# Q\n\n## ? 29. Gegenereerde interface\n\nWat is het voordeel?\n\n- (x) a\n- ( ) b\n";
   const xml = generateQtiXml(parseQuizMarkdown(markdown), "quiz-t");
-  assertStringIncludes(xml, 'title="29. Gegenereerde interface"');
+  assertStringIncludes(xml, 'title="Gegenereerde interface"');
+  assertStringIncludes(xml, 'ident="q29"');
   const tree = {
     type: "root",
     children: [{ type: "heading", depth: 1, children: [] }],
@@ -312,7 +314,9 @@ Deno.test("the name goes to the QTI item title and to the preview legend (#90)",
     value: markdown,
   });
   const text = JSON.stringify(tree);
-  assertStringIncludes(text, "Vraag 1: 29. Gegenereerde interface");
+  assertStringIncludes(text, "Vraag 29");
+  assertStringIncludes(text, " — ");
+  assertStringIncludes(text, "Gegenereerde interface");
   assertStringIncludes(text, "Toon het juiste antwoord");
 });
 
@@ -324,5 +328,33 @@ Deno.test("a question named only by a number is a lint warning (#90)", () => {
   assertEquals(
     lintQuizDown("# Q\n\n## ? 29.\n\nWhich?\n\n- (x) a\n- ( ) b\n")[0].severity,
     "warning",
+  );
+});
+
+Deno.test("a number at the start of the name is the question number and is not repeated in the legend", () => {
+  const markdown =
+    "# Q\n\n## ? 29. Encapsulation: `private` attribute\n\nWhy?\n\n- (x) a\n- ( ) b\n\n## ? 30.\n\nWhy?\n\n- (x) a\n- ( ) b\n";
+  const quiz = parseQuizMarkdown(markdown);
+  assertEquals(quiz.questions.map((q) => q.number), [29, 30]);
+  assertEquals(quiz.questions[0].title, "Encapsulation: `private` attribute");
+  assertEquals(quiz.questions[1].title, "30.");
+  const tree = {
+    type: "root",
+    children: [{ type: "heading", depth: 1, children: [] }],
+  };
+  // deno-lint-ignore no-explicit-any
+  remarkQuizPreview({ locale: "nl" })(tree as any, {
+    path: "quiz-t.md",
+    value: markdown,
+  });
+  const json = JSON.stringify(tree);
+  assertStringIncludes(json, "Vraag 29");
+  assertStringIncludes(json, '"inlineCode"');
+  assertEquals(json.includes("Vraag 29: 29."), false);
+  // The second question has no name: only its label is shown, and lint warns.
+  assertEquals(json.includes("30."), false);
+  assertEquals(
+    lintQuizDown(markdown).map((i) => `${i.rule}:${i.severity}`),
+    ["quizdown-question-name:warning"],
   );
 });

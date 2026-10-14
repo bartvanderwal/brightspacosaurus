@@ -3,6 +3,7 @@ import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
 import type { QuizQuestion } from "./quiz-parser.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
 import { quizTextNodes } from "./quiz-markdown.ts";
+import { questionId, quizDiagramFields, titleDiagramFences } from "./quiz-diagram-fields.ts";
 import type { FlashcardNode } from "./flashcards.ts";
 import type { QuizConfig } from "./types.ts";
 
@@ -19,8 +20,11 @@ function richText(
   tag: "p" | "span",
   value: string,
   properties: Record<string, string> = {},
+  diagramTitle?: string,
 ): FlashcardNode {
   const { nodes, block } = quizTextNodes(value);
+  // The same titles as the QTI export, so a diagram has the same alt text in both.
+  if (diagramTitle !== undefined) titleDiagramFences(nodes, diagramTitle);
   return element(block ? "div" : tag, properties, nodes as FlashcardNode[]);
 }
 
@@ -45,6 +49,9 @@ export function remarkQuizPreview(
     if (!/(?:^|[/\\])quiz-[^/\\]+\.md$/i.test(file.path ?? "")) return;
     const quiz = parseQuizMarkdown(String(file.value), config);
     assertValidQuiz(quiz, file.path, config);
+    const titles = new Map(
+      quizDiagramFields(quiz, config).map((field) => [field.id, field.title]),
+    );
     const renderQuestion = (question: QuizQuestion) => {
       const responseType = question.responseType ?? "single";
       const correctAnswers = responseType === "open_short"
@@ -59,6 +66,20 @@ export function remarkQuizPreview(
             ? "point"
             : "points"
         })`;
+      const label = question.label
+        ? `${config.subquestionPrefix} ${question.label}`
+        : `${config.questionPrefix} ${question.number}`;
+      // "Vraag 2 — Encapsulation": the name, with its inline Markdown, next to
+      // the label. A name that is only a number is not shown.
+      const legendNodes = (item: QuizQuestion): FlashcardNode[] =>
+        item.title && /\p{L}/u.test(item.title)
+          ? [
+            text(label),
+            text(" — "),
+            ...(quizTextNodes(item.title).nodes as FlashcardNode[]),
+            text(points),
+          ]
+          : [text(`${label}${points}`)];
       const properties = {
         className: "bso-quiz-question",
         "data-correct-answer": question.correctAnswer,
@@ -69,16 +90,13 @@ export function remarkQuizPreview(
           : { "data-points": String(question.points) }),
       };
       const children = [
-        element("legend", {}, [
-          text(
-            `${
-              question.label
-                ? `${config.subquestionPrefix} ${question.label}`
-                : `${config.questionPrefix} ${question.number}`
-            }${question.title ? `: ${question.title}` : ""}${points}`,
-          ),
-        ]),
-        richText("p", question.text, { className: "bso-quiz-prompt" }),
+        element("legend", {}, legendNodes(question)),
+        richText(
+          "p",
+          question.text,
+          { className: "bso-quiz-prompt" },
+          titles.get(`${questionId(question)}.text`),
+        ),
       ];
       if (responseType === "open_short") {
         children.push(
@@ -107,7 +125,7 @@ export function remarkQuizPreview(
                   text(" "),
                   richText("span", option.text, {
                     className: "bso-quiz-option-text",
-                  }),
+                  }, titles.get(`${questionId(question)}.option.${option.label}`)),
                 ]),
               ])
             ),
@@ -134,6 +152,8 @@ export function remarkQuizPreview(
                 "p",
                 question.options.find((option) => option.label === answer)!
                   .text,
+                {},
+                titles.get(`${questionId(question)}.option.${answer}`),
               )
             ),
           ),
@@ -144,7 +164,12 @@ export function remarkQuizPreview(
             element("summary", {}, [
               text(config.locale === "nl" ? "Toelichting" : "Explanation"),
             ]),
-            richText("p", question.explanation),
+            richText(
+              "p",
+              question.explanation,
+              {},
+              titles.get(`${questionId(question)}.explanation`),
+            ),
           ]),
         );
       }
@@ -153,7 +178,12 @@ export function remarkQuizPreview(
           element("summary", {}, [
             text(config.locale === "nl" ? "Toon hint" : "Show hint"),
           ]),
-          richText("p", question.hint),
+          richText(
+            "p",
+            question.hint,
+            {},
+            titles.get(`${questionId(question)}.hint`),
+          ),
         ]));
       }
       return element("fieldset", properties, children);
@@ -180,7 +210,7 @@ export function remarkQuizPreview(
           ? [
             richText("p", assignment.text, {
               className: "bso-quiz-assignment-context",
-            }),
+            }, titles.get(`a${assignment.number}.text`)),
           ]
           : []),
         ...assignment.questions.map(renderQuestion),
@@ -195,6 +225,7 @@ export function remarkQuizPreview(
       element("section", {
         className: "bso-quiz",
         "data-shuffle-answers": String(config.shuffleAnswers),
+        "data-locale": config.locale,
       }, content),
     ];
   };

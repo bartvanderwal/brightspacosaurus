@@ -27,11 +27,11 @@ This skill is not for:
 
 Implement and maintain these commands (via `deno task`):
 
-1. `prepare`
+1. `build`
 2. `pack`
 3. `test`
 
-### `prepare`
+### `build`
 
 Purpose:
 
@@ -83,7 +83,7 @@ For CLI changes, include or update tests for:
 
 A change is done when:
 
-1. `prepare` and/or `pack` behavior is implemented as specified
+1. `build` and/or `pack` behavior is implemented as specified
 2. `deno task test` passes locally
 3. Package layout checks pass for sample content
 4. Command usage is documented in README.md

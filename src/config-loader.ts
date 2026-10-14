@@ -626,8 +626,23 @@ function slugify(name: string): string {
 
 const DEFAULT_QUIZ_CONFIG = resolveQuizOptions();
 
+/**
+ * Quiz settings. `quiz.locale` defaults to the general language of BSO's
+ * generated labels (`diagrams.locale`), as flashcards and the reader cover do,
+ * so a Dutch course does not have to say so in every section (ADR 021).
+ */
 function resolveQuizConfig(config: BsoConfig): ResolvedQuizConfig {
-  return resolveQuizOptions(config.quiz);
+  const quiz = config.quiz;
+  if (
+    quiz !== undefined &&
+    (typeof quiz !== "object" || quiz === null || Array.isArray(quiz))
+  ) {
+    return resolveQuizOptions(quiz); // Reports the invalid value.
+  }
+  return resolveQuizOptions({
+    ...quiz,
+    locale: quiz?.locale ?? config.diagrams?.locale,
+  });
 }
 
 /**

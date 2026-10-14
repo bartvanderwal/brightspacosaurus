@@ -12,8 +12,11 @@ import {
 } from "./flashcards.ts";
 import remarkDirective from "remark-directive";
 import { detectDiagramIssues } from "./diagram-validation.ts";
+import { readSidebarPosition } from "./front-matter.ts";
 import { isQuizDown, parseQuizMarkdown, validateQuiz } from "./quiz-parser.ts";
 import { lintQuizDown } from "./quizdown-lint.ts";
+import { quizDiagramFields } from "./quiz-diagram-fields.ts";
+import { resolveQuizOptions } from "./quiz-config.ts";
 import type { QuizHeadingOptions } from "./quiz-parser.ts";
 import {
   checkQuizBias,
@@ -147,15 +150,35 @@ function inspectMarkdown(
     );
   }
 
-  // Frontmatter only drives reader covers and Docusaurus; a lesson page shows it as text.
+  // BSO reads only `sidebar_position` from a lesson's frontmatter (menu order,
+  // like the Docusaurus sidebar); any other key is ignored by BSO (#106).
   const frontmatter = tree.children?.[0];
   if (options.lessonFile && frontmatter?.type === "yaml") {
-    report(
-      frontmatter,
-      "lesson-frontmatter",
-      "YAML frontmatter is only used in readers and is not processed in lesson pages. Put the title as '# heading' and remove the rest.",
-      "warning",
+    const yaml = String((frontmatter as { value?: string }).value ?? "");
+    const keys = [...yaml.matchAll(/^([A-Za-z_][\w-]*)\s*:/gm)].map((m) =>
+      m[1]
     );
+    const ignored = [...new Set(keys.filter((key) => key !== "sidebar_position"))];
+    if (ignored.length > 0) {
+      report(
+        frontmatter,
+        "lesson-frontmatter",
+        `YAML frontmatter key${ignored.length > 1 ? "s" : ""} ${
+          ignored.map((key) => `'${key}'`).join(", ")
+        } ${
+          ignored.length > 1 ? "are" : "is"
+        } ignored in lesson pages; only 'sidebar_position' is used (menu order). Put the title as '# heading' and remove the rest.`,
+        "warning",
+      );
+    }
+    if (keys.includes("sidebar_position") && readSidebarPosition(`---\n${yaml}\n---`) === undefined) {
+      report(
+        frontmatter,
+        "lesson-frontmatter",
+        "'sidebar_position' must be a number, for example 'sidebar_position: 2'; BSO ignores any other value.",
+        "warning",
+      );
+    }
   }
 
   // Text wrapped at a fixed column (editor or tool wrap) gives noisy diffs and
@@ -374,6 +397,21 @@ function inspectMarkdown(
           issue.question !== undefined ? `Question ${issue.question}: ` : ""
         }${issue.message}`,
       });
+    }
+    // Diagrams inside a ````quiz block are not visible to the file-level check above.
+    if (isQuizDown(markdown)) {
+      for (const field of quizDiagramFields(quiz, resolveQuizOptions(options))) {
+        for (const issue of detectDiagramIssues(field.markdown, sourceFile)) {
+          diagnostics.push({
+            sourceFile,
+            line: field.line ?? 1,
+            column: 1,
+            severity: "error",
+            rule: `diagram-${issue.kind}`,
+            message: issue.message,
+          });
+        }
+      }
     }
     const teacherAnswers = options.teacherAnswers === undefined
       ? undefined

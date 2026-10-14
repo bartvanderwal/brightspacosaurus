@@ -1,7 +1,7 @@
 /**
  * Writes the Voortgangsverkenner (teacher progress dashboard, #37) into a
  * directory: the page with the embedded `teacherDashboard` configuration, its
- * scripts and styles, and the vendored libraries and fonts. Used by `prepare`
+ * scripts and styles, and the vendored libraries and fonts. Used by `build`
  * (into the instructor module) and by `preview` (into a static directory of
  * the Docusaurus preview), so both show the same dashboard.
  *
@@ -14,7 +14,7 @@ import type { ResolvedTeacherDashboardConfig } from "./types.ts";
 /** File name of the dashboard page inside the target directory. */
 export const DASHBOARD_PAGE = "voortgangsverkenner.html";
 
-const TEXT_FILES = ["style.css", "calc.js", "app.js"];
+const TEXT_FILES = ["style.css", "calc.js", "state.js", "app.js"];
 const VENDOR_SCRIPTS = [
   "react.production.min.js",
   "react-dom.production.min.js",

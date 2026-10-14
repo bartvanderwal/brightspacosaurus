@@ -270,22 +270,22 @@ const el = <Button title="A & B" />;
 `);
   const xml = generateQtiXml(quiz, "quiz-code");
 
-  assertEquals(xml.includes("&lt;code&gt;private&lt;/code&gt;"), true);
-  assertEquals(xml.includes("&lt;code&gt;List&lt;/code&gt;"), true);
+  assertEquals(xml.includes("&gt;private&lt;/code&gt;"), true);
+  assertEquals(xml.includes("&gt;List&lt;/code&gt;"), true);
   assertEquals(
-    xml.includes("&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;"),
-    true,
-  );
-  assertEquals(
-    xml.includes("&lt;pre&gt;&lt;code class=&quot;language-jsx&quot;&gt;"),
+    xml.includes(
+      "&lt;code class=&quot;language-java code-highlight&quot;&gt;",
+    ),
     true,
   );
   assertEquals(
     xml.includes(
-      "const el = &amp;#x3C;Button title=&quot;A &amp;#x26; B&quot; /&gt;;",
+      "&lt;code class=&quot;language-jsx code-highlight&quot;&gt;",
     ),
     true,
   );
+  // The JSX tag and attribute value are tokens; the ampersand stays escaped.
+  assertEquals(xml.includes("A &amp;#x26; B"), true);
   assertEquals(
     xml.includes(
       '<itemfeedback ident="q1_feedback"><flow_mat><material><mattext texttype="text/html">',
@@ -294,7 +294,7 @@ const el = <Button title="A & B" />;
   );
   const feedback = xml.split('<itemfeedback ident="q1_feedback">')[1]
     ?.split("</itemfeedback>")[0];
-  assertEquals(feedback?.includes("&lt;code&gt;private&lt;/code&gt;"), true);
+  assertEquals(feedback?.includes("&gt;private&lt;/code&gt;"), true);
   assertEquals(feedback?.includes("&amp;#x3C; and &amp;#x26;."), true);
 });
 
@@ -320,7 +320,9 @@ System.out.println(1 < 2);
   ]);
   const xml = generateQtiXml(quiz, "quiz-four-backticks");
   assertEquals(
-    xml.includes("&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;"),
+    xml.includes(
+      "&lt;code class=&quot;language-java code-highlight&quot;&gt;",
+    ),
     true,
   );
 });
@@ -387,11 +389,12 @@ Correct answer: **A**
 
   assertEquals(
     xml.includes(
-      "&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;return 1 &amp;#x3C; 2 &amp;#x26;&amp;#x26; true;",
+      "&lt;code class=&quot;language-java code-highlight&quot;&gt;",
     ),
     true,
   );
-  assertEquals(xml.includes("&lt;code&gt;true&lt;/code&gt;"), true);
+  assertEquals(xml.includes("&lt;span class=&quot;token keyword&quot;"), true);
+  assertEquals(xml.includes("&gt;true&lt;/code&gt;"), true);
 });
 
 Deno.test("QuizConverter: convertQuiz schrijft QTI XML naar de juiste uitvoermap", async () => {

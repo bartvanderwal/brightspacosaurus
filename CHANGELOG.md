@@ -2,26 +2,73 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.24.1
+
+### Fixed
+
+- `bso lint` no longer warns about `sidebar_position` in a lesson's frontmatter: BSO uses it for the menu order. `lesson-frontmatter` now names only the keys BSO ignores (`title`, `slug`, `author`, ...) and reports a `sidebar_position` that is not a number (#106).
+
 ## Unreleased
 
 ### Added
 
-- `prepare` and `preview` generate a shared `navigation.json` model and `docusaurus-sidebars.json` from the sorted manifest entries; the module title uses its lead page, including `weekintro-N` (#78).
+- `build`, `pack` and `preview` generate a shared `navigation.json` model and `docusaurus-sidebars.json` from the sorted manifest entries; the module title uses its lead page, including `weekintro-N` (#78).
 
-### Changed
-
-- The demo course preview shows the Brightspacosaurus dinosaur as its favicon.
-- QuizDown heading form: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt). The preview shows the name in the legend (`Vraag 29: Gegenereerde interface`), QTI writes it as the item title, and a name that is only a number is the warning `quizdown-question-name` (#90).
-- Standalone questions and assignment subquestions have separate prefixes: `quiz.questionPrefix` (`Question`/`Vraag`) and the new `quiz.subquestionPrefix` (`Subquestion`/`Deelvraag`). With `locale: "nl"`, `questionPrefix` was `Deelvraag` before.
-- The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
-
-## 0.21.1
+## 0.24.0
 
 ### Added
 
+- Code in quiz questions, answer options, hints and explanations is styled in the QTI export, because a QTI question has no stylesheet and so everything is written as inline `style`: code blocks are syntax highlighted (Prism tokens, Palenight colors as in the Docusaurus preview, all WCAG AA) on a dark block with a border; inline code gets the grey background and border of lesson pages. Unknown or missing languages stay plain code. The generated markup changes: `<pre class="language-java" style="...">` with token spans (#103).
+
+## 0.23.2
+
+### Fixed
+
+- PlantUML and Mermaid blocks in quiz questions, answer options, hints, explanations and assignment text were left as raw text in the QTI. `bso build` now renders them (Kroki and `remark-kroki-a11y`, as for lessons): the SVG is stored in `quiz/week-N/assets/`, followed by the diagram source and a natural-language description in `<details>` blocks. Each image is titled after its question (`Question 4, answer A`) unless the fence has an `imgTitle`; the preview uses the same titles. A quiz with a diagram now needs the Kroki endpoint at build time; an unreachable endpoint fails the build unless `diagrams.failOnError` is `false` (#101, #45).
+- `bso lint` reports diagram authoring errors inside a `quiz` block (#101).
+- The practice quiz's own texts follow `quiz.locale`: buttons, the missing-answer message, the score and the "New attempt" confirmation were always English. With `nl` they read `Controleer antwoorden`, `Nieuwe poging`, `2 / 2 punten` and so on. A course that sets neither `quiz.locale` nor `diagrams.locale` still gets English, as documented.
+
+## 0.23.1
+
+### Fixed
+
+- `bso preview` writes the complete BSO stylesheet to `src/generated/brightspacosaurus.css` in the Docusaurus app (with a `.gitignore` for the generated folder). A course app loads it with `@import '../generated/brightspacosaurus.css';` in its `src/css/custom.css`, without a path to a BSO checkout or `node_modules`, and without installing BSO from npm. The package-style `/css` import described in 0.23.0 only existed in the npm package, never reached courses that load BSO from JSR, and is removed (#95).
+
+## 0.23.0
+
+### Added
+
+- Voortgangsverkenner caches progress locally with per-repository timestamps, 5-minute/24-hour freshness, seven-day retention, explicit refresh/clear controls and a shared-origin privacy warning. Tokens stay in memory (#61).
+- `bso build` and `deno task build` generate Brightspace HTML, QTI quizzes, PDFs and assets.
+
+### Changed
+
+- **Breaking:** `build` replaces `prepare` without a compatibility alias. Update CLI commands and Deno tasks; library callers use `runBuild` and `BuildOptions` instead of `runPrepare` and `PrepareOptions`.
+
+### Fixed
+
+- Practice quizzes ask for confirmation before "New attempt" clears answers and feedback. Cancelling preserves the current attempt.
+- Demo configuration examples use copyable JSON blocks, with code-block copy buttons always visible in the Docusaurus preview.
+
+## 0.22.0
+
+### Added
+
+- QuizDown question names: in heading form a number at the start of the name is the question number (`## ? 29. Generated interface` is question 29, named "Generated interface"). The preview shows `Vraag 29 — Generated interface` (the name may hold inline Markdown such as code), QTI writes the name as the item title, and a question whose name is only a number gets the warning `quizdown-question-name` (#90).
 - `bso preview` (and `deno task demo`) runs `npm ci` (or `npm install` without a lockfile) first when the Docusaurus app has no `node_modules`.
 - `deno task release` and `release:npm` let npm ask for the one-time password of a 2FA account (authenticator code or passkey) and accept `--otp=<code>` (#88).
 - `docs/quizzosaurus-syntax.md` is part of the package, so the links in the manual and the guidebook work.
+- A default permission set: `deno test -P` runs the tests with the permissions of `deno task test`.
+- Preview-only Marp presentations mapped through `slides.lessons`: hidden Alt/Option+P opens the current lesson's slides, with local images, presenter notes and a configurable development disclaimer. Slides are not included in the Brightspace cartridge (#69).
+- The Voortgangsverkenner can focus on a configured, date-aware course week, switch weeks manually, and refresh the selected week while retaining other weeks' data in memory.
+
+### Changed
+
+- Standalone questions and assignment subquestions have separate prefixes: `quiz.questionPrefix` (`Question`/`Vraag`) and the new `quiz.subquestionPrefix` (`Subquestion`/`Deelvraag`). With `locale: "nl"`, `questionPrefix` was `Deelvraag` before (#90).
+- The heading form of QuizDown: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt).
+- The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
+- The demo course preview shows the Brightspacosaurus dinosaur as its favicon.
+- `quiz.locale` defaults to `diagrams.locale`, the general language of BSO's generated labels, so a Dutch course gets `Vraag`/`Deelvraag`, `Toon het juiste antwoord` and Dutch preview labels without setting it per section. An explicit `quiz.locale` still wins; without either, quizzes stay English.
 
 ### Fixed
 
@@ -88,17 +135,10 @@ Brightspacosaurus is still pre-1.0 software. Until a `1.0.0` release exists, the
 
 This changelog was introduced during the `0.8.0` release. Earlier entries were reconstructed from Git commit messages, GitHub issues and published package versions, so they summarize intent and visible behavior rather than every commit-level detail.
 
-## 0.20.0 - 2026-10-09
-
-### Added
-
-- Preview-only Marp presentations mapped through `slides.lessons`: hidden Alt/Option+P opens the current lesson's slides, with local images, presenter notes and a configurable development disclaimer. Slides are not included in the Brightspace cartridge (#69).
-
 ## 0.19.0 - 2026-10-06
 
 ### Added
 
-- The Voortgangsverkenner can focus on a configured, date-aware course week, switch weeks manually, and refresh the selected week while retaining other weeks' data in memory.
 - Quiz export and preview support for Quizzosaurus/QuizDown single-choice, multi-select and open short-answer syntax (#50).
 - `bso lint` rules for bias in multiple-choice quizzes (#68): `quiz-length-bias`, `quiz-reverse-length-bias`, `quiz-answer-length-ratio`, `quiz-only-giveaway` and `quiz-position-bias` (warnings), and `quiz-answer-key-mismatch` (error) when `quiz-*-vragen-en-antwoorden.md` and its `*-antwoorden-docent.md` name a different correct answer. Thresholds and signal words are configurable in `lint.quizBias`. The rules replace owe-1's `scripts/check-quiz-bias.py`; they also find quizzes whose question headings have a title (`## Vraag 1 — Titel`), which the script skipped.
 

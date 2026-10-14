@@ -3,5 +3,7 @@
 
 :root { color-scheme: light; } body { font-family: sans-serif; margin: 0; padding: 2rem; } .theme-doc-markdown { max-width: 72ch; }
 
+.theme-code-block button { opacity: 1 !important; }
+
 /* Teacher page: the Voortgangsverkenner tab uses the full width (#37). */
 .theme-doc-markdown:has(#bso-panel-dashboard:not([hidden])) { max-width: none; }

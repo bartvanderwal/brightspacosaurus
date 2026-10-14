@@ -45,11 +45,11 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
   await expect(
     quiz.locator(".bso-quiz-assignment-context code"),
   ).toHaveText(
-    "class FizzBuzz {\n    String of(int number) { /* implementation */ }\n}",
+    /class FizzBuzz \{\s*String of\(int number\) \{ \/\* implementation \*\/ \}\s*\}/,
   );
   await expect(questions.locator("legend")).toHaveText([
-    "Deelvraag 1a (2 punten)",
-    "Deelvraag 1b (3 punten)",
+    "Subquestion 1a (2 points)",
+    "Subquestion 1b (3 points)",
     "Question 3",
   ]);
   const order = () =>
@@ -80,10 +80,27 @@ test("quiz preview preserves scoring identities when shuffling and keeps order s
   await quiz.getByRole("button", { name: "Check answers", exact: true })
     .click();
   await expect(quiz.getByRole("status")).toHaveText("6 / 6 points");
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("confirm");
+    expect(dialog.message()).toBe(
+      "Start a new attempt? All your current answers and feedback will be cleared.",
+    );
+    await dialog.dismiss();
+  });
+  await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
+  await expect(quiz.locator("input:checked")).toHaveCount(3);
+  await expect(quiz.getByRole("status")).toHaveText("6 / 6 points");
+  await expect(questions.first().locator(".bso-quiz-answer")).toBeVisible();
+  expect(await order()).toEqual(initial);
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("confirm");
+    await dialog.accept();
+  });
   await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
   await expect(quiz.locator("input:checked")).toHaveCount(0);
   await expect(questions.first().locator("input").first()).toBeFocused();
   await expect(quiz.getByRole("status")).toHaveText("");
+  await expect(questions.first().locator(".bso-quiz-answer")).toBeHidden();
   expect(errors).toEqual([]);
 });
 
@@ -104,6 +121,52 @@ test("quiz preview initializes after client navigation and supports keyboard ans
   await expect(first).toBeChecked();
 });
 
+test("new attempt preserves short and multiple-response answers on cancel and clears them on confirm", async ({ page }) => {
+  await page.setContent(`
+    <div class="bso-quiz">
+      <fieldset class="bso-quiz-question" data-response-type="open_short" data-correct-answers='["FizzBuzz"]'>
+        <input type="text" class="bso-quiz-open-answer">
+        <details class="bso-quiz-answer"><summary>Answer</summary>FizzBuzz</details>
+        <details class="bso-quiz-explanation"><summary>Explanation</summary>Both divisors</details>
+      </fieldset>
+      <fieldset class="bso-quiz-question" data-correct-answers='["A","B"]'>
+        <ul class="bso-quiz-options">
+          <li><input type="checkbox" value="A"></li>
+          <li><input type="checkbox" value="B"></li>
+        </ul>
+        <details class="bso-quiz-answer"><summary>Answer</summary>A and B</details>
+      </fieldset>
+    </div>
+  `);
+  await page.addScriptTag({
+    path: require("node:path").resolve(__dirname, "../../assets/brightspacosaurus-quizzes.js"),
+  });
+  await page.evaluate(() => globalThis.bsoQuizzes.initializeQuizzes(document));
+  const quiz = page.locator(".bso-quiz");
+  const short = quiz.locator('input[type="text"]');
+  await short.fill("FizzBuzz");
+  await quiz.locator('input[value="A"]').check();
+  await quiz.locator('input[value="B"]').check();
+  await quiz.getByRole("button", { name: "Check answers", exact: true }).click();
+  await expect(quiz.getByRole("status")).toHaveText("2 / 2 correct");
+  const explanation = quiz.locator(".bso-quiz-explanation");
+  await explanation.locator("summary").click();
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
+  await expect(short).toHaveValue("FizzBuzz");
+  await expect(quiz.locator("input:checked")).toHaveCount(2);
+  await expect(quiz.getByRole("status")).toHaveText("2 / 2 correct");
+  await expect(explanation).toHaveAttribute("open", "");
+  page.once("dialog", (dialog) => dialog.accept());
+  await quiz.getByRole("button", { name: "New attempt", exact: true }).click();
+  await expect(short).toHaveValue("");
+  await expect(short).toBeFocused();
+  await expect(quiz.locator("input:checked")).toHaveCount(0);
+  await expect(quiz.getByRole("status")).toHaveText("");
+  await expect(explanation).toBeHidden();
+  await expect(explanation).not.toHaveAttribute("open");
+});
+
 test("quiz preview leaves answers accessible without JavaScript", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
@@ -113,4 +176,80 @@ test("quiz preview leaves answers accessible without JavaScript", async ({ brows
   await answer.locator("summary").click();
   await expect(answer.locator("p")).toHaveText("FizzBuzz");
   await context.close();
+});
+
+test("a Dutch quiz shows Dutch buttons, messages, score and confirmation (quiz.locale nl)", async ({ page }) => {
+  await page.setContent(`
+    <div class="bso-quiz" data-locale="nl">
+      <fieldset class="bso-quiz-question" data-points="2" data-correct-answers='["A"]'>
+        <ul class="bso-quiz-options">
+          <li><input type="radio" name="q" value="A"></li>
+          <li><input type="radio" name="q" value="B"></li>
+        </ul>
+        <details class="bso-quiz-answer"><summary>Antwoord</summary>A</details>
+      </fieldset>
+    </div>
+  `);
+  await page.addScriptTag({
+    path: require("node:path").resolve(__dirname, "../../assets/brightspacosaurus-quizzes.js"),
+  });
+  await page.evaluate(() => globalThis.bsoQuizzes.initializeQuizzes(document));
+  const quiz = page.locator(".bso-quiz");
+  await quiz.getByRole("button", { name: "Controleer antwoorden", exact: true }).click();
+  await expect(quiz.getByRole("status")).toHaveText("Kies bij elke vraag een antwoord.");
+  await quiz.locator('input[value="A"]').check();
+  await quiz.getByRole("button", { name: "Controleer antwoorden", exact: true }).click();
+  await expect(quiz.getByRole("status")).toHaveText("2 / 2 punten");
+  let message = "";
+  page.once("dialog", (dialog) => {
+    message = dialog.message();
+    return dialog.dismiss();
+  });
+  await quiz.getByRole("button", { name: "Nieuwe poging", exact: true }).click();
+  expect(message).toBe(
+    "Een nieuwe poging starten? Al je huidige antwoorden en feedback worden gewist.",
+  );
+  await expect(quiz.locator('input[value="A"]')).toBeChecked();
+});
+
+test("a quiz without a stated language keeps the English texts", async ({ page }) => {
+  await page.setContent(`
+    <div class="bso-quiz">
+      <fieldset class="bso-quiz-question" data-correct-answers='["A"]'>
+        <ul class="bso-quiz-options"><li><input type="radio" name="q" value="A"></li></ul>
+        <details class="bso-quiz-answer"><summary>Answer</summary>A</details>
+      </fieldset>
+    </div>
+  `);
+  await page.addScriptTag({
+    path: require("node:path").resolve(__dirname, "../../assets/brightspacosaurus-quizzes.js"),
+  });
+  await page.evaluate(() => globalThis.bsoQuizzes.initializeQuizzes(document));
+  await expect(page.getByRole("button", { name: "New attempt", exact: true })).toBeVisible();
+});
+
+test("quiz preview renders diagrams in questions and answer options with source and description (#101)", async ({ page }) => {
+  await page.goto("/lessons/week-2/quiz-1-diagrams");
+  const images = page.locator(".bso-quiz img.kroki-image");
+  // Three diagrams, plus the correct option repeated in "Show correct answer".
+  await expect(images).toHaveCount(4);
+  // Sorted: the demo shuffles answer options, so the DOM order varies.
+  expect((await images.evaluateAll((nodes) => nodes.map((node) => node.alt))).sort()).toEqual([
+    "Question 3",
+    "Question 4, answer A",
+    "Question 4, answer A",
+    "Question 4, answer B",
+  ]);
+  // The drawn diagram, not the PlantUML text, is what the student sees.
+  const visible = page.locator(".bso-quiz-prompt img.kroki-image, .bso-quiz-options img.kroki-image");
+  await expect(visible).toHaveCount(3);
+  for (const image of await visible.all()) {
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate((node) => node.complete && node.naturalWidth > 0)).toBe(true);
+  }
+  await expect(page.locator(".bso-quiz details.diagram-expandable-source")).toHaveCount(4);
+  // The source only appears inside the disclosure, never as plain text in the question.
+  await expect(page.locator(".bso-quiz pre:not(details pre)")).toHaveCount(0);
+  await expect(page.locator(".bso-quiz .diagram-a11y-description-text").first())
+    .toContainText("Class diagram");
 });

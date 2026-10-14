@@ -16,7 +16,9 @@ async function makeTempDir(): Promise<string> {
 }
 
 async function writeFile(path: string, content = ""): Promise<void> {
-  await Deno.mkdir(path.substring(0, path.lastIndexOf("/")), { recursive: true });
+  await Deno.mkdir(path.substring(0, path.lastIndexOf("/")), {
+    recursive: true,
+  });
   await Deno.writeTextFile(path, content);
 }
 
@@ -32,10 +34,15 @@ Deno.test("transcripts are excluded from lesson sources for both output formats"
   const tempRoot = await makeTempDir();
   const sourcesDir = join(tempRoot, "Lesbeschrijvingen");
   try {
-    await writeFile(join(sourcesDir, "week-1", "transcript-les-1.md"), "# Transcript");
+    await writeFile(
+      join(sourcesDir, "week-1", "transcript-les-1.md"),
+      "# Transcript",
+    );
     await writeFile(join(sourcesDir, "week-1", "les-1.md"), "# Lesson");
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
-    assertEquals(result.markdownFiles, [join(sourcesDir, "week-1", "les-1.md")]);
+    assertEquals(result.markdownFiles, [
+      join(sourcesDir, "week-1", "les-1.md"),
+    ]);
   } finally {
     await removeDir(tempRoot);
   }
@@ -52,9 +59,13 @@ Deno.test("Eigenschap 4: scanSources geeft gesorteerde les-Markdown bestanden te
       fc.uniqueArray(
         fc.tuple(
           fc.constantFrom("week-1", "week-2", "week-3"),
-          fc.stringMatching(/^lesoverzicht-[a-z0-9-]{1,8}$/)
+          fc.stringMatching(/^lesoverzicht-[a-z0-9-]{1,8}$/),
         ),
-        { minLength: 1, maxLength: 6, selector: ([dir, name]) => `${dir}/${name}` }
+        {
+          minLength: 1,
+          maxLength: 6,
+          selector: ([dir, name]) => `${dir}/${name}`,
+        },
       ),
       async (entries) => {
         const tempRoot = await makeTempDir();
@@ -70,14 +81,22 @@ Deno.test("Eigenschap 4: scanSources geeft gesorteerde les-Markdown bestanden te
 
           const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
-          assertEquals(result.markdownFiles, expectedPaths, "Alle les-Markdown bestanden moeten worden gevonden");
-          assertEquals(result.quizFiles.length, 0, "Geen quiz-bestanden verwacht");
+          assertEquals(
+            result.markdownFiles,
+            expectedPaths,
+            "Alle les-Markdown bestanden moeten worden gevonden",
+          );
+          assertEquals(
+            result.quizFiles.length,
+            0,
+            "Geen quiz-bestanden verwacht",
+          );
         } finally {
           await removeDir(tempRoot);
         }
-      }
+      },
     ),
-    { numRuns: 30 }
+    { numRuns: 30 },
   );
 });
 
@@ -86,7 +105,7 @@ Deno.test("Eigenschap 4: scanSources classificeert quiz-bestanden op prefix", as
     fc.asyncProperty(
       fc.tuple(
         fc.constantFrom("week-1", "week-2", "week-3"),
-        fc.stringMatching(/^[a-z][a-z0-9-]{1,12}$/)
+        fc.stringMatching(/^[a-z][a-z0-9-]{1,12}$/),
       ),
       async ([weekDir, quizName]) => {
         const tempRoot = await makeTempDir();
@@ -100,16 +119,20 @@ Deno.test("Eigenschap 4: scanSources classificeert quiz-bestanden op prefix", as
 
           const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
-          assertEquals(result.markdownFiles.length, 1, "1 les-bestand verwacht");
+          assertEquals(
+            result.markdownFiles.length,
+            1,
+            "1 les-bestand verwacht",
+          );
           assertEquals(result.quizFiles.length, 1, "1 quiz-bestand verwacht");
           assertEquals(result.markdownFiles[0], resolve(lesPath));
           assertEquals(result.quizFiles[0], resolve(quizPath));
         } finally {
           await removeDir(tempRoot);
         }
-      }
+      },
     ),
-    { numRuns: 20 }
+    { numRuns: 20 },
   );
 });
 
@@ -126,7 +149,8 @@ Deno.test("Eigenschap 4: scanSources behoudt geneste bronpaden gesorteerd per ca
         {
           minLength: 3,
           maxLength: 12,
-          selector: ({ kind, weekDir, sectionDir, slug }) => `${kind}/${weekDir}/${sectionDir}/${slug}`,
+          selector: ({ kind, weekDir, sectionDir, slug }) =>
+            `${kind}/${weekDir}/${sectionDir}/${slug}`,
         },
       ),
       async (entries) => {
@@ -146,7 +170,12 @@ Deno.test("Eigenschap 4: scanSources behoudt geneste bronpaden gesorteerd per ca
               fileName = `lesoverzicht-${entry.slug}.md`;
             }
 
-            const filePath = join(sourcesDir, entry.weekDir, entry.sectionDir, fileName);
+            const filePath = join(
+              sourcesDir,
+              entry.weekDir,
+              entry.sectionDir,
+              fileName,
+            );
             await writeFile(filePath, `# ${entry.slug}\n`);
 
             const relPath = relative(sourcesDir, resolve(filePath));
@@ -161,8 +190,12 @@ Deno.test("Eigenschap 4: scanSources behoudt geneste bronpaden gesorteerd per ca
           expectedQuizRelPaths.sort();
 
           const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
-          const actualMarkdownRelPaths = result.markdownFiles.map((path) => relative(sourcesDir, path));
-          const actualQuizRelPaths = result.quizFiles.map((path) => relative(sourcesDir, path));
+          const actualMarkdownRelPaths = result.markdownFiles.map((path) =>
+            relative(sourcesDir, path)
+          );
+          const actualQuizRelPaths = result.quizFiles.map((path) =>
+            relative(sourcesDir, path)
+          );
 
           assertEquals(
             actualMarkdownRelPaths,
@@ -191,21 +224,26 @@ Deno.test("Eigenschap 4: scanSources behoudt geneste bronpaden gesorteerd per ca
 Deno.test("Eigenschap 5: paden buiten de repository-root worden geweigerd", async () => {
   await fc.assert(
     fc.asyncProperty(
-      fc.array(fc.stringMatching(/^[a-z][a-z0-9-]{0,8}$/), { minLength: 1, maxLength: 3 }),
+      fc.array(fc.stringMatching(/^[a-z][a-z0-9-]{0,8}$/), {
+        minLength: 1,
+        maxLength: 3,
+      }),
       async (pathParts) => {
         const tempRoot = await makeTempDir();
         try {
           const outsidePath = resolve(tempRoot, "..", ...pathParts);
           await assertRejects(
             () => scanSources({ sourcesDir: outsidePath, repoRoot: tempRoot }),
-            Error, undefined, "Pad buiten root moet worden geweigerd"
+            Error,
+            undefined,
+            "Pad buiten root moet worden geweigerd",
           );
         } finally {
           await removeDir(tempRoot);
         }
-      }
+      },
     ),
-    { numRuns: 30 }
+    { numRuns: 30 },
   );
 });
 
@@ -219,18 +257,25 @@ Deno.test("Eigenschap 5: niet-bestaande bronmap geeft fout met exitcode 2", asyn
           const nonExistentDir = join(tempRoot, dirName);
           let caughtError: (Error & { exitCode?: number }) | null = null;
           try {
-            await scanSources({ sourcesDir: nonExistentDir, repoRoot: tempRoot });
+            await scanSources({
+              sourcesDir: nonExistentDir,
+              repoRoot: tempRoot,
+            });
           } catch (e) {
             caughtError = e as Error & { exitCode?: number };
           }
-          assertEquals(caughtError !== null, true, "Niet-bestaande bronmap moet een fout geven");
+          assertEquals(
+            caughtError !== null,
+            true,
+            "Niet-bestaande bronmap moet een fout geven",
+          );
           assertEquals(caughtError?.exitCode, 2, "Exitcode moet 2 zijn");
         } finally {
           await removeDir(tempRoot);
         }
-      }
+      },
     ),
-    { numRuns: 20 }
+    { numRuns: 20 },
   );
 });
 
@@ -245,7 +290,11 @@ Deno.test("Eigenschap 5: foutmelding bevat het ongeldige pad", async () => {
       caughtError = e as Error;
     }
     assertEquals(caughtError !== null, true, "Er moet een fout worden gegooid");
-    assertEquals(caughtError?.message.includes(outsidePath), true, "Foutmelding moet het ongeldige pad bevatten");
+    assertEquals(
+      caughtError?.message.includes(outsidePath),
+      true,
+      "Foutmelding moet het ongeldige pad bevatten",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -261,9 +310,15 @@ Deno.test("Reader-classificatie: bestanden op top-niveau met prefix reader- word
   const sourcesDir = join(tempRoot, "Lesbeschrijvingen");
   try {
     // Maak reader-bestanden op top-niveau
-    await writeFile(join(sourcesDir, "reader-git-en-gitlab.md"), "# Git en GitLab\n");
+    await writeFile(
+      join(sourcesDir, "reader-git-en-gitlab.md"),
+      "# Git en GitLab\n",
+    );
     // Maak een week-submap met een lesbestand
-    await writeFile(join(sourcesDir, "week-1", "lesoverzicht-1.1.md"), "# Les 1.1\n");
+    await writeFile(
+      join(sourcesDir, "week-1", "lesoverzicht-1.1.md"),
+      "# Les 1.1\n",
+    );
 
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
@@ -271,11 +326,17 @@ Deno.test("Reader-classificatie: bestanden op top-niveau met prefix reader- word
     assertEquals(
       result.readerFiles[0],
       resolve(join(sourcesDir, "reader-git-en-gitlab.md")),
-      "reader-git-en-gitlab.md moet in readerFiles staan"
+      "reader-git-en-gitlab.md moet in readerFiles staan",
     );
     // Reader mag niet in markdownFiles staan
-    const readerInMarkdown = result.markdownFiles.some((f) => f.includes("reader-git-en-gitlab.md"));
-    assertEquals(readerInMarkdown, false, "Reader-bestanden mogen niet in markdownFiles staan");
+    const readerInMarkdown = result.markdownFiles.some((f) =>
+      f.includes("reader-git-en-gitlab.md")
+    );
+    assertEquals(
+      readerInMarkdown,
+      false,
+      "Reader-bestanden mogen niet in markdownFiles staan",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -285,8 +346,14 @@ Deno.test("Reader-classificatie: plantuml-essentials.md wordt als reader herkend
   const tempRoot = await makeTempDir();
   const sourcesDir = join(tempRoot, "Lesbeschrijvingen");
   try {
-    await writeFile(join(sourcesDir, "plantuml-essentials.md"), "# PlantUML Essentials\n");
-    await writeFile(join(sourcesDir, "week-1", "lesoverzicht-1.1.md"), "# Les 1.1\n");
+    await writeFile(
+      join(sourcesDir, "plantuml-essentials.md"),
+      "# PlantUML Essentials\n",
+    );
+    await writeFile(
+      join(sourcesDir, "week-1", "lesoverzicht-1.1.md"),
+      "# Les 1.1\n",
+    );
 
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
@@ -294,10 +361,16 @@ Deno.test("Reader-classificatie: plantuml-essentials.md wordt als reader herkend
     assertEquals(
       result.readerFiles[0],
       resolve(join(sourcesDir, "plantuml-essentials.md")),
-      "plantuml-essentials.md moet in readerFiles staan"
+      "plantuml-essentials.md moet in readerFiles staan",
     );
-    const plantumlInMarkdown = result.markdownFiles.some((f) => f.includes("plantuml-essentials.md"));
-    assertEquals(plantumlInMarkdown, false, "plantuml-essentials.md mag niet in markdownFiles staan");
+    const plantumlInMarkdown = result.markdownFiles.some((f) =>
+      f.includes("plantuml-essentials.md")
+    );
+    assertEquals(
+      plantumlInMarkdown,
+      false,
+      "plantuml-essentials.md mag niet in markdownFiles staan",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -308,15 +381,31 @@ Deno.test("Reader-classificatie: bestanden in week-x/ submappen worden niet als 
   const sourcesDir = join(tempRoot, "Lesbeschrijvingen");
   try {
     // reader-bestand in submap mag NIET als reader worden herkend
-    await writeFile(join(sourcesDir, "week-1", "reader-should-not-match.md"), "# Niet een reader\n");
-    await writeFile(join(sourcesDir, "week-1", "lesoverzicht-1.1.md"), "# Les 1.1\n");
+    await writeFile(
+      join(sourcesDir, "week-1", "reader-should-not-match.md"),
+      "# Niet een reader\n",
+    );
+    await writeFile(
+      join(sourcesDir, "week-1", "lesoverzicht-1.1.md"),
+      "# Les 1.1\n",
+    );
 
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
-    assertEquals(result.readerFiles.length, 0, "Geen reader-bestanden verwacht in submappen");
+    assertEquals(
+      result.readerFiles.length,
+      0,
+      "Geen reader-bestanden verwacht in submappen",
+    );
     // Het reader-bestand in de submap moet in markdownFiles staan (het heeft geen quiz- prefix)
-    const readerInMarkdown = result.markdownFiles.some((f) => f.includes("reader-should-not-match.md"));
-    assertEquals(readerInMarkdown, true, "reader-bestand in submap moet in markdownFiles staan");
+    const readerInMarkdown = result.markdownFiles.some((f) =>
+      f.includes("reader-should-not-match.md")
+    );
+    assertEquals(
+      readerInMarkdown,
+      true,
+      "reader-bestand in submap moet in markdownFiles staan",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -328,19 +417,32 @@ Deno.test("Reader-classificatie: TODO-prefix bestanden worden uitgesloten van re
   try {
     await writeFile(join(sourcesDir, "TODO-readers.md"), "# TODO\n");
     await writeFile(join(sourcesDir, "reader-git-en-gitlab.md"), "# Git\n");
-    await writeFile(join(sourcesDir, "week-1", "lesoverzicht-1.1.md"), "# Les 1.1\n");
+    await writeFile(
+      join(sourcesDir, "week-1", "lesoverzicht-1.1.md"),
+      "# Les 1.1\n",
+    );
 
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
-    assertEquals(result.readerFiles.length, 1, "Alleen 1 reader verwacht (niet TODO-)");
+    assertEquals(
+      result.readerFiles.length,
+      1,
+      "Alleen 1 reader verwacht (niet TODO-)",
+    );
     assertEquals(
       result.readerFiles[0],
       resolve(join(sourcesDir, "reader-git-en-gitlab.md")),
-      "Alleen reader-git-en-gitlab.md moet als reader worden herkend"
+      "Alleen reader-git-en-gitlab.md moet als reader worden herkend",
     );
     // TODO-bestand mag niet in readerFiles staan
-    const todoInReaders = result.readerFiles.some((f) => f.includes("TODO-readers.md"));
-    assertEquals(todoInReaders, false, "TODO-prefix bestanden mogen niet in readerFiles staan");
+    const todoInReaders = result.readerFiles.some((f) =>
+      f.includes("TODO-readers.md")
+    );
+    assertEquals(
+      todoInReaders,
+      false,
+      "TODO-prefix bestanden mogen niet in readerFiles staan",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -357,7 +459,9 @@ Deno.test("Partials: _-prefix bestanden en mappen worden overgeslagen (Docusauru
 
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
-    assertEquals(result.markdownFiles, [resolve(join(sourcesDir, "week-1", "les-1.md"))]);
+    assertEquals(result.markdownFiles, [
+      resolve(join(sourcesDir, "week-1", "les-1.md")),
+    ]);
     assertEquals(result.quizFiles, []);
     assertEquals(result.readerFiles, []);
   } finally {
@@ -375,8 +479,14 @@ Deno.test("Reader-classificatie: volledige mapstructuur met readers, lessen en u
     // Top-niveau: uitgesloten bestanden
     await writeFile(join(sourcesDir, "TODO-readers.md"), "# TODO\n");
     // Submap: les-bestanden en een reader-prefix bestand (mag niet als reader)
-    await writeFile(join(sourcesDir, "week-1", "lesoverzicht-1.1.md"), "# Les 1.1\n");
-    await writeFile(join(sourcesDir, "week-1", "reader-should-not-match.md"), "# Niet een reader\n");
+    await writeFile(
+      join(sourcesDir, "week-1", "lesoverzicht-1.1.md"),
+      "# Les 1.1\n",
+    );
+    await writeFile(
+      join(sourcesDir, "week-1", "reader-should-not-match.md"),
+      "# Niet een reader\n",
+    );
 
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
@@ -388,19 +498,43 @@ Deno.test("Reader-classificatie: volledige mapstructuur met readers, lessen en u
 
     // Controleer dat readers NIET in markdownFiles staan
     const markdownNames = result.markdownFiles.map((f) => f.split("/").pop());
-    assertEquals(markdownNames.includes("reader-git-en-gitlab.md"), false, "Reader mag niet in markdownFiles");
-    assertEquals(markdownNames.includes("plantuml-essentials.md"), false, "Reader mag niet in markdownFiles");
+    assertEquals(
+      markdownNames.includes("reader-git-en-gitlab.md"),
+      false,
+      "Reader mag niet in markdownFiles",
+    );
+    assertEquals(
+      markdownNames.includes("plantuml-essentials.md"),
+      false,
+      "Reader mag niet in markdownFiles",
+    );
 
     // Controleer dat TODO-bestand niet in readerFiles staat
-    assertEquals(readerNames.includes("TODO-readers.md"), false, "TODO mag niet in readerFiles");
+    assertEquals(
+      readerNames.includes("TODO-readers.md"),
+      false,
+      "TODO mag niet in readerFiles",
+    );
 
     // Controleer dat bestanden in week-1/ in markdownFiles staan (niet in readerFiles)
-    assertEquals(markdownNames.includes("lesoverzicht-1.1.md"), true, "Les-bestand moet in markdownFiles");
-    assertEquals(markdownNames.includes("reader-should-not-match.md"), true, "reader in submap moet in markdownFiles");
+    assertEquals(
+      markdownNames.includes("lesoverzicht-1.1.md"),
+      true,
+      "Les-bestand moet in markdownFiles",
+    );
+    assertEquals(
+      markdownNames.includes("reader-should-not-match.md"),
+      true,
+      "reader in submap moet in markdownFiles",
+    );
 
     // Controleer dat readerFiles gesorteerd zijn
     const sortedReaders = [...result.readerFiles].sort();
-    assertEquals(result.readerFiles, sortedReaders, "readerFiles moeten gesorteerd zijn");
+    assertEquals(
+      result.readerFiles,
+      sortedReaders,
+      "readerFiles moeten gesorteerd zijn",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -424,16 +558,34 @@ Deno.test("PDF-classificatie: vooraf gegenereerde PDF's op top-niveau komen in p
     const result = await scanSources({ sourcesDir, repoRoot: tempRoot });
 
     // De top-niveau PDF moet in pdfFiles staan
-    const topLevelPdfPresent = result.pdfFiles.some((f) => f === resolve(join(sourcesDir, "reader-git.pdf")));
-    assertEquals(topLevelPdfPresent, true, "reader-git.pdf op top-niveau moet in pdfFiles staan");
+    const topLevelPdfPresent = result.pdfFiles.some((f) =>
+      f === resolve(join(sourcesDir, "reader-git.pdf"))
+    );
+    assertEquals(
+      topLevelPdfPresent,
+      true,
+      "reader-git.pdf op top-niveau moet in pdfFiles staan",
+    );
 
     // De PDF in de submap mag NIET in pdfFiles staan
-    const subDirPdfPresent = result.pdfFiles.some((f) => f.includes("something.pdf"));
-    assertEquals(subDirPdfPresent, false, "PDF in submap mag niet in pdfFiles staan");
+    const subDirPdfPresent = result.pdfFiles.some((f) =>
+      f.includes("something.pdf")
+    );
+    assertEquals(
+      subDirPdfPresent,
+      false,
+      "PDF in submap mag niet in pdfFiles staan",
+    );
 
     // De reader-Markdown moet nog steeds in readerFiles staan
-    const readerPresent = result.readerFiles.some((f) => f === resolve(join(sourcesDir, "reader-git.md")));
-    assertEquals(readerPresent, true, "reader-git.md moet in readerFiles staan");
+    const readerPresent = result.readerFiles.some((f) =>
+      f === resolve(join(sourcesDir, "reader-git.md"))
+    );
+    assertEquals(
+      readerPresent,
+      true,
+      "reader-git.md moet in readerFiles staan",
+    );
   } finally {
     await removeDir(tempRoot);
   }

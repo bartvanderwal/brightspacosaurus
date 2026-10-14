@@ -11,7 +11,7 @@ import {
   resolveFromCliOnly,
   validateConfig,
 } from "../src/config-loader.ts";
-import { runPrepare } from "../src/main.ts";
+import { runBuild } from "../src/main.ts";
 import { convertMarkdown } from "../src/markdown-converter.ts";
 import { loadPackageVersion } from "../src/assets.ts";
 import {
@@ -202,7 +202,7 @@ async function tempRepo(): Promise<string> {
   return resolve(root);
 }
 
-Deno.test("prepare fills in versions on the teacher page only", async () => {
+Deno.test("build fills in versions on the teacher page only", async () => {
   const repoRoot = await tempRepo();
   try {
     const config = testConfig(repoRoot, false);
@@ -210,7 +210,7 @@ Deno.test("prepare fills in versions on the teacher page only", async () => {
       config.teacherPage!.path,
       `# For teachers\n\n${VERSIONS_DIRECTIVE}\n`,
     );
-    await runPrepare(config, false, { skipReaders: true });
+    await runBuild(config, false, { skipReaders: true });
     const teacherHtml = await Deno.readTextFile(
       join(config.outputDir, "content", "for-teachers.html"),
     );
@@ -234,9 +234,9 @@ Deno.test("prepare fills in versions on the teacher page only", async () => {
 Deno.test("a missing default teacher page is fine, a missing configured one fails", async () => {
   const repoRoot = await tempRepo();
   try {
-    await runPrepare(testConfig(repoRoot, false), false, { skipReaders: true });
+    await runBuild(testConfig(repoRoot, false), false, { skipReaders: true });
     const error = await assertRejects(
-      () => runPrepare(testConfig(repoRoot, true), false, { skipReaders: true }),
+      () => runBuild(testConfig(repoRoot, true), false, { skipReaders: true }),
       Error,
       "Teacher page not found: lessons/for-teachers.md",
     );

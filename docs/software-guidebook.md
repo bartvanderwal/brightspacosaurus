@@ -27,7 +27,7 @@ BSO bridges that gap. It takes the Markdown that already lives in Git and produc
 
 | Actor / System                                                     | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Course author                                                      | Writes and maintains course material as Markdown in Git; runs the CLI (`prepare`, `pack`) locally or in CI; sets diagram configuration (endpoint, rendering mode). After the build, the author manually imports the resulting `.imscc` into Brightspace, choosing an **integral import** (the whole course as one package) or a **selective import** of individual components (content topics, quizzes) — a selective import can overwrite items already present in the course with the same identifier. |
+| Course author                                                      | Writes and maintains course material as Markdown in Git; runs the CLI (`build`, `pack`) locally or in CI; sets diagram configuration (endpoint, rendering mode). After the build, the author manually imports the resulting `.imscc` into Brightspace, choosing an **integral import** (the whole course as one package) or a **selective import** of individual components (content topics, quizzes) — a selective import can overwrite items already present in the course with the same identifier. |
 | Student (all learners, including those using assistive technology) | Consumes the imported course in Brightspace, including diagrams and accessibility features. BSO does not rely on custom JavaScript for diagram controls, because Brightspace content sandboxing and content frames are security-sensitive and tenant/course dependent.                                                                                                                                                                                                                                    |
 | Git / GitLab                                                       | Source of truth for all course material and diagram source blocks.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Brightspace / D2L                                                  | Target LMS; the manual import destination for the generated `.imscc`. Its import UI offers both integral and selective/overwrite import; BSO has no programmatic API into it. Content files that execute scripts may be sandboxed in a secure iframe, depending on Brightspace configuration.                                                                                                                                                                                                            |
@@ -36,7 +36,7 @@ BSO bridges that gap. It takes the Markdown that already lives in Git and produc
 | Kroki                                                              | Diagram rendering service (default public https://kroki.io; can be self-hosted for CI/offline builds). Renders diagram source to PNG, SVG, or base64-embedded images over HTTP.                                                                                                                                                                                                                                                                                                                          |
 | pandoc                                                             | External CLI tool used for PDF generation (readers, instructor manual), invoked via `--allow-run=pandoc`. Optional; skipped gracefully when absent.                                                                                                                                                                                                                                                                                                                                                      |
 | Instructor | Hides the instructor module after import and opens the **Voortgangsverkenner** (teacher progress dashboard, #37) in Brightspace to follow student progress on GitLab work items. Pastes a personal read-only GitLab token into the page for each session. |
-| GitLab REST API | Runtime data source for the Voortgangsverkenner only: projects per class subgroup, work items, their comments and commits. Called directly from the instructor's browser; BSO itself never calls it during `prepare` or `pack`. |
+| GitLab REST API | Runtime data source for the Voortgangsverkenner only: projects per class subgroup, work items, their comments and commits. Called directly from the instructor's browser; BSO itself never calls it during `build` or `pack`. |
 
 ### 1.3 System context
 
@@ -57,7 +57,7 @@ System_Ext(jsr, "JSR", "«package registry» Distributes the BSO tool itself as 
 System_Ext(pandoc, "pandoc + xelatex", "«external CLI, optional» Converts reader and instructor-manual Markdown to print-quality PDF; skipped gracefully when not installed.")
 
 Rel(author, git, "authors and edits course Markdown in, including diagram source and images")
-Rel(author, bso, "runs `prepare` (convert) and `pack` (produce .imscc) as one-shot CLI builds, locally or in CI")
+Rel(author, bso, "runs `build` (convert) and `pack` (produce .imscc) as one-shot CLI builds, locally or in CI")
 Rel(git, bso, "is read by, for lesson/quiz/reader Markdown and diagram source")
 Rel(bso, kroki_plugin, "registers as a remark plugin during Markdown → HTML conversion")
 Rel(kroki_plugin, kroki, "submits diagram source to, over HTTP")
@@ -85,7 +85,7 @@ Throughout this guidebook: _export_ refers to BSO writing the package, _import_ 
 
 ### 1.5 Diagram rendering in context
 
-As of version 0.8.0, BSO integrates **diagram rendering** as a core feature of the `prepare` command. When a lesson Markdown file contains PlantUML or Mermaid fenced blocks, BSO uses `remark-kroki-a11y` to render them to accessible HTML during the build. This happens only for **lesson content** (standard `.md` files converted to HTML topics); **quiz questions** follow a different path (see [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)).
+As of version 0.8.0, BSO integrates **diagram rendering** as a core feature of the `build` command. When a lesson Markdown file contains PlantUML or Mermaid fenced blocks, BSO uses `remark-kroki-a11y` to render them to accessible HTML during the build. This happens only for **lesson content** (standard `.md` files converted to HTML topics); **quiz questions** follow a different path (see [ADR 011](adr/adr011-brightspacosaurus-rich-quiz-content.md)).
 
 Key points:
 
@@ -95,7 +95,7 @@ Key points:
 
 ### 1.6 Voortgangsverkenner in context
 
-The Voortgangsverkenner (teacher progress dashboard, #37) is the first BSO output that talks to an external system **at runtime**. BSO only generates the page during `prepare`, with the `teacherDashboard` settings from `brightspacosaurus.config.json` embedded. Everything else happens in the instructor's browser: the page calls the GitLab REST API with a token the instructor pastes in. There is no BSO back end and no proxy.
+The Voortgangsverkenner (teacher progress dashboard, #37) is the first BSO output that talks to an external system **at runtime**. BSO only generates the page during `build`, with the `teacherDashboard` settings from `brightspacosaurus.config.json` embedded. Everything else happens in the instructor's browser: the page calls the GitLab REST API with a token the instructor pastes in. There is no BSO back end and no proxy.
 
 ```plantuml
 @startuml
@@ -104,12 +104,12 @@ The Voortgangsverkenner (teacher progress dashboard, #37) is the first BSO outpu
 Person(instructor, "Instructor", "Follows the progress of a class on GitLab work items, from inside the Brightspace course.")
 Person(author, "Course author", "Configures teacherDashboard (GitLab URL, group, subgroups, repo prefixes, thresholds) in brightspacosaurus.config.json.")
 
-System(bso, "Brightspacosaurus CLI", "«Deno» Generates the Voortgangsverkenner page (HTML, CSS, JS) into the instructor module of the .imscc during prepare.")
+System(bso, "Brightspacosaurus CLI", "«Deno» Generates the Voortgangsverkenner page (HTML, CSS, JS) into the instructor module of the .imscc during build.")
 System(dashboard, "Voortgangsverkenner", "«client-side page in the instructor's browser» Lists students per class, their assignment repos, work items and linked commits, with stoplights.")
 System_Ext(brightspace, "Brightspace / D2L", "«LMS» Hosts the page in the hidden instructor module after import.")
 System_Ext(gitlab, "GitLab REST API", "«e.g. gitlab.aimsites.nl /api/v4» Projects, work items (issues), notes and commits of the student repos in the course group.")
 
-Rel(author, bso, "configures and runs prepare/pack")
+Rel(author, bso, "configures and runs build/pack")
 Rel(bso, brightspace, "page is imported into, as part of the .imscc", "manual import")
 Rel(brightspace, dashboard, "serves the page to")
 Rel(instructor, dashboard, "opens, pastes a read-only token into, filters and clicks through")
@@ -137,14 +137,14 @@ SHOW_LEGEND()
 
 This chapter describes what BSO does from the author's point of view: the two commands, how source files are classified and how the build is configured.
 
-- **2.1** `prepare` — Markdown to build artifacts
+- **2.1** `build` — Markdown to build artifacts
 - **2.2** `pack` — build directory to `.imscc`
 - **2.3** File classification by prefix
 - **2.4** Configuration
 
 BSO exposes two commands (see the [README](../README.md) for full CLI usage).
 
-### 2.1 `prepare` — Markdown to build artifacts
+### 2.1 `build` — Markdown to build artifacts
 
 Scans the configured source directory and writes conversion output into the build directory (`outputDir`, default `build/brightspace`):
 
@@ -158,7 +158,7 @@ During lesson conversion, PlantUML and Mermaid fenced blocks are rendered by `re
 
 ### 2.2 `pack` — build directory to `.imscc`
 
-Generates `imsmanifest.xml` from the build output and packages everything into a `.imscc` archive (a ZIP under the hood). If `prepare` has not run yet, `pack` runs it first.
+Generates `imsmanifest.xml` from the build output and packages everything into a `.imscc` archive (a ZIP under the hood). If `build` has not run yet, `pack` runs it first.
 
 ### 2.3 File classification by prefix
 
@@ -194,7 +194,7 @@ This chapter lists the quality attributes BSO is designed for and how the design
 
 ### 3.1 Reproducibility and determinism
 
-Commands are idempotent: running `prepare`/`pack` repeatedly on the same input produces byte-identical output. Archive entries use deterministic file ordering (manifest entries are sorted; scanned files are sorted). This keeps `.imscc` output stable and diff-friendly across builds and CI runs.
+Commands are idempotent: running `build`/`pack` repeatedly on the same input produces byte-identical output. Archive entries use deterministic file ordering (manifest entries are sorted; scanned files are sorted). This keeps `.imscc` output stable and diff-friendly across builds and CI runs.
 
 Manifest navigation order is also deterministic and intentionally mirrors the authored lesson structure. BSO groups content and quiz entries by their first output subdirectory (for example `week-6`) and then sorts entries within that group by a natural lesson/quiz code extracted from the title or file name. When a lesson page and quiz share the same code, the lesson HTML (`webcontent`) appears before the QTI quiz item. This produces Brightspace menu sequences such as `Les 6.1` → `Quiz 6.1` → `Les 6.2` → `Quiz 6.2`, without course-specific manifest cleanup scripts. See GitHub issue #22.
 
@@ -260,7 +260,7 @@ These apply to the Voortgangsverkenner and to any future page that calls an exte
 - **Untrusted data is text.** Titles, names, comments and commit messages from GitLab are rendered as text, never as HTML, to prevent XSS inside Brightspace.
 - **No back end, no proxy.** The browser talks to GitLab directly, so the token never passes through a server we would have to secure and maintain.
 - **Links to concrete work open in a new tab** with `rel="noopener"`, so GitLab pages cannot control the Brightspace page.
-- **Student data only in memory too.** Fetched progress data is kept in memory and disappears when the page closes, for the same reason as the token.
+- **Student data cached locally (#61).** Progress data, never tokens, is stored in versioned `localStorage` entries separated by GitLab server, course, class and repository/week configuration. A visible warning explains that other scripts on the same origin can read it. Entries older than seven days are pruned on page entry and every minute while open; the cache can be cleared explicitly.
 
 ---
 
@@ -276,7 +276,7 @@ This chapter describes the architecture of BSO in C4 terms, from containers to c
 
 ### 6.1 Container diagram
 
-BSO has a single container: the CLI process itself. There is no server, no database, and no persistent runtime — the whole system runs on one device (the author's machine or a CI runner) for the duration of one `prepare`/`pack` invocation.
+BSO has a single container: the CLI process itself. There is no server, no database, and no persistent runtime — the whole system runs on one device (the author's machine or a CI runner) for the duration of one `build`/`pack` invocation.
 
 ```plantuml
 @startuml
@@ -285,7 +285,7 @@ BSO has a single container: the CLI process itself. There is no server, no datab
 Person(author, "Course author", "Runs the CLI locally or in CI.")
 
 System_Boundary(bso, "Brightspacosaurus") {
-  Container(cli, "Brightspacosaurus CLI", "Deno / TypeScript", "Single-process CLI; executes prepare and pack as one-shot builds. No persistent server component.")
+  Container(cli, "Brightspacosaurus CLI", "Deno / TypeScript", "Single-process CLI; executes build and pack as one-shot builds. No persistent server component.")
 }
 
 System_Ext(git, "Git working directory", "Markdown source, on disk.")
@@ -293,7 +293,7 @@ System_Ext(pandoc, "pandoc + xelatex", "External process for PDF generation.")
 System_Ext(fs, "Build directory", "Generated HTML, QTI, PDF and the .imscc archive, on disk.")
 System_Ext(jsr, "JSR", "Distribution registry.")
 
-Rel(author, cli, "invokes", "deno task prepare / pack")
+Rel(author, cli, "invokes", "deno task build / pack")
 Rel(cli, git, "reads", "Markdown, images")
 Rel(cli, pandoc, "shells out to", "--allow-run=pandoc")
 Rel(cli, fs, "writes", "build output, .imscc")
@@ -309,7 +309,7 @@ The core lives under `src/`, split by conversion responsibility:
 
 | Module                    | Responsibility                                                                                                      |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `main.ts`                 | CLI entry point (`prepare`, `pack`), guarded by `import.meta.main`.                                                 |
+| `main.ts`                 | CLI entry point (`build`, `pack`), guarded by `import.meta.main`.                                                 |
 | `config-loader.ts`        | Load, validate and resolve `brightspacosaurus.config.json`.                                                         |
 | `source-scanner.ts`       | Scan source directories, classify files by prefix.                                                                  |
 | `markdown-converter.ts`   | Markdown → HTML (unified / remark / rehype).                                                                        |
@@ -334,7 +334,7 @@ Components inside the single `Brightspacosaurus CLI` container:
 !include <C4/C4_Component>
 
 Container_Boundary(cli, "Brightspacosaurus CLI") {
-  Component(main, "main.ts", "«CLI entry point» Deno", "Parses the `prepare`/`pack` subcommands and flags, guarded by import.meta.main; orchestrates the pipeline and reports progress to stdout, errors to stderr, with a matching exit code.")
+  Component(main, "main.ts", "«CLI entry point» Deno", "Parses the `build`/`pack` subcommands and flags, guarded by import.meta.main; orchestrates the pipeline and reports progress to stdout, errors to stderr, with a matching exit code.")
   Component(cfg, "config-loader.ts", "«loader» TypeScript module", "Finds, parses and validates brightspacosaurus.config.json, then resolves it into a single ResolvedConfig by merging CLI argument > config file > documented default.")
   Component(scan, "source-scanner.ts", "«classifier» TypeScript module", "Walks the configured source directory and classifies every file by its name prefix (lesson, quiz, reader, instructor answer key, work-in-progress) so the matching converter runs for each.")
   Component(md, "markdown-converter.ts", "«unified pipeline» remark / rehype", "Converts lesson Markdown into standalone HTML topics (GFM, frontmatter support) and copies referenced images into the build output.")
@@ -381,11 +381,13 @@ SHOW_LEGEND()
 
 ### 6.4 Data flow
 
-**`prepare`:** resolve config → scan sources → for each classified file run the matching converter (HTML / QTI / PDF) into the build directory → copy referenced images.
+**`build`:** resolve config → scan sources → for each classified file run the matching converter (HTML / QTI / PDF) into the build directory → copy referenced images.
+
+From BSO 0.23.0 onwards, `build` is the only command for this pipeline. The old `prepare` command is rejected with an explicit migration message and is not a compatibility alias. The library function is `runBuild`, with options typed as `BuildOptions`; the local task is `deno task build`.
 
 **Diagram path inside lesson HTML:** Markdown source → static diagram validation → metadata normalization (`imgType`, `imgTitle`) → `remark-kroki-a11y` → Kroki HTTP render → accessible provider HTML → Brightspace adapter → final standalone HTML topic.
 
-**`pack`:** ensure `prepare` output exists (run it if not) → scan build output for HTML, QTI and reader PDFs → sort manifest entries by module/week and natural lesson/quiz code → write `imsmanifest.xml` → ZIP the build directory into `<name>.v<version>.imscc`.
+**`pack`:** ensure `build` output exists (run it if not) → scan build output for HTML, QTI and reader PDFs → sort manifest entries by module/week and natural lesson/quiz code → write `imsmanifest.xml` → ZIP the build directory into `<name>.v<version>.imscc`.
 
 ### 6.5 Config resolution pipeline
 
@@ -421,7 +423,7 @@ Each section names where the code lives and what it does, then lists the rules t
 
 ### 7.1 Conventions
 
-- **Idempotent commands** — repeated runs on identical input yield identical output. `prepare` clears its output subdirectories before regenerating.
+- **Idempotent commands** — repeated runs on identical input yield identical output. `build` clears its output subdirectories before regenerating.
 - **stderr / stdout discipline** — progress goes to `stdout`; errors and warnings go to `stderr`.
 - **Exit codes** — `0` success; `1` general/config error; `2` source directory not found; `3` path escapes the repo root, or reader PDF conversion failed. Errors carry an optional `exitCode` that `main.ts` honours.
 
@@ -475,6 +477,7 @@ Error classification:
 - **Parity:** it emits the same Prism token classes (`token keyword`, `token comment`, ...) as the Docusaurus preview, so visual parity only needs CSS and Brightspace pages need no runtime JavaScript.
 - **Unknown languages:** languages Prism does not know stay plain code (`ignoreMissing`).
 - **Colors:** the token colors in `assets/brightspacosaurus.css` are scoped to `.brightspace-content` and follow the hues of the Docusaurus GitHub theme, darkened for readability on the grey code background.
+- **Quizzes (#103):** a QTI question has no stylesheet, so `src/quiz-highlight.ts` runs the same Prism pass over question, option, hint and explanation text and copies the token colors onto the spans as inline `style`. The color table lives next to the CSS rules, and a test checks that both stay equal. In the Docusaurus preview, quiz code goes through Docusaurus's own code block, so the preview needs no extra step; a language outside Prism's defaults must be listed in `themeConfig.prism.additionalLanguages`.
 
 Watch out: this relies on Docusaurus currently using Prism, and BSO imports nothing from Docusaurus. If Docusaurus switches highlighter (for example to Shiki), re-evaluate whether BSO follows for parity or deliberately stays on Prism.
 
@@ -484,19 +487,23 @@ The Voortgangsverkenner (see [1.6](#16-voortgangsverkenner-in-context)) appears 
 
 #### How the files reach Docusaurus
 
+- `state.js` owns the versioned local progress cache and freshness selection (#61). Repository timestamps determine reuse: five minutes for current/future weeks, 24 hours for earlier weeks. A successful token check restores only matching course/class/configuration entries, then refreshes stale repositories; explicit refresh bypasses the TTL. Storage errors are surfaced in the UI. The token is not part of the serialized cache payload.
 - `bso preview` (`runPreview` in `main.ts`) writes the dashboard files to `preview-static/` next to the build directory.
 - It passes that directory to Docusaurus in the environment variable `BSO_PREVIEW_STATIC_DIR`.
-- Reader PDFs from an earlier `prepare` are copied to the same directory, so reader pages can embed them (#54).
+- Reader PDFs from an earlier `build` are copied to the same directory, so reader pages can embed them (#54).
 
 #### What a course with its own Docusaurus configuration needs
 
 | Addition | Detail |
 |---|---|
 | Remark plugin | `remarkTeacherDashboard` from `@bartvanderwal/brightspacosaurus/teacher-page`, for the teacher page only, with `src: "/docenten/voortgangsverkenner.html"`. |
-| Static directory | A directory that contains `docenten/voortgangsverkenner.html`: `BSO_PREVIEW_STATIC_DIR` when you start the preview with `bso preview`, or the `content` directory of a previous `prepare` (for example `build/brightspace/content`). |
+| Static directory | A directory that contains `docenten/voortgangsverkenner.html`: `BSO_PREVIEW_STATIC_DIR` when you start the preview with `bso preview`, or the `content` directory of a previous `build` (for example `build/brightspace/content`). |
 | Client module | A module that imports `@bartvanderwal/brightspacosaurus/tabs` and calls `globalThis.bsoTabs?.initializeTabs(document)` in `onRouteDidUpdate`. |
+| Shared stylesheet | `@import '../generated/brightspacosaurus.css';` at the start of the app's registered `src/css/custom.css`. `bso preview` writes that file (#95). Includes quiz, flashcard, tab and copy-control styles. |
 
 A course that loads BSO via the package, for example `npm:@jsr/bartvanderwal__brightspacosaurus`, adds these itself.
+
+The stylesheet cannot be a package export: Deno rejects CSS entries in the module exports graph during both packing and JSR publication, so neither the JSR-generated npm package nor the npm release has a `/css` subpath. Instead `writePreviewStylesheet` in `src/preview-styles.ts` copies `assets/brightspacosaurus.css`, loaded with `loadAssetText` so it also works from the JSR cache, to `<docusaurusDir>/src/generated/brightspacosaurus.css` before `bso preview` starts `npm start`. It writes a `.gitignore` containing `*` next to it and only rewrites a file whose content changed, so a running dev server does not reload for nothing. The stylesheet stays in `publish.include`. A Playwright test runs the real `bso preview` on a fixture project and compiles the documented `@import` through Webpack and `css-loader`.
 
 #### Reference setup and fallback
 
@@ -570,9 +577,9 @@ Heading scope follows Markdown depth until the next same/higher-level heading. A
 
 Reader cover images: `deriveReaderPdfMetadata` reads `coverImage`; `convertReaderToPdf` resolves it against the reader directory and writes a one-line header defining `\bsocoverimage` next to the PDF output, included before `assets/reader-header.tex` and removed after pandoc. The title page in that header shows the image only `\ifdefined\bsocoverimage`. Paths outside `[A-Za-z0-9._/:-]` are rejected with a warning instead of being escaped, because LaTeX path escaping is fragile across engines.
 
-`src/teacher-page.ts` is likewise runtime-neutral. `resolveTeacherPage` validates `teacherPage` (a relative `.md` path inside `sourcesDir`, default `for-teachers.md`); `resolveConfig` records whether it was explicit, because only a missing explicit page fails `prepare`. `convertMarkdown` receives `teacherPageVersions` for that one page and calls `insertVersionTable` after include expansion, so every `{@bso-versions}` line outside fenced code becomes a Markdown table (or the table follows the first H1). The table contains only versions, no build time, so output stays idempotent. The demo Docusaurus preprocessor applies the same function; `bso preview` passes path and versions via `BSO_PREVIEW_TEACHER_PAGE`.
+`src/teacher-page.ts` is likewise runtime-neutral. `resolveTeacherPage` validates `teacherPage` (a relative `.md` path inside `sourcesDir`, default `for-teachers.md`); `resolveConfig` records whether it was explicit, because only a missing explicit page fails `build`. `convertMarkdown` receives `teacherPageVersions` for that one page and calls `insertVersionTable` after include expansion, so every `{@bso-versions}` line outside fenced code becomes a Markdown table (or the table follows the first H1). The table contains only versions, no build time, so output stays idempotent. The demo Docusaurus preprocessor applies the same function; `bso preview` passes path and versions via `BSO_PREVIEW_TEACHER_PAGE`.
 
-Teacher progress dashboard (#37): `assets/teacher-dashboard/calc.js` is the single source of the pure calculation and threshold logic for student GitLab work items and repository stoplights. The page loads it as a classic script before `app.js`; the tests evaluate the same file through `tests/helpers/dashboard-calc.ts`, so they exercise the code that runs in the browser. The user interface in `app.js` is React 18 with htm (tagged templates instead of JSX), the same stack as the clickable prototype in owe-1, so no build step is needed. React, ReactDOM and htm are vendored in `assets/teacher-dashboard/vendor/` with pinned versions and SHA-256 hashes (see the README there) instead of loaded from a CDN, so the page in Brightspace runs no third-party code fetched at runtime. The fonts (Atkinson Hyperlegible Next and Mono, SIL OFL 1.1) are bundled too, so the dashboard makes no requests to third parties. The directive `{@bso-teacher-dashboard}` on the teacher page is handled by one remark plugin, `remarkTeacherDashboard` in `src/teacher-page.ts`, which both the Brightspace converter and the Docusaurus preview use (dev/prod parity, like `remarkFlashcards`). It wraps the page in two tabs, *Informatie* and *Voortgangsverkenner*, built from `hName`/`hProperties` nodes rather than raw HTML, with the dashboard in an `iframe` so its React app and CSS stay separate from the lesson page and the topic navigation script; `assets/brightspacosaurus-tabs.js` adds the tab behaviour in both environments, and without JavaScript both panels show one after the other. `src/teacher-dashboard.ts` writes the dashboard files; `prepare` writes them into the instructor module and `preview` into a static directory of the Docusaurus preview, so the preview runs the same dashboard. When `teacherDashboard` is configured in `brightspacosaurus.config.json`, `runPrepare` in `src/main.ts` generates `content/docenten/voortgangsverkenner.html`, `style.css`, `calc.js`, `app.js` and `vendor/` using bundled assets from `assets/teacher-dashboard/`. Cartridge generation in `src/manifest-builder.ts` categorizes content under `content/docenten/` into the instructor module (`module_docentenmateriaal`) with the title "Instructor material (hide after import)", ensuring it can be hidden from students after import. The client SPA executes entirely within the instructor's browser, keeping the token and all fetched data in memory only (with browser password manager support for the token), with selective student refresh, repo filters per assignment level and live threshold settings.
+Teacher progress dashboard (#37): `assets/teacher-dashboard/calc.js` is the single source of the pure calculation and threshold logic for student GitLab work items and repository stoplights. The page loads it as a classic script before `app.js`; the tests evaluate the same file through `tests/helpers/dashboard-calc.ts`, so they exercise the code that runs in the browser. The user interface in `app.js` is React 18 with htm (tagged templates instead of JSX), the same stack as the clickable prototype in owe-1, so no build step is needed. React, ReactDOM and htm are vendored in `assets/teacher-dashboard/vendor/` with pinned versions and SHA-256 hashes (see the README there) instead of loaded from a CDN, so the page in Brightspace runs no third-party code fetched at runtime. The fonts (Atkinson Hyperlegible Next and Mono, SIL OFL 1.1) are bundled too, so the dashboard makes no requests to third parties. The directive `{@bso-teacher-dashboard}` on the teacher page is handled by one remark plugin, `remarkTeacherDashboard` in `src/teacher-page.ts`, which both the Brightspace converter and the Docusaurus preview use (dev/prod parity, like `remarkFlashcards`). It wraps the page in two tabs, *Informatie* and *Voortgangsverkenner*, built from `hName`/`hProperties` nodes rather than raw HTML, with the dashboard in an `iframe` so its React app and CSS stay separate from the lesson page and the topic navigation script; `assets/brightspacosaurus-tabs.js` adds the tab behaviour in both environments, and without JavaScript both panels show one after the other. `src/teacher-dashboard.ts` writes the dashboard files; `build` writes them into the instructor module and `preview` into a static directory of the Docusaurus preview, so the preview runs the same dashboard. When `teacherDashboard` is configured in `brightspacosaurus.config.json`, `runBuild` in `src/main.ts` generates `content/docenten/voortgangsverkenner.html`, `style.css`, `calc.js`, `state.js`, `app.js` and `vendor/` using bundled assets from `assets/teacher-dashboard/`. Cartridge generation in `src/manifest-builder.ts` categorizes content under `content/docenten/` into the instructor module (`module_docentenmateriaal`) with the title "Instructor material (hide after import)", ensuring it can be hidden from students after import. The client SPA executes entirely within the instructor's browser, keeping the token in memory and caching fetched progress in localStorage with bounded retention (with browser password manager support for the token), with selective student refresh, repo filters per assignment level and live threshold settings.
 
 Quiz parsing and validation live in runtime-independent `src/quiz-parser.ts`; `src/quiz-config.ts` supplies shared configuration validation/defaults. The parser accepts the earlier H1/H2 quiz format and the fenced QuizDown authoring format documented in [QuizDown syntax](quizzosaurus-syntax.md) (see [ADR 020](adr/adr020-quizdown-syntax-and-quizzosaurus-package.md)). The QTI converter validates again before serialization, refusing ungradable items, and maps single-choice, multi-select and open short-answer questions to their IMS Common Cartridge QTI profiles. `src/quiz-preview.ts` runs before Docusaurus' default remark plugins so generated metadata reflects the transformed page. It uses the same parsed questions and stable answer labels as QTI; `assets/brightspacosaurus-quizzes.js` shuffles DOM options per attempt, preserving the scoring key. QTI expresses the setting as `render_choice/@shuffle` (`Yes`/`No`), so build output remains deterministic. `bso preview` passes resolved quiz settings through `BSO_PREVIEW_QUIZ_CONFIG`; the demo falls back to its root course config when launched directly with npm. A native Brightspace import still needs manual verification. Preview is practice, with local feedback; it does not persist grades or enforce native attempt limits.
 
@@ -653,7 +660,7 @@ This chapter describes how BSO is distributed and used: from JSR, in CI pipeline
 deno add jsr:@bartvanderwal/brightspacosaurus
 
 # Run the CLI directly, no install
-deno x jsr:@bartvanderwal/brightspacosaurus/cli prepare
+deno x jsr:@bartvanderwal/brightspacosaurus/cli build
 
 # Or install a permanent command
 deno install --allow-read --allow-write --allow-run=pandoc,git --allow-env --allow-net \
@@ -664,14 +671,14 @@ BSO is also usable from Node.js projects through Deno's npm-compatibility layer.
 
 ### 9.2 CI pipeline usage
 
-A typical GitLab CI job runs `prepare` + `pack` and publishes the resulting `.imscc` as a build artifact:
+A typical GitLab CI job runs `build` + `pack` and publishes the resulting `.imscc` as a build artifact:
 
 ```yaml
 build-imscc:
   image: denoland/deno:latest
   script:
     - deno run --allow-read --allow-write --allow-run=pandoc --allow-env --allow-net
-      jsr:@bartvanderwal/brightspacosaurus/cli prepare
+      jsr:@bartvanderwal/brightspacosaurus/cli build
     - deno run --allow-read --allow-write --allow-env
       jsr:@bartvanderwal/brightspacosaurus/cli pack
   artifacts:

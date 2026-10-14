@@ -273,3 +273,29 @@ Deno.test("validateConfig gooit bij een niet-integer quiz maxAttempts", () => {
     "'quiz.maxAttempts' must be a non-negative integer",
   );
 });
+
+Deno.test("quiz.locale defaults to the general language (diagrams.locale), and quiz.locale wins", () => {
+  const base = {
+    courseName: "Quiz",
+    version: "1.0",
+    sourcesDir: "lessons",
+    outputDir: "build",
+  };
+  const resolve = (extra: Record<string, unknown>) => {
+    const config = { ...base, ...extra };
+    validateConfig(config);
+    return resolveConfig(config as BsoConfig, {}, "/repo").quiz;
+  };
+  assertEquals(resolve({}).locale, "en");
+  assertEquals(resolve({ diagrams: { locale: "nl" } }).locale, "nl");
+  assertEquals(resolve({ diagrams: { locale: "nl" } }).questionPrefix, "Vraag");
+  assertEquals(
+    resolve({ diagrams: { locale: "nl" } }).subquestionPrefix,
+    "Deelvraag",
+  );
+  assertEquals(
+    resolve({ diagrams: { locale: "nl" }, quiz: { locale: "en" } }).locale,
+    "en",
+  );
+  assertEquals(resolve({ diagrams: { locale: "en" }, quiz: {} }).locale, "en");
+});

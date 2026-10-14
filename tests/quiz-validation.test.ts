@@ -12,7 +12,7 @@ import { quizTextNodes } from "../src/quiz-markdown.ts";
 import type { FlashcardNode } from "../src/flashcards.ts";
 import { resolveQuizOptions } from "../src/quiz-config.ts";
 import { resolveConfig, validateConfig } from "../src/config-loader.ts";
-import { runPack, runPrepare } from "../src/main.ts";
+import { runBuild, runPack } from "../src/main.ts";
 import JSZip from "jszip";
 
 const question = (
@@ -222,14 +222,14 @@ class A {
 
   // The QTI export renders the same nodes: code elements, no backticks.
   const xml = generateQtiXml(quiz, "quiz-code");
-  assertStringIncludes(xml, "&lt;code&gt;private&lt;/code&gt;");
+  assertStringIncludes(xml, "&gt;private&lt;/code&gt;");
   assertStringIncludes(
     xml,
-    "&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;",
+    "&lt;code class=&quot;language-java code-highlight&quot;&gt;",
   );
   assertStringIncludes(
     xml,
-    "&lt;pre&gt;&lt;code class=&quot;language-jsx&quot;&gt;",
+    "&lt;code class=&quot;language-jsx code-highlight&quot;&gt;",
   );
   assertEquals(xml.includes("`"), false);
 });
@@ -594,7 +594,7 @@ Deno.test("#35 shared config defaults to fixed order and rejects invalid shuffle
   }
 });
 
-Deno.test("#35 shuffle settings survive prepare and pack with deterministic answer IDs and scoring", async () => {
+Deno.test("#35 shuffle settings survive build and pack with deterministic answer IDs and scoring", async () => {
   const root = await Deno.makeTempDir();
   try {
     await Deno.mkdir(join(root, "lessons"));
@@ -613,7 +613,7 @@ Deno.test("#35 shuffle settings survive prepare and pack with deterministic answ
         {},
         root,
       );
-      await runPrepare(config, false, { skipReaders: true });
+      await runBuild(config, false, { skipReaders: true });
       await runPack(config);
       const zip = await JSZip.loadAsync(
         await Deno.readFile(join(config.outputDir, "quiz.v1.0.imscc")),
@@ -670,7 +670,7 @@ Correct antwoord: A
       {},
       root,
     );
-    await runPrepare(config, false, { skipReaders: true });
+    await runBuild(config, false, { skipReaders: true });
     await runPack(config);
 
     const packageFile = join(
@@ -833,4 +833,15 @@ Correct antwoord: B
     "Bella de koe",
   ]);
   assertEquals(quiz.questions[0].text, "Which?");
+});
+
+Deno.test("quiz preview tells the client script the quiz language, so its own texts follow quiz.locale", () => {
+  const locales = (options?: { locale?: "nl" | "en" }) => {
+    const tree: FlashcardNode = { type: "root", children: [] };
+    remarkQuizPreview(options)(tree, { path: "quiz-a.md", value: question() });
+    return tree.children?.[0]?.data?.hProperties?.["data-locale"];
+  };
+  assertEquals(locales(), "en");
+  assertEquals(locales({ locale: "en" }), "en");
+  assertEquals(locales({ locale: "nl" }), "nl");
 });

@@ -17,7 +17,7 @@ This manual describes:
 
 - How Brightspace organizes course material under the hood (data model, import/export)
 - How you install and configure BSO
-- How you publish course material from Markdown source files (`prepare` and `pack`)
+- How you publish course material from Markdown source files (`build` and `pack`)
 - How quizzes are converted to QTI and readers to PDF
 - The import procedure in Brightspace and the additive import behavior
 
@@ -146,7 +146,7 @@ The most important fields:
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `In ontwikkeling voor 2026/2027, periode 3`; `""` disables it |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
-| `quiz.locale`          | no       | Default quiz heading language: `en` (default) or `nl`                                       |
+| `quiz.locale`          | no       | Language of the quiz labels and default headings: `en` or `nl`. Defaults to `diagrams.locale` (the general language of BSO's generated labels), and to `en` when neither is set |
 | `quiz.assignmentPrefix` | no       | Custom assignment heading prefix; overrides the locale default                              |
 | `quiz.questionPrefix`  | no       | Custom prefix for standalone questions; overrides the locale default (`Question`, `Vraag`)               |
 | `quiz.subquestionPrefix`  | no       | Custom prefix for assignment subquestions; overrides the locale default (`Subquestion`, `Deelvraag`)               |
@@ -258,7 +258,7 @@ For Docusaurus preview parity and implementation details, see the [Software Guid
 
 The `error` or `warning` word is colored (red and dark orange) only when stderr is a terminal, `NO_COLOR` is not set and `TERM` is not `dumb`; in a pipe or log the output stays plain. Only that word is colored, so `file:line:column` stays clickable. When there are diagnostics, one blank line precedes the summary line `Checked N Markdown files: X errors, Y warnings.`
 
-`lesson-frontmatter` (warning) reports a YAML frontmatter block at the top of a lesson file. BSO uses frontmatter only for readers (`title`, `author`, `version`, `date`, `updated`, `coverImage`, `coverAlt`); it is not processed in lesson pages. Put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
+`lesson-frontmatter` (warning) reports YAML frontmatter keys that BSO ignores in a lesson file, and names them. BSO reads one key from a lesson's frontmatter: `sidebar_position`, a number that orders the page in the Brightspace menu, as in the Docusaurus sidebar (see 8.2); it does not trigger the warning, but a value that is not a number does. Readers use `title`, `author`, `version`, `date`, `updated`, `coverImage` and `coverAlt` instead. For any other key in a lesson, put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
 
 `hard-wrapped-lines` (warning) reports a paragraph that looks wrapped at a fixed column: three or more lines that are all at least 50 characters long and differ by at most 25 characters. Markdown renders such line breaks as spaces, so the output does not change, but diffs get noisy and AI-assisted editing has to rewrap text. Write each paragraph on one line and let the editor wrap it. Breaks that end in two spaces or a backslash are intentional and ignored.
 
@@ -329,7 +329,7 @@ Place the directive `{@bso-versions}` on its own line where the version table be
 
 BSO replaces the directive with a table containing the course name and `version` from the configuration and the Brightspacosaurus version. Without the directive, the table follows the page's first H1. Directives in code blocks and on other pages stay unchanged. The Docusaurus preview shows the same table.
 
-If the default page does not exist, BSO skips it without a message. If a configured `teacherPage` does not exist, `bso prepare` fails. The page is a normal topic in the cartridge: hide it for students in Brightspace after each import. It contains no secrets.
+If the default page does not exist, BSO skips it without a message. If a configured `teacherPage` does not exist, `bso build` fails. The page is a normal topic in the cartridge: hide it for students in Brightspace after each import. It contains no secrets.
 
 ---
 
@@ -385,7 +385,7 @@ For date-aware week focus, optionally add a `weeks` calendar. Each repository pr
 }
 ```
 
-The dashboard opens the current week by default, leaves earlier weeks collapsed and dims later weeks. Use **Weekfocus** to switch weeks manually. Work items are grouped by their configured repository; unfinished work in a future week is neutral and does not count as backlog. Refreshing a week updates its repositories and keeps the other weeks' data in the page's in-memory cache. Without `weeks`, the dashboard keeps its existing class-wide behavior.
+The dashboard opens the current week by default, leaves earlier weeks collapsed and dims later weeks. Use **Weekfocus** to switch weeks manually. Work items are grouped by their configured repository; unfinished work in a future week is neutral and does not count as backlog. Refreshing a week updates its repositories and keeps the other weeks' cached data. Without `weeks`, refresh applies to the whole class. See the local-cache behavior and privacy warning under **Using the dashboard** below.
 
 #### Security and token handling
 
@@ -435,7 +435,11 @@ The dashboard ships its own fonts (Atkinson Hyperlegible, SIL OFL 1.1) and libra
 5. Open a student, repository and work item in the tree on the left. The work item shows its linked commits and merge requests; each link opens the commit, the merge request changes or the work item in GitLab in a new tab.
 6. Adjust the thresholds under **Instellingen stoplicht**; colours update immediately. The defaults come from the configuration.
 
-All fetched data stays in the page's memory and disappears when you close it. Use **Ververs deze student** to update one student without fetching the whole class again.
+Fetched progress is cached in `localStorage` on this browser and device by default (#61). After validating your token, the dashboard restores data for this GitLab server, course, class and repository/week configuration. Current and future weeks are reused for **5 minutes**, earlier weeks for **24 hours**; without a week calendar the freshness limit is 5 minutes. Stale repositories are refreshed automatically when you enter the dashboard or switch classes. **Ververs nu** bypasses the freshness limit for the selected week (or the class without a calendar). Use **Ververs deze student** to update one student without fetching the whole class again. The displayed **Laatst ververst** timestamp shows the oldest repository fetch in the selected week.
+
+Cached data includes student identifiers, work-item titles and status, counts of comments, and linked commit/MR metadata. The token is **never** cached. Data older than **7 days** is removed when the dashboard opens and every minute while it is open; a closed page cannot run cleanup. **Cache wissen** removes all Voortgangsverkenner caches on this browser-origin and clears the displayed data. **Vergeet token** removes the token and displayed data from memory but does not erase the cache; use **Cache wissen** too on a shared device.
+
+**Privacy:** this is local storage, not encryption or an access-control boundary. Other scripts on the same origin (including other course content on the same Brightspace host) can read it. Use a trusted browser profile/device and clear the cache before sharing it. The dashboard shows this warning beside the cache controls. If browser storage is blocked, full or corrupt, an explicit warning is shown; fetching from GitLab remains available with in-memory data.
 
 ![Voortgangsverkenner class overview with fictitious students](images/voortgangsverkenner-klasoverzicht.png)
 
@@ -467,7 +471,7 @@ start
 :Schrijf of wijzig Markdown in Git;
 :Controleer bestandsnamen en relatieve links;
 :Preview lokaal met Docusaurus;
-:Voer `deno task prepare` uit;
+:Voer `deno task build` uit;
 fork
   :Zet lespagina's om naar HTML;
   :Kopieer gekoppelde afbeeldingen mee;
@@ -496,11 +500,11 @@ The source files remain authoritative:
 Run the export from the root of your course project:
 
 ```sh
-deno task prepare
+deno task build
 deno task pack
 ```
 
-`prepare` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive in the same build directory, for example `build/brightspace/cursus.v1.0.0.imscc`: the name comes from `name`/`courseName` and the postfix from the course `version` in the config.
+`build` scans the source directories, converts Markdown to HTML, converts quiz Markdown to QTI and writes the intermediate output to the build directory. `pack` packages that directory into an `.imscc` archive in the same build directory, for example `build/brightspace/cursus.v1.0.0.imscc`: the name comes from `name`/`courseName` and the postfix from the course `version` in the config.
 
 `imsmanifest.xml` records how the package was made: the LOM description holds the BSO version, course name and course version, for example `Brightspacosaurus 0.18.0; course: Demo Course; course version: 0.10.0`. Read it without Brightspace with `unzip -p cursus.v1.0.0.imscc imsmanifest.xml`. No build time is written by default, so repeated builds stay identical; set `SOURCE_DATE_EPOCH` (seconds since 1970) to add `built: <ISO 8601 time>`.
 
@@ -597,7 +601,7 @@ Preferably choose a clean sandbox course for tests.
 
 ### 5.5 PlantUML and Mermaid diagrams in lesson pages
 
-BSO renders PlantUML and Mermaid fenced code blocks in lesson Markdown during `prepare`. The renderer uses `remark-kroki-a11y` and a Kroki-compatible HTTP service. By default BSO uses the public `https://kroki.io` endpoint and embeds rendered SVG as a base64 image in the generated Brightspace HTML.
+BSO renders PlantUML and Mermaid fenced code blocks in lesson Markdown during `build`. The renderer uses `remark-kroki-a11y` and a Kroki-compatible HTTP service. By default BSO uses the public `https://kroki.io` endpoint and embeds rendered SVG as a base64 image in the generated Brightspace HTML.
 
 Example:
 
@@ -691,6 +695,16 @@ The assignment context is written once and shown before its subquestions in the 
 
 Set `quiz.locale` to `"nl"` to derive the defaults `Opdracht`, `Vraag` and `Deelvraag`; `quiz.subquestionPrefix` sets the prefix of assignment subquestions. A client can instead set `quiz.assignmentPrefix` and/or `quiz.questionPrefix` to its own terms; an explicit prefix takes precedence over the locale. These settings are shared by QTI export, Docusaurus preview and course lint. QuizDown's fenced `quiz` syntax is unchanged. A companion `-antwoorden-docent.md` can mirror the assignment/subquestion headings; lint compares its answer letters by part label. Lint reports assignments without parts, nonconsecutive part letters, malformed heading syntax and assignment/question headings at the wrong level. A subquestion heading outside an assignment is reported as an error. Verify section text, image display, and scoring in a Brightspace sandbox before using the import in a graded quiz.
 
+For Dutch quiz labels, merge this fragment into your existing course configuration:
+
+```json
+{
+  "quiz": {
+    "locale": "nl"
+  }
+}
+```
+
 In QuizDown, an assignment starts with `@ title`. The Markdown up to the first `?` is the shared context (text, code, images); every `?` after it is a sub-question with its own type, so single choice, multiple response and short answers can be mixed. Points go at the end of the `?` line as `(2 pt)` or `(2)`; other spellings such as `(2 punten)` are errors. A `?` before the first `@` is a standalone question. Sub-questions are labelled `1a`, `1b`, ... per assignment. Indented fenced code under an option, also after a blank line, belongs to that option.
 
 ````markdown
@@ -735,15 +749,65 @@ answer order per attempt. Default `false` preserves source order. BSO writes
 and the correct scoring reference. See the [Common Cartridge specification](https://www.imsglobal.org/node/51891).
 The Docusaurus demo uses the same setting and parser for interactive practice;
 answers are shuffled on page entry/new attempt, and stay in place while answering.
+Choosing **New attempt** opens a confirmation dialog before clearing answers,
+score and feedback. Cancelling keeps the current attempt unchanged.
+The buttons (`Check answers` / `Controleer antwoorden`, `New attempt` / `Nieuwe poging`),
+the messages, the score text and this confirmation follow `quiz.locale`.
 Preview scores are local feedback, not stored grades; Brightspace enforces native
 assessment rules and attempt limits. Restart preview after changing configuration.
 Verify native randomization and correct scoring after importing into Brightspace.
+
+To enable shuffling with unlimited attempts, merge these quiz settings into your existing course configuration:
+
+```json
+{
+  "quiz": {
+    "maxAttempts": 0,
+    "shuffleAnswers": true
+  }
+}
+```
 
 ### 7.1 Images in quizzes
 
 A quiz can be given a **header image** via the quiz settings in Brightspace (manually). In the QTI format that BSO generates, you can embed images in question texts via HTML img tags. A quiz banner as a whole is a Brightspace UI setting, not part of QTI.
 
-### 7.2 Teacher and student variants
+### 7.2 Diagrams in questions
+
+A PlantUML or Mermaid block works in a question, an answer option, a hint, an explanation and in the shared text of an assignment, with the same Kroki rendering as lesson pages (section 5.5):
+
+`````markdown
+````quiz
+? Which diagram shows that a `Course` is a kind of `Subject`?
+
+- (x) This diagram:
+  ```plantuml
+  @startuml
+  Course --|> Subject
+  @enduml
+  ```
+- ( ) That diagram:
+  ```plantuml
+  @startuml
+  Subject --|> Course
+  @enduml
+  ```
+````
+`````
+
+`bso build` renders every diagram from its source, so the picture can never get out of step with the code. The QTI export stores each diagram as an SVG file in `quiz/week-N/assets/`, and `bso preview` shows the same quiz with the same diagrams. Below the image, native `<details>` blocks hold the diagram source and a natural-language description generated from it, for screen-reader users and as a text alternative.
+
+The image gets the question as its accessible title (`Question 3`, `Question 4, answer A`; `Vraag 3` with `quiz.locale` `nl`). Give a fence its own title with `imgTitle`:
+
+````markdown
+```plantuml imgTitle="Student enrolls in a course"
+````
+
+`diagrams.failOnError` and `diagrams.krokiUrl` apply as for lessons: with the default `true`, an invalid diagram or an unreachable Kroki endpoint fails the build; with `false` BSO warns and keeps the fenced block. `bso lint` reports diagram authoring errors in quizzes without contacting Kroki.
+
+Use the QuizDown form (a `quiz` block) for diagrams in answer options. Whether Brightspace shows the SVG and the `<details>` blocks inside a quiz question is not yet verified with a real import; check it in a sandbox course before using it in a graded quiz.
+
+### 7.3 Teacher and student variants
 
 Practical convention for filenames:
 
@@ -752,6 +816,16 @@ Practical convention for filenames:
 - Files with the suffix `-antwoorden-docent` are not imported as a student page or assessment.
 
 Brightspace itself already has a separate tool/navigation for tests and quizzes. BSO therefore converts quiz Markdown to QTI assessments and does not build an extra content module for tests.
+
+### 7.4 Code in questions and answer options
+
+Fenced code blocks and inline code work in a question, an answer option, a hint and an explanation. A QTI question has no stylesheet, so BSO writes the styling into the question itself (inline `style`). Code blocks are syntax highlighted at build time with Prism, on a dark block with a border, in the same Palenight colors as the Docusaurus preview. Inline code gets the grey background and border of lesson pages. A language Prism does not know, or a block without a language, stays plain code.
+
+![Brightspace quiz preview with highlighted JavaScript and Java code blocks and inline code in questions and answer options](images/brightspace-quiz-code-highlighting.png)
+
+_Figure 9_: Code in quiz questions and answer options in the Brightspace preview (demo quiz 2.7).
+
+Look at the dark blocks in the questions: keywords, strings, numbers and comments each have their own color. The inline code in the question text and in the answer options has a grey background, so it stands out from the prose. The demo course shows this with JavaScript, Java, YAML and XML in `quiz-7-code-highlighting.md`.
 
 ---
 
@@ -772,6 +846,15 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - Add a cover image with `coverImage` in the frontmatter, relative to the reader file, for example `coverImage: img/git-branches.png`. The image appears between author and date, scaled to at most 80% of the page width and 45% of its height. Use PNG or JPG, and a path without spaces or LaTeX special characters (`%`, `#`, `{`, `}`). If the file is missing or the path is unusable, BSO prints a warning and builds the cover without image. `coverAlt` may hold a description for editors; the PDF does not use it yet.
 - Add a logo to every reader cover page with `readerCoverLogo` in `brightspacosaurus.config.json`, relative to the repository root, for example `"readerCoverLogo": "shared/han-logo.png"`. The logo appears at the bottom of the cover, above the date, at most 4 cm wide and 3 cm high. The same path rules and warnings apply as for `coverImage`.
 
+To disable chapter page breaks and add a cover logo, merge this fragment into the existing course configuration:
+
+```json
+{
+  "readerChapterNewPage": false,
+  "readerCoverLogo": "shared/han-logo.png"
+}
+```
+
 BSO includes reader PDFs in the IMSCC package as webcontent resources. By default they get their own "Readers" module in the menu; see [8.2](#82-menu-module-and-order) to put them in another module.
 
 ### 8.1 Mapping to Brightspace
@@ -784,7 +867,7 @@ In Brightspace you can offer the reader PDFs as follows:
 
 ![Brightspace Manage Files with reader PDFs in the readers directory](images/brightspace-readers-bestanden-beheren.png)
 
-_Figure 9_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
+_Figure 10_: Brightspace Manage Files — reader PDFs are linked from lesson pages.
 
 ---
 
@@ -808,7 +891,7 @@ Reader PDFs get their own module by default. To put them in a content module ins
 
 `title` sets the module title; without it the module keeps the lead page's H1 or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
 
-`prepare` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both come from the same sorted manifest entries; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. Readers remain available through the separate reader page. `bso lint` checks that document IDs and order agree between these files. The navigation includes content from `sourcesDir` and the generated parent `README.md`; other Docusaurus documents outside that content are not added to the Brightspace navigation model.
+`build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both come from the same sorted manifest entries; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. Readers remain available through the separate reader page. `bso lint` checks that document IDs and order agree between these files and the manifest. The navigation includes content from `sourcesDir` and the generated parent `README.md`; other Docusaurus documents outside that content are not added to the Brightspace navigation model.
 
 The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 
@@ -833,6 +916,34 @@ In addition to the images referenced from Markdown, you can supply extra static 
 BSO ships a default CSS stylesheet (`brightspacosaurus.css`), based on the HAN house style. This stylesheet is generic and contains no course-specific colors or selectors.
 
 If you want to add your own styling, you configure a `customCss` path in the configuration file. BSO then adds that stylesheet alongside the default stylesheet. Without `customCss`, BSO uses only the default stylesheet.
+
+Merge this fragment into your existing course configuration to add a stylesheet to the Brightspace export:
+
+```json
+{
+  "customCss": "assets/custom.css"
+}
+```
+
+### 10.1 Loading BSO styles in your Docusaurus preview
+
+`bso preview` writes the complete BSO stylesheet to `src/generated/brightspacosaurus.css` inside your Docusaurus app (the folder gets a `.gitignore`, so the file is not committed). At the start of the app's `src/css/custom.css`, before your own overrides, add:
+
+```css
+@import '../generated/brightspacosaurus.css';
+```
+
+Keep that custom stylesheet registered in `docusaurus.config.js`:
+
+```js
+theme: {
+  customCss: require.resolve('./src/css/custom.css'),
+}
+```
+
+The import loads the complete shared stylesheet: practice quizzes, flashcards, teacher-page tabs and code-block copy controls. No path to a neighbouring BSO checkout, no hardcoded `node_modules` directory and no extra npm package is needed; this works with the `bso` you already run from JSR. Brightspace export already includes the complete stylesheet automatically; the BSO `customCss` configuration field does not register a stylesheet with Docusaurus.
+
+Start the preview with `bso preview` (or `deno task demo` from a BSO checkout). The file is created before Docusaurus starts, so a bare `npm start` on a fresh clone fails to resolve the import; run `bso preview` once first. Every start refreshes the file after you update BSO.
 
 ---
 

@@ -14,7 +14,7 @@ These instructions apply to this repository and are the primary context for AI a
 
 The core consists of separate modules under `src/`:
 
-- `main.ts` — CLI entry point (commands `prepare` and `pack`), guarded with `import.meta.main`.
+- `main.ts` — CLI entry point (commands `build` and `pack`), guarded with `import.meta.main`.
 - `config-loader.ts` — loads, validates and resolves `brightspacosaurus.config.json`.
 - `source-scanner.ts` — scans source directories and classifies files by prefix.
 - `markdown-converter.ts` — Markdown to HTML (unified/remark/rehype).
@@ -61,12 +61,12 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
 
 ## Testing
 
-- Test runner: Deno's built-in `deno test`.
+- Test runner: Deno's built-in `deno test`. A bare `deno test` has no permissions and fails; use `deno task test` (or `deno test -P`, which loads the `default` permission set from `deno.json`).
 - Property-based tests with fast-check (via JSR), at least 100 iterations per property.
 - When making code changes, add or update tests: argument validation, deterministic output, error scenarios.
-- While developing, run `deno task test:fast` (under a minute): all tests except the pandoc PDF conversion tests. Tests that call `runPrepare` without testing PDFs pass `{ skipReaders: true }`.
+- While developing, run `deno task test:fast` (under a minute): all tests except the pandoc PDF conversion tests. Tests that call `runBuild` without testing PDFs pass `{ skipReaders: true }`.
 - Run the full `deno task test` (several minutes, includes `test:pdf`) before considering anything "done" or committing, and when touching reader, instructor-manual or pandoc code.
-- For local builds where PDFs do not matter, use `prepare --skip-readers`: it skips all PDF generation with pandoc (readers, instructor manual, user manual) and still copies pre-built PDFs.
+- For local builds where PDFs do not matter, use `build --skip-readers`: it skips all PDF generation with pandoc (readers, instructor manual, user manual) and still copies pre-built PDFs.
 - Run long test suites in the background and keep working or reporting in the meantime; do not leave the user waiting on a silent foreground run.
 - Follow the project Definition of Done in `docs/definition-of-done.md`, including **80% or higher line coverage**. Also report branch and function coverage, because line coverage alone does not prove both sides of conditional behavior are tested.
 - For security-sensitive or build-wide changes: state what you verified and what you did not.
@@ -74,6 +74,7 @@ Google. (n.d.). *Illustrating*. In *Technical Writing Two*. Google for Developer
 ## Git and commits
 
 - Commit messages in English.
+- No `Co-Authored-By` trailers and no tool attribution lines in commit messages or pull request descriptions; the commit author is the person who owns the change.
 - The commit title briefly captures **what** changed and **why**: `what, because why; see #issue`. Guideline: max ~72 characters for the title; prefer small, logically coherent commits over one large one.
 - Preferably include an issue number in the commit. If there is no matching issue and the change is more than minor maintenance, first create or request an issue so the rationale can live there.
 - **Workflow for agents**: for every commit request, first look up relevant open issues via `gh issue list` and include the matching issue numbers in the commit title. Use `Closes #N` when the commit closes an issue.

@@ -8,19 +8,56 @@ Write lessons, quizzes and readers as Markdown files in Git: versionable, diffab
 
 See it in the demo: [Demo Course Handbook](README.md).
 
-Turn it on: a `brightspacosaurus.config.json` with three required fields, then `bso prepare` and `bso pack`.
+Turn it on: create `brightspacosaurus.config.json` with three required fields:
 
 ```json
-{ "courseName": "My course", "version": "1.0.0", "sourcesDir": "lessons/" }
+{
+  "courseName": "My course",
+  "version": "1.0.0",
+  "sourcesDir": "lessons/"
+}
 ```
+
+With the installed CLI (BSO 0.23.0 or newer), run:
+
+```sh
+bso build
+bso pack
+```
+
+When working from the BSO source repository, use the local project tasks instead:
+
+```sh
+deno task build
+deno task pack
+```
+
+Do not omit `task`: `deno build` tries to run a module named `build`, not the project task. BSO 0.23.0 replaces `prepare` with `build`, without an alias. Updating the source repository does not update an installed `bso`; install the matching release or use the local tasks.
 
 ## Native quizzes
 
 Quiz files (`quiz-` prefix) become QTI 1.2 assessments that Brightspace imports as real, scored quizzes, not as static pages. Inline code and formatting in questions and answers are kept.
 
-See it in the demo: [Quiz 1.1: FizzBuzz](week-1/quiz-1-fizzbuzz.md).
+Code in questions and answer options is syntax highlighted: code blocks are dark with Prism colors, inline code has a grey background (Figure 1).
 
-Turn it on: name the file `quiz-….md`. Optional settings: `"quiz": { "maxAttempts": 0, "shuffleAnswers": true }`. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#7-quizzes-and-qti).
+![Brightspace quiz preview with highlighted JavaScript and Java code blocks and inline code in questions and answer options](images/brightspace-quiz-code-highlighting.png)
+
+_Figure 1_: Code in quiz questions and answer options in the Brightspace preview. Look at the dark code blocks with colored keywords and strings, and at the grey inline code in the question and the options.
+
+See it in the demo: [Quiz 1.1: FizzBuzz](week-1/quiz-1-fizzbuzz.md) and [Quiz 2.7: Code highlighting](week-2/quiz-7-code-highlighting.md).
+
+Turn it on: name the file `quiz-….md`. Add these optional settings to your existing `brightspacosaurus.config.json`:
+
+```json
+{
+  "quiz": {
+    "maxAttempts": 0,
+    "shuffleAnswers": true
+  }
+}
+```
+
+More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#7-quizzes-and-qti).
 
 ## Diagrams-as-code
 
@@ -28,7 +65,17 @@ PlantUML and Mermaid code blocks render to images via Kroki during the build. Ea
 
 See it in the demo: [Lesson 2.1: Diagrams and SVG](week-2/lesson-1-diagrams-and-svg.md).
 
-Turn it on: write a ` ```plantuml ` or ` ```mermaid ` code block. Optional: your own Kroki server with `"diagrams": { "krokiUrl": "http://localhost:8000" }`. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#55-plantuml-and-mermaid-diagrams-in-lesson-pages).
+Turn it on: write a ` ```plantuml ` or ` ```mermaid ` code block. Optional: add your own Kroki server to the existing course configuration:
+
+```json
+{
+  "diagrams": {
+    "krokiUrl": "http://localhost:8000"
+  }
+}
+```
+
+More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#55-plantuml-and-mermaid-diagrams-in-lesson-pages).
 
 ## Docusaurus preview
 
@@ -36,7 +83,13 @@ Turn it on: write a ` ```plantuml ` or ` ```mermaid ` code block. Optional: your
 
 See it in the demo: you are looking at it.
 
-Turn it on: `"docusaurusDir": "my-docusaurus-site"` in the configuration, then `bso preview`.
+Turn it on: add the Docusaurus directory to the existing course configuration, then run `bso preview`:
+
+```json
+{
+  "docusaurusDir": "my-docusaurus-site"
+}
+```
 
 ## Student progress from GitLab (Voortgangsverkenner)
 
@@ -47,11 +100,13 @@ See it in the demo: [For teachers](for-teachers.md), tab *Voortgangsverkenner*. 
 Turn it on: a `teacherDashboard` block in the configuration and `{@bso-teacher-dashboard}` on its own line in the teacher page. Each teacher creates a read-only GitLab token. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#48-teacher-progress-dashboard-voortgangsverkenner).
 
 ```json
-"teacherDashboard": {
-  "gitlabUrl": "https://gitlab.example.org",
-  "groupPath": "my-course-2026",
-  "subgroups": ["class-a", "class-b"],
-  "repos": [{ "prefix": "n1-assignment", "label": "N1 Assignment" }]
+{
+  "teacherDashboard": {
+    "gitlabUrl": "https://gitlab.example.org",
+    "groupPath": "my-course-2026",
+    "subgroups": ["class-a", "class-b"],
+    "repos": [{ "prefix": "n1-assignment", "label": "N1 Assignment" }]
+  }
 }
 ```
 
@@ -61,7 +116,16 @@ Readers (`reader-` prefix) become downloadable PDFs via pandoc, with a separate 
 
 See it in the demo: the reader [Testing basics](../readers/reader-testing-basics.md) starts with a link to its PDF, and [Lesson 2.2: Readers and PDF](week-2/lesson-2-readers-and-pdf.md) explains how readers work.
 
-Turn it on: put `reader-….md` files in `"readersDir": "readers/"`; optional `"readerCoverLogo": "shared/logo.png"`. Needs pandoc. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#8-readers-reference-material-as-pdf).
+Turn it on: put `reader-….md` files in the readers directory and add its path to the existing course configuration. The cover logo is optional. Needs pandoc.
+
+```json
+{
+  "readersDir": "readers/",
+  "readerCoverLogo": "shared/logo.png"
+}
+```
+
+More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#8-readers-reference-material-as-pdf).
 
 ## Flashcards for core concepts
 
@@ -69,7 +133,17 @@ Term/definition lists under a configured heading, such as "Core concepts", becom
 
 See it in the demo: [Lesson 1.4: Core concepts flashcards](week-1/lesson-4-core-concepts.md).
 
-Turn it on: `"flashcards": { "sectionHeadings": ["Core concepts"] }` and a `term: definition` list under that heading. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#44-core-concept-flashcards).
+Turn it on: add the headings to the existing course configuration and write a `term: definition` list under that heading:
+
+```json
+{
+  "flashcards": {
+    "sectionHeadings": ["Core concepts"]
+  }
+}
+```
+
+More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#44-core-concept-flashcards).
 
 ## Teacher-only page
 
@@ -78,6 +152,14 @@ One page in the course for teachers, hidden from students after import. BSO fill
 See it in the demo: [For teachers](for-teachers.md).
 
 Turn it on: create `for-teachers.md` (or set `"teacherPage"`) and put `{@bso-versions}` where the version table should go. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#47-teacher-page).
+
+To choose a different teacher page, add its path relative to `sourcesDir` to the existing course configuration:
+
+```json
+{
+  "teacherPage": "for-teachers.md"
+}
+```
 
 ## Code blocks with a copy button
 
@@ -99,6 +181,23 @@ See it in the user manual: [Linting course material](https://bartvanderwal.githu
 
 The Brightspace menu follows your folders and `sidebar_position` in the front matter, as the Docusaurus sidebar does. Readers can get their own module or join a general one (`readersModule`). Links between lesson pages keep the Brightspace menu in sync.
 
-Turn it on: `sidebar_position: 2` in a page's front matter, and for readers `"readersModule": { "slug": "general", "title": "General" }`.
+Turn it on: set the page's position in its front matter:
+
+```yaml
+---
+sidebar_position: 2
+---
+```
+
+To group readers in a general module, add this to the existing course configuration:
+
+```json
+{
+  "readersModule": {
+    "slug": "general",
+    "title": "General"
+  }
+}
+```
 
 See it in the user manual: [Menu module and order](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#82-menu-module-and-order).

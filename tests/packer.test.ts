@@ -36,9 +36,13 @@ Deno.test("Eigenschap 2: twee keer pack op dezelfde invoer geeft byte-voor-byte 
       fc.uniqueArray(
         fc.tuple(
           fc.stringMatching(/^[a-z][a-z0-9-]{0,8}$/),
-          fc.stringMatching(/^[a-z][a-z0-9]{1,20}$/)
+          fc.stringMatching(/^[a-z][a-z0-9]{1,20}$/),
         ),
-        { minLength: 1, maxLength: 5, selector: ([dir, name]) => `${dir}/${name}` }
+        {
+          minLength: 1,
+          maxLength: 5,
+          selector: ([dir, name]) => `${dir}/${name}`,
+        },
       ),
       async (entries) => {
         const tempRoot = await makeTempDir();
@@ -48,7 +52,10 @@ Deno.test("Eigenschap 2: twee keer pack op dezelfde invoer geeft byte-voor-byte 
           for (const [dir, name] of entries) {
             const subDir = join(sourceDir, dir);
             await Deno.mkdir(subDir, { recursive: true });
-            await Deno.writeTextFile(join(subDir, `${name}.html`), `<html><body>${name}</body></html>`);
+            await Deno.writeTextFile(
+              join(subDir, `${name}.html`),
+              `<html><body>${name}</body></html>`,
+            );
           }
 
           // Eerste pack
@@ -62,14 +69,22 @@ Deno.test("Eigenschap 2: twee keer pack op dezelfde invoer geeft byte-voor-byte 
           // Eigenschap: beide archieven zijn byte-voor-byte identiek
           const bytes1 = await Deno.readFile(output1);
           const bytes2 = await Deno.readFile(output2);
-          assertEquals(bytes1.length, bytes2.length, "Archieven moeten dezelfde grootte hebben");
-          assertEquals(bytes1, bytes2, "Archieven moeten byte-voor-byte identiek zijn");
+          assertEquals(
+            bytes1.length,
+            bytes2.length,
+            "Archieven moeten dezelfde grootte hebben",
+          );
+          assertEquals(
+            bytes1,
+            bytes2,
+            "Archieven moeten byte-voor-byte identiek zijn",
+          );
         } finally {
           await removeDir(tempRoot);
         }
-      }
+      },
     ),
-    { numRuns: 20 }
+    { numRuns: 20 },
   );
 });
 
@@ -82,22 +97,33 @@ Deno.test("Docentenmateriaal (docenten/ in de build-root) komt nooit in het .ims
   const tempRoot = await makeTempDir();
   const sourceDir = join(tempRoot, "build");
   try {
-    await Deno.mkdir(join(sourceDir, "content", "docenten"), { recursive: true });
+    await Deno.mkdir(join(sourceDir, "content", "docenten"), {
+      recursive: true,
+    });
     await Deno.mkdir(join(sourceDir, "docenten"), { recursive: true });
     await Deno.writeTextFile(join(sourceDir, "imsmanifest.xml"), "<manifest/>");
     await Deno.writeTextFile(join(sourceDir, "navigation.json"), "{}");
     await Deno.writeTextFile(join(sourceDir, "docusaurus-sidebars.json"), "{}");
-    await Deno.writeTextFile(join(sourceDir, "docenten", "antwoorden.pdf"), "geheim");
-    await Deno.writeTextFile(join(sourceDir, "content", "docenten", "les.html"), "<p/>");
+    await Deno.writeTextFile(
+      join(sourceDir, "docenten", "antwoorden.pdf"),
+      "geheim",
+    );
+    await Deno.writeTextFile(
+      join(sourceDir, "content", "docenten", "les.html"),
+      "<p/>",
+    );
 
     const outputPath = join(tempRoot, "out.imscc");
     await pack({ sourceDir, outputPath });
 
     const zip = await JSZip.loadAsync(await Deno.readFile(outputPath));
-    assertEquals(Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort(), [
-      "content/docenten/les.html",
-      "imsmanifest.xml",
-    ]);
+    assertEquals(
+      Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort(),
+      [
+        "content/docenten/les.html",
+        "imsmanifest.xml",
+      ],
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -119,8 +145,16 @@ Deno.test("Eigenschap 7: lege bronmap geeft fout en geen artefact", async () => 
     }
 
     // Eigenschap: er moet een fout worden gegooid
-    assertEquals(caughtError !== null, true, "Lege bronmap moet een fout geven");
-    assertEquals(caughtError?.exitCode, 2, "Exitcode moet 2 zijn voor lege bronmap");
+    assertEquals(
+      caughtError !== null,
+      true,
+      "Lege bronmap moet een fout geven",
+    );
+    assertEquals(
+      caughtError?.exitCode,
+      2,
+      "Exitcode moet 2 zijn voor lege bronmap",
+    );
 
     // Eigenschap: er mag geen artefact achterblijven
     let fileExists = false;
@@ -130,7 +164,11 @@ Deno.test("Eigenschap 7: lege bronmap geeft fout en geen artefact", async () => 
     } catch {
       fileExists = false;
     }
-    assertEquals(fileExists, false, "Er mag geen artefact achterblijven bij een fout");
+    assertEquals(
+      fileExists,
+      false,
+      "Er mag geen artefact achterblijven bij een fout",
+    );
   } finally {
     await removeDir(tempRoot);
   }
@@ -148,7 +186,11 @@ Deno.test("Eigenschap 7: niet-bestaande bronmap geeft fout en geen artefact", as
       caughtError = e as Error & { exitCode?: number };
     }
 
-    assertEquals(caughtError !== null, true, "Niet-bestaande bronmap moet een fout geven");
+    assertEquals(
+      caughtError !== null,
+      true,
+      "Niet-bestaande bronmap moet een fout geven",
+    );
     assertEquals(caughtError?.exitCode, 2, "Exitcode moet 2 zijn");
 
     let fileExists = false;

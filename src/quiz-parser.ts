@@ -934,10 +934,16 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
             `Write points as '(2 pt)' or '(2)' at the end of the '?' line, not '${invalidPoints}'.`,
         });
       }
+      // Heading form: a number at the start of the name ('29. Interface') is the
+      // question number, and the rest is the name. A name that is only a number
+      // keeps its text, so the lint can say that a number is no name.
+      const named = titleMode ? text.match(/^(\d+)(?:[.)]\s*|\s*$)(.*)$/) : null;
+      const authorNumber = named ? Number(named[1]) : undefined;
+      const name = named && named[2].trim() ? named[2].trim() : text;
       question = {
-        number: quiz.questions.length + 1,
+        number: authorNumber ?? quiz.questions.length + 1,
         text: titleMode ? "" : text,
-        ...(titleMode ? { title: text } : {}),
+        ...(titleMode ? { title: name } : {}),
         options: [],
         correctAnswer: "",
         correctAnswers: [],

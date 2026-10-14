@@ -169,7 +169,10 @@ export function sortManifestEntriesForNavigation(
     );
     if (groupCompare !== 0) return groupCompare;
 
-    if (options.firstHref && (a.href === options.firstHref) !== (b.href === options.firstHref)) {
+    if (
+      options.firstHref &&
+      (a.href === options.firstHref) !== (b.href === options.firstHref)
+    ) {
       return a.href === options.firstHref ? -1 : 1;
     }
 
@@ -278,7 +281,9 @@ export function buildNavigationModel(
 
   const orderedGroups = [...groups.entries()];
   const modules = orderedGroups
-    .filter(([label]) => label !== "" && (hasContentReaderGroup || label !== readersModule.slug))
+    .filter(([label]) =>
+      label !== "" && (hasContentReaderGroup || label !== readersModule.slug)
+    )
     .sort(([a], [b]) => naturalCompare(a, b))
     .concat(orderedGroups.filter(([label]) => label === ""))
     .concat(
@@ -287,56 +292,56 @@ export function buildNavigationModel(
         : orderedGroups.filter(([label]) => label === readersModule.slug),
     )
     .map(([groupLabel, entries]) => {
-    const holdsReaders = groupLabel === readersModule.slug;
-    const isSeparateReadersModule = holdsReaders && !hasContentReaderGroup;
-    const items = entries.map((entry): NavigationItem => {
-      const isReader = entry.href.startsWith("readers/");
+      const holdsReaders = groupLabel === readersModule.slug;
+      const isSeparateReadersModule = holdsReaders && !hasContentReaderGroup;
+      const items = entries.map((entry): NavigationItem => {
+        const isReader = entry.href.startsWith("readers/");
+        return {
+          kind: isReader
+            ? "reader"
+            : entry.type === "imsqti_xmlv1p2/imscc_xmlv1p3/assessment"
+            ? "quiz"
+            : "lesson",
+          docId: isReader
+            ? null
+            : options.docIdForEntry
+            ? options.docIdForEntry(entry)
+            : entry.href.replace(/^(?:content|quiz)\//, "").replace(
+              /\.[^.]+$/,
+              "",
+            ),
+          href: entry.href,
+          title: entry.title,
+          code: moduleLeadPageWeight(entry) === 0
+            ? null
+            : getNavigationCode(entry),
+          position: entry.position ?? null,
+        };
+      });
+      const leadPage = entries.find((entry) =>
+        entry.type === "webcontent" && moduleLeadPageWeight(entry) === 0
+      );
+      const title = holdsReaders && readersModule.title
+        ? readersModule.title
+        : isSeparateReadersModule
+        ? "Readers"
+        : groupLabel === ""
+        ? moduleTitle("Algemeen", entries)
+        : moduleTitle(groupLabel, entries);
       return {
-        kind: isReader
-          ? "reader"
-          : entry.type === "imsqti_xmlv1p2/imscc_xmlv1p3/assessment"
-          ? "quiz"
-          : "lesson",
-        docId: isReader
-          ? null
-          : options.docIdForEntry
-          ? options.docIdForEntry(entry)
-          : entry.href.replace(/^(?:content|quiz)\//, "").replace(
-            /\.[^.]+$/,
-            "",
-          ),
-        href: entry.href,
-        title: entry.title,
-        code: moduleLeadPageWeight(entry) === 0
-          ? null
-          : getNavigationCode(entry),
-        position: entry.position ?? null,
+        id: groupLabel ? navigationGroupId(groupLabel) : "general",
+        title,
+        indexId: leadPage
+          ? (options.docIdForEntry
+            ? options.docIdForEntry(leadPage)
+            : leadPage.href.replace(/^(?:content|quiz)\//, "").replace(
+              /\.[^.]+$/,
+              "",
+            ))
+          : null,
+        items,
       };
     });
-    const leadPage = entries.find((entry) =>
-      entry.type === "webcontent" && moduleLeadPageWeight(entry) === 0
-    );
-    const title = holdsReaders && readersModule.title
-      ? readersModule.title
-      : isSeparateReadersModule
-      ? "Readers"
-      : groupLabel === ""
-      ? moduleTitle("Algemeen", entries)
-      : moduleTitle(groupLabel, entries);
-    return {
-      id: groupLabel ? navigationGroupId(groupLabel) : "general",
-      title,
-      indexId: leadPage
-        ? (options.docIdForEntry
-          ? options.docIdForEntry(leadPage)
-          : leadPage.href.replace(/^(?:content|quiz)\//, "").replace(
-            /\.[^.]+$/,
-            "",
-          ))
-        : null,
-      items,
-    };
-  });
   return { version: 1, modules };
 }
 
@@ -483,8 +488,14 @@ function buildOrganizationItems(
     let pages = groupEntries;
     if (holdsDashboard) {
       // The dashboard comes directly after the teacher page, or first without one.
-      const at = groupEntries.findIndex((entry) => entry.href === dashboard.teacherPageHref);
-      pages = [...groupEntries.slice(0, at + 1), ...docentenEntries, ...groupEntries.slice(at + 1)];
+      const at = groupEntries.findIndex((entry) =>
+        entry.href === dashboard.teacherPageHref
+      );
+      pages = [
+        ...groupEntries.slice(0, at + 1),
+        ...docentenEntries,
+        ...groupEntries.slice(at + 1),
+      ];
     }
     const children = holdsReaders ? [...pages, ...readerEntries] : pages;
     const title = holdsReaders && readersModule.title
@@ -511,38 +522,51 @@ ${children.map(itemXml).join("\n")}
   // Readers module: all reader PDFs under a single heading, unless they joined
   // a content module above. The default identifier stays "module_readers".
   const readersItems = readerEntries.length > 0 && !readersInGroup
-    ? [`      <item identifier="module_${
-      escapeXml(readersModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"))
-    }">
+    ? [
+      `      <item identifier="module_${
+        escapeXml(readersModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"))
+      }">
         <title>${escapeXml(readersModule.title ?? "Readers")}</title>
 ${readerEntries.map(itemXml).join("\n")}
-      </item>`]
+      </item>`,
+    ]
     : [];
 
   // Instructor module: set to "Do not display" after import in Brightspace.
   // With teacherDashboard.module the items go into a content module instead;
   // when no folder has that name, they get a module of that name.
   const dashboardModule = dashboard.module;
-  const dashboardInGroup = dashboardModule ? groupedEntries.has(dashboardModule.slug) : false;
+  const dashboardInGroup = dashboardModule
+    ? groupedEntries.has(dashboardModule.slug)
+    : false;
   const docentenItems = docentenEntries.length > 0 && !dashboardInGroup
-    ? [`      <item identifier="module_${
-      dashboardModule
-        ? escapeXml("dashboard_" + dashboardModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"))
-        : "docentenmateriaal"
-    }">
+    ? [
+      `      <item identifier="module_${
+        dashboardModule
+          ? escapeXml(
+            "dashboard_" +
+              dashboardModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+          )
+          : "docentenmateriaal"
+      }">
         <title>${
-      escapeXml(dashboardModule ? dashboardModule.title ?? dashboardModule.slug : "Instructor material (hide after import)")
-    }</title>
+        escapeXml(
+          dashboardModule
+            ? dashboardModule.title ?? dashboardModule.slug
+            : "Instructor material (hide after import)",
+        )
+      }</title>
 ${
-      docentenEntries.map((entry) =>
-        `        <item identifier="item_${
-          escapeXml(entry.id)
-        }" identifierref="${escapeXml(entry.id)}">
+        docentenEntries.map((entry) =>
+          `        <item identifier="item_${
+            escapeXml(entry.id)
+          }" identifierref="${escapeXml(entry.id)}">
           <title>${escapeXml(entry.title)}</title>
         </item>`
-      ).join("\n")
-    }
-      </item>`]
+        ).join("\n")
+      }
+      </item>`,
+    ]
     : [];
 
   return [...groupItems, ...looseItems, ...readersItems, ...docentenItems]
@@ -618,7 +642,11 @@ ${fileElements.join("\n")}
     </resource>`;
   }).join("\n");
 
-  const itemsXml = buildOrganizationItems(contentEntries, readersModule, dashboard);
+  const itemsXml = buildOrganizationItems(
+    contentEntries,
+    readersModule,
+    dashboard,
+  );
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="brightspacosaurus_manifest"

@@ -8,6 +8,26 @@ export interface DashboardNode {
 }
 
 interface DashboardState {
+  cacheKey(config: CacheConfig, klas: string): string;
+  pruneCache(storage: Storage, now?: number): void;
+  readCache(
+    storage: Storage,
+    config: CacheConfig,
+    classes: string[],
+    now?: number,
+  ): Record<string, CacheData>;
+  writeCache(
+    storage: Storage,
+    config: CacheConfig,
+    data: Record<string, CacheData>,
+    now?: number,
+  ): void;
+  clearCache(storage: Storage): void;
+  staleRepoPrefixes(
+    config: CacheConfig,
+    data?: CacheData,
+    now?: number,
+  ): string[];
   weekNodeId(klas: string, week: { startsOn: string }): string;
   focusWeek(
     klas: string,
@@ -36,7 +56,34 @@ interface DashboardState {
   ): { repos: T[]; [key: string]: unknown };
 }
 
+export interface CacheConfig {
+  gitlabUrl: string;
+  groupPath: string;
+  repos: Array<{ prefix: string; label?: string }>;
+  weeks?: Array<{ title: string; startsOn: string; repos: string[] }>;
+  teacherUsernames?: string[];
+}
+
+export interface CacheData {
+  fetchedAt: string;
+  students: Record<string, {
+    studentId: string;
+    fetchedAt: string;
+    repos: Array<{
+      prefix: string;
+      fetchedAt: string;
+      workItems: unknown[];
+      error?: string;
+      warning?: string;
+    }>;
+  }>;
+}
+
 const sandbox: { bsoDashboardState?: DashboardState } = {};
+new Function(
+  "globalThis",
+  await loadAssetText("teacher-dashboard/calc.js"),
+)(sandbox);
 new Function(
   "globalThis",
   await loadAssetText("teacher-dashboard/state.js"),

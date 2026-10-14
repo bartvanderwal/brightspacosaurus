@@ -12,6 +12,7 @@ import { basename, dirname, extname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
+import { rehypeQuizHighlight } from "./quiz-highlight.ts";
 
 import { assertValidQuiz, parseQuizMarkdown } from "./quiz-parser.ts";
 import type {
@@ -20,6 +21,15 @@ import type {
   QuizQuestion,
 } from "./quiz-parser.ts";
 import { parseQuizText } from "./quiz-markdown.ts";
+import {
+  diagramKey,
+  isDiagramFence,
+  questionId,
+  quizDiagramFields,
+} from "./quiz-diagram-fields.ts";
+import { renderQuizDiagrams } from "./quiz-diagrams.ts";
+import { resolveQuizOptions } from "./quiz-config.ts";
+import type { ResolvedDiagramConfig } from "./types.ts";
 export { parseQuizMarkdown } from "./quiz-parser.ts";
 export type {
   ParsedQuiz,
@@ -31,9 +41,13 @@ export type {
 } from "./quiz-parser.ts";
 
 // Same mdast as the preview (quiz-markdown.ts); only the last step differs.
+// Raw HTML typed by an author is still dropped (remark-rehype without
+// allowDangerousHtml); only the `raw` nodes of rendered diagrams reach the output.
 const quizHtmlProcessor = unified()
   .use(remarkRehype)
-  .use(rehypeStringify);
+  // QTI has no stylesheet, so token colors are inlined (#103).
+  .use(rehypeQuizHighlight)
+  .use(rehypeStringify, { allowDangerousHtml: true });
 
 /** Options for converting a quiz Markdown file. */
 export interface QuizConvertOptions extends QuizHeadingOptions {
@@ -49,6 +63,8 @@ export interface QuizConvertOptions extends QuizHeadingOptions {
   maxAttempts?: number;
   /** Allow the LMS to randomize answer order; source and XML order stay stable. */
   shuffleAnswers?: boolean;
+  /** Renders PlantUML/Mermaid fences in questions (#101); without it they stay fenced code. */
+  diagrams?: ResolvedDiagramConfig;
 }
 
 /** Result of the quiz conversion. */
@@ -85,11 +101,36 @@ function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
+/** The rendered HTML of the n-th (1-based) diagram fence of a field, if there is one. */
+type DiagramResolver = (ordinal: number) => string | undefined;
+
 function renderQuizMarkdown(
   markdown: string,
   resolveImage?: (url: string) => string,
+  resolveDiagram?: DiagramResolver,
 ): string {
   const parsed = parseQuizText(markdown);
+  if (resolveDiagram) {
+    let ordinal = 0;
+    const replaceDiagrams = (node: typeof parsed) => {
+      if (isDiagramFence(node)) {
+        const html = resolveDiagram(++ordinal);
+        if (html !== undefined) {
+          node.type = "bsoDiagram";
+          delete node.lang;
+          delete node.meta;
+          delete node.value;
+          node.data = {
+            hName: "div",
+            hProperties: { className: ["bso-quiz-diagram"] },
+            hChildren: [{ type: "raw", value: html }],
+          };
+        }
+      }
+      for (const child of node.children ?? []) replaceDiagrams(child);
+    };
+    replaceDiagrams(parsed);
+  }
   if (resolveImage) {
     const resolveImages = (node: typeof parsed) => {
       if (node.type === "image" && typeof node.url === "string") {
@@ -156,8 +197,11 @@ export function generateQtiXml(
   maxAttempts = 0,
   shuffleAnswers = false,
   resolveImage?: (url: string) => string,
+  diagrams?: ReadonlyMap<string, string>,
 ): string {
   assertValidQuiz(quiz);
+  const diagramsOf = (fieldId: string): DiagramResolver | undefined =>
+    diagrams && ((ordinal) => diagrams.get(diagramKey(fieldId, ordinal)));
   const sectionIdent = `sectie-${ident.replace(/^quiz-/, "")}`;
 
   let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
@@ -215,7 +259,13 @@ export function generateQtiXml(
     xml += `        <presentation>\n`;
     xml += `          <material>\n`;
     xml += `            <mattext texttype="text/html">${
-      escapeXml(renderQuizMarkdown(question.text, resolveImage))
+      escapeXml(
+        renderQuizMarkdown(
+          question.text,
+          resolveImage,
+          diagramsOf(`${questionId(question)}.text`),
+        ),
+      )
     }</mattext>\n`;
     xml += `          </material>\n`;
     if (questionType === "open_short") {
@@ -242,7 +292,13 @@ export function generateQtiXml(
         const optIdent = `${qIdent}_${option.label.toLowerCase()}`;
         xml +=
           `              <response_label ident="${optIdent}"><material><mattext texttype="text/html">${
-            escapeXml(renderQuizMarkdown(option.text, resolveImage))
+            escapeXml(
+              renderQuizMarkdown(
+                option.text,
+                resolveImage,
+                diagramsOf(`${questionId(question)}.option.${option.label}`),
+              ),
+            )
           }</mattext></material></response_label>\n`;
       }
 
@@ -293,13 +349,25 @@ export function generateQtiXml(
     if (question.hint) {
       xml +=
         `        <itemfeedback ident="${qIdent}_feedback"><flow_mat><material><mattext texttype="text/html">${
-          escapeXml(renderQuizMarkdown(question.hint, resolveImage))
+          escapeXml(
+            renderQuizMarkdown(
+              question.hint,
+              resolveImage,
+              diagramsOf(`${questionId(question)}.hint`),
+            ),
+          )
         }</mattext></material></flow_mat></itemfeedback>\n`;
     }
     if (question.explanation) {
       xml +=
         `        <itemfeedback ident="${qIdent}_explanation"><flow_mat><material><mattext texttype="text/html">${
-          escapeXml(renderQuizMarkdown(question.explanation, resolveImage))
+          escapeXml(
+            renderQuizMarkdown(
+              question.explanation,
+              resolveImage,
+              diagramsOf(`${questionId(question)}.explanation`),
+            ),
+          )
         }</mattext></material></flow_mat></itemfeedback>\n`;
     }
     xml += `      </item>\n\n`;
@@ -339,7 +407,13 @@ export function generateQtiXml(
       xml += `      <rubric view="All">\n`;
       xml += `        <material>\n`;
       xml += `          <mattext texttype="text/html">${
-        escapeXml(renderQuizMarkdown(assignment.text, resolveImage))
+        escapeXml(
+          renderQuizMarkdown(
+            assignment.text,
+            resolveImage,
+            diagramsOf(`a${assignment.number}.text`),
+          ),
+        )
       }</mattext>\n`;
       xml += `        </material>\n`;
       xml += `      </rubric>\n`;
@@ -439,6 +513,16 @@ export async function convertQuiz(
     return assetRelative ? `${assetRelative}${suffix}` : url;
   };
 
+  // Diagrams are rendered first (async, Kroki); the XML generator stays synchronous.
+  const diagrams = options.diagrams
+    ? await renderQuizDiagrams(
+      quizDiagramFields(quiz, resolveQuizOptions(options)),
+      options.diagrams,
+      sourcePath,
+      outputSubDir,
+    )
+    : undefined;
+
   // Generate QTI XML
   const qtiXml = generateQtiXml(
     quiz,
@@ -446,6 +530,7 @@ export async function convertQuiz(
     options.maxAttempts ?? 0,
     options.shuffleAnswers ?? false,
     resolveImage,
+    diagrams,
   );
 
   // Write to output directory

@@ -1,7 +1,7 @@
 /**
  * Command-line interface for Brightspacosaurus.
  *
- * Provides the `prepare`, `pack` and `preview` commands used to convert
+ * Provides the `build`, `pack` and `preview` commands used to convert
  * Markdown course material into Brightspace-ready build output and packages.
  *
  * @module
@@ -33,6 +33,11 @@ import {
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
+import {
+  PREVIEW_GENERATED_DIR,
+  PREVIEW_STYLESHEET,
+  writePreviewStylesheet,
+} from "./preview-styles.ts";
 import {
   buildDocusaurusSidebars,
   buildManifest,
@@ -78,7 +83,7 @@ export function decodeHtmlEntities(text: string): string {
 const USAGE_BODY = `Usage: brightspacosaurus <command> [options]
 
 Commands:
-  prepare   Convert Markdown source files to HTML and quiz Markdown to QTI
+  build     Generate Brightspace HTML, QTI quizzes, PDFs and assets
   pack      Package the build directory into a .imscc archive
   preview   Start the Docusaurus dev server (requires docusaurusDir in config)
   lint      Check BSO-specific Markdown, includes, diagrams and quiz answers
@@ -115,7 +120,7 @@ function printUsage(
 }
 
 /** Subcommands the CLI accepts as first argument. */
-const COMMANDS = ["prepare", "pack", "preview", "lint"];
+const COMMANDS = ["build", "pack", "preview", "lint"];
 
 /**
  * Returns the error text for an unknown subcommand, or null when the first
@@ -125,6 +130,9 @@ export function unknownCommandMessage(args: string[]): string | null {
   const command = args[0];
   if (command === undefined || command.startsWith("-")) return null;
   if (COMMANDS.includes(command)) return null;
+  if (command === "prepare") {
+    return "Command 'prepare' was renamed to 'build' in BSO 0.23.0.\nUse 'bso build' or 'deno task build' instead.";
+  }
   return `Unknown command '${command}'.\nRun 'bso --help' for available commands.`;
 }
 
@@ -171,27 +179,31 @@ export function parseArgs(
   return { command, sources, readersOnly, skipReaders, output, config };
 }
 
-/** Runs the `prepare` command using an already resolved configuration. */
 /**
  * URL of the Voortgangsverkenner relative to the teacher page's HTML, or null
  * when `teacherDashboard` is not configured (#37).
  */
-function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): string | null {
+function teacherDashboardSrc(
+  config: ResolvedConfig,
+  teacherPagePath: string,
+): string | null {
   if (!config.teacherDashboard) return null;
   const pageDir = dirname(relative(config.sourcesDir, teacherPagePath));
-  return relative(pageDir, join("docenten", "voortgangsverkenner.html")).split(/[\\/]/).join("/");
+  return relative(pageDir, join("docenten", "voortgangsverkenner.html")).split(
+    /[\\/]/,
+  ).join("/");
 }
 
-/** Options for `runPrepare` that do not come from the configuration file. */
-export interface PrepareOptions {
+/** Options for `runBuild` that do not come from the configuration file. */
+export interface BuildOptions {
   /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
   skipReaders?: boolean;
 }
 
-export async function runPrepare(
+export async function runBuild(
   config: ResolvedConfig,
   readersOnly: boolean,
-  options: PrepareOptions = {},
+  options: BuildOptions = {},
 ): Promise<void> {
   const skipReaders = options.skipReaders ?? false;
   const packageVersion = await loadPackageVersion();
@@ -332,10 +344,11 @@ export async function runPrepare(
         sourcesDir: config.sourcesDir,
         maxAttempts: config.quiz.maxAttempts,
         shuffleAnswers: config.quiz.shuffleAnswers,
+        diagrams: config.diagrams,
         locale: config.quiz.locale,
         assignmentPrefix: config.quiz.assignmentPrefix,
         questionPrefix: config.quiz.questionPrefix,
-      subquestionPrefix: config.quiz.subquestionPrefix,
+        subquestionPrefix: config.quiz.subquestionPrefix,
       });
       const relPath = relative(quizOutputDir, result.outputPath);
       console.log(`  ✓ quiz/${relPath}`);
@@ -343,14 +356,19 @@ export async function runPrepare(
 
     // Phase 2b: Teacher Dashboard (Voortgangsverkenner) if configured
     if (config.teacherDashboard) {
-      await writeTeacherDashboard(join(contentOutputDir, "docenten"), config.teacherDashboard);
+      await writeTeacherDashboard(
+        join(contentOutputDir, "docenten"),
+        config.teacherDashboard,
+      );
       console.log(`  ✓ content/docenten/voortgangsverkenner.html`);
     }
   }
 
   // Phase 3: Convert reader Markdown to PDF via pandoc
   if (skipReaders && readerFiles.length > 0) {
-    console.log(`Skipping ${readerFiles.length} reader PDF(s) (--skip-readers).`);
+    console.log(
+      `Skipping ${readerFiles.length} reader PDF(s) (--skip-readers).`,
+    );
   } else if (readerFiles.length > 0) {
     if (!pandocAvailable()) {
       console.warn(
@@ -589,7 +607,7 @@ export async function runPrepare(
     await writeManifestAndNavigation(config, scanResult.quizFiles);
   }
 
-  console.log(`Prepare complete.`);
+  console.log(`Build complete.`);
 }
 
 function normalizePath(path: string): string {
@@ -804,14 +822,14 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   // Course version, not BSO version: it identifies the imported content (#42).
   const outputPath = join(buildDir, `${config.name}.v${config.version}.imscc`);
 
-  // Run prepare first if build/content/ does not exist
+  // Run build first if build/content/ does not exist
   try {
     await Deno.stat(join(buildDir, "content"));
   } catch {
     console.log(
-      "build/brightspace/content/ not found, running prepare first...",
+      "build/brightspace/content/ not found, running build first...",
     );
-    await runPrepare(config, false);
+    await runBuild(config, false);
   }
 
   // Generate the manifest and navigation formats from one sorted entry list.
@@ -889,7 +907,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   }
 
   if (!await pathExists(join(config.outputDir, "content"))) {
-    await runPrepare(config, false, { skipReaders: true });
+    await runBuild(config, false, { skipReaders: true });
   } else {
     await writeManifestAndNavigation(config);
   }
@@ -900,10 +918,18 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     }...`,
   );
 
+  // The app's custom.css imports this file (#95); written before npm starts.
+  await writePreviewStylesheet(config.docusaurusDir);
+  console.log(
+    `Wrote ${
+      join(PREVIEW_GENERATED_DIR, PREVIEW_STYLESHEET)
+    } for the preview styles.`,
+  );
+
   // Dev/prod parity: the preview serves the same dashboard files as the
   // export, from a static directory next to the build directory, so `pack`
   // never includes them (#37).
-  // Reader PDFs from an earlier `prepare` are served too, so reader pages can
+  // Reader PDFs from an earlier `build` are served too, so reader pages can
   // link to the PDF as in Brightspace.
   const staticDir = join(dirname(config.outputDir), "preview-static");
   let previewStaticDir = "";
@@ -1007,7 +1033,9 @@ function firstManifestNavigationIssue(
   const resourceHrefs = new Map(
     [...manifestXml.matchAll(
       /<resource identifier="([^"]+)"[^>]*href="([^"]+)"/g,
-    )].map(([, id, href]) => [id, decodeHtmlEntities(href)] as [string, string]),
+    )].map(([, id, href]) =>
+      [id, decodeHtmlEntities(href)] as [string, string]
+    ),
   );
   const actual = [
     ...manifestXml.matchAll(
@@ -1033,7 +1061,11 @@ function firstManifestNavigationIssue(
   }
   const mismatch = expected.findIndex((href, index) => actual[index] !== href);
   if (mismatch !== -1) {
-    return `Manifest navigation order differs at position ${mismatch + 1}: navigation.json has '${expected[mismatch]}' but imsmanifest.xml has '${actual[mismatch]}'.`;
+    return `Manifest navigation order differs at position ${
+      mismatch + 1
+    }: navigation.json has '${expected[mismatch]}' but imsmanifest.xml has '${
+      actual[mismatch]
+    }'.`;
   }
   if (expected.length !== actual.length) {
     return `Navigation item counts differ: navigation.json has ${expected.length} items but imsmanifest.xml has ${actual.length}.`;
@@ -1057,7 +1089,8 @@ export async function runLint(config: ResolvedConfig): Promise<void> {
         !hasNavigation && "navigation.json",
         !hasSidebars && "docusaurus-sidebars.json",
         !hasManifest && "imsmanifest.xml",
-      ].filter(Boolean).join(", ") + " missing from generated navigation outputs.";
+      ].filter(Boolean).join(", ") +
+        " missing from generated navigation outputs.";
     } else {
       try {
         const navigation = JSON.parse(await Deno.readTextFile(navigationPath));
@@ -1194,8 +1227,8 @@ async function main(): Promise<void> {
   }
 
   try {
-    if (parsed.command === "prepare") {
-      await runPrepare(resolvedConfig, parsed.readersOnly, {
+    if (parsed.command === "build") {
+      await runBuild(resolvedConfig, parsed.readersOnly, {
         skipReaders: parsed.skipReaders,
       });
     } else if (parsed.command === "pack") {

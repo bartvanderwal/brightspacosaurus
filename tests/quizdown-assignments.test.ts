@@ -73,7 +73,7 @@ Deno.test("QuizDown assignment groups typed, scored sub-questions with shared co
 Deno.test("QuizDown assignment becomes a QTI section with the shared text once", () => {
   const xml = generateQtiXml(parseQuizMarkdown(assignmentQuiz), "quiz-test");
   assertEquals(xml.match(/<section /g)?.length, 2);
-  assertEquals(xml.match(/class FizzBuzz/g)?.length, 1);
+  assertEquals(xml.match(/&lt;pre /g)?.length, 1);
 });
 
 Deno.test("lintQuizDown accepts a valid assignment quiz and ignores legacy files", () => {
