@@ -18,7 +18,6 @@ const { remarkQuizPreview } = require("../src/quiz-preview.ts");
 const { resolveQuizOptions } = require("../src/quiz-config.ts");
 const { resolveDiagramsConfig } = require("../src/diagram-config.ts");
 const { remarkPreviewSlides } = require("../src/slides-preview-remark.ts");
-const { numberReaderHeadings } = require("../src/reader-headings.ts");
 const course = require("../brightspacosaurus.config.json");
 const quizOptions = resolveQuizOptions(
   process.env.BSO_PREVIEW_QUIZ_CONFIG
@@ -194,14 +193,9 @@ module.exports = {
         path.dirname(filePath),
         includeHost,
       );
-      const withTeacherVersions = path.resolve(filePath) === teacherPage.path
+      return path.resolve(filePath) === teacherPage.path
         ? insertVersionTable(markdown, teacherPage)
         : markdown;
-      const basename = path.basename(filePath, ".md");
-      return basename.startsWith("reader-") ||
-          basename === "plantuml-essentials"
-        ? numberReaderHeadings(withTeacherVersions)
-        : withTeacherVersions;
     },
   },
   staticDirectories: [

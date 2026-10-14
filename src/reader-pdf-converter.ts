@@ -10,11 +10,6 @@
 import type { ReaderConvertOptions, ReaderConvertResult } from "./types.ts";
 import { materializeAsset } from "./assets.ts";
 import { basename, dirname, join, resolve } from "@std/path";
-import { expandIncludes } from "./includes.ts";
-import {
-  numberReaderHeadings,
-  readerSectionsNumberingEnabled,
-} from "./reader-headings.ts";
 
 /** Metadata passed to pandoc for the generated reader PDF cover page. */
 export interface ReaderPdfMetadata {
@@ -344,32 +339,6 @@ export async function convertReaderToPdf(
     ? undefined
     : await materializeAsset("chapter-filter.lua");
   const sourceContent = await Deno.readTextFile(sourcePath);
-  let inputPath = sourcePath;
-  let tempInputPath: string | undefined;
-  let numberedInput: string | undefined;
-  let resourceDirs = [resourcePath];
-  if (readerSectionsNumberingEnabled(sourceContent)) {
-    const includeDirs = new Set([resourcePath]);
-    const includeWarnings: string[] = [];
-    const expanded = expandIncludes(sourceContent, resourcePath, {
-      resolve: (fromDir, target) => resolve(fromDir, target),
-      dirname,
-      readFile: (path) => {
-        includeDirs.add(dirname(path));
-        try {
-          return Deno.readTextFileSync(path);
-        } catch {
-          return null;
-        }
-      },
-      warn: (message) => includeWarnings.push(message),
-    });
-    if (includeWarnings.length > 0) {
-      throw new Error(includeWarnings.join("\n"));
-    }
-    numberedInput = numberReaderHeadings(expanded);
-    resourceDirs = [...includeDirs];
-  }
   const sourceDate = await gitLastCommitDate(sourcePath, options.repoRoot);
   const metadata = deriveReaderPdfMetadata(sourceContent, sourceFilename, {
     courseName: options.courseName,
@@ -406,25 +375,11 @@ export async function convertReaderToPdf(
   }
 
   // Invoke pandoc
-  if (numberedInput !== undefined) {
-    tempInputPath = await Deno.makeTempFile({
-      dir: outputDir,
-      prefix: `.${pdfFilename}-`,
-      suffix: ".md",
-    });
-    try {
-      await Deno.writeTextFile(tempInputPath, numberedInput);
-    } catch (error) {
-      await Deno.remove(tempInputPath).catch(() => {});
-      throw error;
-    }
-    inputPath = tempInputPath;
-  }
   const command = new Deno.Command("pandoc", {
     args: buildReaderPandocArgs({
-      sourcePath: inputPath,
+      sourcePath,
       outputPath,
-      resourcePath: resourceDirs.join(Deno.build.os === "windows" ? ";" : ":"),
+      resourcePath,
       headerPath,
       includeFilterPath,
       diagramFilterPath,
@@ -436,10 +391,9 @@ export async function convertReaderToPdf(
     stdout: "piped",
     stderr: "piped",
   });
-
   const process = await command.output().finally(async () => {
     if (coverHeaderPath) await Deno.remove(coverHeaderPath).catch(() => {});
-    if (tempInputPath) await Deno.remove(tempInputPath).catch(() => {});
+    if (coverHeaderPath) await Deno.remove(coverHeaderPath).catch(() => {});
   });
 
   if (!process.success) {

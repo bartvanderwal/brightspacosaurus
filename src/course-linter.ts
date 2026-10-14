@@ -23,7 +23,10 @@ import {
 import { parseIncludeTarget } from "./markdown-converter.ts";
 import { scanSources } from "./source-scanner.ts";
 import type { ResolvedConfig } from "./types.ts";
-import { checkReaderHeadingNumbers } from "./reader-headings.ts";
+import {
+  checkReaderHeadingNumbers,
+  readerHeadingNumberLintEnabled,
+} from "./reader-headings.ts";
 
 /** A source-located authoring problem, with a stable rule identifier. */
 export interface LintDiagnostic {
@@ -285,7 +288,10 @@ function inspectMarkdown(
   walk(tree);
 
   const filename = basename(sourceFile);
-  if (filename.startsWith("reader-") || filename === "plantuml-essentials.md") {
+  if (
+    (filename.startsWith("reader-") || filename === "plantuml-essentials.md") &&
+    readerHeadingNumberLintEnabled(markdown)
+  ) {
     const headingNodes: Node[] = [];
     collectHeadingNodes(tree, headingNodes);
     const readerHeadings = headingNodes.map((heading) => ({

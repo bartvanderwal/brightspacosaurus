@@ -27,11 +27,6 @@ import {
   gitLastCommitDate,
   pandocAvailable,
 } from "../src/reader-pdf-converter.ts";
-import { numberReaderHeadings } from "../src/reader-headings.ts";
-import { unified } from "unified";
-import remarkParse from "remark-parse";
-import remarkRehype from "remark-rehype";
-import rehypeStringify from "rehype-stringify";
 
 async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "brightspacosaurus_pbt_" });
@@ -824,87 +819,4 @@ Deno.test("diagrams.locale must be nl or en", () => {
     "diagrams.locale",
   );
   validateConfig({ courseName: "C", version: "1", sourcesDir: "s", diagrams: { locale: "en" } });
-});
-
-Deno.test("opt-in reader numbers are the same Markdown headings rendered as HTML", async () => {
-  const source = `---
-numberSections: true
----
-
-# Reader
-
-## 2. Inleiding
-
-### 2.3 Eerste onderdeel
-
-## 4. Afsluiting
-`;
-  const numbered = numberReaderHeadings(source);
-  const html = String(
-    await unified().use(remarkParse).use(remarkRehype).use(rehypeStringify)
-      .process(numbered),
-  );
-  assertEquals(html.includes("<h2>1 Inleiding</h2>"), true);
-  assertEquals(html.includes("<h3>1.1 Eerste onderdeel</h3>"), true);
-  assertEquals(html.includes("<h2>2 Afsluiting</h2>"), true);
-});
-
-Deno.test("reader headings stay as written unless numberSections is true", () => {
-  const source = "---\nnumberSections: false\n---\n\n## 4. Inleiding\n";
-  assertEquals(numberReaderHeadings(source), source);
-});
-
-Deno.test("opt-in numbering starts at one without an H1 and ignores code fences", () => {
-  const source = `---
-numberSections: true
----
-
-## 3. First
-
-### 3.2 Subsection
-
-\`\`\`md
-## 8. Example heading
-\`\`\`
-
-## 7. Second
-
-## 9. Bijlage C: Appendix
-
-## 10. Bronnen
-
-## A. Sources
-`;
-  assertEquals(
-    numberReaderHeadings(source),
-    `---
-numberSections: true
----
-
-## 1 First
-
-### 1.1 Subsection
-
-\`\`\`md
-## 8. Example heading
-\`\`\`
-
-## 2 Second
-
-## Bijlage A: Appendix
-
-## Bronnen
-
-## Sources
-`,
-  );
-});
-
-Deno.test("a single H2 chapter is not mistaken for a reader title", () => {
-  const source =
-    "---\nnumberSections: true\n---\n\n## 4. Chapter\n\n### 4.1 Detail\n";
-  assertEquals(
-    numberReaderHeadings(source),
-    "---\nnumberSections: true\n---\n\n## 1 Chapter\n\n### 1.1 Detail\n",
-  );
 });

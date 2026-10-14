@@ -6,7 +6,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
-- Reader headings can opt into shared numbering with `numberSections: true`; `bso lint` checks manual heading numbers, appendix letters and unnumbered back matter (#79).
+- `bso lint` checks manually numbered reader sections and appendix letters, preventing duplicate PDF numbering and reporting missing, skipped or repeated numbers (#79).
 
 ### Changed
 
@@ -14,7 +14,7 @@ All notable changes to Brightspacosaurus are documented here.
 - QuizDown heading form: the heading is the name of the question, the text under it is the prompt (without text, the name is also the prompt). The preview shows the name in the legend (`Vraag 29: Gegenereerde interface`), QTI writes it as the item title, and a name that is only a number is the warning `quizdown-question-name` (#90).
 - Standalone questions and assignment subquestions have separate prefixes: `quiz.questionPrefix` (`Question`/`Vraag`) and the new `quiz.subquestionPrefix` (`Subquestion`/`Deelvraag`). With `locale: "nl"`, `questionPrefix` was `Deelvraag` before.
 - The preview shows `Toon het juiste antwoord` and `Toon hint` with `locale: "nl"`.
-- Reader PDFs no longer number headings automatically; opted-in numbering is prepared before the HTML/PDF output split.
+- Reader PDFs no longer add automatic section numbers on top of authored heading text. Reader lint requires manually numbered sections and checks for gaps or repeats; `lintHeadingNumbers: false` opts out.
 
 ## 0.21.1
 

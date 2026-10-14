@@ -9,21 +9,11 @@ export interface ReaderHeadingNumberIssue {
   message: string;
 }
 
-interface LocatedHeading extends ReaderHeading {
-  lineIndex: number;
-  prefix: string;
-  suffix: string;
-}
-
-const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-const ATX_HEADING = /^(\s{0,3})(#{1,6})[ \t]+(.*?)[ \t]*$/;
 const NUMERIC_PREFIX = /^(\d+(?:\.\d+)*)(?:[.)])?\s+/;
 const EXEMPT_TITLES =
   /^(?:Bronnen|Sources|Literatuurlijst|Versiegeschiedenis)(?:\b|$)/i;
 const APPENDIX_TITLE = /^(?:Bijlage|Appendix)\b/i;
 const APPENDIX_LABEL = /^(?:Bijlage|Appendix)\s+([A-Z]+)(?:\b|[.:)]|$)/i;
-const APPENDIX_HEADING =
-  /^(Bijlage|Appendix)(?:\s+([A-Z]+)(?![A-Za-z]))?(?:[.:)]\s*|\s+)?(.*)$/i;
 
 function appendixLabel(index: number): string {
   let label = "";
@@ -40,172 +30,32 @@ function appendixIndex(label: string): number {
   );
 }
 
-/** Whether YAML frontmatter explicitly opts this reader into shared numbering. */
-export function readerSectionsNumberingEnabled(markdown: string): boolean {
-  const frontmatter = markdown.match(FRONTMATTER)?.[1];
-  return frontmatter !== undefined &&
-    /^numberSections:\s*true\s*(?:#.*)?$/m.test(frontmatter);
-}
-
-function frontmatterEnd(markdown: string): number {
-  return markdown.match(FRONTMATTER)?.[0].length ?? 0;
-}
-
-function findHeadings(markdown: string): LocatedHeading[] {
-  const lines = markdown.split(/(?<=\n)/);
-  const headings: LocatedHeading[] = [];
-  let codeFence: { marker: string; length: number } | undefined;
-  let beforeFrontmatter = frontmatterEnd(markdown);
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index];
-    const content = line.replace(/\r?\n$/, "");
-    if (beforeFrontmatter > 0) {
-      beforeFrontmatter -= line.length;
-      continue;
-    }
-
-    const fence = content.match(/^\s{0,3}(`{3,}|~{3,})/);
-    if (codeFence) {
-      if (
-        fence && fence[1][0] === codeFence.marker[0] &&
-        fence[1].length >= codeFence.length
-      ) codeFence = undefined;
-      continue;
-    }
-    if (fence) {
-      codeFence = { marker: fence[1], length: fence[1].length };
-      continue;
-    }
-
-    const atx = content.match(ATX_HEADING);
-    if (atx) {
-      let body = atx[3];
-      const closing = body.match(/^(.*?)(?:[ \t]+#+[ \t]*)$/);
-      let suffix = "";
-      if (closing) {
-        body = closing[1];
-        suffix = closing[0].slice(closing[1].length);
-      }
-      headings.push({
-        depth: atx[2].length,
-        text: body,
-        lineIndex: index,
-        prefix: `${atx[1]}${atx[2]} `,
-        suffix,
-      });
-      continue;
-    }
-
-    if (
-      index + 1 < lines.length &&
-      /^\s{0,3}(?:=+|-+)\s*$/.test(lines[index + 1].replace(/\r?\n$/, "")) &&
-      content.trim()
-    ) {
-      const underline = lines[index + 1].trim();
-      headings.push({
-        depth: underline.startsWith("=") ? 1 : 2,
-        text: content.trim(),
-        lineIndex: index,
-        prefix: "",
-        suffix: "",
-      });
-    }
-  }
-  return headings;
-}
-
-function stripTypedNumber(text: string): string {
-  return text.replace(NUMERIC_PREFIX, "").trimStart();
+/** Whether a reader explicitly opts out of required manual heading numbers. */
+export function readerHeadingNumberLintEnabled(markdown: string): boolean {
+  const frontmatter = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1];
+  return !frontmatter ||
+    !/^lintHeadingNumbers:\s*false\s*(?:#.*)?$/m.test(frontmatter);
 }
 
 /**
- * Adds stable hierarchical numbers to ATX and Setext headings when opted in.
- * A single H1 is treated as the title; readers without one start at section 1.
- */
-export function numberReaderHeadings(markdown: string): string {
-  if (!readerSectionsNumberingEnabled(markdown)) return markdown;
-
-  const headings = findHeadings(markdown);
-  if (headings.length === 0) return markdown;
-  const minDepth = Math.min(...headings.map((heading) => heading.depth));
-  const minDepthHeadings = headings.filter((heading) =>
-    heading.depth === minDepth
-  );
-  const hasTitle = minDepth === 1 && minDepthHeadings.length === 1;
-  const title = hasTitle ? minDepthHeadings[0] : undefined;
-  const firstNumberedDepth = hasTitle ? minDepth : minDepth - 1;
-  const counters: number[] = [];
-  let appendixNumber = 0;
-  const replacements = new Map<number, string>();
-
-  for (const heading of headings) {
-    const cleanText = stripTypedNumber(heading.text);
-    const backMatterText = cleanText.replace(/^[A-Z][.)]?\s+/i, "");
-    if (heading === title) {
-      if (cleanText !== heading.text) {
-        replacements.set(
-          heading.lineIndex,
-          `${heading.prefix}${cleanText}${heading.suffix}`,
-        );
-      }
-      continue;
-    }
-
-    if (EXEMPT_TITLES.test(backMatterText)) {
-      if (backMatterText !== heading.text) {
-        replacements.set(
-          heading.lineIndex,
-          `${heading.prefix}${backMatterText}${heading.suffix}`,
-        );
-      }
-      continue;
-    }
-
-    const appendix = cleanText.match(APPENDIX_HEADING);
-    if (appendix) {
-      appendixNumber++;
-      const rest = appendix[3].trim();
-      const appendixHeading = `${appendix[1]} ${appendixLabel(appendixNumber)}${
-        rest ? `: ${rest}` : ""
-      }`;
-      replacements.set(
-        heading.lineIndex,
-        `${heading.prefix}${appendixHeading}${heading.suffix}`,
-      );
-      continue;
-    }
-
-    const level = Math.max(1, heading.depth - firstNumberedDepth);
-    counters.length = level;
-    counters[level - 1] = (counters[level - 1] ?? 0) + 1;
-    const number = counters.filter((value) => value > 0).join(".");
-    replacements.set(
-      heading.lineIndex,
-      `${heading.prefix}${number} ${cleanText}${heading.suffix}`,
-    );
-  }
-
-  if (replacements.size === 0) return markdown;
-  const lines = markdown.split(/(?<=\n)/);
-  for (const [index, replacement] of replacements) {
-    const lineEnding = lines[index].match(/\r?\n$/)?.[0] ?? "";
-    lines[index] = `${replacement}${lineEnding}`;
-  }
-  return lines.join("");
-}
-
-/**
- * Checks manually numbered reader headings. Unnumbered headings may occur
- * between numbered ones; the next explicit number must still be consecutive.
+ * Checks manual reader heading numbers. A single H1 is treated as the reader
+ * title. Other section headings require consecutive hierarchical numbers.
  */
 export function checkReaderHeadingNumbers(
   headings: ReaderHeading[],
 ): ReaderHeadingNumberIssue[] {
   const issues: ReaderHeadingNumberIssue[] = [];
-  const numberSequences = new Map<number, number[]>();
   let previousAppendix: string | undefined;
+  const h1Headings = headings.filter((heading) => heading.depth === 1);
+  const title = h1Headings.length === 1 ? h1Headings[0] : undefined;
+  const firstSectionDepth = title
+    ? 2
+    : Math.min(...headings.map((heading) => heading.depth));
+  const counters: number[] = [];
 
   for (const heading of headings) {
+    if (heading === title) continue;
+
     const text = heading.text.trim();
     const numberMatch = text.match(NUMERIC_PREFIX);
     const contentWithoutNumber = text.replace(NUMERIC_PREFIX, "");
@@ -256,67 +106,42 @@ export function checkReaderHeadingNumbers(
       continue;
     }
 
-    if (!numberMatch) continue;
+    const level = Math.max(1, heading.depth - firstSectionDepth + 1);
+    for (let index = 0; index < level - 1; index++) {
+      if (counters[index] === undefined) counters[index] = 1;
+    }
+    const expectedParts = counters.slice(0, level);
+    expectedParts[level - 1] = (expectedParts[level - 1] ?? 0) + 1;
+    const expected = expectedParts.join(".");
+
+    if (!numberMatch) {
+      issues.push({
+        heading,
+        message:
+          `Reader section headings must have a manual hierarchical number (expected ${expected}); use \`lintHeadingNumbers: false\` in frontmatter to opt out.`,
+      });
+      counters[level - 1] = expectedParts[level - 1];
+      counters.length = level;
+      continue;
+    }
+
     const number = numberMatch[1].replace(/\.$/, "");
     const parts = number.split(".").map(Number);
-    const hasZero = parts.some((part) => part === 0);
-    if (hasZero) {
+    if (parts.some((part) => part === 0)) {
       issues.push({
         heading,
         message: "Section numbers must not contain a zero level.",
       });
+    } else if (number !== expected) {
+      issues.push({
+        heading,
+        message: `Expected section number ${expected}, found ${number}.`,
+      });
     }
-    const previous = numberSequences.get(heading.depth);
-    if (!hasZero && previous) {
-      let commonPrefix = 0;
-      while (
-        commonPrefix < previous.length && commonPrefix < parts.length &&
-        previous[commonPrefix] === parts[commonPrefix]
-      ) commonPrefix++;
-      if (commonPrefix === previous.length && commonPrefix === parts.length) {
-        issues.push({
-          heading,
-          message: `Section number ${number} repeats.`,
-        });
-      } else if (commonPrefix === parts.length) {
-        issues.push({
-          heading,
-          message: `Section number ${number} repeats or goes backwards after ${
-            previous.join(".")
-          }.`,
-        });
-      } else {
-        const expected = commonPrefix < previous.length
-          ? previous[commonPrefix] + 1
-          : 1;
-        const value = parts[commonPrefix];
-        if (value !== expected) {
-          issues.push({
-            heading,
-            message: value > expected
-              ? `Expected section number ${expected} after ${
-                previous.join(".")
-              }, found ${number}.`
-              : `Section number ${number} repeats or goes backwards after ${
-                previous.join(".")
-              }.`,
-          });
-        } else {
-          for (let index = commonPrefix + 1; index < parts.length; index++) {
-            if (parts[index] !== 1) {
-              issues.push({
-                heading,
-                message: `Expected section number 1 after ${
-                  parts.slice(0, index).join(".")
-                }, found ${parts[index]}.`,
-              });
-              break;
-            }
-          }
-        }
-      }
+    for (let index = 0; index < level; index++) {
+      counters[index] = parts[index] ?? expectedParts[index];
     }
-    numberSequences.set(heading.depth, parts);
+    counters.length = level;
   }
 
   return issues;

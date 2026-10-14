@@ -76,7 +76,7 @@ Deno.test("lint ignores literal examples and reports include and diagram authori
 
 Deno.test("reader heading numbers ascend per level and respect back matter and appendices", () => {
   const valid = `---
-numberSections: true
+title: Reader demo
 ---
 
 # Reader
@@ -104,13 +104,14 @@ numberSections: true
 ## Bijlage
 ## 6. Bijlage B: Bad
 ## C. Sources
+## Missing number
 `;
   const findings = lintMarkdown(invalid, "reader-demo.md").filter((issue) =>
     issue.rule === "reader-heading-numbering"
   );
   assertEquals(
     findings.map(({ line }) => line),
-    [4, 5, 6, 7, 9, 10, 11, 12],
+    [4, 5, 6, 7, 9, 10, 11, 12, 13],
   );
 
   assertEquals(
@@ -128,6 +129,13 @@ numberSections: true
   assertEquals(
     lintMarkdown("## Bijlage C: First\n", "reader-demo.md").length,
     1,
+  );
+  assertEquals(
+    lintMarkdown(
+      "---\nlintHeadingNumbers: false\n---\n\n## Unnumbered heading\n",
+      "reader-demo.md",
+    ),
+    [],
   );
 });
 
