@@ -26,6 +26,10 @@ import {
 import { parseIncludeTarget } from "./markdown-converter.ts";
 import { scanSources } from "./source-scanner.ts";
 import type { ResolvedConfig } from "./types.ts";
+import {
+  checkReaderHeadingNumbers,
+  readerHeadingNumberLintEnabled,
+} from "./reader-headings.ts";
 
 /** A source-located authoring problem, with a stable rule identifier. */
 export interface LintDiagnostic {
@@ -90,6 +94,11 @@ interface Include {
 
 function nodeText(node: Node): string {
   return node.value ?? (node.children ?? []).map(nodeText).join("");
+}
+
+function collectHeadingNodes(node: Node, headings: Node[]): void {
+  if (node.type === "heading") headings.push(node);
+  for (const child of node.children ?? []) collectHeadingNodes(child, headings);
 }
 
 function compareDiagnostics(a: LintDiagnostic, b: LintDiagnostic): number {
@@ -300,6 +309,26 @@ function inspectMarkdown(
     for (const child of node.children ?? []) walk(child, ancestors);
   }
   walk(tree);
+
+  const filename = basename(sourceFile);
+  if (
+    (filename.startsWith("reader-") || filename === "plantuml-essentials.md") &&
+    readerHeadingNumberLintEnabled(markdown)
+  ) {
+    const headingNodes: Node[] = [];
+    collectHeadingNodes(tree, headingNodes);
+    const readerHeadings = headingNodes.map((heading) => ({
+      depth: heading.depth!,
+      text: nodeText(heading),
+    }));
+    for (const issue of checkReaderHeadingNumbers(readerHeadings)) {
+      report(
+        headingNodes[readerHeadings.indexOf(issue.heading)],
+        "reader-heading-numbering",
+        issue.message,
+      );
+    }
+  }
 
   const headings = new Set(
     resolveFlashcardsOptions(options.flashcards).sectionHeadings.map(

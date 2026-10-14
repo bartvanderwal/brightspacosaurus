@@ -8,7 +8,7 @@ date: 2026-09-06
 
 A short reference on the arrange-act-assert pattern for unit tests.
 
-## Arrange-Act-Assert
+## 1. Arrange-Act-Assert
 
 Most unit tests follow three phases:
 
@@ -16,7 +16,7 @@ Most unit tests follow three phases:
 2. **Act** — call the method being tested.
 3. **Assert** — verify the result matches expectations.
 
-## Test flow
+## 2. Test flow
 
 ```mermaid
 flowchart TD
@@ -26,7 +26,7 @@ flowchart TD
     C -->|no| E[Test fails]
 ```
 
-## Class diagram
+## 3. Class diagram
 
 ```plantuml
 @startuml

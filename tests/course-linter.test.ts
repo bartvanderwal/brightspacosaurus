@@ -74,6 +74,73 @@ Deno.test("lint ignores literal examples and reports include and diagram authori
   );
 });
 
+Deno.test("reader heading numbers ascend per level and respect back matter and appendices", () => {
+  const valid = `---
+title: Reader demo
+---
+
+# Reader
+## 1. Intro
+### 1.1 First
+### 1.2 Second
+## 2. Next
+## Bronnen
+## Literatuurlijst
+## Versiegeschiedenis
+## Bijlage A: Eerste
+## Bijlage B: Tweede
+`;
+  assertEquals(lintMarkdown(valid, "reader-demo.md"), []);
+
+  const invalid = `# Reader
+## 1. Intro
+### 1.1 First
+### 1.3 Third
+## 3. Next
+## 3. Duplicate
+## 4. Bronnen
+## Bijlage A: First
+## Bijlage C: Third
+## Bijlage
+## 6. Bijlage B: Bad
+## C. Sources
+## Missing number
+`;
+  const findings = lintMarkdown(invalid, "reader-demo.md").filter((issue) =>
+    issue.rule === "reader-heading-numbering"
+  );
+  assertEquals(
+    findings.map(({ line }) => line),
+    [4, 5, 6, 7, 9, 10, 11, 12, 13],
+  );
+
+  assertEquals(
+    lintMarkdown("## 1. One\n## 3. Three\n", "lesson.md"),
+    [],
+  );
+  assertEquals(
+    lintMarkdown("## 1. One\n### 1.1 First\n### 1.3 Third\n", "reader-demo.md").filter(
+      (issue) => issue.rule === "reader-heading-numbering",
+    ).length,
+    1,
+  );
+  assertEquals(
+    lintMarkdown("## 0. Invalid\n", "reader-demo.md")[0].rule,
+    "reader-heading-numbering",
+  );
+  assertEquals(
+    lintMarkdown("## Bijlage C: First\n", "reader-demo.md").length,
+    1,
+  );
+  assertEquals(
+    lintMarkdown(
+      "---\nlintHeadingNumbers: false\n---\n\n## Unnumbered heading\n",
+      "reader-demo.md",
+    ),
+    [],
+  );
+});
+
 Deno.test("lint shares quiz validation and formats source locations for editors", () => {
   const source =
     "# Quiz\n## Vraag 2\nQuestion?\n- A. Yes\n- B. No\nAntwoord: Z\n";
@@ -579,7 +646,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "41 errors, 13 warnings",
+        "42 errors, 13 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),

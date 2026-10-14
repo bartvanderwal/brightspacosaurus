@@ -2,6 +2,16 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.25.0
+
+### Changed
+
+- **Breaking:** reader PDFs no longer number sections automatically (`pandoc --number-sections` and `section-number-filter.lua` are gone). That produced `0.3.1 2.1 Overerven…`: a leading `0.` for readers without a `#` title and a second number next to a typed one. A reader now carries its own numbers (`## 1. Introduction`, `### 1.1 …`) and the PDF and the Docusaurus preview show them as written (#79).
+
+### Added
+
+- `bso lint` rule `reader-heading-numbering` (error): reader section headings need consecutive hierarchical numbers, without gaps or repeats. Appendices use letters (`Bijlage A`, `Appendix A`); `Bronnen`, `Sources`, `Literatuurlijst` and `Versiegeschiedenis` stay unnumbered. A reader opts out with `lintHeadingNumbers: false` in its frontmatter (#79).
+
 ## 0.24.1
 
 ### Fixed
