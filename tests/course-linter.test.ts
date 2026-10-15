@@ -18,6 +18,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../src/config-loader.ts";
+import { MAX_DOWNLOADABLE_FILE_SIZE } from "../src/downloadable-files.ts";
 
 const card = ":::flashcard\nterm: Test\n\nA **definition**.\n:::";
 const valid = `::::flashcards\n\n${card}\n\n${card}\n\n::::`;
@@ -72,6 +73,82 @@ Deno.test("lint ignores literal examples and reports include and diagram authori
     lintMarkdown(":::flashcards\n:::", "lesson.md")[0].severity,
     "warning",
   );
+});
+
+Deno.test("module index titles use H1, and course lint validates downloads and Docusaurus leftovers", async () => {
+  assertEquals(
+    lintMarkdown("---\ntitle: Frontmatter title\n---\n", "index.md", {
+      moduleIndex: true,
+    }).map((issue) => issue.rule),
+    ["module-index-title"],
+  );
+  assertEquals(
+    lintMarkdown("# Topic title\n", "index.md", { moduleIndex: true }),
+    [],
+  );
+
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({
+    dir: "build",
+    prefix: "lint-downloads-",
+  });
+  const moduleDir = join(root, "lessons", "topic");
+  const filesDir = join(moduleDir, "files");
+  try {
+    await Deno.mkdir(filesDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(moduleDir, "index.md"),
+      "---\ntitle: Frontmatter title\n---\n",
+    );
+    await Deno.writeTextFile(
+      join(moduleDir, "lesson.md"),
+      [
+        "# Lesson",
+        "",
+        "[Starter](files/starter%20code.zip)",
+        "[Missing](files/missing.zip)",
+        "[Large](files/large.zip)",
+        "[Outside](../../outside.zip)",
+      ].join("\n"),
+    );
+    await Deno.writeFile(
+      join(filesDir, "starter code.zip"),
+      new Uint8Array([1]),
+    );
+    const large = await Deno.open(join(filesDir, "large.zip"), {
+      write: true,
+      create: true,
+    });
+    try {
+      await large.seek(MAX_DOWNLOADABLE_FILE_SIZE, Deno.SeekMode.Start);
+      await large.write(new Uint8Array([0]));
+    } finally {
+      large.close();
+    }
+    await Deno.writeTextFile(
+      join(moduleDir, "_category_.json"),
+      '{"label":"Docusaurus category"}',
+    );
+
+    const config = resolveConfig(
+      { courseName: "Lint", version: "1", sourcesDir: "lessons" },
+      {},
+      root,
+    );
+    const rules = (await lintCourse(config)).diagnostics.map((issue) =>
+      issue.rule
+    );
+    assertEquals(rules, [
+      "docusaurus-category-metadata",
+      "lesson-frontmatter",
+      "module-index-title",
+      "downloadable-missing",
+      "downloadable-too-large",
+      "downloadable-path",
+    ]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 Deno.test("reader heading numbers ascend per level and respect back matter and appendices", () => {

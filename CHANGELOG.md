@@ -2,6 +2,13 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.28.0
+
+### Added
+
+- Course modules can use topic, theme or unit folder names; `bso lint` checks that each first-level `index.md` has an H1 title and warns about unused `_category_.json` files.
+- Local Markdown links copy downloadable files into the `.imscc` and the preview. `bso lint` checks that downloads exist, stay inside `sourcesDir` and do not exceed 50 MiB.
+
 ## 0.27.0
 
 ### Changed
