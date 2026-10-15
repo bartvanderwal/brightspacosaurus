@@ -24,6 +24,24 @@ Deno.test("slides configuration supports generated, manual, and combined lesson 
   };
   assertEquals(validateConfig({ ...base, slides }), true);
   assertEquals(resolveConfig({ ...base, slides }, {}, "/repo").slides, slides);
+  const prefixOnly = {
+    generateForPrefix: "lesoverzicht",
+  };
+  assertEquals(validateConfig({ ...base, slides: prefixOnly }), true);
+  assertEquals(
+    resolveConfig({ ...base, slides: prefixOnly }, {}, "/repo").slides,
+    prefixOnly,
+  );
+  assertEquals(
+    validateConfig({
+      ...base,
+      slides: {
+        generateForPrefix: "lesoverzicht",
+        lessons: { "week/lesoverzicht-extra.md": { generate: false } },
+      },
+    }),
+    true,
+  );
 });
 
 Deno.test("slides configuration rejects invalid fields, mappings and paths", () => {
@@ -35,6 +53,8 @@ Deno.test("slides configuration rejects invalid fields, mappings and paths", () 
       {},
       { lessons: [] },
       { lessons: null },
+      { lessons: {}, generateForPrefix: "" },
+      { generateForPrefix: "week/lesson" },
       { lessons: {}, unknown: true },
       { lessons: {}, disclaimer: false },
       { lessons: { "lesson.md": "" } },

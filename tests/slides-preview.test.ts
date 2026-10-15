@@ -176,6 +176,51 @@ Deno.test("slides preview: deterministic glob selection combines slides and reta
   });
 });
 
+Deno.test("slides preview: a course prefix generates matching lessons with explicit overrides", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesoverzicht-1.md",
+      "# First\n\n## Goals\n\n- Learn\n",
+    );
+    await write(root, "lessons/week/lesoverzicht-2.md", "# Excluded");
+    await write(
+      root,
+      "lessons/week/other-lesoverzicht.md",
+      "# Not a prefix match",
+    );
+    await write(root, "lessons/week/lesoverzicht-manual.md", "# Manual lesson");
+    await write(
+      root,
+      "decks/manual.md",
+      "---\nslides: true\ntheme: default\n---\n\n# Authored slides\n",
+    );
+    const selected = {
+      generateForPrefix: "lesoverzicht",
+      lessons: {
+        "week/lesoverzicht-2.md": { generate: false },
+        "week/lesoverzicht-manual.md": "decks/manual.md",
+      },
+    };
+    const captured: string[] = [];
+    const result = await renderPreviewSlides(
+      selected,
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    assertEquals(Object.keys(result), [
+      join(root, "lessons/week/lesoverzicht-1.md"),
+      join(root, "lessons/week/lesoverzicht-manual.md"),
+    ]);
+    assertEquals(captured.length, 2);
+    assertStringIncludes(captured[0], "# First");
+    assertStringIncludes(captured[1], "# Authored slides");
+    assertEquals(captured[1].match(/marp: true/g)?.length, 1);
+  });
+});
+
 Deno.test("slides preview: generated lesson slides combine with manual decks", async () => {
   await fixture(async (root) => {
     await write(
@@ -232,6 +277,7 @@ Deno.test("slides preview: only top-level true frontmatter selects decks", async
       "---\nmarp: true\nmarp: false\n---\n# No",
       "---\nmarp: true\nnot yaml\n---\n# No",
       "---\nmarp: true\n# Missing closing delimiter",
+      "---\nmarp: true\nslides: true\n---\n# Duplicate markers",
     ];
     for (let i = 0; i < rejected.length; i++) {
       await write(root, `decks/${i}.md`, rejected[i]);
@@ -245,7 +291,7 @@ Deno.test("slides preview: only top-level true frontmatter selects decks", async
     await write(
       root,
       "decks/valid.md",
-      "\uFEFF---\r\nmarp: true # enabled\r\n---\r\n# Yes",
+      "\uFEFF---\r\nslides: true # enabled\r\n---\r\n# Yes",
     );
     const captured: string[] = [];
     await renderPreviewSlides(
@@ -257,6 +303,8 @@ Deno.test("slides preview: only top-level true frontmatter selects decks", async
     );
     assertEquals(captured.length, 1);
     assertStringIncludes(captured[0], "# Yes");
+    assertStringIncludes(captured[0], "marp: true");
+    assertEquals(captured[0].includes("slides: true"), false);
   });
 });
 

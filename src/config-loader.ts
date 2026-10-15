@@ -211,14 +211,25 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     const slides = obj.slides as Record<string, unknown>;
     for (const key of Object.keys(slides)) {
-      if (key !== "lessons" && key !== "disclaimer") {
+      if (key !== "lessons" && key !== "disclaimer" && key !== "generateForPrefix") {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
     }
-    if (typeof slides.lessons !== "object" || slides.lessons === null || Array.isArray(slides.lessons)) {
+    if (
+      slides.generateForPrefix !== undefined &&
+      (typeof slides.generateForPrefix !== "string" ||
+        !slides.generateForPrefix.trim() ||
+        /[\\/]/.test(slides.generateForPrefix))
+    ) {
+      throw new Error("Field 'slides.generateForPrefix' must be a non-empty filename prefix without path separators.");
+    }
+    if (slides.generateForPrefix === undefined && slides.lessons === undefined) {
+      throw new Error("Field 'slides' must define 'generateForPrefix' or 'lessons'.");
+    }
+    if (slides.lessons !== undefined && (typeof slides.lessons !== "object" || slides.lessons === null || Array.isArray(slides.lessons))) {
       throw new Error("Field 'slides.lessons' must be an object mapping lesson paths to slide globs or generation options.");
     }
-    for (const [lesson, selection] of Object.entries(slides.lessons)) {
+    for (const [lesson, selection] of Object.entries((slides.lessons ?? {}) as Record<string, unknown>)) {
       if (!lesson.trim() || !lesson.endsWith(".md")) {
         throw new Error("Field 'slides.lessons' must use Markdown lesson paths.");
       }
@@ -242,7 +253,10 @@ export function validateConfig(config: unknown): config is BsoConfig {
         if (options.decks !== undefined && (typeof options.decks !== "string" || !options.decks.trim())) {
           throw new Error(`Field 'slides.lessons.${lesson}.decks' must be a non-empty slide glob.`);
         }
-        if (options.generate !== true && options.decks === undefined) {
+        if (
+          options.generate !== true && options.decks === undefined &&
+          !(slides.generateForPrefix && options.generate === false)
+        ) {
           throw new Error(`Field 'slides.lessons.${lesson}' must select generated slides or a manual deck.`);
         }
       } else {

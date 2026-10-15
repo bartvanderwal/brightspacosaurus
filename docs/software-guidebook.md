@@ -516,6 +516,8 @@ The stylesheet cannot be a package export: Deno rejects CSS entries in the modul
 
 `runPreview` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
 
+`slides.generateForPrefix` selects every Markdown filename in `sourcesDir` beginning with the configured case-sensitive prefix. Explicit entries in `slides.lessons` take precedence, including `{ "generate": false }` opt-outs. Manual deck frontmatter uses `slides: true` as the semantic marker; the legacy `marp: true` marker remains accepted, and BSO normalizes either to the Marp CLI header.
+
 For a content repository's own Docusaurus configuration, add:
 
 ```js

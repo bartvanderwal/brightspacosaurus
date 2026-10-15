@@ -78,8 +78,9 @@ async function collect(
 }
 
 /**
- * Deliberately conservative: only an unquoted top-level YAML boolean enables Marp.
- * Nested keys, block scalars, quoted "true", and ordinary Markdown do not.
+ * Deliberately conservative: only an unquoted top-level YAML boolean enables
+ * slide-deck recognition. `slides: true` is the semantic spelling; `marp: true`
+ * remains supported for existing decks and is normalized for the Marp CLI.
  */
 function frontmatter(
   text: string,
@@ -89,9 +90,10 @@ function frontmatter(
   );
   if (!match) return undefined;
   const lines = match[1].split("\n");
-  const marp = lines.filter((line) => /^marp[ \t]*:/.test(line));
+  const markers = lines.filter((line) => /^(?:marp|slides)[ \t]*:/.test(line));
   if (
-    marp.length !== 1 || !/^marp[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(marp[0])
+    markers.length !== 1 ||
+    !/^(?:marp|slides)[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(markers[0])
   ) return undefined;
   // Reject prose or malformed top-level YAML rather than interpreting it as a deck.
   if (
@@ -99,7 +101,10 @@ function frontmatter(
       line.trim() && !/^(?:[ \t]+|#|[A-Za-z_][\w-]*[ \t]*:)/.test(line)
     )
   ) return undefined;
-  return { header: match[0], body: text.slice(match[0].length) };
+  return {
+    header: match[0].replace(/^slides[ \t]*:.*$/m, "marp: true"),
+    body: text.slice(match[0].length),
+  };
 }
 
 const MIME: Record<string, string> = {
@@ -491,11 +496,21 @@ export async function renderPreviewSlides(
 ): Promise<Record<string, string>> {
   if (!config) return {};
   if (
-    !config.lessons || typeof config.lessons !== "object" ||
-    Array.isArray(config.lessons)
+    (config.lessons !== undefined &&
+      (typeof config.lessons !== "object" || config.lessons === null ||
+        Array.isArray(config.lessons))) ||
+    (config.lessons === undefined && config.generateForPrefix === undefined)
   ) {
     throw new Error(
-      "Slides preview: lessons must map lesson paths to slide globs or generation options",
+      "Slides preview: configure lessons or generateForPrefix",
+    );
+  }
+  if (
+    config.generateForPrefix !== undefined &&
+    (!config.generateForPrefix.trim() || /[\\/]/.test(config.generateForPrefix))
+  ) {
+    throw new Error(
+      "Slides preview: generateForPrefix must be a filename prefix without path separators",
     );
   }
   if (
@@ -511,7 +526,21 @@ export async function renderPreviewSlides(
   const slides = join(output, "slides");
   const tools = join(dirname(output), "marp-tools");
   await confined(slides, root);
-  const mappings = Object.entries(config.lessons).sort(([a], [b]) =>
+  const lessons = new Map(Object.entries(config.lessons ?? {}));
+  if (config.generateForPrefix) {
+    const sourceFiles = await collect(sources, output, tools);
+    for (const file of sourceFiles) {
+      const lessonPath = relative(sources, file).replaceAll("\\", "/");
+      const filename = lessonPath.split("/").at(-1) ?? "";
+      if (
+        filename.startsWith(config.generateForPrefix) &&
+        !lessons.has(lessonPath)
+      ) {
+        lessons.set(lessonPath, { generate: true });
+      }
+    }
+  }
+  const mappings = [...lessons.entries()].sort(([a], [b]) =>
     a < b ? -1 : a > b ? 1 : 0
   );
   const plans: {
@@ -542,7 +571,8 @@ export async function renderPreviewSlides(
           typeof selection.generate !== "boolean") ||
         (selection.decks !== undefined &&
           typeof selection.decks !== "string") ||
-        (!generate && pattern === undefined)
+        (!generate && pattern === undefined &&
+          !(config.generateForPrefix && selection.generate === false))
       ))
     ) {
       throw new Error(
@@ -571,7 +601,11 @@ export async function renderPreviewSlides(
         }
       }
     }
-    if (!decks.length && !generate) continue;
+    if (
+      !decks.length && !generate &&
+      !(config.generateForPrefix && typeof selection !== "string" &&
+        selection.generate === false)
+    ) continue;
     const slug = relative(sources, lesson).replaceAll("\\", "/").replace(
       /\.md$/i,
       "",

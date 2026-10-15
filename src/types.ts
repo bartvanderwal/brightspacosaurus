@@ -148,8 +148,10 @@ export interface SlidesLessonConfig {
 }
 
 export interface SlidesConfig {
-  /** Lesson paths relative to sourcesDir mapped to manual slide globs or generation options. */
-  lessons: Record<string, string | SlidesLessonConfig>;
+  /** Generate slides for source Markdown filenames starting with this prefix. */
+  generateForPrefix?: string;
+  /** Explicit lesson selection overrides generateForPrefix. */
+  lessons?: Record<string, string | SlidesLessonConfig>;
   /** Empty disables the banner; omitted uses the development disclaimer. */
   disclaimer?: string;
 }

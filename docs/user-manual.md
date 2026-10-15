@@ -143,6 +143,7 @@ The most important fields:
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
 | `slides.lessons`       | no       | Preview-only mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); see below |
+| `slides.generateForPrefix` | no    | Generate preview slides for source Markdown filenames beginning with this case-sensitive prefix; explicit `slides.lessons` entries override it |
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `In ontwikkeling voor 2026/2027, periode 3`; `""` disables it |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
@@ -514,24 +515,27 @@ For fast author feedback, use `bso preview` when `docusaurusDir` is configured. 
 
 #### Instructor slides in the local preview
 
-Map lessons to Marp Markdown in the content repository's `brightspacosaurus.config.json`. Existing string values select manual decks; an options object can generate slides from the lesson, select manual decks, or do both:
+Use `slides.generateForPrefix` to generate slides for every Markdown filename in `sourcesDir` that starts with a course-specific prefix. This is useful when all lesson overviews share a naming convention. `slides.lessons` remains available for per-lesson selection and overrides the prefix rule:
 
 ```json
 {
   "slides": {
+    "generateForPrefix": "lesoverzicht",
     "lessons": {
       "lesoverzicht-6.3.md": {
         "generate": true,
         "decks": "instructor-material/week-6/les-3/slides-*.md"
       },
-      "lesoverzicht-8.1.md": { "generate": true }
+      "lesoverzicht-8.1.md": { "generate": false }
     },
     "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
   }
 }
 ```
 
-Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. Generated decks use the lesson H1 as the title slide and create a slide for each H2. They retain lists, tables and images, omit paragraphs, split long lists and tables across slides, and show each `Kernbegrippen`/`Core concepts` definition on its own slide after the term list. Manual decks must have `marp: true` in YAML frontmatter. When both are selected, generated slides come first, followed by matching manual decks in filename order; the first manual deck's frontmatter supplies presentation-wide settings (generated-only decks use the default theme). Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
+The prefix is case-sensitive and matches the filename (not its parent directory). A matching file's explicit `slides.lessons` entry takes precedence; set `{ "generate": false }` to opt it out, or a string/decks value to use manual slides instead. Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. An options object can generate slides from one lesson, select manual decks, or do both.
+
+Generated decks use the lesson H1 as the title slide and create a slide for each H2. They retain lists, tables and images, omit paragraphs, split long lists and tables across slides, and show each `Kernbegrippen`/`Core concepts` definition on its own slide after the term list. Manual decks use the semantic `slides: true` YAML frontmatter marker; existing `marp: true` decks remain supported for compatibility. BSO normalizes either marker for Marp. When generated and manual decks are combined, generated slides come first, followed by matching manual decks in filename order; the first manual deck's frontmatter supplies presentation-wide settings (generated-only decks use the default theme). Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
 
 Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
 
