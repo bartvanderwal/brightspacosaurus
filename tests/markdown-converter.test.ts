@@ -18,6 +18,7 @@ import {
   convertReaderLinks,
 } from "../src/markdown-converter.ts";
 import { join } from "@std/path";
+import { copyDownloadableFiles } from "../src/downloadable-files.ts";
 
 async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "brightspacosaurus_test_" });
@@ -450,6 +451,72 @@ Deno.test("convertMarkdown: interne .md-link en reader-link wijzen relatief naar
     assertEquals(html.includes('href="../faq.html"'), true);
     assertEquals(html.includes('href="../../readers/reader-x.pdf"'), true);
     assertEquals(html.includes("IMS-CC-FILEBASE"), false);
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
+Deno.test("convertMarkdown: local download links copy files beside their source path", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const tempRoot = await Deno.makeTempDir({
+    dir: "build",
+    prefix: "downloads-",
+  });
+  const sourceDir = join(tempRoot, "lessons");
+  const lessonDir = join(sourceDir, "topic");
+  const outputDir = join(tempRoot, "output");
+  try {
+    await Deno.mkdir(join(lessonDir, "files"), { recursive: true });
+    const sourcePath = join(lessonDir, "lesson.md");
+    const sourceBytes = new Uint8Array([1, 2, 3, 4]);
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Lesson\n\n[Download starter code](files/starter.zip)\n",
+    );
+    await Deno.writeFile(join(lessonDir, "files", "starter.zip"), sourceBytes);
+
+    const result = await convertMarkdown({
+      sourcePath,
+      outputDir,
+      repoRoot: tempRoot,
+      baseDir: sourceDir,
+    });
+
+    const html = await Deno.readTextFile(result.outputPath);
+    assertStringIncludes(html, 'href="files/starter.zip"');
+    assertEquals(
+      [
+        ...await Deno.readFile(
+          join(outputDir, "topic", "files", "starter.zip"),
+        ),
+      ],
+      [...sourceBytes],
+    );
+    const previewDownloads = join(tempRoot, "preview", "downloads");
+    assertEquals(
+      await copyDownloadableFiles([sourcePath], sourceDir, previewDownloads),
+      1,
+    );
+    assertEquals(
+      [
+        ...await Deno.readFile(
+          join(previewDownloads, "topic", "files", "starter.zip"),
+        ),
+      ],
+      [...sourceBytes],
+    );
+    await Deno.remove(join(lessonDir, "files", "starter.zip"));
+    await assertRejects(
+      () =>
+        convertMarkdown({
+          sourcePath,
+          outputDir,
+          repoRoot: tempRoot,
+          baseDir: sourceDir,
+        }),
+      Error,
+      "file not found",
+    );
   } finally {
     await removeDir(tempRoot);
   }

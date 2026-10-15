@@ -2,8 +2,12 @@ import { join } from "@std/path";
 
 const TEST_DIR_PREFIXES = [
   "cli-build-",
+  "cleanup-check-",
   "cover-",
   "dashboard-cache-export-",
+  "downloads-",
+  "lint-category-metadata-",
+  "lint-downloads-",
   "logo-",
   "nav-",
   "pack-",
@@ -11,6 +15,7 @@ const TEST_DIR_PREFIXES = [
   "quiz-diagrams-",
   "slides-preview-test-",
   "teacher-",
+  "topic-menu-",
 ];
 
 const TASKS: Record<string, string[]> = {
@@ -30,7 +35,7 @@ const TASKS: Record<string, string[]> = {
     "--allow-run",
     "--allow-env",
     "--allow-net=127.0.0.1",
-    "--ignore=tests/reader-pdf-converter.test.ts,tests/include-filter.test.ts",
+    "--ignore=tests/reader-pdf-converter.test.ts,tests/reader-pdf-converter-unit.test.ts,tests/include-filter.test.ts,tests/details-filter.test.ts",
     "tests/",
   ],
   pdf: [
@@ -41,7 +46,9 @@ const TASKS: Record<string, string[]> = {
     "--allow-env",
     "--allow-net=127.0.0.1",
     "tests/reader-pdf-converter.test.ts",
+    "tests/reader-pdf-converter-unit.test.ts",
     "tests/include-filter.test.ts",
+    "tests/details-filter.test.ts",
   ],
 };
 

@@ -1,5 +1,12 @@
 /** Offline checks for BSO-specific Markdown, complementary to Markdown style linters. */
-import { basename, dirname, isAbsolute, relative, resolve } from "@std/path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "@std/path";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
@@ -30,6 +37,12 @@ import {
   checkReaderHeadingNumbers,
   readerHeadingNumberLintEnabled,
 } from "./reader-headings.ts";
+import {
+  findDownloadableLinks,
+  MAX_DOWNLOADABLE_FILE_SIZE,
+  resolveDownloadableFile,
+} from "./downloadable-files.ts";
+import type { DownloadableLink } from "./downloadable-files.ts";
 
 /** A source-located authoring problem, with a stable rule identifier. */
 export interface LintDiagnostic {
@@ -72,6 +85,8 @@ export interface LintOptions extends QuizHeadingOptions {
   quizBias?: QuizBiasOptions;
   /** Content of the teacher answer model that belongs to a quiz file. */
   teacherAnswers?: string;
+  /** This is an index page for a first-level course module. */
+  moduleIndex?: boolean;
 }
 
 interface Node {
@@ -79,6 +94,7 @@ interface Node {
   name?: string;
   depth?: number;
   value?: string;
+  url?: string;
   children?: Node[];
   position?: {
     start: { line: number; column: number };
@@ -111,7 +127,11 @@ function inspectMarkdown(
   markdown: string,
   sourceFile: string,
   options: LintOptions = {},
-): { diagnostics: LintDiagnostic[]; includes: Include[] } {
+): {
+  diagnostics: LintDiagnostic[];
+  includes: Include[];
+  downloadables: DownloadableLink[];
+} {
   const lines = markdown.split(/\r?\n/);
   const tree = unified().use(remarkParse).use(remarkGfm).use(
     remarkFrontmatter,
@@ -162,12 +182,26 @@ function inspectMarkdown(
   // BSO reads only `sidebar_position` from a lesson's frontmatter (menu order,
   // like the Docusaurus sidebar); any other key is ignored by BSO (#106).
   const frontmatter = tree.children?.[0];
+  if (options.moduleIndex) {
+    const title = tree.children?.find((node) =>
+      node.type === "heading" && node.depth === 1
+    );
+    if (!title || !nodeText(title).trim()) {
+      report(
+        title,
+        "module-index-title",
+        "Add a non-empty '# title' heading to this module's index.md; frontmatter title is not used for the menu.",
+      );
+    }
+  }
   if (options.lessonFile && frontmatter?.type === "yaml") {
     const yaml = String((frontmatter as { value?: string }).value ?? "");
     const keys = [...yaml.matchAll(/^([A-Za-z_][\w-]*)\s*:/gm)].map((m) =>
       m[1]
     );
-    const ignored = [...new Set(keys.filter((key) => key !== "sidebar_position"))];
+    const ignored = [
+      ...new Set(keys.filter((key) => key !== "sidebar_position")),
+    ];
     if (ignored.length > 0) {
       report(
         frontmatter,
@@ -180,7 +214,10 @@ function inspectMarkdown(
         "warning",
       );
     }
-    if (keys.includes("sidebar_position") && readSidebarPosition(`---\n${yaml}\n---`) === undefined) {
+    if (
+      keys.includes("sidebar_position") &&
+      readSidebarPosition(`---\n${yaml}\n---`) === undefined
+    ) {
       report(
         frontmatter,
         "lesson-frontmatter",
@@ -210,7 +247,23 @@ function inspectMarkdown(
     );
   }
 
+  // Three or more `../` in a row: the path breaks when the file moves. Links,
+  // images and `{@include}` targets (which parse as links) are all checked.
+  function checkDeepRelativePath(node: Node): void {
+    const path = (node.url ?? "").split(/[?#]/, 1)[0];
+    if (!/(?:^|[\\/])\.\.[\\/]\.\.[\\/]\.\.(?:[\\/]|$)/.test(path)) return;
+    report(
+      node,
+      "deep-relative-path",
+      `Avoid going up three or more folders with '../' in '${path}'; move the file closer or into a shared folder inside sourcesDir, to avoid brittle file paths.`,
+      "warning",
+    );
+  }
+
   function walk(node: Node, containers: Node[] = []): void {
+    if (node.type === "link" || node.type === "image") {
+      checkDeepRelativePath(node);
+    }
     if (node.type === "paragraph") {
       checkMetadataFields(node);
       checkHardWrap(node);
@@ -429,7 +482,9 @@ function inspectMarkdown(
     }
     // Diagrams inside a ````quiz block are not visible to the file-level check above.
     if (isQuizDown(markdown)) {
-      for (const field of quizDiagramFields(quiz, resolveQuizOptions(options))) {
+      for (
+        const field of quizDiagramFields(quiz, resolveQuizOptions(options))
+      ) {
         for (const issue of detectDiagramIssues(field.markdown, sourceFile)) {
           diagnostics.push({
             sourceFile,
@@ -462,7 +517,7 @@ function inspectMarkdown(
   }
 
   diagnostics.sort(compareDiagnostics);
-  return { diagnostics, includes };
+  return { diagnostics, includes, downloadables: findDownloadableLinks(markdown) };
 }
 
 /** Check BSO-specific Markdown syntax without file writes or network requests. */
@@ -478,12 +533,14 @@ export function lintMarkdown(
 export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   const files = new Set<string>();
   const lessonFiles = new Set<string>();
+  const moduleIndexFiles = new Set<string>();
   const directories: LintResult["directories"] = [];
+  const lintDirs = new Set(
+    (config.lint?.includeDirs ?? [config.sourcesDir, config.readersDir])
+      .filter((dir): dir is string => Boolean(dir)),
+  );
   for (
-    const dir of new Set(
-      (config.lint?.includeDirs ?? [config.sourcesDir, config.readersDir])
-        .filter((dir): dir is string => Boolean(dir)),
-    )
+    const dir of lintDirs
   ) {
     const scan = await scanSources({
       sourcesDir: dir,
@@ -503,14 +560,27 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       ]
     ) files.add(file);
   }
+  for (const file of lessonFiles) {
+    const parts = relative(config.sourcesDir, file).split(/[\\/]/);
+    if (parts.length === 2 && parts[1] === "index.md") {
+      moduleIndexFiles.add(file);
+    }
+  }
   const visited = new Set<string>();
   const diagnostics: LintDiagnostic[] = [];
   async function check(file: string, ancestors: string[] = []): Promise<void> {
     if (visited.has(file)) return;
     visited.add(file);
+    const sourceRelative = relative(config.sourcesDir, file);
+    const downloadRoot = sourceRelative === ".." ||
+        sourceRelative.startsWith("../") ||
+        sourceRelative.startsWith("..\\") || isAbsolute(sourceRelative)
+      ? undefined
+      : config.sourcesDir;
     const result = inspectMarkdown(await Deno.readTextFile(file), file, {
       flashcards: config.flashcards,
       lessonFile: lessonFiles.has(file),
+      moduleIndex: moduleIndexFiles.has(file),
       quizBias: config.lint?.quizBias,
       locale: config.quiz.locale,
       assignmentPrefix: config.quiz.assignmentPrefix,
@@ -519,6 +589,44 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       teacherAnswers: await readTeacherAnswers(file),
     });
     diagnostics.push(...result.diagnostics);
+    for (const link of result.downloadables) {
+      if (!downloadRoot) continue;
+      const resolved = await resolveDownloadableFile(
+        link.url,
+        file,
+        downloadRoot,
+      );
+      if (!("error" in resolved)) continue;
+      const [rule, message] = resolved.error === "missing"
+        ? [
+          "downloadable-missing",
+          `Download file not found or not a file: ${link.url}`,
+        ]
+        : resolved.error === "too-large"
+        ? [
+          "downloadable-too-large",
+          `Download files must be no larger than ${
+            MAX_DOWNLOADABLE_FILE_SIZE / (1024 * 1024)
+          } MiB: ${link.url}`,
+        ]
+        : resolved.error === "outside-sources"
+        ? [
+          "downloadable-path",
+          `Download files must be inside sourcesDir: ${link.url}`,
+        ]
+        : [
+          "downloadable-path",
+          `Invalid URL encoding in download link: ${link.url}`,
+        ];
+      diagnostics.push({
+        sourceFile: file,
+        line: link.line,
+        column: link.column,
+        severity: "error",
+        rule,
+        message,
+      });
+    }
     for (const include of result.includes) {
       const target = resolve(dirname(file), include.target);
       const rel = relative(config.repoRoot, target);
@@ -558,6 +666,35 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     }
   }
   for (const file of [...files].sort()) await check(file);
+  const visitedCategoryDirectories = new Set<string>();
+  async function findCategoryMetadata(dir: string): Promise<void> {
+    if (visitedCategoryDirectories.has(dir)) return;
+    visitedCategoryDirectories.add(dir);
+    for await (const entry of Deno.readDir(dir)) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory) {
+        await findCategoryMetadata(path);
+      } else if (entry.isFile && entry.name === "_category_.json") {
+        diagnostics.push({
+          sourceFile: path,
+          line: 1,
+          column: 1,
+          severity: "warning",
+          rule: "docusaurus-category-metadata",
+          message:
+            "BSO does not use _category_.json; module names and titles come from the folder and index.md.",
+        });
+      }
+    }
+  }
+  for (const dir of lintDirs) {
+    const rel = relative(config.sourcesDir, dir);
+    const outsideSources = rel === ".." || rel.startsWith("../") ||
+      rel.startsWith("..\\") || isAbsolute(rel);
+    if (!outsideSources) {
+      await findCategoryMetadata(dir);
+    }
+  }
   diagnostics.sort(compareDiagnostics);
   return {
     filesChecked: visited.size,

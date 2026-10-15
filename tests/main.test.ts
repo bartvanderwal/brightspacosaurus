@@ -149,7 +149,7 @@ Deno.test("runBuild en runPack bouwen een minimale cartridge met lessen, quiz en
     await Deno.mkdir(config.readersDir!, { recursive: true });
     await Deno.writeTextFile(
       join(config.sourcesDir, "week-1", "les-1.1.md"),
-      "# Les 1.1 & intro\n\n![plaatje](image.png)\n\n## Kernbegrippen\n\n- **request:** Bericht van een client.\n",
+      "# Les 1.1 & intro\n\n![plaatje](image.png)\n\n[Download starter](starter.zip)\n\n## Kernbegrippen\n\n- **request:** Bericht van een client.\n",
     );
     await Deno.writeTextFile(
       join(config.sourcesDir, "week-1", "quiz-1.1.md"),
@@ -158,6 +158,10 @@ Deno.test("runBuild en runPack bouwen een minimale cartridge met lessen, quiz en
     await Deno.writeFile(
       join(config.sourcesDir, "week-1", "image.png"),
       new Uint8Array([1, 2, 3]),
+    );
+    await Deno.writeFile(
+      join(config.sourcesDir, "week-1", "starter.zip"),
+      new Uint8Array([7, 8, 9]),
     );
     await Deno.writeFile(
       join(config.readersDir!, "reader-plantuml-essentials.pdf"),
@@ -192,6 +196,51 @@ Deno.test("runBuild en runPack bouwen een minimale cartridge met lessen, quiz en
     assertStringIncludes(manifest, "<title>Quiz 1.1</title>");
     assertStringIncludes(manifest, "<title>Reader PlantUML essentials</title>");
     assertEquals(archive.isFile, true);
+    assertStringIncludes(manifest, '<file href="content/week-1/starter.zip"/>');
+    const packageZip = await JSZip.loadAsync(
+      await Deno.readFile(
+        join(config.outputDir, "coverage-course.v0.9.0.imscc"),
+      ),
+    );
+    assertEquals(
+      [
+        ...await packageZip.file("content/week-1/starter.zip")!.async(
+          "uint8array",
+        ),
+      ],
+      [7, 8, 9],
+    );
+  } finally {
+    await Deno.remove(repoRoot, { recursive: true });
+  }
+});
+
+Deno.test("runBuild does not export the repository README into a course module", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const repoRoot = await Deno.makeTempDir({
+    dir: "build",
+    prefix: "topic-menu-",
+  });
+  try {
+    const config = testConfig(repoRoot);
+    await Deno.mkdir(join(config.sourcesDir, "topic-intro"), {
+      recursive: true,
+    });
+    await Deno.writeTextFile(
+      join(repoRoot, "README.md"),
+      "# Course overview\n",
+    );
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "topic-intro", "index.md"),
+      "# Introduction\n",
+    );
+    await runBuild(config, false, { skipReaders: true });
+    assertEquals(
+      await exists(
+        join(config.outputDir, "content", "topic-intro", "README.html"),
+      ),
+      false,
+    );
   } finally {
     await Deno.remove(repoRoot, { recursive: true });
   }

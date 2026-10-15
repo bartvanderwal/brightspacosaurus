@@ -19,16 +19,19 @@ import {
   dirname,
   extname,
   fromFileUrl,
+  isAbsolute,
   join,
   relative,
   resolve,
 } from "@std/path";
 import { scanSources } from "./source-scanner.ts";
+import { copyDownloadableFiles } from "./downloadable-files.ts";
 import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import { buildFeatureChapter, loadFeaturePages } from "./manual-source.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import { PREVIEW_GENERATED_DIR, PREVIEW_STYLESHEET, writePreviewStylesheet } from "./preview-styles.ts";
 import {
@@ -296,34 +299,6 @@ export async function runBuild(
       console.log(`  ✓ ${relPath}`);
     }
 
-    // Phase 1b: Convert README.md from the sourcesDir parent to HTML
-    // (if it exists, place it under the first week directory for manifest grouping)
-    const sourcesParent = dirname(config.sourcesDir);
-    const parentHtmlFiles = ["README.md"];
-    for (const parentFile of parentHtmlFiles) {
-      const parentFilePath = join(sourcesParent, parentFile);
-      try {
-        await Deno.stat(parentFilePath);
-        const week1OutputDir = join(contentOutputDir, "week-1");
-        await Deno.mkdir(week1OutputDir, { recursive: true });
-        const result = await convertMarkdown({
-          sourcePath: parentFilePath,
-          outputDir: week1OutputDir,
-          repoRoot,
-          baseDir: dirname(parentFilePath),
-          version: config.version,
-          packageVersion,
-          customCssPath: config.customCss ?? undefined,
-          diagrams: config.diagrams,
-          flashcards: config.flashcards,
-        });
-        const relPath = relative(contentOutputDir, result.outputPath);
-        console.log(`  ✓ ${relPath} (${parentFile})`);
-      } catch {
-        // File not found — skip
-      }
-    }
-
     // Phase 2: Convert quiz Markdown to QTI XML
     for (const quizFile of scanResult.quizFiles) {
       const result = await convertQuiz({
@@ -559,9 +534,21 @@ export async function runBuild(
         console.log("Generating Brightspacosaurus user manual PDF...");
         const headerPath = await materializeAsset("reader-header.tex");
         const includeFilterPath = await materializeAsset("include-filter.lua");
+        const detailsFilterPath = await materializeAsset("details-filter.lua");
+        // The online feature pages are the source for how a feature works; the
+        // manual appends them with their <details> blocks expanded (#111).
+        const featuresDir = resolve(bsoDocsDir, "..", "examples", "demo-course", "lessons", "features");
+        const featureChapter = buildFeatureChapter(await loadFeaturePages(featuresDir));
+        const featureSources: string[] = [];
+        if (featureChapter) {
+          const featureSource = join(buildDir, "user-manual-features.md");
+          await Deno.writeTextFile(featureSource, featureChapter);
+          featureSources.push(featureSource);
+        }
         const bsoCmd = new Deno.Command("pandoc", {
           args: [
             bsoSource,
+            ...featureSources,
             "-o",
             bsoOutput,
             `--resource-path=${bsoDocsDir}`,
@@ -572,6 +559,7 @@ export async function runBuild(
             "lang=nl",
             `--include-in-header=${headerPath}`,
             `--lua-filter=${includeFilterPath}`,
+            `--lua-filter=${detailsFilterPath}`,
             "--syntax-highlighting=tango",
             "--toc",
             "--toc-depth=2",
@@ -649,17 +637,33 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           ? decodeHtmlEntities(h1Match[1].trim())
           : basename(fullPath, extname(fullPath));
 
-        const assetRegex = /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js|woff2))"/gi;
-        const dependencies: string[] = [];
+        const assetRegex = /(?:src|href)="([^"]+)"/gi;
+        const dependencies = new Set<string>();
         let match: RegExpExecArray | null;
         while ((match = assetRegex.exec(html)) !== null) {
-          const assetSrc = match[1];
-          if (!/^(?:https?:|data:|#)/i.test(assetSrc)) {
-            // Resolve relative path with respect to the HTML file
-            const htmlDir = dirname(fullPath);
-            const assetAbs = resolve(htmlDir, assetSrc);
-            const assetRel = "content/" + relative(contentDir, assetAbs);
-            dependencies.push(assetRel);
+          const assetSrc = match[1].split(/[?#]/, 1)[0];
+          if (!assetSrc || /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(assetSrc)) {
+            continue;
+          }
+          let decodedPath: string;
+          try {
+            decodedPath = decodeURIComponent(assetSrc);
+          } catch {
+            continue;
+          }
+          const assetAbs = resolve(dirname(fullPath), decodedPath);
+          const relativeAsset = relative(contentDir, assetAbs);
+          if (
+            !relativeAsset || relativeAsset === ".." ||
+            relativeAsset.startsWith("../") ||
+            relativeAsset.startsWith("..\\") || isAbsolute(relativeAsset) ||
+            /\.(?:html?|md)$/i.test(relativeAsset)
+          ) continue;
+          try {
+            if (!(await Deno.stat(assetAbs)).isFile) continue;
+            dependencies.add(`content/${relativeAsset.replaceAll("\\", "/")}`);
+          } catch {
+            // Missing local files are reported by `bso lint`.
           }
         }
 
@@ -671,7 +675,7 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
           title,
           href: relPath,
           type: "webcontent",
-          dependencies,
+          dependencies: [...dependencies].sort(),
           ...(positionMatch ? { position: Number(positionMatch[1]) } : {}),
         });
       }
@@ -858,6 +862,20 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   // link to the PDF as in Brightspace.
   const staticDir = join(dirname(config.outputDir), "preview-static");
   let previewStaticDir = "";
+  const downloadStaticDir = join(staticDir, "downloads");
+  await Deno.remove(downloadStaticDir, { recursive: true }).catch(() =>
+    undefined
+  );
+  const sources = await scanSources({
+    sourcesDir: config.sourcesDir,
+    repoRoot,
+  });
+  const copiedDownloadableCount = await copyDownloadableFiles(
+    [...sources.markdownFiles, ...sources.quizFiles],
+    config.sourcesDir,
+    downloadStaticDir,
+  );
+  if (copiedDownloadableCount > 0) previewStaticDir = staticDir;
   const { renderPreviewSlides } = await import("./slides-preview.ts");
   const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir);
   if (Object.keys(slides).length) previewStaticDir = staticDir;
@@ -907,9 +925,11 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
         Deno.env.get("NODE_PATH"),
       ),
       BSO_PREVIEW_STATIC_DIR: previewStaticDir,
+      BSO_PREVIEW_SOURCES_DIR: config.sourcesDir,
       BSO_PREVIEW_SLIDES: JSON.stringify(slides),
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
+      BSO_PREVIEW_READERS_MODULE: JSON.stringify(config.readersModule),
       BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({
         path: config.teacherPage?.path ?? null,
         courseName: config.courseName,

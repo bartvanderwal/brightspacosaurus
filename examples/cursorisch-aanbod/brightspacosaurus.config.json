@@ -1,0 +1,18 @@
+{
+  "courseName": "Intro to Agentic UI patterns",
+  "version": "0.1.0",
+  "name": "intro-agentic-ui-patterns",
+  "sourcesDir": "lessons/",
+  "outputDir": "build/brightspace",
+  "quiz": {
+    "locale": "en"
+  },
+  "readersDir": "readers/",
+  "readersModule": {
+    "slug": "algemeen",
+    "title": "Algemeen"
+  },
+  "diagrams": {
+    "krokiUrl": "http://localhost:8000/"
+  }
+}
