@@ -61,21 +61,7 @@ More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guid
 
 ## Diagrams-as-code
 
-PlantUML and Mermaid code blocks render to images via Kroki during the build. Each diagram gets an accessible name, a generated text description and its source behind a native disclosure, so the diagram stays usable with a screen reader and without JavaScript.
-
-See it in the demo: [Lesson 2.1: Diagrams and SVG](week-2/lesson-1-diagrams-and-svg.md).
-
-Turn it on: write a ` ```plantuml ` or ` ```mermaid ` code block. Optional: add your own Kroki server to the existing course configuration:
-
-```json
-{
-  "diagrams": {
-    "krokiUrl": "http://localhost:8000"
-  }
-}
-```
-
-More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#55-plantuml-and-mermaid-diagrams-in-lesson-pages).
+PlantUML and Mermaid code blocks render to accessible images during the build. See [the diagrams-as-code page](features/code-and-diagrams.md).
 
 ## Docusaurus preview
 
@@ -129,21 +115,7 @@ More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guid
 
 ## Flashcards for core concepts
 
-Term/definition lists under a configured heading, such as "Core concepts", become interactive flashcards in Brightspace and in the preview. Without JavaScript they stay a readable list.
-
-See it in the demo: [Lesson 1.4: Core concepts flashcards](week-1/lesson-4-core-concepts.md).
-
-Turn it on: add the headings to the existing course configuration and write a `term: definition` list under that heading:
-
-```json
-{
-  "flashcards": {
-    "sectionHeadings": ["Core concepts"]
-  }
-}
-```
-
-More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#44-core-concept-flashcards).
+Term/definition lists become interactive flashcards, in a short and a long variant. See [the flashcards for core concepts page](features/flashcards.md).
 
 ## Teacher-only page
 
@@ -163,11 +135,7 @@ To choose a different teacher page, add its path relative to `sourcesDir` to the
 
 ## Code blocks with a copy button
 
-Code blocks get syntax highlighting at build time (Prism, the same token classes as the Docusaurus preview) and a one-click copy button in Brightspace.
-
-See it in the demo: [Lesson 1.1: FizzBuzz](week-1/lesson-1-fizzbuzz.md).
-
-Turn it on: nothing to configure; every fenced code block with a language gets it.
+Syntax highlighting at build time and a one-click copy button. See [the code blocks with a copy button page](features/code-and-diagrams.md).
 
 ## `bso lint`
 
@@ -179,25 +147,5 @@ See it in the user manual: [Linting course material](https://bartvanderwal.githu
 
 ## Configurable menu order
 
-The Brightspace menu follows your folders and `sidebar_position` in the front matter, as the Docusaurus sidebar does. Readers can get their own module or join a general one (`readersModule`). Links between lesson pages keep the Brightspace menu in sync.
+The Brightspace menu follows your folders, so a course per topic works as well as a course per week. See [the configurable menu order page](features/course-per-topic.md).
 
-Turn it on: set the page's position in its front matter:
-
-```yaml
----
-sidebar_position: 2
----
-```
-
-To group readers in a general module, add this to the existing course configuration:
-
-```json
-{
-  "readersModule": {
-    "slug": "general",
-    "title": "General"
-  }
-}
-```
-
-See it in the user manual: [Menu module and order](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#82-menu-module-and-order).
