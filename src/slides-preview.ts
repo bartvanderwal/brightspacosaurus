@@ -108,6 +108,13 @@ function frontmatter(
   };
 }
 
+function setTheme(header: string, theme: string): string {
+  if (/^theme[ \t]*:/m.test(header)) {
+    return header.replace(/^theme[ \t]*:.*$/m, `theme: ${theme}`);
+  }
+  return header.replace(/\n---[ \t]*(?:\n|$)/, `\ntheme: ${theme}\n---\n`);
+}
+
 const MIME: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -404,6 +411,35 @@ function banner(value: string): string {
   return `<style id="bso-slide-disclaimer">section::before{content:"${escaped}";position:absolute;top:8px;left:12px;right:12px;font:12px sans-serif;z-index:10;pointer-events:none;opacity:.75}</style>`;
 }
 
+async function dataImage(path: string, root: string): Promise<string> {
+  const image = isAbsolute(path) ? path : resolve(root, path);
+  await confined(image, root);
+  const extension = image.split(".").pop()?.toLowerCase() ?? "";
+  const mime = MIME[extension];
+  if (!mime) {
+    throw new Error(`Slides preview: unsupported logo image: ${path}`);
+  }
+  const stat = await Deno.stat(image).catch(() => undefined);
+  if (!stat?.isFile) {
+    throw new Error(`Slides preview: logo is not a file: ${path}`);
+  }
+  const bytes = await Deno.readFile(image);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+function addLogo(html: string, logo: string): string {
+  let added = false;
+  return html.replace(/<section\b[^>]*>/gi, (opening) => {
+    if (added) return opening;
+    const classes = opening.match(/\bclass=(["'])(.*?)\1/i)?.[2].split(/\s+/);
+    if (!classes?.includes("lead")) return opening;
+    added = true;
+    return `${opening}<img class="bso-slide-logo" src="${logo}" alt="" style="position:absolute;top:1rem;right:1rem;max-width:20%;max-height:15%;object-fit:contain">`;
+  });
+}
+
 const runNpm: SlidesRunner = async (args, cwd) => {
   const result = await new Deno.Command("npm", {
     args,
@@ -520,6 +556,27 @@ export async function renderPreviewSlides(
   const mappings = Object.entries(config.lessons).sort(([a], [b]) =>
     a < b ? -1 : a > b ? 1 : 0
   );
+  const themePath = config.theme
+    ? isAbsolute(config.theme)
+      ? config.theme
+      : resolve(root, config.theme)
+    : undefined;
+  let themeName: string | undefined;
+  if (themePath) {
+    await confined(themePath, root);
+    const themeStat = await Deno.stat(themePath).catch(() => undefined);
+    if (!themeStat?.isFile) {
+      throw new Error(`Slides preview: theme is not a file: ${themePath}`);
+    }
+    const themeCss = await Deno.readTextFile(themePath);
+    themeName = themeCss.match(/@theme[ \t]+([-\w]+)/)?.[1];
+    if (!themeName) {
+      throw new Error(
+        `Slides preview: theme CSS must declare a name with @theme: ${themePath}`,
+      );
+    }
+  }
+  const logo = config.logo ? await dataImage(config.logo, root) : undefined;
   const plans: { lesson: string; url: string; decks: string[] }[] = [];
   const files = mappings.length ? await collect(root, output, tools) : [];
   const urls = new Set<string>();
@@ -589,7 +646,12 @@ export async function renderPreviewSlides(
         svgImages,
       );
       const deck = frontmatter(embedded)!;
-      chunks.push(chunks.length ? deck.body : deck.header + deck.body);
+      chunks.push(
+        chunks.length
+          ? deck.body
+          : (themeName ? setTheme(deck.header, themeName) : deck.header) +
+            deck.body,
+      );
     }
     const destination = join(
       output,
@@ -613,7 +675,7 @@ export async function renderPreviewSlides(
         await prepareTools(tools, root, runner);
         toolsPrepared = true;
       }
-      await runner([
+      const marpArgs = [
         "exec",
         "--prefix",
         tools,
@@ -626,8 +688,10 @@ export async function renderPreviewSlides(
         "--no-config",
         "--no-html",
         "--allow-local-files",
-      ], root);
-      const html = (await Deno.readTextFile(destination)).replace(
+      ];
+      if (themePath) marpArgs.push("--theme-set", themePath);
+      await runner(marpArgs, root);
+      let html = (await Deno.readTextFile(destination)).replace(
         /<img\b[^>]*>/gi,
         (tag) =>
           tag.replace(
@@ -638,6 +702,7 @@ export async function renderPreviewSlides(
                 : attribute,
           ),
       );
+      if (logo) html = addLogo(html, logo);
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
       await Deno.writeTextFile(
         destination,

@@ -145,6 +145,8 @@ The most important fields:
 | `slides.lessons`       | no       | Mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); the slides go into the preview and the `.imscc`; see below |
 | `slides.notes`         | no       | `true` keeps the presenter notes in the slides inside the `.imscc`; default `false` removes them (the preview always shows them) |
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
+| `slides.theme`         | no       | Marp theme CSS file, relative to the repository root; overrides deck-level theme selection in preview and the `.imscc` |
+| `slides.logo`          | no       | Logo image on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
 | `quiz.locale`          | no       | Language of the quiz labels and default headings: `en` or `nl`. Defaults to `diagrams.locale` (the general language of BSO's generated labels), and to `en` when neither is set |
@@ -531,16 +533,18 @@ Map lessons to Marp Markdown in the content repository's `brightspacosaurus.conf
     "lessons": {
       "lesoverzicht-6.3.md": "instructor-material/week-6/les-3/slides-*.md"
     },
-    "disclaimer": "Preview: slides zijn nog in ontwikkeling"
+    "disclaimer": "Preview: slides zijn nog in ontwikkeling",
+    "theme": "shared/slides-theme.css",
+    "logo": "shared/han-logo.png"
   }
 }
 ```
 
-Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. Only decks with `marp: true` in YAML frontmatter qualify; `slides: true` works as well, BSO then tells Marp `marp: true` itself (use one of the two, not both). Matching decks are combined in filename order into one presentation; the first deck's frontmatter supplies the theme and other presentation-wide settings. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
+Lesson paths are relative to `sourcesDir`; slide globs, `theme` and `logo` paths are relative to the repository root. Only decks with `marp: true` in YAML frontmatter qualify; `slides: true` works as well, BSO then tells Marp `marp: true` itself (use one of the two, not both). Matching decks are combined in filename order into one presentation; the first deck's frontmatter supplies other presentation-wide settings. A configured course theme overrides its `theme` setting. The optional logo is embedded on slides marked `<!-- _class: lead -->`; when `slides.logo` is omitted, `readerCoverLogo` is reused if set. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
 
 Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
 
-BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-marp-presentations-in-the-preview-and-the-cartridge).
+BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. Marp theme CSS can style `section`, headings such as `section h1`/`section h2`, pagination with `section::after`, title slides with `section.lead`, and `section header`/`section footer`. BSO reserves `section::before` for the disclaimer banner and `.bso-slide-logo` for the generated title logo; themes should not use those selectors. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-marp-presentations-in-the-preview-and-the-cartridge).
 
 `bso build` also adds the slides to the `.imscc`: each lesson with slides gets one extra topic `Slides: <lesson title>` right after the lesson in its module, a self-contained HTML file with the images embedded and the disclaimer on every slide. Every student who can see the module can open it, so keep the disclaimer for slides that are not final. The presenter notes (HTML comments in the deck) are removed from these slides, because Marp writes them into the HTML where students could read them; set `"notes": true` in `slides` to keep them anyway. The preview always shows them. Rendering needs npm and takes a while; skip it with `bso build --skip-slides`. A course without `slides` in its configuration needs neither. Check in your Brightspace sandbox that the topic opens and navigates before you rely on it: Marp's HTML contains a script.
 
