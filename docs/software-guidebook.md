@@ -240,16 +240,40 @@ This chapter lists the fixed constraints the design has to work within: runtime,
 
 ## 5. Principles
 
-This chapter lists the principles that guide design decisions, from configuration to security. The list below applies to all of BSO; section 5.1 adds the principles for integrations that call an external API at runtime.
+This chapter lists the principles that guide design decisions, from configuration to security. Section 5.1 applies to all of BSO; section 5.2 adds the principles for integrations that call an external API at runtime.
 
-- **5.1** Security principles for runtime integrations
+- **5.1** General principles
+- **5.2** Security principles for runtime integrations
 
-- **Convention over configuration.** Sensible defaults everywhere; only three fields are required. The build directory, output name, and instructor-manual location all derive from defaults unless overridden.
+### 5.1 General principles
+
+- **Convention over configuration.** Sensible defaults everywhere; only three fields are required (`courseName`, `version`, `sourcesDir`). The build directory, the package name and the instructor-manual location all derive from defaults unless overridden. Rationale and decision: section 8.9 and [ADR 021](adr/adr021-convention-over-configuration-and-good-defaults.md). This configuration is enough to build a course:
+
+  ```json
+  {
+    "courseName": "Demo Course",
+    "version": "1.0.0",
+    "sourcesDir": "lessons/"
+  }
+  ```
+
+  BSO derives the rest: output goes to `build/brightspace/`, the package name `demo-course` comes from the course name, so the archive is `build/brightspace/demo-course.v1.0.0.imscc`. Each of these has a field to override it (`outputDir`, `name`).
 - **Single source of truth.** Markdown in Git is authoritative. Every artifact (HTML, QTI, PDF, manifest, `.imscc`) is generated and never hand-edited. Brightspace is a distribution channel, not the store of record.
 - **Config-driven, no hardcoded paths.** Nothing project-specific lives in the code; it all comes from `brightspacosaurus.config.json` or CLI arguments.
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
+- **No magic: easy to analyse, no Clippy.** BSO does what the user asked and nothing hidden behind the scenes. It does not silently fix, update, install or rewrite anything the user did not ask for. It detects the problem, says what is wrong, names the command that fixes it, and lets the user decide. Example: `bso preview` warns when the Docusaurus plugin has a different BSO version than the CLI and prints the `npm update` command; it does not update anything itself (#118). A helpful tool that quietly repairs things behind the scenes (the Clippy syndrome) causes new, unexpected problems that the user did not ask for and cannot explain.
 
-### 5.1 Security principles for runtime integrations
+  Clarke's third law says that "any sufficiently advanced technology is indistinguishable from magic" (Clarke, 1973). Turn it around: sufficiently analysed magic is indistinguishable from technology. So BSO should be technology that is easy to analyse (KISS), not magic. Magic hides its mechanism, and a hidden mechanism is a leaky abstraction: it works until it fails, and then the user must understand exactly what was hidden (Spolsky, 2002). Perfection is reached "not when there is nothing more to add, but when there is nothing more to take away" (Saint-Exupéry, 1939), as long as taking away does not change the essence of the thing itself. This complements *strict, not forgiving* (`docs/quizzosaurus-syntax.md`, section 10) and the pit of success (section 8.9).
+
+  *Sources.* Quoted from memory and from text supplied by the user; the pages were not fetched, so check the wording and page numbers before publishing.
+
+  Clarke, A. C. (1973). *Profiles of the future: An inquiry into the limits of the possible* (rev. ed.). Harper & Row.
+
+  Saint-Exupéry, A. de. (1939). *Terre des hommes*. Gallimard.
+
+  Spolsky, J. (2002, November 11). *The law of leaky abstractions*. Joel on Software. <https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/>
+
+### 5.2 Security principles for runtime integrations
 
 These apply to the Voortgangsverkenner and to any future page that calls an external API from Brightspace (for example GitHub instead of GitLab).
 
@@ -417,7 +441,7 @@ This chapter describes code-level conventions and solutions that are not visible
 - **7.5** Diagram rendering and error classification
 - **7.6** Syntax highlighting
 - **7.7** Docusaurus integration of the Voortgangsverkenner
-- **7.8** Preview-only Marp presentations
+- **7.8** Marp presentations in the preview and the cartridge
 
 Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
@@ -512,9 +536,9 @@ The stylesheet cannot be a package export: Deno rejects CSS entries in the modul
 
 ---
 
-### 7.8 Preview-only Marp presentations
+### 7.8 Marp presentations in the preview and the cartridge
 
-`runPreview` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
+`renderPreviewSlides` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. `bso build` reuses it through `exportSlidesToContent` (#112): each presentation is copied to `content/<lesson>-slides.html` with a `bso-title` meta (`Slides: <lesson title>`), which `pack` prefers over the first `<h1>`, because that is a slide title. `pack` then lists it as a web content topic next to its lesson. The export removes the presenter notes (`stripPresenterNotes`, the `bespoke-marp-note` elements) unless `slides.notes` is true (#117); the preview keeps them. `--skip-slides` skips this step. The preview keeps its own entry point below. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
 
 For a content repository's own Docusaurus configuration, add:
 
@@ -535,7 +559,7 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
-The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. This is a deliberate preview-only exception to export parity; hidden URLs are not access control.
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
 ## 8. Design Decisions
 

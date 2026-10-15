@@ -4,7 +4,7 @@ This is a deliberately wrong course that triggers every `bso lint` rule exactly 
 
 This intentionally invalid course is a regression fixture. Each lesson triggers exactly one diagnostic, and each rule occurs in exactly one lesson. Do not publish this course to students.
 
-Run `bso lint` in this folder: it uses the configuration of the current directory, so here it checks this course (36 Markdown files, 25 errors, 11 warnings; exit 1 is expected) and in `examples/demo-course` it checks the clean course (0 errors, 0 warnings).
+Run `bso lint` in this folder: it uses the configuration of the current directory, so here it checks this course (57 Markdown files, 42 errors, 13 warnings; exit 1 is expected) and in `examples/demo-course` it checks the clean course (0 errors, 0 warnings).
 
 ```sh
 cd examples/demo-course-antipatterns
@@ -68,3 +68,4 @@ The automated tests compare emitted diagnostics with `expected-rules.json` and r
 | `hard-wrapped-lines` | warning | [hard-wrapped-lines.md](lessons/metadata/hard-wrapped-lines.md) |
 | `lesson-frontmatter` | warning | [lesson-frontmatter.md](lessons/metadata/lesson-frontmatter.md) |
 | `metadata-fields-one-line` | warning | [metadata-fields-one-line.md](lessons/metadata/metadata-fields-one-line.md) |
+| `reader-heading-numbering` | error | [reader-heading-numbering.md](lessons/metadata/reader-heading-numbering.md) |

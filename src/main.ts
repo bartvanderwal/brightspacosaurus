@@ -32,6 +32,7 @@ import {
 } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import { buildFeatureChapter, loadFeaturePages } from "./manual-source.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import {
   PREVIEW_GENERATED_DIR,
@@ -95,6 +96,7 @@ Options:
   --readers-only     Generate reader and instructor PDFs only (skip HTML/QTI conversion)
   --skip-readers     Skip all PDF generation with pandoc (readers, instructor and user manual);
                      pre-built PDFs are still copied. Faster local builds and tests
+  --skip-slides      Do not render the configured slides into the build (Marp needs npm)
   --version, -v      Show version number
   --help, -h         Show this help
 `;
@@ -144,6 +146,7 @@ export function parseArgs(
   sources: string;
   readersOnly: boolean;
   skipReaders: boolean;
+  skipSlides: boolean;
   output: string;
   config: string;
 } | null {
@@ -157,6 +160,7 @@ export function parseArgs(
   let sources = "";
   let readersOnly = false;
   let skipReaders = false;
+  let skipSlides = false;
   let output = "";
   let config = "";
 
@@ -167,6 +171,8 @@ export function parseArgs(
       readersOnly = true;
     } else if (args[i] === "--skip-readers") {
       skipReaders = true;
+    } else if (args[i] === "--skip-slides") {
+      skipSlides = true;
     } else if (args[i] === "--name" && i + 1 < args.length) {
       output = args[++i]; // backwards compat
     } else if (args[i] === "--output" && i + 1 < args.length) {
@@ -176,7 +182,7 @@ export function parseArgs(
     }
   }
 
-  return { command, sources, readersOnly, skipReaders, output, config };
+  return { command, sources, readersOnly, skipReaders, skipSlides, output, config };
 }
 
 /**
@@ -198,6 +204,8 @@ function teacherDashboardSrc(
 export interface BuildOptions {
   /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
   skipReaders?: boolean;
+  /** Do not render the configured slides into the content folder (#112). */
+  skipSlides?: boolean;
 }
 
 export async function runBuild(
@@ -206,6 +214,7 @@ export async function runBuild(
   options: BuildOptions = {},
 ): Promise<void> {
   const skipReaders = options.skipReaders ?? false;
+  const skipSlides = options.skipSlides ?? false;
   const packageVersion = await loadPackageVersion();
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
@@ -362,6 +371,19 @@ export async function runBuild(
       );
       console.log(`  ✓ content/docenten/voortgangsverkenner.html`);
     }
+  }
+
+  // Phase 2b: Render the configured Marp slides as one topic per lesson (#112)
+  if (!readersOnly && config.slides && !skipSlides) {
+    const { exportSlidesToContent } = await import("./slides-preview.ts");
+    const exported = await exportSlidesToContent(
+      config.slides,
+      repoRoot,
+      relative(repoRoot, config.sourcesDir) || ".",
+      join(dirname(buildDir), "preview-static"),
+      contentOutputDir,
+    );
+    for (const href of exported) console.log(`  ✓ content/${href}`);
   }
 
   // Phase 3: Convert reader Markdown to PDF via pandoc
@@ -562,9 +584,21 @@ export async function runBuild(
         console.log("Generating Brightspacosaurus user manual PDF...");
         const headerPath = await materializeAsset("reader-header.tex");
         const includeFilterPath = await materializeAsset("include-filter.lua");
+        const detailsFilterPath = await materializeAsset("details-filter.lua");
+        // The online feature pages are the source for how a feature works; the
+        // manual appends them with their <details> blocks expanded (#111).
+        const featuresDir = resolve(bsoDocsDir, "..", "examples", "demo-course", "lessons", "features");
+        const featureChapter = buildFeatureChapter(await loadFeaturePages(featuresDir));
+        const featureSources: string[] = [];
+        if (featureChapter) {
+          const featureSource = join(buildDir, "user-manual-features.md");
+          await Deno.writeTextFile(featureSource, featureChapter);
+          featureSources.push(featureSource);
+        }
         const bsoCmd = new Deno.Command("pandoc", {
           args: [
             bsoSource,
+            ...featureSources,
             "-o",
             bsoOutput,
             `--resource-path=${bsoDocsDir}`,
@@ -575,6 +609,7 @@ export async function runBuild(
             "lang=nl",
             `--include-in-header=${headerPath}`,
             `--lua-filter=${includeFilterPath}`,
+            `--lua-filter=${detailsFilterPath}`,
             "--syntax-highlighting=tango",
             "--toc",
             "--toc-depth=2",
@@ -1230,6 +1265,7 @@ async function main(): Promise<void> {
     if (parsed.command === "build") {
       await runBuild(resolvedConfig, parsed.readersOnly, {
         skipReaders: parsed.skipReaders,
+        skipSlides: parsed.skipSlides,
       });
     } else if (parsed.command === "pack") {
       await runPack(resolvedConfig);

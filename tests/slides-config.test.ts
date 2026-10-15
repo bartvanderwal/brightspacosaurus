@@ -25,6 +25,8 @@ Deno.test("slides configuration rejects invalid fields, mappings and paths", () 
       { lessons: null },
       { lessons: {}, unknown: true },
       { lessons: {}, disclaimer: false },
+      { lessons: {}, notes: "yes" },
+      { lessons: {}, notes: 1 },
       { lessons: { "lesson.md": "" } },
       { lessons: { "lesson.md": 42 } },
       { lessons: { "lesson.html": "slides/*.md" } },
@@ -60,4 +62,11 @@ Deno.test("slide metadata follows source file identity, not page slug, with base
     ],
     children: [],
   }]);
+});
+
+Deno.test("slides.notes is an optional boolean (#117)", () => {
+  const lessons = { "week/lesson.md": "slides/**/*.md" };
+  assertEquals(validateConfig({ ...base, slides: { lessons, notes: true } }), true);
+  assertEquals(validateConfig({ ...base, slides: { lessons, notes: false } }), true);
+  assertEquals(validateConfig({ ...base, slides: { lessons } }), true);
 });

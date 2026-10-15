@@ -143,8 +143,14 @@ export interface ReaderConvertResult {
 export interface SlidesConfig {
   /** Lesson paths relative to sourcesDir mapped to slide globs relative to Repo_Root. */
   lessons: Record<string, string>;
-  /** Empty disables the banner; omitted uses the development disclaimer. */
+  /** Empty disables the banner; omitted shows `Preview`. */
   disclaimer?: string;
+  /**
+   * Keep the presenter notes (HTML comments) in the slides that go into the
+   * `.imscc`. Omitted or false removes them, because every student who opens the
+   * topic could read them; the local preview always keeps them (#117).
+   */
+  notes?: boolean;
 }
 
 export interface BsoConfig {

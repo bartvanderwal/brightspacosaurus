@@ -72,6 +72,7 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
       sources: "src",
       readersOnly: true,
       skipReaders: false,
+      skipSlides: false,
       output: "out",
       config: "bso.json",
     },
@@ -81,10 +82,12 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
     sources: "",
     readersOnly: false,
     skipReaders: false,
+    skipSlides: false,
     output: "legacy-name",
     config: "",
   });
   assertEquals(parseArgs(["build", "--skip-readers"])?.skipReaders, true);
+  assertEquals(parseArgs(["build", "--skip-slides"])?.skipSlides, true);
   assertEquals(parseArgs(["prepare", "--skip-readers"]), null);
   assertStringIncludes(
     buildUsage("0.9.0"),
@@ -428,4 +431,39 @@ Deno.test("preview adds the Docusaurus node_modules to NODE_PATH, keeping an exi
     previewNodePath("/site", "/other"),
     `/site/node_modules${DELIMITER}/other`,
   );
+});
+
+Deno.test("runPack lists a slide deck by its bso-title, after its lesson, without treating data: URIs as files (#112)", async () => {
+  const repoRoot = await Deno.makeTempDir();
+  try {
+    const config = testConfig(repoRoot);
+    await Deno.mkdir(join(config.sourcesDir, "week-1"), { recursive: true });
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "week-1", "lesson.md"),
+      "# Lesson 1.1: FizzBuzz\n",
+    );
+    await runBuild(config, false, { skipReaders: true });
+    await Deno.writeTextFile(
+      join(config.outputDir, "content", "week-1", "lesson-slides.html"),
+      '<html><head><meta name="bso-title" content="Slides: Lesson 1.1: FizzBuzz"></head><body><h1>First slide</h1><img src="data:image/png;base64,AAAA/BB=="></body></html>',
+    );
+    await runPack(config);
+
+    const packageFile = join(
+      config.outputDir,
+      `${config.name}.v${config.version}.imscc`,
+    );
+    const zip = await JSZip.loadAsync(await Deno.readFile(packageFile));
+    const manifest = await zip.file("imsmanifest.xml")!.async("string");
+    assertStringIncludes(manifest, "<title>Slides: Lesson 1.1: FizzBuzz</title>");
+    assertEquals(manifest.includes("First slide"), false);
+    assertEquals(manifest.includes("data:image"), false);
+    assertEquals(
+      manifest.indexOf("<title>Lesson 1.1: FizzBuzz</title>") <
+        manifest.indexOf("<title>Slides: Lesson 1.1: FizzBuzz</title>"),
+      true,
+    );
+  } finally {
+    await Deno.remove(repoRoot, { recursive: true });
+  }
 });

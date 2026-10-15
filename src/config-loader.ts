@@ -44,7 +44,7 @@ export const EXAMPLE_CONFIG = `{
     "lessons": {
       "lesoverzicht-1.1.md": "slides/week-1/les-1/slides-*.md"
     },
-    "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
+    "disclaimer": "Preview: slides zijn nog in ontwikkeling"
   },
   "teacherManual": {
     "inputFiles": ["docs/handleiding.md"],
@@ -211,7 +211,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     const slides = obj.slides as Record<string, unknown>;
     for (const key of Object.keys(slides)) {
-      if (key !== "lessons" && key !== "disclaimer") {
+      if (key !== "lessons" && key !== "disclaimer" && key !== "notes") {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
     }
@@ -230,6 +230,9 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     if (slides.disclaimer !== undefined && typeof slides.disclaimer !== "string") {
       throw new Error("Field 'slides.disclaimer' must be a string.");
+    }
+    if (slides.notes !== undefined && typeof slides.notes !== "boolean") {
+      throw new Error("Field 'slides.notes' must be true or false.");
     }
   }
 
