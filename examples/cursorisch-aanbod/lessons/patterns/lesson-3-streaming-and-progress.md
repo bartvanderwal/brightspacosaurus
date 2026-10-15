@@ -1,8 +1,10 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # Streaming and progress
+
+This lesson is about the work itself, after the user has decided. Before that, a [dry run](lesson-1-dry-run-first.md) shows the plan and a draft result.
 
 An agent task can take seconds or minutes. The interface must show that something is happening, and what.
 

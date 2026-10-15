@@ -1,10 +1,10 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # Human in the loop
 
-The user approves an action before the agent performs it. Use this pattern when an action is hard to undo or affects other people.
+The user approves an action before the agent performs it. Use this pattern when an action is hard to undo or affects other people, and only after a [dry run](lesson-1-dry-run-first.md) has shown something concrete to approve.
 
 ## When to ask for approval
 
@@ -18,6 +18,8 @@ The user approves an action before the agent performs it. Use this pattern when 
 2. **Why**, in one sentence.
 3. **A preview** of the result, when possible.
 4. **Approve, change or cancel**, with the safe choice as the default.
+
+The preview in step 3 is the result of the dry run. Without it the user is asked to approve something they have not seen.
 
 ```text
 Agent: I will move 12 old invoices to the archive folder.

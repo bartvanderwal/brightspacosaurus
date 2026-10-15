@@ -17,5 +17,5 @@ An agentic user interface lets software act on the user's behalf: it plans steps
 After this module you can:
 
 1. name the three differences above;
-2. choose a pattern for approval, progress and recovery;
+2. choose a pattern for dry run, approval, progress and recovery;
 3. judge an agentic UI on trust and control.

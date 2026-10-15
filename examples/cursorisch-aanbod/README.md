@@ -7,7 +7,7 @@ A small, fictional example of a course organised **per topic** instead of per we
 ```text
 lessons/
   introduction/   index.md  lesson-1-what-is-agentic-ui.md
-  patterns/       index.md  lesson-1-…  lesson-2-…  quiz-1-patterns.md
+  patterns/       index.md  lesson-1-dry-run-first.md  lesson-2-…  lesson-3-…  quiz-1-patterns.md
   evaluation/     index.md  lesson-1-trust-and-recovery.md
   algemeen/       index.md  lesson-1-about-this-course.md
 readers/          reader-agentic-ui-glossary.md
