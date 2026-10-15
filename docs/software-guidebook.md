@@ -665,6 +665,7 @@ This chapter describes how BSO is distributed and used: from JSR, in CI pipeline
 - **9.1** Distribution via JSR
 - **9.2** CI pipeline usage
 - **9.3** Manual import step
+- **9.4** Runtime and build footprint
 
 ### 9.1 Distribution via JSR
 
@@ -702,6 +703,33 @@ build-imscc:
 ### 9.3 Manual import step
 
 The final step — importing the `.imscc` into a Brightspace course — remains manual (Import/Export/Copy Components in Brightspace). See the [user manual](user-manual.md) and the README's Brightspace import section for the walkthrough and additive-import caveats.
+
+### 9.4 Runtime and build footprint
+
+The following initial measurements were reported for the issue on 2026-10-15. They are a point-in-time, machine-specific snapshot, not a clean-room benchmark:
+
+| Component | Reported size | What it belongs to |
+| --- | ---: | --- |
+| BSO `node_modules` | 31 MB | BSO's cached npm-compatible dependencies |
+| Deno cache | 514 MB | Shared cache; much of it was not used by BSO |
+| `~/.deno` | 128 MB | Deno installation and data, not BSO application code |
+| `build/marp-tools` | 129 MB | Marp CLI and patched math dependencies; only needed for configured matching slides |
+| `build/` total | 1.6 GB | Includes generated course content and test trees; not the size of BSO |
+| Docusaurus app dependencies | Not measured | The app's own `node_modules`, under `docusaurusDir`; likely source of the much larger course-repository `scripts/` tree |
+
+The storage costs depend on the command and the course configuration. These are the measured persistent components associated with each command; they are not additive if a cache is already present:
+
+| Command or feature | Measured persistent footprint | Files and installations |
+| --- | --- | --- |
+| `build` | 31 MB shared BSO `node_modules`; add 129 MB only when matching slides need Marp | Writes course artifacts under `outputDir`. Pandoc and TeX are external, needed only for PDF generation. |
+| `pack` | No command-specific dependency install measured | Writes the `.imscc` into `outputDir`; package size depends on course content. |
+| `lint` | 31 MB shared BSO `node_modules` | Does not install course dependencies or create course output. |
+| `preview` | Docusaurus dependencies not measured; add the 129 MB Marp cache only when matching slides need rendering | Writes generated preview assets and may install Docusaurus dependencies in `<docusaurusDir>/node_modules`; Marp goes in `<parent of outputDir>/marp-tools`. Details are in the [user manual](user-manual.md#what-bso-preview-installs-and-where). |
+| Readers | Pandoc and TeX sizes not measured; installed separately | BSO neither downloads nor removes these tools. PDF size depends on source material. |
+
+`deno compile` is technically possible, but not a useful distribution replacement today. On Linux x86_64 with Deno 2.9.7, the compiled BSO executable measured 124,989,504 bytes (119.2 MiB); Deno reported 19.48 MB of embedded files. The standalone `denort` runtime it contains measured 104,561,432 bytes (99.7 MiB), so the runtime dominates and minifying or tree-shaking application dependencies cannot materially remove that floor. In this proof of concept, `--help`, `lint` and `pack` worked; `--version` reported `unknown`, and `build` failed because `assets/brightspacosaurus.css` is not embedded in the executable. `preview` additionally relies on external npm and a Docusaurus app; configured slides rely on npm/Marp, and reader PDFs still require Pandoc and TeX. The measurement used the locked `@std/path` 1.1.4 source and dependency versions resolved from `deno.json`; JSR itself was unreachable from the measurement environment. Keep JSR/npm as the supported distribution; a binary would need explicit asset embedding and command-specific testing before it could be supported.
+
+These results do not justify dependency-lazy-loading changes: Marp is already installed only when slides need rendering, Pandoc/TeX are external, and Docusaurus dependencies belong to the configured preview app. `deno task test`, `deno task test:fast` and `deno task test:pdf` remove their own known test directories from `build/` after the test process exits, including on failure; they preserve build outputs and caches.
 
 ---
 
