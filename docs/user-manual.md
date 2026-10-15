@@ -261,6 +261,10 @@ The `error` or `warning` word is colored (red and dark orange) only when stderr 
 
 `lesson-frontmatter` (warning) reports YAML frontmatter keys that BSO ignores in a lesson file, and names them. BSO reads one key from a lesson's frontmatter: `sidebar_position`, a number that orders the page in the Brightspace menu, as in the Docusaurus sidebar (see 8.2); it does not trigger the warning, but a value that is not a number does. Readers use `title`, `author`, `version`, `date`, `updated`, `coverImage`, `coverAlt` and `lintHeadingNumbers` instead. For any other key in a lesson, put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
 
+`module-index-title` (error) reports a first-level module `index.md` without a non-empty H1. Its H1 supplies the module title; a YAML `title:` field is not used. `docusaurus-category-metadata` (warning) reports `_category_.json` files in `sourcesDir`: BSO does not read these Docusaurus files.
+
+`downloadable-missing`, `downloadable-too-large` and `downloadable-path` (errors) report local download links that are missing, exceed 50 MiB, or point outside `sourcesDir` / use invalid URL encoding.
+
 `reader-heading-numbering` (error) requires manual hierarchical numbers on reader section headings and checks their order, gaps and repeats. It also checks appendix letters (`Bijlage A`, `Bijlage B`, or `Appendix A`, `Appendix B`) and keeps `Bronnen`, `Sources`, `Literatuurlijst` and `Versiegeschiedenis` unnumbered. Add `lintHeadingNumbers: false` to a reader's frontmatter to opt out.
 
 `deep-relative-path` (warning) reports a link, image or `{@include}` target with three or more `../` in a row, such as `../../../shared/notes.md`. A path like that breaks as soon as the file moves. Move the file closer, or into a shared folder inside `sourcesDir`, and use a shorter path. BSO has no root-relative paths (a path starting with `/`), so shortening the path is the fix, not a leading slash. The rule skips code blocks and inline code.
@@ -882,7 +886,23 @@ _Figure 10_: Brightspace Manage Files — reader PDFs are linked from lesson pag
 
 ### 8.2 Menu module and order
 
-The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name, so a folder `algemeen` comes before `week-1`. The module title is the H1 of the folder's `index.md`, otherwise the folder name.
+The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name. Name these folders for the course structure that makes sense to students—weeks, topics, themes or units all work. For a topic-based course, for example:
+
+```text
+lessons/
+  databases/
+    index.md
+    relational-model.md
+    sql-basics.md
+  web-development/
+    index.md
+    html.md
+    css.md
+```
+
+Put a non-empty H1 in each module's `index.md`; that heading becomes the module name in Brightspace and in the preview. For example, `databases/index.md` can begin with `# Databases`. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without `index.md`, the folder name is used.
+
+The preview derives its sidebar from the same course folders and ordering as the Brightspace menu. You do not need to maintain Docusaurus `sidebars.js` or `_category_.json` files in the course content. BSO ignores `_category_.json`; `bso lint` warns if one remains in `sourcesDir`.
 
 Within a module BSO orders the pages like the Docusaurus sidebar:
 
@@ -912,6 +932,14 @@ BSO automatically includes images from lesson pages (Markdown `![alt](path)`) in
 3. The image is in a directory that BSO scans.
 
 BSO converts Markdown image references to HTML img tags and copies the image files into the `.imscc` archive. If a referenced image does not exist, BSO logs a warning with the source file and the missing path.
+
+You can also link a downloadable file from a lesson or module page:
+
+```markdown
+[Download the starter code](bestanden/startcode.zip)
+```
+
+Use a local path relative to that Markdown file, and keep the file inside `sourcesDir`. BSO copies it into the `.imscc` and declares it as a content dependency, so it is available in Brightspace Manage Files. The preview serves the same file as a download. Each file may be at most **50 MiB**; `bso lint` reports missing files, files above the limit, and paths outside `sourcesDir`. Build and preview also reject invalid or oversized links.
 
 In addition to the images referenced from Markdown, you can supply extra static assets (banners, logos) via the `assetsDir` configuration field, which BSO copies into the build.
 
