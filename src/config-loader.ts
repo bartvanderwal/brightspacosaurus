@@ -12,7 +12,7 @@ import { resolveQuizOptions } from "./quiz-config.ts";
 import { resolveTeacherPage } from "./teacher-page.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
 export { resolveDiagramsConfig };
-import { join, resolve } from "@std/path";
+import { dirname, join, resolve } from "@std/path";
 import type {
   BsoConfig,
   CliOverrides,
@@ -40,6 +40,7 @@ export const EXAMPLE_CONFIG = `{
   "readersDir": "bronmateriaal/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "scripts/docusaurus",
+  "docusaurusDocsDir": "bronmateriaal",
   "slides": {
     "lessons": {
       "lesoverzicht-1.1.md": "slides/week-1/les-1/slides-*.md"
@@ -157,6 +158,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "customCss",
     "name",
     "docusaurusDir",
+    "docusaurusDocsDir",
     "slides",
     "teacherManual",
     "quiz",
@@ -195,6 +197,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "customCss",
     "name",
     "docusaurusDir",
+    "docusaurusDocsDir",
   ] as const;
   for (const field of optionalStringFields) {
     if (obj[field] !== undefined && typeof obj[field] !== "string") {
@@ -735,6 +738,10 @@ export function resolveConfig(
   const docusaurusDir = config.docusaurusDir
     ? resolve(repoRoot, config.docusaurusDir)
     : null;
+  const docusaurusDocsDir = resolve(
+    repoRoot,
+    config.docusaurusDocsDir ?? dirname(config.sourcesDir),
+  );
 
   // teacherManual: resolves to absolute paths if present
   let teacherManual: ResolvedTeacherManualConfig | null = null;
@@ -762,6 +769,7 @@ export function resolveConfig(
     customCss,
     name,
     docusaurusDir,
+    docusaurusDocsDir,
     slides: config.slides,
     teacherManual,
     quiz: resolveQuizConfig(config),

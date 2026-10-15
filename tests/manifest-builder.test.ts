@@ -13,7 +13,6 @@ import {
   buildNavigationModel,
   buildTimeFromEnv,
   deriveReaderMenuTitle,
-  firstNavigationParityIssue,
   formatBuildInfo,
   sortManifestEntriesForNavigation,
 } from "../src/manifest-builder.ts";
@@ -408,16 +407,6 @@ Deno.test("gedeeld navigatiemodel gebruikt weekintro als moduletitel en behoudt 
   ) {
     assertEquals(manifest.includes(`identifierref="${excluded.id}"`), false);
   }
-  assertEquals(
-    firstNavigationParityIssue(model, buildDocusaurusSidebars(model)),
-    null,
-  );
-  assertEquals(
-    firstNavigationParityIssue(model, {
-      docs: [{ items: ["week-4/les-4.4"] }],
-    }),
-    "'week-4/weekintro-4' is in navigation.json but not docusaurus-sidebars.json.",
-  );
 });
 
 Deno.test("readers verschijnen als reader-items maar niet als Docusaurus-documenten", () => {

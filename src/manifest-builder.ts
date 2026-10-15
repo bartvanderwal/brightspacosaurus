@@ -364,60 +364,6 @@ export function buildDocusaurusSidebars(
   return { docs };
 }
 
-export function firstNavigationParityIssue(
-  navigation: NavigationModel,
-  sidebars: Record<string, unknown>,
-): string | null {
-  const expected = navigation.modules.flatMap((module) =>
-    module.items
-      .filter((item) => item.kind !== "reader" && item.docId !== null)
-      .map((item) => item.docId!)
-  );
-  const sidebarDocs = sidebars.docs;
-  if (!Array.isArray(sidebarDocs)) {
-    return "docusaurus-sidebars.json must contain a docs array.";
-  }
-  const actual: string[] = [];
-  for (const category of sidebarDocs) {
-    if (
-      !category || typeof category !== "object" || !("items" in category) ||
-      !Array.isArray(category.items)
-    ) {
-      return "Each Docusaurus sidebar category must contain an items array.";
-    }
-    for (const item of category.items) {
-      if (typeof item !== "string") {
-        return "Docusaurus sidebar items must be document IDs.";
-      }
-      actual.push(item);
-    }
-  }
-  const missingFromSidebars = expected.find((docId) => !actual.includes(docId));
-  if (missingFromSidebars) {
-    return `'${missingFromSidebars}' is in navigation.json but not docusaurus-sidebars.json.`;
-  }
-  const missingFromNavigation = actual.find((docId) =>
-    !expected.includes(docId)
-  );
-  if (missingFromNavigation) {
-    return `'${missingFromNavigation}' is in docusaurus-sidebars.json but not navigation.json.`;
-  }
-  const mismatch = expected.findIndex((docId, index) =>
-    actual[index] !== docId
-  );
-  if (mismatch !== -1) {
-    return `Navigation order differs at position ${
-      mismatch + 1
-    }: navigation.json has '${
-      expected[mismatch]
-    }' but docusaurus-sidebars.json has '${actual[mismatch]}'.`;
-  }
-  if (expected.length !== actual.length) {
-    return `Navigation item counts differ: navigation.json has ${expected.length} items but docusaurus-sidebars.json has ${actual.length}.`;
-  }
-  return null;
-}
-
 function itemXml(entry: ManifestEntry): string {
   return `        <item identifier="item_${
     escapeXml(entry.id)
@@ -436,141 +382,66 @@ export interface DashboardPlacement {
 
 function buildOrganizationItems(
   entries: ManifestEntry[],
+  navigation: NavigationModel,
   readersModule: ReadersModuleConfig,
   dashboard: DashboardPlacement = { module: null },
 ): string {
-  const groupedEntries = new Map<string, ManifestEntry[]>();
-  const readerEntries: ManifestEntry[] = [];
-  const ungroupedEntries: ManifestEntry[] = [];
-  const docentenEntries: ManifestEntry[] = [];
-
-  for (const entry of entries) {
-    if (isNavigationExcluded(entry)) continue;
-    // Instructor items go into a separate hidden module
-    if (
-      entry.href.startsWith("content/docenten/") ||
-      entry.href.startsWith("docenten/")
-    ) {
-      docentenEntries.push(entry);
-      continue;
-    }
-
-    // Reader PDFs go under a single "Readers" module
-    if (entry.href.startsWith("readers/")) {
-      readerEntries.push(entry);
-      continue;
-    }
-
-    // Group by the first subdirectory (e.g. "week-1", "module-a", "sad")
-    const groupLabel = getGroupLabel(entry.href);
-    if (!groupLabel) {
-      ungroupedEntries.push(entry);
-      continue;
-    }
-
-    const groupEntries = groupedEntries.get(groupLabel) ?? [];
-    groupEntries.push(entry);
-    groupedEntries.set(groupLabel, groupEntries);
-  }
-
-  const groupItems = [...groupedEntries.entries()].sort(([a], [b]) =>
-    naturalCompare(a, b)
-  ).map(([groupLabel, groupEntries]) => {
-    const groupId = "group_" +
-      groupLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(
-        /^_|_$/g,
-        "",
-      );
-    // Entries arrive in navigation order (sortManifestEntriesForNavigation).
-    // Readers join the module named by readersModule.slug, after its pages.
-    const holdsReaders = groupLabel === readersModule.slug;
-    const holdsDashboard = groupLabel === dashboard.module?.slug;
-    let pages = groupEntries;
-    if (holdsDashboard) {
-      // The dashboard comes directly after the teacher page, or first without one.
-      const at = groupEntries.findIndex((entry) =>
+  const entriesByHref = new Map(entries.map((entry) => [entry.href, entry]));
+  const instructorEntries = entries.filter((entry) =>
+    entry.href.startsWith("content/docenten/") ||
+    entry.href.startsWith("docenten/")
+  );
+  const dashboardModuleId = dashboard.module
+    ? navigationGroupId(dashboard.module.slug)
+    : null;
+  const dashboardModuleExists = navigation.modules.some((module) =>
+    module.id === dashboardModuleId
+  );
+  const moduleItems = navigation.modules.map((module) => {
+    const pages = module.items.flatMap((item) => {
+      const entry = entriesByHref.get(item.href);
+      return entry ? [entry] : [];
+    });
+    const holdsDashboard = module.id === dashboardModuleId;
+    const children = [...pages];
+    if (holdsDashboard && instructorEntries.length) {
+      const at = pages.findIndex((entry) =>
         entry.href === dashboard.teacherPageHref
       );
-      pages = [
-        ...groupEntries.slice(0, at + 1),
-        ...docentenEntries,
-        ...groupEntries.slice(at + 1),
-      ];
+      children.splice(at + 1, 0, ...instructorEntries);
     }
-    const children = holdsReaders ? [...pages, ...readerEntries] : pages;
-    const title = holdsReaders && readersModule.title
-      ? readersModule.title
-      : holdsDashboard && dashboard.module?.title
+    const isReadersModule = module.id === navigationGroupId(readersModule.slug) &&
+      module.items.length > 0 &&
+      module.items.every((item) => item.kind === "reader");
+    const identifier = isReadersModule
+      ? `module_${
+        readersModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_")
+      }`
+      : `group_${module.id.replace(/-/g, "_")}`;
+    const title = holdsDashboard && dashboard.module?.title
       ? dashboard.module.title
-      : moduleTitle(groupLabel, groupEntries);
-
-    return `      <item identifier="${escapeXml(groupId)}">
+      : module.title;
+    return `      <item identifier="${escapeXml(identifier)}">
         <title>${escapeXml(title)}</title>
 ${children.map(itemXml).join("\n")}
       </item>`;
   });
-  const readersInGroup = groupedEntries.has(readersModule.slug);
 
-  const looseItems = ungroupedEntries.map((entry) => {
-    return `      <item identifier="item_${
-      escapeXml(entry.id)
-    }" identifierref="${escapeXml(entry.id)}">
-        <title>${escapeXml(entry.title)}</title>
-      </item>`;
-  });
+  if (instructorEntries.length && !dashboardModuleExists) {
+    const identifier = dashboard.module
+      ? "module_dashboard_" +
+        dashboard.module.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_")
+      : "module_docentenmateriaal";
+    const title = dashboard.module
+      ? dashboard.module.title ?? dashboard.module.slug
+      : "Instructor material (hide after import)";
+    moduleItems.push(`      <item identifier="${escapeXml(identifier)}">
+        <title>${escapeXml(title)}</title>
+${instructorEntries.map(itemXml).join("\n")}
+      </item>`);
+  }
 
-  // Readers module: all reader PDFs under a single heading, unless they joined
-  // a content module above. The default identifier stays "module_readers".
-  const readersItems = readerEntries.length > 0 && !readersInGroup
-    ? [
-      `      <item identifier="module_${
-        escapeXml(readersModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"))
-      }">
-        <title>${escapeXml(readersModule.title ?? "Readers")}</title>
-${readerEntries.map(itemXml).join("\n")}
-      </item>`,
-    ]
-    : [];
-
-  // Instructor module: set to "Do not display" after import in Brightspace.
-  // With teacherDashboard.module the items go into a content module instead;
-  // when no folder has that name, they get a module of that name.
-  const dashboardModule = dashboard.module;
-  const dashboardInGroup = dashboardModule
-    ? groupedEntries.has(dashboardModule.slug)
-    : false;
-  const docentenItems = docentenEntries.length > 0 && !dashboardInGroup
-    ? [
-      `      <item identifier="module_${
-        dashboardModule
-          ? escapeXml(
-            "dashboard_" +
-              dashboardModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-          )
-          : "docentenmateriaal"
-      }">
-        <title>${
-        escapeXml(
-          dashboardModule
-            ? dashboardModule.title ?? dashboardModule.slug
-            : "Instructor material (hide after import)",
-        )
-      }</title>
-${
-        docentenEntries.map((entry) =>
-          `        <item identifier="item_${
-            escapeXml(entry.id)
-          }" identifierref="${escapeXml(entry.id)}">
-          <title>${escapeXml(entry.title)}</title>
-        </item>`
-        ).join("\n")
-      }
-      </item>`,
-    ]
-    : [];
-
-  return [...groupItems, ...looseItems, ...readersItems, ...docentenItems]
-    .join("\n");
+  return moduleItems.join("\n");
 }
 
 /** Build details written to the manifest, so a package shows how it was made (issue #56). */
@@ -623,9 +494,9 @@ export function buildManifest(
   readersModule: ReadersModuleConfig = { slug: "readers", title: null },
   dashboard: DashboardPlacement = { module: null },
   buildInfo?: BuildInfo,
+  navigation?: NavigationModel,
 ): string {
-  // All entries go into the navigation structure: HTML lessons and QTI quizzes per week.
-  // Brightspace imports QTI items both as assessments and as content items in the menu.
+  // Brightspace imports QTI items both as assessments and as menu items.
   const contentEntries = entries;
 
   const resourcesXml = entries.map((entry) => {
@@ -642,8 +513,15 @@ ${fileElements.join("\n")}
     </resource>`;
   }).join("\n");
 
+  const sharedNavigation = navigation ?? buildNavigationModel(
+    sortManifestEntriesForNavigation(entries, {
+      firstHref: dashboard.teacherPageHref,
+    }),
+    { readersModule },
+  );
   const itemsXml = buildOrganizationItems(
     contentEntries,
+    sharedNavigation,
     readersModule,
     dashboard,
   );

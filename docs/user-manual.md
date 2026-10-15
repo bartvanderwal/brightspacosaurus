@@ -135,6 +135,7 @@ The most important fields:
 | `courseName`           | yes      | Course name as shown in the manifest                                                         |
 | `version`              | yes      | Version number (semver), used in the `.imscc` filename and HTML badge                        |
 | `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
+| `docusaurusDocsDir`    | no       | Docusaurus docs-plugin root for document IDs (default: parent of `sourcesDir`)                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
 | `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner) |
@@ -897,7 +898,7 @@ Reader PDFs get their own module by default. To put them in a content module ins
 
 `title` sets the module title; without it the module keeps the lead page's H1 or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
 
-`build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both come from the same sorted manifest entries; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. Readers remain available through the separate reader page. `bso lint` checks that document IDs and order agree between these files and the manifest. The navigation includes content from `sourcesDir` and the generated parent `README.md`; other Docusaurus documents outside that content are not added to the Brightspace navigation model.
+`build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both are generated from the same navigation model; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. The sidebar has one category level per first-level folder in `sourcesDir`; deeper folders remain within that category. Readers can be placed in a content module with `readersModule`. The generated parent `README.md` is grouped with the first module. Set `docusaurusDocsDir` to the docs-plugin root when it differs from the parent of `sourcesDir`; document IDs are paths relative to that root.
 
 The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 

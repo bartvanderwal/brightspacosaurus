@@ -69,7 +69,6 @@ export {
   buildManifest,
   buildNavigationModel,
   deriveReaderMenuTitle,
-  firstNavigationParityIssue,
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 export type {

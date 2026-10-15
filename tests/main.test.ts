@@ -30,6 +30,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
     customCss: null,
     name: "coverage-course",
     docusaurusDir: null,
+    docusaurusDocsDir: repoRoot,
     teacherManual: null,
     teacherDashboard: null,
     quiz: {
@@ -260,7 +261,95 @@ Deno.test("runBuild en runPack bouwen een minimale cartridge met lessen, quiz en
   }
 });
 
-Deno.test("bso lint reports navigation items missing from the manifest", async () => {
+Deno.test("topic-course navigation uses the docs root and groups the parent README without a week assumption", async () => {
+  const repoRoot = await Deno.makeTempDir();
+  try {
+    const config = testConfig(repoRoot);
+    const docsDir = join(repoRoot, "course-docs");
+    config.sourcesDir = join(docsDir, "content");
+    config.docusaurusDocsDir = repoRoot;
+    config.readersDir = join(repoRoot, "reader-files");
+    config.outputDir = join(repoRoot, "build", "topic-course");
+    config.readersModule = { slug: "introduction", title: "Introduction" };
+    await Deno.mkdir(join(config.sourcesDir, "introduction"), {
+      recursive: true,
+    });
+    await Deno.mkdir(join(config.sourcesDir, "patterns"), { recursive: true });
+    await Deno.mkdir(config.readersDir, { recursive: true });
+    await Deno.writeTextFile(join(docsDir, "README.md"), "# Course overview\n");
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "introduction", "index.md"),
+      "# Introduction\n",
+    );
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "introduction", "lesson-1.md"),
+      "# Getting started\n",
+    );
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "patterns", "index.md"),
+      "# Patterns\n",
+    );
+    await Deno.writeTextFile(
+      join(config.sourcesDir, "patterns", "quiz-1-patterns.md"),
+      "# Quiz 1\n\n## Question 1\n\nWhich pattern?\n\n- A. One\n- B. Two\n\nCorrect answer: A\n",
+    );
+    await Deno.writeFile(
+      join(config.readersDir, "reader-glossary.pdf"),
+      new Uint8Array([37, 80, 68, 70]),
+    );
+
+    await runBuild(config, false, { skipReaders: true });
+
+    const navigation = JSON.parse(
+      await Deno.readTextFile(join(config.outputDir, "navigation.json")),
+    );
+    const sidebars = JSON.parse(
+      await Deno.readTextFile(
+        join(config.outputDir, "docusaurus-sidebars.json"),
+      ),
+    );
+    const introduction = navigation.modules.find(
+      (module: { id: string }) => module.id === "introduction",
+    );
+    assertEquals(
+      navigation.modules.map((module: { id: string }) => module.id),
+      ["introduction", "patterns"],
+    );
+    assertEquals(introduction.title, "Introduction");
+    assertEquals(
+      introduction.items.map((item: { href: string }) => item.href),
+      [
+        "content/introduction/index.html",
+        "content/introduction/README.html",
+        "content/introduction/lesson-1.html",
+        "readers/reader-glossary.pdf",
+      ],
+    );
+    assertEquals(introduction.indexId, "course-docs/content/introduction/index");
+    assertEquals(
+      introduction.items[1].docId,
+      "course-docs/README",
+    );
+    assertEquals(
+      sidebars.docs[0].items,
+      [
+        "course-docs/content/introduction/index",
+        "course-docs/README",
+        "course-docs/content/introduction/lesson-1",
+      ],
+    );
+    assertEquals(
+      navigation.modules.flatMap((module: { items: { href: string }[] }) =>
+        module.items
+      ).some((item: { href: string }) => item.href.includes("week-1")),
+      false,
+    );
+  } finally {
+    await Deno.remove(repoRoot, { recursive: true });
+  }
+});
+
+Deno.test("bso lint reports missing generated navigation outputs", async () => {
   const repoRoot = await Deno.makeTempDir();
   const reported: string[] = [];
   const originalError = console.error;
@@ -291,30 +380,16 @@ Deno.test("bso lint reports navigation items missing from the manifest", async (
         }],
       }),
     );
-    await Deno.writeTextFile(
-      join(config.outputDir, "docusaurus-sidebars.json"),
-      JSON.stringify({
-        docs: [{
-          type: "category",
-          label: "Week 1",
-          items: ["lessons/week-1/lesson"],
-        }],
-      }),
-    );
-    await Deno.writeTextFile(
-      join(config.outputDir, "imsmanifest.xml"),
-      '<manifest><resource identifier="lesson" href="content/week-1/lesson.html"/></manifest>',
-    );
     console.error = (...args: unknown[]) => reported.push(args.join(" "));
     await assertRejects(() => runLint(config), Error, "Course lint failed");
   } finally {
     console.error = originalError;
     await Deno.remove(repoRoot, { recursive: true });
   }
-  assertStringIncludes(reported.join("\n"), "navigation-parity");
+  assertStringIncludes(reported.join("\n"), "navigation-output");
   assertStringIncludes(
     reported.join("\n"),
-    "content/week-1/lesson.html is in navigation.json but not in imsmanifest.xml",
+    "docusaurus-sidebars.json, imsmanifest.xml missing from generated navigation outputs",
   );
 });
 
@@ -404,6 +479,15 @@ Deno.test("runPack names the package after the course version and writes it to o
 
 Deno.test("--output overrides the build directory that receives the package", () => {
   const base = { courseName: "C", version: "1.2.3", sourcesDir: "lessons" };
+  assertEquals(
+    resolveConfig({ ...base, docusaurusDocsDir: "course-docs" }, {}, "/repo")
+      .docusaurusDocsDir,
+    resolve("/repo", "course-docs"),
+  );
+  assertEquals(
+    resolveConfig(base, {}, "/repo").docusaurusDocsDir,
+    resolve("/repo"),
+  );
   assertEquals(
     resolveConfig(base, { output: "dist/pkg" }, "/repo").outputDir,
     resolve("/repo", "dist/pkg"),

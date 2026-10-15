@@ -182,6 +182,8 @@ export interface BsoConfig {
   name?: string;
   /** Path to the Docusaurus directory for `bso preview` (relative to Repo_Root). Optional. */
   docusaurusDir?: string;
+  /** Root directory used by the course's Docusaurus docs plugin (relative to Repo_Root). */
+  docusaurusDocsDir?: string;
   /** Preview-only Marp presentations; never included in the cartridge. */
   slides?: SlidesConfig;
   /** Configuration for instructor manual generation. Optional. */
@@ -270,6 +272,8 @@ export interface ResolvedConfig {
   name: string;
   /** Absolute path to the Docusaurus directory. null = preview not configured. */
   docusaurusDir: string | null;
+  /** Absolute docs-plugin root used to calculate Docusaurus document IDs. */
+  docusaurusDocsDir?: string;
   slides?: SlidesConfig;
   /** Instructor manual configuration with absolute paths. null = skip. */
   teacherManual: ResolvedTeacherManualConfig | null;
