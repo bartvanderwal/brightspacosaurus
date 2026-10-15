@@ -29,6 +29,7 @@ import { convertQuiz } from "./quiz-converter.ts";
 import { extractAssessmentTitle } from "./quiz-converter.ts";
 import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import { buildFeatureChapter, loadFeaturePages } from "./manual-source.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import { PREVIEW_GENERATED_DIR, PREVIEW_STYLESHEET, writePreviewStylesheet } from "./preview-styles.ts";
 import {
@@ -559,9 +560,21 @@ export async function runBuild(
         console.log("Generating Brightspacosaurus user manual PDF...");
         const headerPath = await materializeAsset("reader-header.tex");
         const includeFilterPath = await materializeAsset("include-filter.lua");
+        const detailsFilterPath = await materializeAsset("details-filter.lua");
+        // The online feature pages are the source for how a feature works; the
+        // manual appends them with their <details> blocks expanded (#111).
+        const featuresDir = resolve(bsoDocsDir, "..", "examples", "demo-course", "lessons", "features");
+        const featureChapter = buildFeatureChapter(await loadFeaturePages(featuresDir));
+        const featureSources: string[] = [];
+        if (featureChapter) {
+          const featureSource = join(buildDir, "user-manual-features.md");
+          await Deno.writeTextFile(featureSource, featureChapter);
+          featureSources.push(featureSource);
+        }
         const bsoCmd = new Deno.Command("pandoc", {
           args: [
             bsoSource,
+            ...featureSources,
             "-o",
             bsoOutput,
             `--resource-path=${bsoDocsDir}`,
@@ -572,6 +585,7 @@ export async function runBuild(
             "lang=nl",
             `--include-in-header=${headerPath}`,
             `--lua-filter=${includeFilterPath}`,
+            `--lua-filter=${detailsFilterPath}`,
             "--syntax-highlighting=tango",
             "--toc",
             "--toc-depth=2",
