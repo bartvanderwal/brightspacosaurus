@@ -79,6 +79,7 @@ interface Node {
   name?: string;
   depth?: number;
   value?: string;
+  url?: string;
   children?: Node[];
   position?: {
     start: { line: number; column: number };
@@ -167,7 +168,9 @@ function inspectMarkdown(
     const keys = [...yaml.matchAll(/^([A-Za-z_][\w-]*)\s*:/gm)].map((m) =>
       m[1]
     );
-    const ignored = [...new Set(keys.filter((key) => key !== "sidebar_position"))];
+    const ignored = [
+      ...new Set(keys.filter((key) => key !== "sidebar_position")),
+    ];
     if (ignored.length > 0) {
       report(
         frontmatter,
@@ -180,7 +183,10 @@ function inspectMarkdown(
         "warning",
       );
     }
-    if (keys.includes("sidebar_position") && readSidebarPosition(`---\n${yaml}\n---`) === undefined) {
+    if (
+      keys.includes("sidebar_position") &&
+      readSidebarPosition(`---\n${yaml}\n---`) === undefined
+    ) {
       report(
         frontmatter,
         "lesson-frontmatter",
@@ -210,7 +216,23 @@ function inspectMarkdown(
     );
   }
 
+  // Three or more `../` in a row: the path breaks when the file moves. Links,
+  // images and `{@include}` targets (which parse as links) are all checked.
+  function checkDeepRelativePath(node: Node): void {
+    const path = (node.url ?? "").split(/[?#]/, 1)[0];
+    if (!/(?:^|[\\/])\.\.[\\/]\.\.[\\/]\.\.(?:[\\/]|$)/.test(path)) return;
+    report(
+      node,
+      "deep-relative-path",
+      `Avoid going up three or more folders with '../' in '${path}'; move the file closer or into a shared folder inside sourcesDir, to avoid brittle file paths.`,
+      "warning",
+    );
+  }
+
   function walk(node: Node, containers: Node[] = []): void {
+    if (node.type === "link" || node.type === "image") {
+      checkDeepRelativePath(node);
+    }
     if (node.type === "paragraph") {
       checkMetadataFields(node);
       checkHardWrap(node);
@@ -429,7 +451,9 @@ function inspectMarkdown(
     }
     // Diagrams inside a ````quiz block are not visible to the file-level check above.
     if (isQuizDown(markdown)) {
-      for (const field of quizDiagramFields(quiz, resolveQuizOptions(options))) {
+      for (
+        const field of quizDiagramFields(quiz, resolveQuizOptions(options))
+      ) {
         for (const issue of detectDiagramIssues(field.markdown, sourceFile)) {
           diagnostics.push({
             sourceFile,
