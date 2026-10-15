@@ -136,10 +136,12 @@ function remarkDownloadLinks() {
       if (node.type === "link" && node.url) {
         const url = node.url;
         const pathPart = url.split(/[?#]/, 1)[0];
+        const filename = pathPart.split("/").pop() || "";
         if (
           pathPart && !pathPart.startsWith("/") &&
           !/^[a-z][a-z\d+.-]*:/i.test(pathPart) &&
-          !/\.md$/i.test(pathPart)
+          !/\.md$/i.test(pathPart) &&
+          /\.[^./]+$/.test(filename)
         ) {
           try {
             const target = path.resolve(path.dirname(file.path), decodeURIComponent(pathPart));

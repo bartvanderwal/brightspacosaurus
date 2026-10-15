@@ -298,46 +298,6 @@ export async function runBuild(
       console.log(`  ✓ ${relPath}`);
     }
 
-    // Phase 1b: Convert README.md from the sourcesDir parent to HTML.
-    // Keep it in the first module without requiring a week-based folder name.
-    const sourcesParent = dirname(config.sourcesDir);
-    const parentHtmlFiles = ["README.md"];
-    for (const parentFile of parentHtmlFiles) {
-      const parentFilePath = join(sourcesParent, parentFile);
-      try {
-        await Deno.stat(parentFilePath);
-        const modules = [
-          ...scanResult.markdownFiles,
-          ...scanResult.quizFiles,
-        ].flatMap((file) => {
-          const parts = relative(config.sourcesDir, file).split(/[\\/]/);
-          return parts.length > 1 ? [parts[0]] : [];
-        });
-        const firstModule = [...new Set(modules)].sort((a, b) =>
-          a.localeCompare(b, "nl", { numeric: true, sensitivity: "base" })
-        )[0];
-        const moduleOutputDir = firstModule
-          ? join(contentOutputDir, firstModule)
-          : contentOutputDir;
-        await Deno.mkdir(moduleOutputDir, { recursive: true });
-        const result = await convertMarkdown({
-          sourcePath: parentFilePath,
-          outputDir: moduleOutputDir,
-          repoRoot,
-          baseDir: dirname(parentFilePath),
-          version: config.version,
-          packageVersion,
-          customCssPath: config.customCss ?? undefined,
-          diagrams: config.diagrams,
-          flashcards: config.flashcards,
-        });
-        const relPath = relative(contentOutputDir, result.outputPath);
-        console.log(`  ✓ ${relPath} (${parentFile})`);
-      } catch {
-        // File not found — skip
-      }
-    }
-
     // Phase 2: Convert quiz Markdown to QTI XML
     for (const quizFile of scanResult.quizFiles) {
       const result = await convertQuiz({
@@ -896,12 +856,12 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     sourcesDir: config.sourcesDir,
     repoRoot,
   });
-  const copiedDownloadables = await copyDownloadableFiles(
+  const copiedDownloadableCount = await copyDownloadableFiles(
     [...sources.markdownFiles, ...sources.quizFiles],
     config.sourcesDir,
     downloadStaticDir,
   );
-  if (copiedDownloadables) previewStaticDir = staticDir;
+  if (copiedDownloadableCount > 0) previewStaticDir = staticDir;
   const { renderPreviewSlides } = await import("./slides-preview.ts");
   const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir);
   if (Object.keys(slides).length) previewStaticDir = staticDir;

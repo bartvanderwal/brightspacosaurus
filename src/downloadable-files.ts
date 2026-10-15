@@ -28,10 +28,12 @@ export function findDownloadableLinks(markdown: string): DownloadableLink[] {
     if (node.type === "link" && node.url) {
       const url = node.url;
       const path = url.split(/[?#]/, 1)[0];
+      const filename = path.split("/").pop() ?? "";
       if (
         path && !path.startsWith("/") &&
         !/^[a-z][a-z\d+.-]*:/i.test(path) &&
-        !/\.md$/i.test(path)
+        !/\.md$/i.test(path) &&
+        /\.[^./]+$/.test(filename)
       ) {
         links.push({
           url,
@@ -114,7 +116,7 @@ export async function copyDownloadableFiles(
   markdownFiles: string[],
   sourcesDir: string,
   destinationDir: string,
-): Promise<boolean> {
+): Promise<number> {
   const copied = new Set<string>();
   for (const sourceFile of markdownFiles) {
     const markdown = await Deno.readTextFile(sourceFile);
@@ -145,5 +147,5 @@ export async function copyDownloadableFiles(
       copied.add(destination);
     }
   }
-  return copied.size > 0;
+  return copied.size;
 }

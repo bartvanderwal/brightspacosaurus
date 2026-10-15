@@ -215,7 +215,7 @@ Deno.test("runBuild en runPack bouwen een minimale cartridge met lessen, quiz en
   }
 });
 
-Deno.test("runBuild groups the parent README with the first topic folder", async () => {
+Deno.test("runBuild does not export the repository README into a course module", async () => {
   await Deno.mkdir("build", { recursive: true });
   const repoRoot = await Deno.makeTempDir({
     dir: "build",
@@ -236,13 +236,9 @@ Deno.test("runBuild groups the parent README with the first topic folder", async
     );
     await runBuild(config, false, { skipReaders: true });
     assertEquals(
-      await Deno.stat(
+      await exists(
         join(config.outputDir, "content", "topic-intro", "README.html"),
-      ).then((stat) => stat.isFile),
-      true,
-    );
-    assertEquals(
-      await exists(join(config.outputDir, "content", "week-1")),
+      ),
       false,
     );
   } finally {

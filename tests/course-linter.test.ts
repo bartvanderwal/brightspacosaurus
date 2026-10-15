@@ -151,6 +151,36 @@ Deno.test("module index titles use H1, and course lint validates downloads and D
   }
 });
 
+Deno.test("lint finds category metadata recursively in the source directory", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({
+    dir: "build",
+    prefix: "lint-category-metadata-",
+  });
+  try {
+    const sourceDir = join(root, "lessons");
+    const topicDir = join(sourceDir, "topic", "nested");
+    await Deno.mkdir(topicDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(topicDir, "_category_.json"),
+      '{"label":"Do not maintain this"}',
+    );
+    await Deno.writeTextFile(join(topicDir, "lesson.md"), "# Lesson\n");
+
+    const result = await lintCourse(resolveConfig(
+      { courseName: "Lint", version: "1", sourcesDir: "lessons" },
+      {},
+      root,
+    ));
+    assertEquals(
+      result.diagnostics.map((diagnostic) => diagnostic.rule),
+      ["docusaurus-category-metadata"],
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("reader heading numbers ascend per level and respect back matter and appendices", () => {
   const valid = `---
 title: Reader demo

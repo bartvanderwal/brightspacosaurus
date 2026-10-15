@@ -495,7 +495,7 @@ Deno.test("convertMarkdown: local download links copy files beside their source 
     const previewDownloads = join(tempRoot, "preview", "downloads");
     assertEquals(
       await copyDownloadableFiles([sourcePath], sourceDir, previewDownloads),
-      true,
+      1,
     );
     assertEquals(
       [

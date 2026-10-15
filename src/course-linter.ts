@@ -1,5 +1,12 @@
 /** Offline checks for BSO-specific Markdown, complementary to Markdown style linters. */
-import { basename, dirname, isAbsolute, relative, resolve } from "@std/path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "@std/path";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
