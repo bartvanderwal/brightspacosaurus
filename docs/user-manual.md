@@ -2,7 +2,7 @@
 
 Publication pipeline for course material from Git to Brightspace
 
-- *_*Author(s)*: Bart van der Wal
+- *Author(s)*: Bart van der Wal, Claude Sonnet 5.5
 - *Version*: 1.0
 
 ## 1. Introduction
