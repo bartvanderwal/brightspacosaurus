@@ -48,7 +48,7 @@ function fake(captured: string[], argsCaptured: string[][] = []): SlidesRunner {
     captured.push(await Deno.readTextFile(args[args.indexOf("marp") + 1]));
     await Deno.writeTextFile(
       args[args.indexOf("--output") + 1],
-      "<html><head></head><body><section>Slide</section><!-- Notes --></body></html>",
+      '<html><head></head><body><section class="lead">Slide</section><!-- Notes --></body></html>',
     );
   };
 }
@@ -175,6 +175,48 @@ Deno.test("slides preview: deterministic glob selection combines slides and reta
       ),
       html,
     );
+  });
+});
+
+Deno.test("slides preview: shared theme and logo are applied to lead slides", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "shared/theme.css",
+      "/* @theme course-theme */\nsection { color: red; }\n",
+    );
+    const logoPath = join(root, "shared/logo.png");
+    await Deno.writeFile(logoPath, new Uint8Array([137, 80, 78, 71]));
+    await write(root, "decks/slides.md", deck);
+    const captured: string[] = [];
+    const args: string[][] = [];
+    await renderPreviewSlides(
+      {
+        ...config,
+        theme: "shared/theme.css",
+        logo: "shared/logo.png",
+      },
+      root,
+      "lessons",
+      "static",
+      fake(captured, args),
+    );
+
+    assertStringIncludes(captured[0], "theme: course-theme");
+    assert(!captured[0].includes("theme: default"));
+    assertEquals(args[1].slice(-2), [
+      "--theme-set",
+      join(root, "shared/theme.css"),
+    ]);
+    const html = await Deno.readTextFile(
+      join(root, "static/slides/week/lesson/index.html"),
+    );
+    assertStringIncludes(
+      html,
+      `src="data:image/png;base64,${btoa(String.fromCharCode(137, 80, 78, 71))}"`,
+    );
+    assertStringIncludes(html, 'class="bso-slide-logo"');
+    assertEquals(html.match(/bso-slide-logo/g)?.length, 1);
   });
 });
 
@@ -1037,6 +1079,7 @@ Deno.test("slides preview: marp and slides together, or slides: false, do not se
 Deno.test("slides export: one topic per lesson next to the lesson, titled after it, deterministic (#112)", async () => {
   await fixture(async (root) => {
     await write(root, "decks/a.md", deck.replace("# Slide", "# A"));
+    await write(root, "shared/logo.png", "logo");
     await write(
       root,
       "content/week/lesson.html",
@@ -1045,7 +1088,7 @@ Deno.test("slides export: one topic per lesson next to the lesson, titled after 
     const contentDir = join(root, "content");
     const run = () =>
       exportSlidesToContent(
-        config,
+        { ...config, logo: "shared/logo.png" },
         root,
         "lessons",
         "static",
@@ -1061,7 +1104,9 @@ Deno.test("slides export: one topic per lesson next to the lesson, titled after 
       html,
       '<meta name="bso-title" content="Slides: Lesson 1.1: Fizz &amp;amp; Buzz">',
     );
-    assertStringIncludes(html, "<section>Slide</section>");
+    assertStringIncludes(html, '<section class="lead">Slide');
+    assertStringIncludes(html, 'class="bso-slide-logo"');
+    assertStringIncludes(html, 'src="data:image/png;base64,bG9nbw=="');
     assertEquals(await run(), exported);
     assertEquals(
       await Deno.readTextFile(join(contentDir, "week", "lesson-slides.html")),

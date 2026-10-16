@@ -211,7 +211,10 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     const slides = obj.slides as Record<string, unknown>;
     for (const key of Object.keys(slides)) {
-      if (key !== "lessons" && key !== "disclaimer" && key !== "notes") {
+      if (
+        key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
+        key !== "theme" && key !== "logo"
+      ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
     }
@@ -233,6 +236,24 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     if (slides.notes !== undefined && typeof slides.notes !== "boolean") {
       throw new Error("Field 'slides.notes' must be true or false.");
+    }
+    for (const field of ["theme", "logo"] as const) {
+      const path = slides[field];
+      if (path !== undefined) {
+        if (typeof path !== "string" || !path.trim()) {
+          throw new Error(
+            `Field 'slides.${field}' must be a nonempty relative path.`,
+          );
+        }
+        if (
+          /^(?:[\\/]|[A-Za-z]:)/.test(path) ||
+          path.split(/[\\/]/).includes("..")
+        ) {
+          throw new Error(
+            `Field 'slides.${field}' must use a relative path without '..'.`,
+          );
+        }
+      }
     }
   }
 
@@ -717,6 +738,19 @@ export function resolveConfig(
   const readerCoverLogo = config.readerCoverLogo
     ? resolve(repoRoot, config.readerCoverLogo)
     : null;
+  const slides = config.slides
+    ? {
+      ...config.slides,
+      ...(config.slides.theme
+        ? { theme: resolve(repoRoot, config.slides.theme) }
+        : {}),
+      ...(config.slides.logo
+        ? { logo: resolve(repoRoot, config.slides.logo) }
+        : readerCoverLogo
+        ? { logo: readerCoverLogo }
+        : {}),
+    }
+    : undefined;
 
   // assetsDir: from config only, null if not provided
   const assetsDir = config.assetsDir
@@ -762,7 +796,7 @@ export function resolveConfig(
     customCss,
     name,
     docusaurusDir,
-    slides: config.slides,
+    slides,
     teacherManual,
     quiz: resolveQuizConfig(config),
     flashcards: resolveFlashcardsOptions(

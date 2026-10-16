@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.29.0
+
+### Added
+
+- Configurable course-wide Marp themes and title-slide logos, embedded in both the preview and `.imscc`; `readerCoverLogo` is the default slide logo (#114).
+
 ## 0.28.0
 
 ### Added
