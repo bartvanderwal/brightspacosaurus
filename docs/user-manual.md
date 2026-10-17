@@ -135,6 +135,7 @@ The most important fields:
 | `courseName`           | yes      | Course name as shown in the manifest                                                         |
 | `version`              | yes      | Version number (semver), used in the `.imscc` filename and HTML badge                        |
 | `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
+| `docusaurusDocsDir`    | no       | Docusaurus docs-plugin root for document IDs (default: parent of `sourcesDir`)                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
 | `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner) |
@@ -904,14 +905,14 @@ lessons/
     css.md
 ```
 
-Put a non-empty H1 in each module's `index.md`; that heading becomes the module name in Brightspace and in the preview. For example, `databases/index.md` can begin with `# Databases`. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without `index.md`, the folder name is used.
+Put a non-empty H1 in each module's lead page; that heading becomes the module name in Brightspace and in the preview. BSO uses `index.md`, `weekintro-N.md`, `weekindex-N.md`, `intro.md`, or `overview.md` as the lead page. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without a lead page, the folder name is used.
 
 The preview derives its sidebar from the same course folders and ordering as the Brightspace menu. You do not need to maintain Docusaurus `sidebars.js` or `_category_.json` files in the course content. BSO ignores `_category_.json`; `bso lint` warns if one remains in `sourcesDir`.
 
 Within a module BSO orders the pages like the Docusaurus sidebar:
 
 1. the teacher page (`teacherPage`), always first in its module;
-2. the folder's `index.md`;
+2. the folder's lead page;
 3. pages with `sidebar_position` in their front matter, ascending;
 4. the rest by lesson code (for example `1.2`) and title.
 
@@ -921,7 +922,9 @@ Reader PDFs get their own module by default. To put them in a content module ins
 "readersModule": { "slug": "algemeen", "title": "Algemeen" }
 ```
 
-`title` sets the module title; without it the module keeps the H1 of its `index.md` or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+`title` sets the module title; without it the module keeps the lead page's H1 or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+
+`build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both are generated from the same navigation model; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. The sidebar has one category level per first-level folder in `sourcesDir`; deeper folders remain within that category. Readers can be placed in a content module with `readersModule`. The repository README is not included in the course navigation. Set `docusaurusDocsDir` to the docs-plugin root when it differs from the parent of `sourcesDir`; document IDs are paths relative to that root.
 
 The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 

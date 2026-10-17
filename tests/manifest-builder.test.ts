@@ -8,7 +8,9 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import fc from "fast-check";
 import {
+  buildDocusaurusSidebars,
   buildManifest,
+  buildNavigationModel,
   buildTimeFromEnv,
   deriveReaderMenuTitle,
   formatBuildInfo,
@@ -327,6 +329,128 @@ Deno.test("Module-titel komt uit de H1 van index.html; zonder index blijft de ma
   );
 });
 
+Deno.test("gedeeld navigatiemodel gebruikt weekintro als moduletitel en behoudt manifestvolgorde", () => {
+  const entries: ManifestEntry[] = [
+    page("content/week-4/les-4.4.html", "Les 4.4", 2),
+    page("content/week-4/weekintro-4.html", "Week 4 - Niveau 2"),
+    {
+      id: "quiz-4-4",
+      title: "Oefentoets backend (MC)",
+      href: "quiz/week-4/qti-les-4-4-oefentoets-backend.xml",
+      type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+    },
+    page("content/week-4/transcript-les-4.html", "Transcript"),
+    page("content/week-4/quiz-4.4-antwoorden-docent.html", "Docentantwoorden"),
+  ];
+  const sorted = sortManifestEntriesForNavigation(entries);
+  const model = buildNavigationModel(sorted, {
+    docIdForEntry: (entry) =>
+      entry.href.replace(/^(?:content|quiz)\//, "").replace(
+        /\.(?:html|xml)$/,
+        "",
+      ),
+  });
+  assertEquals(model.version, 1);
+  assertEquals(model.modules, [{
+    id: "week-4",
+    title: "Week 4 - Niveau 2",
+    indexId: "week-4/weekintro-4",
+    items: [
+      {
+        kind: "lesson",
+        docId: "week-4/weekintro-4",
+        href: "content/week-4/weekintro-4.html",
+        title: "Week 4 - Niveau 2",
+        code: null,
+        position: null,
+      },
+      {
+        kind: "lesson",
+        docId: "week-4/les-4.4",
+        href: "content/week-4/les-4.4.html",
+        title: "Les 4.4",
+        code: "4.4",
+        position: 2,
+      },
+      {
+        kind: "quiz",
+        docId: "week-4/qti-les-4-4-oefentoets-backend",
+        href: "quiz/week-4/qti-les-4-4-oefentoets-backend.xml",
+        title: "Oefentoets backend (MC)",
+        code: "4.4",
+        position: null,
+      },
+    ],
+  }]);
+  assertEquals(buildDocusaurusSidebars(model), {
+    docs: [{
+      type: "category",
+      label: "Week 4 - Niveau 2",
+      link: { type: "doc", id: "week-4/weekintro-4" },
+      items: [
+        "week-4/weekintro-4",
+        "week-4/les-4.4",
+        "week-4/qti-les-4-4-oefentoets-backend",
+      ],
+    }],
+  });
+  assertEquals(
+    model.modules.flatMap((module) => module.items).map((item) => item.href),
+    sorted.filter((entry) => !/transcript-|antwoorden-docent/i.test(entry.href))
+      .map((entry) => entry.href),
+  );
+  const manifest = buildManifest("Cursus", sorted);
+  for (
+    const excluded of sorted.filter((entry) =>
+      /transcript-|antwoorden-docent/i.test(entry.href)
+    )
+  ) {
+    assertEquals(manifest.includes(`identifierref="${excluded.id}"`), false);
+  }
+});
+
+Deno.test("readers verschijnen als reader-items maar niet als Docusaurus-documenten", () => {
+  const model = buildNavigationModel([{
+    id: "reader-git",
+    title: "Reader Git",
+    href: "readers/reader-git.pdf",
+    type: "webcontent",
+  }], { docIdForEntry: () => null });
+  assertEquals(model.modules[0].items[0].kind, "reader");
+  assertEquals(model.modules[0].items[0].docId, null);
+  assertEquals(buildDocusaurusSidebars(model), { docs: [] });
+
+  const joined = buildNavigationModel([
+    page("content/week-1/index.html", "Week 1"),
+    page("content/week-1/lesson.html", "Lesson"),
+    {
+      id: "reader-git",
+      title: "Reader Git",
+      href: "readers/reader-git.pdf",
+      type: "webcontent",
+    },
+  ], {
+    readersModule: { slug: "week-1", title: "Course materials" },
+  });
+  assertEquals(joined.modules[0].title, "Course materials");
+  assertEquals(joined.modules[0].items.map((item) => item.kind), [
+    "lesson",
+    "lesson",
+    "reader",
+  ]);
+});
+
+Deno.test("niet-gegroepeerde documenten vormen na de cursusmodules de module Algemeen", () => {
+  const sorted = sortManifestEntriesForNavigation([
+    page("content/week-1/les-1.html", "Les 1"),
+    page("content/faq.html", "FAQ"),
+  ]);
+  const model = buildNavigationModel(sorted);
+  assertEquals(model.modules.map((module) => module.id), ["week-1", "general"]);
+  assertEquals(model.modules[1].title, "Algemeen");
+  assertEquals(model.modules[1].items[0].href, "content/faq.html");
+});
+
 Deno.test("Reader-menu titels worden gehumanized in plaats van slugtitels", () => {
   assertEquals(
     deriveReaderMenuTitle("plantuml-essentials.pdf"),
@@ -498,13 +622,19 @@ Deno.test("Brightspace-manifest plaatst content/docenten in module_docentenmater
   const xml = buildManifest("Test Course", entries);
 
   assertStringIncludes(xml, '<item identifier="module_docentenmateriaal">');
-  assertStringIncludes(xml, "<title>Instructor material (hide after import)</title>");
+  assertStringIncludes(
+    xml,
+    "<title>Instructor material (hide after import)</title>",
+  );
   assertStringIncludes(
     xml,
     '<item identifier="item_res_content_docenten_voortgangsverkenner_html" identifierref="res_content_docenten_voortgangsverkenner_html">',
   );
   assertStringIncludes(xml, "<title>Voortgangsverkenner</title>");
-  assertStringIncludes(xml, '<file href="content/docenten/voortgangsverkenner.html"/>');
+  assertStringIncludes(
+    xml,
+    '<file href="content/docenten/voortgangsverkenner.html"/>',
+  );
   assertStringIncludes(xml, '<file href="content/docenten/style.css"/>');
   assertStringIncludes(xml, '<file href="content/docenten/app.js"/>');
 });
@@ -534,28 +664,49 @@ const menuEntries = [
 ];
 
 function moduleTitles(xml: string): string[] {
-  return [...xml.matchAll(/<item identifier="(group_[^"]+|module_[^"]+)">\s*<title>([^<]+)<\/title>/g)]
+  return [
+    ...xml.matchAll(
+      /<item identifier="(group_[^"]+|module_[^"]+)">\s*<title>([^<]+)<\/title>/g,
+    ),
+  ]
     .map((m) => `${m[1]}:${m[2]}`);
 }
 
 function itemOrder(xml: string, moduleId: string): string[] {
   const start = xml.indexOf(`<item identifier="${moduleId}">`);
   const block = xml.slice(start, xml.indexOf("\n      </item>", start));
-  return [...block.matchAll(/<item identifier="item_[^"]+" identifierref="[^"]+">\s*<title>([^<]+)<\/title>/g)]
+  return [
+    ...block.matchAll(
+      /<item identifier="item_[^"]+" identifierref="[^"]+">\s*<title>([^<]+)<\/title>/g,
+    ),
+  ]
     .map((m) => m[1]);
 }
 
 Deno.test("by default reader PDFs get their own Readers module", () => {
-  const xml = buildManifest("Cursus", sortManifestEntriesForNavigation(menuEntries));
-  assertEquals(moduleTitles(xml), ["group_algemeen:Algemeen", "group_week_1:week-1", "module_readers:Readers"]);
+  const xml = buildManifest(
+    "Cursus",
+    sortManifestEntriesForNavigation(menuEntries),
+  );
+  assertEquals(moduleTitles(xml), [
+    "group_algemeen:Algemeen",
+    "group_week_1:week-1",
+    "module_readers:Readers",
+  ]);
 });
 
 Deno.test("readersModule with a content folder slug puts the readers in that module, after its pages", () => {
   const sorted = sortManifestEntriesForNavigation(menuEntries, {
     firstHref: "content/algemeen/voor-docenten.html",
   });
-  const xml = buildManifest("Cursus", sorted, { slug: "algemeen", title: "Algemeen" });
-  assertEquals(moduleTitles(xml), ["group_algemeen:Algemeen", "group_week_1:week-1"]);
+  const xml = buildManifest("Cursus", sorted, {
+    slug: "algemeen",
+    title: "Algemeen",
+  });
+  assertEquals(moduleTitles(xml), [
+    "group_algemeen:Algemeen",
+    "group_week_1:week-1",
+  ]);
   assertEquals(itemOrder(xml, "group_algemeen"), [
     "Voor docenten",
     "Algemeen",
@@ -567,10 +718,14 @@ Deno.test("readersModule with a content folder slug puts the readers in that mod
 });
 
 Deno.test("readersModule without a matching folder keeps a separate module with its title", () => {
-  const xml = buildManifest("Cursus", sortManifestEntriesForNavigation(menuEntries), {
-    slug: "naslag",
-    title: "Naslag",
-  });
+  const xml = buildManifest(
+    "Cursus",
+    sortManifestEntriesForNavigation(menuEntries),
+    {
+      slug: "naslag",
+      title: "Naslag",
+    },
+  );
   assertEquals(moduleTitles(xml).at(-1), "module_naslag:Naslag");
 });
 
@@ -588,23 +743,46 @@ Deno.test("sidebar_position orders pages like Docusaurus: positioned pages first
 // teacherDashboard.module (#55)
 // ---------------------------------------------------------------------------
 
-const dashboardEntry = page("content/docenten/voortgangsverkenner.html", "Voortgangsverkenner");
+const dashboardEntry = page(
+  "content/docenten/voortgangsverkenner.html",
+  "Voortgangsverkenner",
+);
 const teacherPageHref = "content/algemeen/voor-docenten.html";
 
 Deno.test("without teacherDashboard.module the dashboard keeps its own instructor module", () => {
-  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry], { firstHref: teacherPageHref });
+  const sorted = sortManifestEntriesForNavigation([
+    ...menuEntries,
+    dashboardEntry,
+  ], { firstHref: teacherPageHref });
   const xml = buildManifest("Cursus", sorted);
-  assertEquals(moduleTitles(xml).at(-1), "module_docentenmateriaal:Instructor material (hide after import)");
-  assertEquals(itemOrder(xml, "module_docentenmateriaal"), ["Voortgangsverkenner"]);
+  assertEquals(
+    moduleTitles(xml).at(-1),
+    "module_docentenmateriaal:Instructor material (hide after import)",
+  );
+  assertEquals(itemOrder(xml, "module_docentenmateriaal"), [
+    "Voortgangsverkenner",
+  ]);
 });
 
 Deno.test("teacherDashboard.module puts the dashboard directly after the teacher page and drops the instructor module", () => {
-  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry], { firstHref: teacherPageHref });
-  const xml = buildManifest("Cursus", sorted, { slug: "readers", title: null }, {
-    module: { slug: "algemeen", title: null },
-    teacherPageHref,
-  });
-  assertEquals(moduleTitles(xml), ["group_algemeen:Algemeen", "group_week_1:week-1", "module_readers:Readers"]);
+  const sorted = sortManifestEntriesForNavigation([
+    ...menuEntries,
+    dashboardEntry,
+  ], { firstHref: teacherPageHref });
+  const xml = buildManifest(
+    "Cursus",
+    sorted,
+    { slug: "readers", title: null },
+    {
+      module: { slug: "algemeen", title: null },
+      teacherPageHref,
+    },
+  );
+  assertEquals(moduleTitles(xml), [
+    "group_algemeen:Algemeen",
+    "group_week_1:week-1",
+    "module_readers:Readers",
+  ]);
   assertEquals(itemOrder(xml, "group_algemeen"), [
     "Voor docenten",
     "Voortgangsverkenner",
@@ -616,11 +794,19 @@ Deno.test("teacherDashboard.module puts the dashboard directly after the teacher
 });
 
 Deno.test("teacherDashboard.module and readersModule can share one module: dashboard after the teacher page, readers last", () => {
-  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry], { firstHref: teacherPageHref });
-  const xml = buildManifest("Cursus", sorted, { slug: "algemeen", title: null }, {
-    module: { slug: "algemeen", title: null },
-    teacherPageHref,
-  });
+  const sorted = sortManifestEntriesForNavigation([
+    ...menuEntries,
+    dashboardEntry,
+  ], { firstHref: teacherPageHref });
+  const xml = buildManifest(
+    "Cursus",
+    sorted,
+    { slug: "algemeen", title: null },
+    {
+      module: { slug: "algemeen", title: null },
+      teacherPageHref,
+    },
+  );
   assertEquals(itemOrder(xml, "group_algemeen"), [
     "Voor docenten",
     "Voortgangsverkenner",
@@ -633,18 +819,34 @@ Deno.test("teacherDashboard.module and readersModule can share one module: dashb
 });
 
 Deno.test("teacherDashboard.module without a matching folder makes a module of that name instead of the instructor module", () => {
-  const xml = buildManifest("Cursus", sortManifestEntriesForNavigation([...menuEntries, dashboardEntry]), {
-    slug: "readers",
-    title: null,
-  }, { module: { slug: "docenten-info", title: "Docenten" } });
-  assertEquals(moduleTitles(xml).at(-1), "module_dashboard_docenten_info:Docenten");
+  const xml = buildManifest(
+    "Cursus",
+    sortManifestEntriesForNavigation([...menuEntries, dashboardEntry]),
+    {
+      slug: "readers",
+      title: null,
+    },
+    { module: { slug: "docenten-info", title: "Docenten" } },
+  );
+  assertEquals(
+    moduleTitles(xml).at(-1),
+    "module_dashboard_docenten_info:Docenten",
+  );
   assertEquals(xml.includes("docentenmateriaal"), false);
 });
 
 Deno.test("teacherDashboard.module without a teacher page in that module puts the dashboard first", () => {
-  const sorted = sortManifestEntriesForNavigation([...menuEntries, dashboardEntry]);
-  const xml = buildManifest("Cursus", sorted, undefined, { module: { slug: "week-1", title: null } });
-  assertEquals(itemOrder(xml, "group_week_1"), ["Voortgangsverkenner", "Les 1"]);
+  const sorted = sortManifestEntriesForNavigation([
+    ...menuEntries,
+    dashboardEntry,
+  ]);
+  const xml = buildManifest("Cursus", sorted, undefined, {
+    module: { slug: "week-1", title: null },
+  });
+  assertEquals(itemOrder(xml, "group_week_1"), [
+    "Voortgangsverkenner",
+    "Les 1",
+  ]);
 });
 
 Deno.test("manifest records BSO version, course name and version, and is deterministic", () => {
@@ -670,7 +872,10 @@ Deno.test("manifest includes the build time when given", () => {
     courseVersion: "1",
     buildTime: "2026-10-05T12:00:00.000Z",
   };
-  assertStringIncludes(formatBuildInfo(info), "built: 2026-10-05T12:00:00.000Z");
+  assertStringIncludes(
+    formatBuildInfo(info),
+    "built: 2026-10-05T12:00:00.000Z",
+  );
   assertStringIncludes(
     buildManifest("Demo", [], undefined, undefined, info),
     "built: 2026-10-05T12:00:00.000Z",
