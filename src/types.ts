@@ -186,13 +186,9 @@ export interface BsoConfig {
   name?: string;
   /** Path to the Docusaurus directory for `bso preview` (relative to Repo_Root). Optional. */
   docusaurusDir?: string;
-<<<<<<< HEAD
   /** Root directory used by the course's Docusaurus docs plugin (relative to Repo_Root). */
   docusaurusDocsDir?: string;
-  /** Preview-only Marp presentations; never included in the cartridge. */
-=======
   /** Marp presentations rendered in preview and included in the cartridge. */
->>>>>>> origin/main
   slides?: SlidesConfig;
   /** Configuration for instructor manual generation. Optional. */
   teacherManual?: TeacherManualConfig;

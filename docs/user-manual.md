@@ -891,9 +891,6 @@ _Figure 10_: Brightspace Manage Files — reader PDFs are linked from lesson pag
 
 ### 8.2 Menu module and order
 
-<<<<<<< HEAD
-The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name, so a folder `algemeen` comes before `week-1`. The module title is the H1 of its lead page (`index`, `weekintro-N`, `weekindex-N`, `intro`, or `overview`), otherwise the folder name.
-=======
 The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name. Name these folders for the course structure that makes sense to students—weeks, topics, themes or units all work. For a topic-based course, for example:
 
 ```text
@@ -908,10 +905,9 @@ lessons/
     css.md
 ```
 
-Put a non-empty H1 in each module's `index.md`; that heading becomes the module name in Brightspace and in the preview. For example, `databases/index.md` can begin with `# Databases`. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without `index.md`, the folder name is used.
+Put a non-empty H1 in each module's lead page; that heading becomes the module name in Brightspace and in the preview. BSO uses `index.md`, `weekintro-N.md`, `weekindex-N.md`, `intro.md`, or `overview.md` as the lead page. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without a lead page, the folder name is used.
 
 The preview derives its sidebar from the same course folders and ordering as the Brightspace menu. You do not need to maintain Docusaurus `sidebars.js` or `_category_.json` files in the course content. BSO ignores `_category_.json`; `bso lint` warns if one remains in `sourcesDir`.
->>>>>>> origin/main
 
 Within a module BSO orders the pages like the Docusaurus sidebar:
 
@@ -928,7 +924,7 @@ Reader PDFs get their own module by default. To put them in a content module ins
 
 `title` sets the module title; without it the module keeps the lead page's H1 or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
 
-`build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both are generated from the same navigation model; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. The sidebar has one category level per first-level folder in `sourcesDir`; deeper folders remain within that category. Readers can be placed in a content module with `readersModule`. The generated parent `README.md` is grouped with the first module. Set `docusaurusDocsDir` to the docs-plugin root when it differs from the parent of `sourcesDir`; document IDs are paths relative to that root.
+`build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both are generated from the same navigation model; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. The sidebar has one category level per first-level folder in `sourcesDir`; deeper folders remain within that category. Readers can be placed in a content module with `readersModule`. The repository README is not included in the course navigation. Set `docusaurusDocsDir` to the docs-plugin root when it differs from the parent of `sourcesDir`; document IDs are paths relative to that root.
 
 The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 

@@ -310,7 +310,7 @@ Deno.test("runBuild does not export the repository README into a course module",
   }
 });
 
-Deno.test("topic-course navigation uses the docs root and groups the parent README without a week assumption", async () => {
+Deno.test("topic-course navigation uses the docs root and supports readers in a content module", async () => {
   const repoRoot = await Deno.makeTempDir();
   try {
     const config = testConfig(repoRoot);
@@ -325,7 +325,6 @@ Deno.test("topic-course navigation uses the docs root and groups the parent READ
     });
     await Deno.mkdir(join(config.sourcesDir, "patterns"), { recursive: true });
     await Deno.mkdir(config.readersDir, { recursive: true });
-    await Deno.writeTextFile(join(docsDir, "README.md"), "# Course overview\n");
     await Deno.writeTextFile(
       join(config.sourcesDir, "introduction", "index.md"),
       "# Introduction\n",
@@ -369,21 +368,15 @@ Deno.test("topic-course navigation uses the docs root and groups the parent READ
       introduction.items.map((item: { href: string }) => item.href),
       [
         "content/introduction/index.html",
-        "content/introduction/README.html",
         "content/introduction/lesson-1.html",
         "readers/reader-glossary.pdf",
       ],
     );
     assertEquals(introduction.indexId, "course-docs/content/introduction/index");
     assertEquals(
-      introduction.items[1].docId,
-      "course-docs/README",
-    );
-    assertEquals(
       sidebars.docs[0].items,
       [
         "course-docs/content/introduction/index",
-        "course-docs/README",
         "course-docs/content/introduction/lesson-1",
       ],
     );

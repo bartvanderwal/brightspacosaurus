@@ -803,12 +803,8 @@ export function resolveConfig(
     customCss,
     name,
     docusaurusDir,
-<<<<<<< HEAD
     docusaurusDocsDir,
-    slides: config.slides,
-=======
     slides,
->>>>>>> origin/main
     teacherManual,
     quiz: resolveQuizConfig(config),
     flashcards: resolveFlashcardsOptions(
