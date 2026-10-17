@@ -143,6 +143,10 @@ export interface ReaderConvertResult {
 export interface SlidesConfig {
   /** Lesson paths relative to sourcesDir mapped to slide globs relative to Repo_Root. */
   lessons: Record<string, string>;
+  /** Marp theme CSS path relative to the repository root. */
+  theme?: string;
+  /** Logo path relative to the repository root; defaults to readerCoverLogo. */
+  logo?: string;
   /** Empty disables the banner; omitted shows `Preview`. */
   disclaimer?: string;
   /**
@@ -182,9 +186,13 @@ export interface BsoConfig {
   name?: string;
   /** Path to the Docusaurus directory for `bso preview` (relative to Repo_Root). Optional. */
   docusaurusDir?: string;
+<<<<<<< HEAD
   /** Root directory used by the course's Docusaurus docs plugin (relative to Repo_Root). */
   docusaurusDocsDir?: string;
   /** Preview-only Marp presentations; never included in the cartridge. */
+=======
+  /** Marp presentations rendered in preview and included in the cartridge. */
+>>>>>>> origin/main
   slides?: SlidesConfig;
   /** Configuration for instructor manual generation. Optional. */
   teacherManual?: TeacherManualConfig;

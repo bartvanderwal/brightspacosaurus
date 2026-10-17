@@ -19,11 +19,17 @@ import {
   dirname,
   extname,
   fromFileUrl,
+  isAbsolute,
   join,
   relative,
   resolve,
 } from "@std/path";
+<<<<<<< HEAD
 import { isNavigationExcludedFile, scanSources } from "./source-scanner.ts";
+=======
+import { scanSources } from "./source-scanner.ts";
+import { copyDownloadableFiles } from "./downloadable-files.ts";
+>>>>>>> origin/main
 import { convertMarkdown } from "./markdown-converter.ts";
 import { convertQuiz } from "./quiz-converter.ts";
 import {
@@ -306,6 +312,7 @@ export async function runBuild(
       console.log(`  ✓ ${relPath}`);
     }
 
+<<<<<<< HEAD
     // Phase 1b: Convert README.md from the sourcesDir parent to HTML
     // and place it in the first source module.
     const sourcesParent = dirname(config.sourcesDir);
@@ -347,6 +354,8 @@ export async function runBuild(
       }
     }
 
+=======
+>>>>>>> origin/main
     // Phase 2: Convert quiz Markdown to QTI XML
     for (const quizFile of scanResult.quizFiles) {
       const result = await convertQuiz({
@@ -933,7 +942,172 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
 
   // Generate the manifest and navigation formats from one sorted entry list.
   console.log("Generating imsmanifest.xml...");
+<<<<<<< HEAD
   await writeManifestAndNavigation(config);
+=======
+  const entries: ManifestEntry[] = [];
+  const contentDir = join(buildDir, "content");
+
+  async function scanHtml(dir: string): Promise<void> {
+    for await (const entry of Deno.readDir(dir)) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory) {
+        await scanHtml(fullPath);
+      } else if (entry.isFile && entry.name.endsWith(".html")) {
+        const relPath = "content/" + relative(contentDir, fullPath);
+        const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
+
+        // Look for image references in the HTML for manifest dependencies
+        const html = await Deno.readTextFile(fullPath);
+
+        // Use the H1 from the HTML as title (falls back to the file name).
+        // decodeHtmlEntities prevents double encoding: rehype already escapes to &amp; etc.,
+        // and escapeXml() in buildManifest does that again if we don't decode first.
+        // A slide deck names itself with a `bso-title` meta: its first h1 is a slide title.
+        const metaTitle = html.match(/<meta name="bso-title" content="([^"]*)">/i);
+        const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+        const title = metaTitle
+          ? decodeHtmlEntities(metaTitle[1].trim())
+          : h1Match
+          ? decodeHtmlEntities(h1Match[1].trim())
+          : basename(fullPath, extname(fullPath));
+
+        const assetRegex = /(?:src|href)="([^"]+)"/gi;
+        const dependencies = new Set<string>();
+        let match: RegExpExecArray | null;
+        while ((match = assetRegex.exec(html)) !== null) {
+          const assetSrc = match[1].split(/[?#]/, 1)[0];
+          if (!assetSrc || /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(assetSrc)) {
+            continue;
+          }
+          let decodedPath: string;
+          try {
+            decodedPath = decodeURIComponent(assetSrc);
+          } catch {
+            continue;
+          }
+          const assetAbs = resolve(dirname(fullPath), decodedPath);
+          const relativeAsset = relative(contentDir, assetAbs);
+          if (
+            !relativeAsset || relativeAsset === ".." ||
+            relativeAsset.startsWith("../") ||
+            relativeAsset.startsWith("..\\") || isAbsolute(relativeAsset) ||
+            /\.(?:html?|md)$/i.test(relativeAsset)
+          ) continue;
+          try {
+            if (!(await Deno.stat(assetAbs)).isFile) continue;
+            dependencies.add(`content/${relativeAsset.replaceAll("\\", "/")}`);
+          } catch {
+            // Missing local files are reported by `bso lint`.
+          }
+        }
+
+        const positionMatch = html.match(
+          /<meta name="bso-sidebar-position" content="(-?\d+(?:\.\d+)?)">/,
+        );
+        entries.push({
+          id,
+          title,
+          href: relPath,
+          type: "webcontent",
+          dependencies: [...dependencies].sort(),
+          ...(positionMatch ? { position: Number(positionMatch[1]) } : {}),
+        });
+      }
+    }
+  }
+  await scanHtml(contentDir);
+
+  // Scan QTI/quiz files in build
+  const quizDir = join(buildDir, "quiz");
+  try {
+    await Deno.stat(quizDir);
+    const scanQuiz = async (dir: string): Promise<void> => {
+      for await (const entry of Deno.readDir(dir)) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory) {
+          await scanQuiz(fullPath);
+        } else if (entry.isFile && entry.name.endsWith(".xml")) {
+          const relPath = "quiz/" + relative(quizDir, fullPath);
+          const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
+          const xml = await Deno.readTextFile(fullPath);
+          const fallbackTitle = basename(fullPath, extname(fullPath)).replace(
+            /^qti-/,
+            "",
+          );
+          const title = extractAssessmentTitle(xml, fallbackTitle);
+          const dependencies = new Set<string>();
+          for (const [, source] of xml.matchAll(/src=&quot;([^&"]+)&quot;/gi)) {
+            let assetPath = source;
+            try {
+              assetPath = decodeURIComponent(assetPath.split(/[?#]/, 1)[0]);
+            } catch {
+              continue;
+            }
+            const assetFullPath = resolve(dirname(fullPath), assetPath);
+            const assetRelative = relative(quizDir, assetFullPath);
+            if (assetRelative.startsWith("..")) continue;
+            dependencies.add(`quiz/${assetRelative}`);
+          }
+          entries.push({
+            id,
+            title,
+            href: relPath,
+            type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+            dependencies: [...dependencies],
+          });
+        }
+      }
+    };
+    await scanQuiz(quizDir);
+  } catch {
+    // No quiz directory
+  }
+
+  // Scan PDF readers in build/brightspace/readers/
+  const readersDir = join(buildDir, "readers");
+  try {
+    await Deno.stat(readersDir);
+    for await (const entry of Deno.readDir(readersDir)) {
+      if (entry.isFile && entry.name.endsWith(".pdf")) {
+        const relPath = "readers/" + entry.name;
+        const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
+        const title = deriveReaderMenuTitle(entry.name);
+        entries.push({ id, title, href: relPath, type: "webcontent" });
+      }
+    }
+  } catch {
+    // No readers directory — PDF conversion is optional
+  }
+
+  // Instructor PDFs are NOT included in the .imscc (security risk: answers visible to students).
+  // They do remain as standalone files in build/brightspace/docenten/ for internal use.
+  // There is no instructor landing page: GitLab is the source of truth for instructor material.
+
+  // The teacher page always comes first in its module (#37).
+  const teacherPageHref = config.teacherPage
+    ? "content/" +
+      relative(config.sourcesDir, config.teacherPage.path).replace(/\.md$/, ".html")
+        .split(/[\\/]/).join("/")
+    : undefined;
+  const sortedEntries = sortManifestEntriesForNavigation(entries, {
+    firstHref: teacherPageHref,
+  });
+
+  const manifestXml = buildManifest(
+    config.courseName,
+    sortedEntries,
+    config.readersModule,
+    { module: config.teacherDashboard?.module ?? null, teacherPageHref },
+    {
+      bsoVersion: await loadPackageVersion(),
+      courseName: config.courseName,
+      courseVersion: config.version,
+      buildTime: buildTimeFromEnv(),
+    },
+  );
+  await Deno.writeTextFile(join(buildDir, "imsmanifest.xml"), manifestXml);
+>>>>>>> origin/main
   console.log("  ✓ imsmanifest.xml");
 
   // Pack
@@ -1030,6 +1204,20 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   // link to the PDF as in Brightspace.
   const staticDir = join(dirname(config.outputDir), "preview-static");
   let previewStaticDir = "";
+  const downloadStaticDir = join(staticDir, "downloads");
+  await Deno.remove(downloadStaticDir, { recursive: true }).catch(() =>
+    undefined
+  );
+  const sources = await scanSources({
+    sourcesDir: config.sourcesDir,
+    repoRoot,
+  });
+  const copiedDownloadableCount = await copyDownloadableFiles(
+    [...sources.markdownFiles, ...sources.quizFiles],
+    config.sourcesDir,
+    downloadStaticDir,
+  );
+  if (copiedDownloadableCount > 0) previewStaticDir = staticDir;
   const { renderPreviewSlides } = await import("./slides-preview.ts");
   const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir);
   if (Object.keys(slides).length) previewStaticDir = staticDir;
@@ -1079,9 +1267,11 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
         Deno.env.get("NODE_PATH"),
       ),
       BSO_PREVIEW_STATIC_DIR: previewStaticDir,
+      BSO_PREVIEW_SOURCES_DIR: config.sourcesDir,
       BSO_PREVIEW_SLIDES: JSON.stringify(slides),
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
+      BSO_PREVIEW_READERS_MODULE: JSON.stringify(config.readersModule),
       BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({
         path: config.teacherPage?.path ?? null,
         courseName: config.courseName,

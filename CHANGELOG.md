@@ -2,6 +2,19 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.29.0
+
+### Added
+
+- Configurable course-wide Marp themes and title-slide logos, embedded in both the preview and `.imscc`; `readerCoverLogo` is the default slide logo (#114).
+
+## 0.28.0
+
+### Added
+
+- Course modules can use topic, theme or unit folder names; `bso lint` checks that each first-level `index.md` has an H1 title and warns about unused `_category_.json` files.
+- Local Markdown links copy downloadable files into the `.imscc` and the preview. `bso lint` checks that downloads exist, stay inside `sourcesDir` and do not exceed 50 MiB.
+
 ## 0.27.0
 
 ### Changed

@@ -27,6 +27,10 @@ Deno.test("slides configuration rejects invalid fields, mappings and paths", () 
       { lessons: {}, disclaimer: false },
       { lessons: {}, notes: "yes" },
       { lessons: {}, notes: 1 },
+      { lessons: {}, theme: "" },
+      { lessons: {}, logo: 42 },
+      { lessons: {}, theme: "../theme.css" },
+      { lessons: {}, logo: "/logo.png" },
       { lessons: { "lesson.md": "" } },
       { lessons: { "lesson.md": 42 } },
       { lessons: { "lesson.html": "slides/*.md" } },
@@ -38,6 +42,44 @@ Deno.test("slides configuration rejects invalid fields, mappings and paths", () 
   ) {
     assertThrows(() => validateConfig({ ...base, slides }));
   }
+});
+
+Deno.test("slide theme and logo paths resolve from the repository root", () => {
+  const slides = {
+    lessons: { "week/lesson.md": "slides/**/*.md" },
+    theme: "shared/slides-theme.css",
+    logo: "shared/slides-logo.png",
+  };
+  assertEquals(validateConfig({ ...base, slides }), true);
+  assertEquals(resolveConfig({ ...base, slides }, {}, "/repo").slides, {
+    ...slides,
+    theme: "/repo/shared/slides-theme.css",
+    logo: "/repo/shared/slides-logo.png",
+  });
+
+  assertEquals(
+    resolveConfig(
+      { ...base, readerCoverLogo: "shared/reader-logo.png", slides: { lessons: {} } },
+      {},
+      "/repo",
+    ).slides,
+    {
+      lessons: {},
+      logo: "/repo/shared/reader-logo.png",
+    },
+  );
+  assertEquals(
+    resolveConfig(
+      {
+        ...base,
+        readerCoverLogo: "shared/reader-logo.png",
+        slides: { lessons: {}, logo: "shared/slides-logo.png" },
+      },
+      {},
+      "/repo",
+    ).slides?.logo,
+    "/repo/shared/slides-logo.png",
+  );
 });
 
 Deno.test("slide metadata follows source file identity, not page slug, with baseUrl", () => {

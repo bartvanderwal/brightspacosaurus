@@ -128,6 +128,45 @@ function remarkReaderPdfLink() {
   };
 }
 
+function remarkDownloadLinks() {
+  return (tree, file) => {
+    const sourcesDir = process.env.BSO_PREVIEW_SOURCES_DIR;
+    if (!sourcesDir || !file.path) return;
+    const visit = (node) => {
+      if (node.type === "link" && node.url) {
+        const url = node.url;
+        const pathPart = url.split(/[?#]/, 1)[0];
+        const filename = pathPart.split("/").pop() || "";
+        if (
+          pathPart && !pathPart.startsWith("/") &&
+          !/^[a-z][a-z\d+.-]*:/i.test(pathPart) &&
+          !/\.md$/i.test(pathPart) &&
+          /\.[^./]+$/.test(filename)
+        ) {
+          try {
+            const target = path.resolve(path.dirname(file.path), decodeURIComponent(pathPart));
+            const relativeTarget = path.relative(sourcesDir, target);
+            if (
+              relativeTarget && relativeTarget !== ".." &&
+              !relativeTarget.startsWith(`..${path.sep}`) &&
+              !path.isAbsolute(relativeTarget)
+            ) {
+              const staticPath = relativeTarget.split(path.sep)
+                .map((part) => encodeURIComponent(part)).join("/");
+              const suffix = url.slice(pathPart.length);
+              node.url = `pathname://${baseUrl}downloads/${staticPath}${suffix}`;
+            }
+          } catch {
+            // Invalid URLs are reported by `bso lint`.
+          }
+        }
+      }
+      for (const child of node.children ?? []) visit(child);
+    };
+    visit(tree);
+  };
+}
+
 // Software guidebook, user manual and ADRs from docs/ (#33). Links that leave
 // docs/ (README, CHANGELOG, source files) point to the file on GitHub.
 const docsDir = path.resolve(__dirname, "../docs");
@@ -148,6 +187,21 @@ function remarkRepoLinks() {
     };
     visit(tree);
   };
+}
+
+// The reader module is titled in the Brightspace menu by `readersModule.title`,
+// otherwise "Readers" (manifest-builder). Docusaurus labels a folder without an
+// index page with its raw folder name, so the preview names it the same way.
+const readersModule = process.env.BSO_PREVIEW_READERS_MODULE
+  ? JSON.parse(process.env.BSO_PREVIEW_READERS_MODULE)
+  : course.readersModule ?? {};
+const readersSlug = readersModule.slug ?? "readers";
+function titleReadersCategory(items) {
+  return items.map((item) =>
+    item.type === "category" && item.label === readersSlug
+      ? { ...item, label: readersModule.title ?? "Readers" }
+      : item
+  );
 }
 
 // Reorders doc items per sidebar level like the Brightspace manifest; categories keep their slots.
@@ -229,7 +283,7 @@ module.exports = {
       sidebarItemsGenerator: async (
         { defaultSidebarItemsGenerator, ...args },
       ) =>
-        sortLikeBrightspace(
+        titleReadersCategory(sortLikeBrightspace(
           await defaultSidebarItemsGenerator(args),
           new Map(args.docs.map((doc) => [doc.id, doc.title])),
           // Same sidebar_position order as the Brightspace menu.
@@ -237,12 +291,12 @@ module.exports = {
             .map((doc) => [doc.id, doc.sidebarPosition])),
           // The teacher page first in its module, as in the Brightspace menu.
           args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
-        ),
+        )),
       beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
       remarkPlugins: [[remarkPreviewSlides, {
         lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
         baseUrl,
-      }], remarkTeacherPageTabs, remarkReaderPdfLink, [remarkFlashcards, flashcardOptions], [
+      }      ], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [
         remarkDiagrams,
         diagramOptions,
       ]],

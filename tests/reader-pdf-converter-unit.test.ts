@@ -7,7 +7,7 @@
 
 import { assertEquals, assertRejects } from "@std/assert";
 import { join } from "@std/path";
-import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
+import { convertReaderToPdf, pandocAvailable } from "../src/reader-pdf-converter.ts";
 
 async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "reader_pdf_test_" });
