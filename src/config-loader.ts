@@ -207,7 +207,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
   }
 
-  // Validate preview-only slide mappings if present
+  // Validate slide configuration if present
   if (obj.slides !== undefined) {
     if (typeof obj.slides !== "object" || obj.slides === null || Array.isArray(obj.slides)) {
       throw new Error("Field 'slides' must be an object.");
@@ -216,19 +216,62 @@ export function validateConfig(config: unknown): config is BsoConfig {
     for (const key of Object.keys(slides)) {
       if (
         key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
-        key !== "theme" && key !== "logo"
+        key !== "theme" && key !== "logo" && key !== "generateForPrefix"
       ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
     }
-    if (typeof slides.lessons !== "object" || slides.lessons === null || Array.isArray(slides.lessons)) {
-      throw new Error("Field 'slides.lessons' must be an object mapping lesson paths to slide globs.");
+    if (
+      slides.generateForPrefix !== undefined &&
+      (typeof slides.generateForPrefix !== "string" ||
+        !slides.generateForPrefix.trim() ||
+        /[\\/]/.test(slides.generateForPrefix))
+    ) {
+      throw new Error("Field 'slides.generateForPrefix' must be a non-empty filename prefix without path separators.");
     }
-    for (const [lesson, pattern] of Object.entries(slides.lessons)) {
-      if (!lesson.trim() || !lesson.endsWith(".md") || typeof pattern !== "string" || !pattern.trim()) {
-        throw new Error("Field 'slides.lessons' must map Markdown lesson paths to non-empty slide globs.");
+    if (slides.generateForPrefix === undefined && slides.lessons === undefined) {
+      throw new Error("Field 'slides' must define 'generateForPrefix' or 'lessons'.");
+    }
+    if (slides.lessons !== undefined && (typeof slides.lessons !== "object" || slides.lessons === null || Array.isArray(slides.lessons))) {
+      throw new Error("Field 'slides.lessons' must be an object mapping lesson paths to slide globs or generation options.");
+    }
+    for (const [lesson, selection] of Object.entries((slides.lessons ?? {}) as Record<string, unknown>)) {
+      if (!lesson.trim() || !lesson.endsWith(".md")) {
+        throw new Error("Field 'slides.lessons' must use Markdown lesson paths.");
       }
-      for (const path of [lesson, pattern]) {
+      let pattern: unknown;
+      if (typeof selection === "string") {
+        if (!selection.trim()) {
+          throw new Error("Field 'slides.lessons' must map Markdown lesson paths to non-empty slide globs.");
+        }
+        pattern = selection;
+      } else if (typeof selection === "object" && selection !== null && !Array.isArray(selection)) {
+        const options = selection as Record<string, unknown>;
+        for (const key of Object.keys(options)) {
+          if (key !== "generate" && key !== "decks") {
+            throw new Error(`Unknown configuration field 'slides.lessons.${lesson}.${key}'.`);
+          }
+        }
+        if (options.generate !== undefined && typeof options.generate !== "boolean") {
+          throw new Error(`Field 'slides.lessons.${lesson}.generate' must be a boolean.`);
+        }
+        pattern = options.decks;
+        if (options.decks !== undefined && (typeof options.decks !== "string" || !options.decks.trim())) {
+          throw new Error(`Field 'slides.lessons.${lesson}.decks' must be a non-empty slide glob.`);
+        }
+        if (
+          options.generate !== true && options.decks === undefined &&
+          !(slides.generateForPrefix && options.generate === false)
+        ) {
+          throw new Error(`Field 'slides.lessons.${lesson}' must select generated slides or a manual deck.`);
+        }
+      } else {
+        throw new Error(`Field 'slides.lessons.${lesson}' must be a slide glob or generation options.`);
+      }
+      for (const path of [lesson, ...(pattern === undefined ? [] : [pattern])]) {
+        if (typeof path !== "string") {
+          throw new Error("Field 'slides.lessons' must use string paths.");
+        }
         if (/^(?:[\\/]|[A-Za-z]:)/.test(path) || path.split(/[\\/]/).includes("..")) {
           throw new Error("Field 'slides.lessons' must use relative paths without '..'.");
         }

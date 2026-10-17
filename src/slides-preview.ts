@@ -10,6 +10,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import type { SlidesConfig } from "./types.ts";
+import { generateLessonSlides } from "./lesson-slides.ts";
 
 export type { SlidesConfig } from "./types.ts";
 
@@ -78,10 +79,10 @@ async function collect(
 }
 
 /**
- * Deliberately conservative: only an unquoted top-level YAML boolean enables Marp.
+ * Deliberately conservative: only an unquoted top-level YAML boolean enables
+ * slide-deck recognition. `slides: true` is the semantic spelling; `marp: true`
+ * remains supported for existing decks and is normalized for the Marp CLI.
  * Nested keys, block scalars, quoted "true", and ordinary Markdown do not.
- * `slides: true` is accepted as well as `marp: true` (#112); Marp itself needs
- * `marp: true`, so the returned header spells it that way.
  */
 function frontmatter(
   text: string,
@@ -91,10 +92,10 @@ function frontmatter(
   );
   if (!match) return undefined;
   const lines = match[1].split("\n");
-  const flags = lines.filter((line) => /^(?:marp|slides)[ \t]*:/.test(line));
+  const markers = lines.filter((line) => /^(?:marp|slides)[ \t]*:/.test(line));
   if (
-    flags.length !== 1 ||
-    !/^(?:marp|slides)[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(flags[0])
+    markers.length !== 1 ||
+    !/^(?:marp|slides)[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(markers[0])
   ) return undefined;
   // Reject prose or malformed top-level YAML rather than interpreting it as a deck.
   if (
@@ -533,11 +534,21 @@ export async function renderPreviewSlides(
 ): Promise<Record<string, string>> {
   if (!config) return {};
   if (
-    !config.lessons || typeof config.lessons !== "object" ||
-    Array.isArray(config.lessons)
+    (config.lessons !== undefined &&
+      (typeof config.lessons !== "object" || config.lessons === null ||
+        Array.isArray(config.lessons))) ||
+    (config.lessons === undefined && config.generateForPrefix === undefined)
   ) {
     throw new Error(
-      "Slides preview: lessons must be a mapping of lesson paths to slide globs",
+      "Slides preview: configure lessons or generateForPrefix",
+    );
+  }
+  if (
+    config.generateForPrefix !== undefined &&
+    (!config.generateForPrefix.trim() || /[\\/]/.test(config.generateForPrefix))
+  ) {
+    throw new Error(
+      "Slides preview: generateForPrefix must be a filename prefix without path separators",
     );
   }
   if (
@@ -553,9 +564,29 @@ export async function renderPreviewSlides(
   const slides = join(output, "slides");
   const tools = join(dirname(output), "marp-tools");
   await confined(slides, root);
-  const mappings = Object.entries(config.lessons).sort(([a], [b]) =>
+  const lessons = new Map(Object.entries(config.lessons ?? {}));
+  if (config.generateForPrefix) {
+    const sourceFiles = await collect(sources, output, tools);
+    for (const file of sourceFiles) {
+      const lessonPath = relative(sources, file).replaceAll("\\", "/");
+      const filename = lessonPath.split("/").at(-1) ?? "";
+      if (
+        filename.startsWith(config.generateForPrefix) &&
+        !lessons.has(lessonPath)
+      ) {
+        lessons.set(lessonPath, { generate: true });
+      }
+    }
+  }
+  const mappings = [...lessons.entries()].sort(([a], [b]) =>
     a < b ? -1 : a > b ? 1 : 0
   );
+  const plans: {
+    lesson: string;
+    url: string;
+    decks: string[];
+    generate: boolean;
+  }[] = [];
   const themePath = config.theme
     ? isAbsolute(config.theme)
       ? config.theme
@@ -577,17 +608,37 @@ export async function renderPreviewSlides(
     }
   }
   const logo = config.logo ? await dataImage(config.logo, root) : undefined;
-  const plans: { lesson: string; url: string; decks: string[] }[] = [];
   const files = mappings.length ? await collect(root, output, tools) : [];
   const urls = new Set<string>();
-  for (const [lessonPath, pattern] of mappings) {
+  for (const [lessonPath, selection] of mappings) {
     relativePath(lessonPath, "lesson path");
-    if (typeof pattern !== "string") {
+    const generate = typeof selection === "string"
+      ? false
+      : selection?.generate === true;
+    const pattern = typeof selection === "string"
+      ? selection
+      : selection?.decks;
+    if (
+      (pattern !== undefined && typeof pattern !== "string") ||
+      (typeof selection !== "string" && (
+        !selection || typeof selection !== "object" ||
+        Array.isArray(selection) ||
+        Object.keys(selection).some((key) =>
+          key !== "generate" && key !== "decks"
+        ) ||
+        (selection.generate !== undefined &&
+          typeof selection.generate !== "boolean") ||
+        (selection.decks !== undefined &&
+          typeof selection.decks !== "string") ||
+        (!generate && pattern === undefined &&
+          !(config.generateForPrefix && selection.generate === false))
+      ))
+    ) {
       throw new Error(
-        `Slides preview: slide glob for ${lessonPath} must be a string`,
+        `Slides preview: invalid slide selection for ${lessonPath}`,
       );
     }
-    relativePath(pattern, "slide glob");
+    if (pattern !== undefined) relativePath(pattern, "slide glob");
     const lesson = resolve(sources, lessonPath);
     within(lesson, sources);
     await confined(lesson, root);
@@ -595,19 +646,25 @@ export async function renderPreviewSlides(
     if (!stat?.isFile) {
       throw new Error(`Slides preview: lesson file does not exist: ${lesson}`);
     }
-    const matcher = globToRegExp(pattern.replaceAll("\\", "/"), {
-      extended: true,
-      globstar: true,
-    });
     const decks: string[] = [];
-    for (const file of files) {
-      if (matcher.test(relative(root, file).replaceAll("\\", "/"))) {
-        if (
-          frontmatter((await Deno.readTextFile(file)).replace(/\r\n/g, "\n"))
-        ) decks.push(file);
+    if (pattern !== undefined) {
+      const matcher = globToRegExp(pattern.replaceAll("\\", "/"), {
+        extended: true,
+        globstar: true,
+      });
+      for (const file of files) {
+        if (matcher.test(relative(root, file).replaceAll("\\", "/"))) {
+          if (
+            frontmatter((await Deno.readTextFile(file)).replace(/\r\n/g, "\n"))
+          ) decks.push(file);
+        }
       }
     }
-    if (!decks.length) continue;
+    if (
+      !decks.length && !generate &&
+      !(config.generateForPrefix && typeof selection !== "string" &&
+        selection.generate === false)
+    ) continue;
     const slug = relative(sources, lesson).replaceAll("\\", "/").replace(
       /\.md$/i,
       "",
@@ -619,7 +676,7 @@ export async function renderPreviewSlides(
       throw new Error(`Slides preview: duplicate lesson output: ${url}`);
     }
     urls.add(url);
-    plans.push({ lesson, url, decks });
+    plans.push({ lesson, url, decks, generate });
   }
   try {
     const stat = await Deno.lstat(slides);
@@ -637,7 +694,23 @@ export async function renderPreviewSlides(
   for (const plan of plans) {
     const chunks: string[] = [];
     const svgImages = new Map<string, string>();
-    for (const source of plan.decks) {
+    if (plan.generate) {
+      const generated = await embedImages(
+        generateLessonSlides(
+          (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
+        ),
+        plan.lesson,
+        root,
+        svgImages,
+      );
+      const generatedDeck = frontmatter(generated)!;
+      chunks.push(
+        themeName
+          ? setTheme(generatedDeck.header, themeName) + generatedDeck.body
+          : generated,
+      );
+    }
+    for (const [index, source] of plan.decks.entries()) {
       await confined(source, root);
       const embedded = await embedImages(
         (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
@@ -646,12 +719,20 @@ export async function renderPreviewSlides(
         svgImages,
       );
       const deck = frontmatter(embedded)!;
-      chunks.push(
-        chunks.length
-          ? deck.body
-          : (themeName ? setTheme(deck.header, themeName) : deck.header) +
-            deck.body,
-      );
+      if (plan.generate && index === 0) {
+        const generated = frontmatter(chunks[0])!;
+        chunks[0] =
+          (themeName ? setTheme(deck.header, themeName) : deck.header) +
+          generated.body;
+        chunks.push(deck.body);
+      } else {
+        chunks.push(
+          chunks.length
+            ? deck.body
+            : (themeName ? setTheme(deck.header, themeName) : deck.header) +
+              deck.body,
+        );
+      }
     }
     const destination = join(
       output,

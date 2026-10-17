@@ -140,9 +140,18 @@ export interface ReaderConvertResult {
  * Schema van het brightspacosaurus.config.json configuratiebestand.
  * Requirements: 1.3, 1.7
  */
+export interface SlidesLessonConfig {
+  /** Generate slides from the lesson Markdown. */
+  generate?: boolean;
+  /** Manual slide glob relative to the repository root. */
+  decks?: string;
+}
+
 export interface SlidesConfig {
-  /** Lesson paths relative to sourcesDir mapped to slide globs relative to Repo_Root. */
-  lessons: Record<string, string>;
+  /** Generate slides for source Markdown filenames starting with this prefix. */
+  generateForPrefix?: string;
+  /** Explicit lesson selection overrides generateForPrefix. */
+  lessons?: Record<string, string | SlidesLessonConfig>;
   /** Marp theme CSS path relative to the repository root. */
   theme?: string;
   /** Logo path relative to the repository root; defaults to readerCoverLogo. */

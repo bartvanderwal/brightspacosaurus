@@ -7,6 +7,7 @@ All notable changes to Brightspacosaurus are documented here.
 ### Added
 
 - Configurable course-wide Marp themes and title-slide logos, embedded in both the preview and `.imscc`; `readerCoverLogo` is the default slide logo (#114).
+- `bso preview` can generate slides for lessons selected individually or course-wide with `slides.generateForPrefix`; `slides.lessons` provides per-lesson overrides and manual decks. Manual deck frontmatter uses the semantic `slides: true` marker; `marp: true` remains compatible (#109).
 
 ## 0.28.0
 
