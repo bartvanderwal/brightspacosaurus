@@ -2,11 +2,48 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
-## 0.25.0
+## 0.29.0
 
 ### Added
 
+- Configurable course-wide Marp themes and title-slide logos, embedded in both the preview and `.imscc`; `readerCoverLogo` is the default slide logo (#114).
 - `bso preview` can generate slides for lessons selected individually or course-wide with `slides.generateForPrefix`; `slides.lessons` provides per-lesson overrides and manual decks. Manual deck frontmatter uses the semantic `slides: true` marker; `marp: true` remains compatible (#109).
+
+## 0.28.0
+
+### Added
+
+- Course modules can use topic, theme or unit folder names; `bso lint` checks that each first-level `index.md` has an H1 title and warns about unused `_category_.json` files.
+- Local Markdown links copy downloadable files into the `.imscc` and the preview. `bso lint` checks that downloads exist, stay inside `sourcesDir` and do not exceed 50 MiB.
+
+## 0.27.0
+
+### Changed
+
+- The slides in the `.imscc` no longer contain the presenter notes (HTML comments in the deck). Marp wrote them into the slides HTML, where every student who opens the topic could read them. Set `slides.notes: true` to keep them; the local preview always shows them. This changes the output of 0.26.x (#117).
+
+## 0.26.1
+
+### Changed
+
+- The default `slides.disclaimer` is `Preview` instead of the hardcoded `In ontwikkeling voor 2026/2027, periode 3`, which was wrong for any other course or period and, since 0.26.0, also ended up on every slide in the `.imscc`. A course that wants its own text, or none (`""`), sets `slides.disclaimer` as before (#113).
+
+## 0.26.0
+
+### Added
+
+- `bso build` adds the Marp slides configured in `slides.lessons` to the `.imscc`: one self-contained HTML topic `Slides: <lesson title>` per lesson, right after the lesson in its module, with embedded images and the `slides.disclaimer`. Slides were preview-only before. `bso build --skip-slides` skips rendering, which needs npm (#112).
+- A deck can be marked `slides: true` as well as `marp: true` (one of the two); BSO tells Marp `marp: true`. `slides: true` is the name to move to.
+
+## 0.25.0
+
+### Changed
+
+- **Breaking:** reader PDFs no longer number sections automatically (`pandoc --number-sections` and `section-number-filter.lua` are gone). That produced `0.3.1 2.1 Overerven…`: a leading `0.` for readers without a `#` title and a second number next to a typed one. A reader now carries its own numbers (`## 1. Introduction`, `### 1.1 …`) and the PDF and the Docusaurus preview show them as written (#79).
+
+### Added
+
+- `bso lint` rule `reader-heading-numbering` (error): reader section headings need consecutive hierarchical numbers, without gaps or repeats. Appendices use letters (`Bijlage A`, `Appendix A`); `Bronnen`, `Sources`, `Literatuurlijst` and `Versiegeschiedenis` stay unnumbered. A reader opts out with `lintHeadingNumbers: false` in its frontmatter (#79).
 
 ## 0.24.1
 

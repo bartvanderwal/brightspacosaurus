@@ -12,7 +12,7 @@ import { resolveQuizOptions } from "./quiz-config.ts";
 import { resolveTeacherPage } from "./teacher-page.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
 export { resolveDiagramsConfig };
-import { join, resolve } from "@std/path";
+import { dirname, join, resolve } from "@std/path";
 import type {
   BsoConfig,
   CliOverrides,
@@ -40,11 +40,12 @@ export const EXAMPLE_CONFIG = `{
   "readersDir": "bronmateriaal/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "scripts/docusaurus",
+  "docusaurusDocsDir": "bronmateriaal",
   "slides": {
     "lessons": {
       "lesoverzicht-1.1.md": "slides/week-1/les-1/slides-*.md"
     },
-    "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
+    "disclaimer": "Preview: slides zijn nog in ontwikkeling"
   },
   "teacherManual": {
     "inputFiles": ["docs/handleiding.md"],
@@ -157,6 +158,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "customCss",
     "name",
     "docusaurusDir",
+    "docusaurusDocsDir",
     "slides",
     "teacherManual",
     "quiz",
@@ -195,6 +197,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "customCss",
     "name",
     "docusaurusDir",
+    "docusaurusDocsDir",
   ] as const;
   for (const field of optionalStringFields) {
     if (obj[field] !== undefined && typeof obj[field] !== "string") {
@@ -204,14 +207,17 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
   }
 
-  // Validate preview-only slide mappings if present
+  // Validate slide configuration if present
   if (obj.slides !== undefined) {
     if (typeof obj.slides !== "object" || obj.slides === null || Array.isArray(obj.slides)) {
       throw new Error("Field 'slides' must be an object.");
     }
     const slides = obj.slides as Record<string, unknown>;
     for (const key of Object.keys(slides)) {
-      if (key !== "lessons" && key !== "disclaimer" && key !== "generateForPrefix") {
+      if (
+        key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
+        key !== "theme" && key !== "logo" && key !== "generateForPrefix"
+      ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
     }
@@ -273,6 +279,27 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     if (slides.disclaimer !== undefined && typeof slides.disclaimer !== "string") {
       throw new Error("Field 'slides.disclaimer' must be a string.");
+    }
+    if (slides.notes !== undefined && typeof slides.notes !== "boolean") {
+      throw new Error("Field 'slides.notes' must be true or false.");
+    }
+    for (const field of ["theme", "logo"] as const) {
+      const path = slides[field];
+      if (path !== undefined) {
+        if (typeof path !== "string" || !path.trim()) {
+          throw new Error(
+            `Field 'slides.${field}' must be a nonempty relative path.`,
+          );
+        }
+        if (
+          /^(?:[\\/]|[A-Za-z]:)/.test(path) ||
+          path.split(/[\\/]/).includes("..")
+        ) {
+          throw new Error(
+            `Field 'slides.${field}' must use a relative path without '..'.`,
+          );
+        }
+      }
     }
   }
 
@@ -757,6 +784,19 @@ export function resolveConfig(
   const readerCoverLogo = config.readerCoverLogo
     ? resolve(repoRoot, config.readerCoverLogo)
     : null;
+  const slides = config.slides
+    ? {
+      ...config.slides,
+      ...(config.slides.theme
+        ? { theme: resolve(repoRoot, config.slides.theme) }
+        : {}),
+      ...(config.slides.logo
+        ? { logo: resolve(repoRoot, config.slides.logo) }
+        : readerCoverLogo
+        ? { logo: readerCoverLogo }
+        : {}),
+    }
+    : undefined;
 
   // assetsDir: from config only, null if not provided
   const assetsDir = config.assetsDir
@@ -775,6 +815,10 @@ export function resolveConfig(
   const docusaurusDir = config.docusaurusDir
     ? resolve(repoRoot, config.docusaurusDir)
     : null;
+  const docusaurusDocsDir = resolve(
+    repoRoot,
+    config.docusaurusDocsDir ?? dirname(config.sourcesDir),
+  );
 
   // teacherManual: resolves to absolute paths if present
   let teacherManual: ResolvedTeacherManualConfig | null = null;
@@ -802,7 +846,8 @@ export function resolveConfig(
     customCss,
     name,
     docusaurusDir,
-    slides: config.slides,
+    docusaurusDocsDir,
+    slides,
     teacherManual,
     quiz: resolveQuizConfig(config),
     flashcards: resolveFlashcardsOptions(

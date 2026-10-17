@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.25.0",
+  "version": "0.29.0",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -28,9 +28,9 @@
     "pack": "deno run --allow-read --allow-write --allow-env src/main.ts pack",
     "check": "deno check src/mod.ts src/main.ts",
     "lint": "deno lint",
-    "test": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 tests/",
-    "test:fast": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 --ignore=tests/reader-pdf-converter.test.ts,tests/include-filter.test.ts tests/",
-    "test:pdf": "deno test --allow-read --allow-write --allow-run --allow-env --allow-net=127.0.0.1 tests/reader-pdf-converter.test.ts tests/include-filter.test.ts",
+    "test": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts all",
+    "test:fast": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts fast",
+    "test:pdf": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts pdf",
     "demo": "deno run --allow-read --allow-write=build --allow-env --allow-run=npm src/main.ts preview",
     "demo:pack": "cd examples/demo-course && deno run -A ../../src/main.ts build && deno run -A ../../src/main.ts pack",
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
@@ -54,7 +54,7 @@
     }
   },
   "test": {
-    "include": ["tests/", "src/reader-pdf-converter_test.ts"]
+    "include": ["tests/"]
   },
   "lint": {
     "exclude": [
@@ -95,9 +95,9 @@
       "assets/brightspacosaurus-copy-button.js",
       "assets/reader-header.tex",
       "assets/include-filter.lua",
+      "assets/details-filter.lua",
       "assets/diagram-filter.lua",
       "assets/chapter-filter.lua",
-      "assets/section-number-filter.lua",
       "CHANGELOG.md",
       "docs/user-manual.md",
       "docs/quizzosaurus-syntax.md",

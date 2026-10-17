@@ -240,16 +240,40 @@ This chapter lists the fixed constraints the design has to work within: runtime,
 
 ## 5. Principles
 
-This chapter lists the principles that guide design decisions, from configuration to security. The list below applies to all of BSO; section 5.1 adds the principles for integrations that call an external API at runtime.
+This chapter lists the principles that guide design decisions, from configuration to security. Section 5.1 applies to all of BSO; section 5.2 adds the principles for integrations that call an external API at runtime.
 
-- **5.1** Security principles for runtime integrations
+- **5.1** General principles
+- **5.2** Security principles for runtime integrations
 
-- **Convention over configuration.** Sensible defaults everywhere; only three fields are required. The build directory, output name, and instructor-manual location all derive from defaults unless overridden.
+### 5.1 General principles
+
+- **Convention over configuration.** Sensible defaults everywhere; only three fields are required (`courseName`, `version`, `sourcesDir`). The build directory, the package name and the instructor-manual location all derive from defaults unless overridden. Rationale and decision: section 8.9 and [ADR 021](adr/adr021-convention-over-configuration-and-good-defaults.md). This configuration is enough to build a course:
+
+  ```json
+  {
+    "courseName": "Demo Course",
+    "version": "1.0.0",
+    "sourcesDir": "lessons/"
+  }
+  ```
+
+  BSO derives the rest: output goes to `build/brightspace/`, the package name `demo-course` comes from the course name, so the archive is `build/brightspace/demo-course.v1.0.0.imscc`. Each of these has a field to override it (`outputDir`, `name`).
 - **Single source of truth.** Markdown in Git is authoritative. Every artifact (HTML, QTI, PDF, manifest, `.imscc`) is generated and never hand-edited. Brightspace is a distribution channel, not the store of record.
 - **Config-driven, no hardcoded paths.** Nothing project-specific lives in the code; it all comes from `brightspacosaurus.config.json` or CLI arguments.
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
+- **No magic: easy to analyse, no Clippy.** BSO does what the user asked and nothing hidden behind the scenes. It does not silently fix, update, install or rewrite anything the user did not ask for. It detects the problem, says what is wrong, names the command that fixes it, and lets the user decide. Example: `bso preview` warns when the Docusaurus plugin has a different BSO version than the CLI and prints the `npm update` command; it does not update anything itself (#118). A helpful tool that quietly repairs things behind the scenes (the Clippy syndrome) causes new, unexpected problems that the user did not ask for and cannot explain.
 
-### 5.1 Security principles for runtime integrations
+  Clarke's third law says that "any sufficiently advanced technology is indistinguishable from magic" (Clarke, 1973). Turn it around: sufficiently analysed magic is indistinguishable from technology. So BSO should be technology that is easy to analyse (KISS), not magic. Magic hides its mechanism, and a hidden mechanism is a leaky abstraction: it works until it fails, and then the user must understand exactly what was hidden (Spolsky, 2002). Perfection is reached "not when there is nothing more to add, but when there is nothing more to take away" (Saint-Exupéry, 1939), as long as taking away does not change the essence of the thing itself. This complements *strict, not forgiving* (`docs/quizzosaurus-syntax.md`, section 10) and the pit of success (section 8.9).
+
+  *Sources.* Quoted from memory and from text supplied by the user; the pages were not fetched, so check the wording and page numbers before publishing.
+
+  Clarke, A. C. (1973). *Profiles of the future: An inquiry into the limits of the possible* (rev. ed.). Harper & Row.
+
+  Saint-Exupéry, A. de. (1939). *Terre des hommes*. Gallimard.
+
+  Spolsky, J. (2002, November 11). *The law of leaky abstractions*. Joel on Software. <https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/>
+
+### 5.2 Security principles for runtime integrations
 
 These apply to the Voortgangsverkenner and to any future page that calls an external API from Brightspace (for example GitHub instead of GitLab).
 
@@ -417,7 +441,7 @@ This chapter describes code-level conventions and solutions that are not visible
 - **7.5** Diagram rendering and error classification
 - **7.6** Syntax highlighting
 - **7.7** Docusaurus integration of the Voortgangsverkenner
-- **7.8** Preview-only Marp presentations
+- **7.8** Marp presentations in the preview and the cartridge
 
 Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
@@ -512,9 +536,9 @@ The stylesheet cannot be a package export: Deno rejects CSS entries in the modul
 
 ---
 
-### 7.8 Preview-only Marp presentations
+### 7.8 Marp presentations in the preview and the cartridge
 
-`runPreview` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
+`renderPreviewSlides` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. `bso build` reuses it through `exportSlidesToContent` (#112): each presentation is copied to `content/<lesson>-slides.html` with a `bso-title` meta (`Slides: <lesson title>`), which `pack` prefers over the first `<h1>`, because that is a slide title. `pack` then lists it as a web content topic next to its lesson. The export removes the presenter notes (`stripPresenterNotes`, the `bespoke-marp-note` elements) unless `slides.notes` is true (#117); the preview keeps them. `--skip-slides` skips this step. The preview keeps its own entry point below. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
 
 `slides.generateForPrefix` selects every Markdown filename in `sourcesDir` beginning with the configured case-sensitive prefix. Explicit entries in `slides.lessons` take precedence, including `{ "generate": false }` opt-outs. Manual deck frontmatter uses `slides: true` as the semantic marker; the legacy `marp: true` marker remains accepted, and BSO normalizes either to the Marp CLI header.
 
@@ -537,7 +561,7 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
-The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. This is a deliberate preview-only exception to export parity; hidden URLs are not access control.
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
 ## 8. Design Decisions
 
@@ -654,6 +678,7 @@ This chapter describes how BSO is distributed and used: from JSR, in CI pipeline
 - **9.1** Distribution via JSR
 - **9.2** CI pipeline usage
 - **9.3** Manual import step
+- **9.4** Runtime and build footprint
 
 ### 9.1 Distribution via JSR
 
@@ -691,6 +716,33 @@ build-imscc:
 ### 9.3 Manual import step
 
 The final step — importing the `.imscc` into a Brightspace course — remains manual (Import/Export/Copy Components in Brightspace). See the [user manual](user-manual.md) and the README's Brightspace import section for the walkthrough and additive-import caveats.
+
+### 9.4 Runtime and build footprint
+
+The following initial measurements were reported for the issue on 2026-10-15. They are a point-in-time, machine-specific snapshot, not a clean-room benchmark:
+
+| Component | Reported size | What it belongs to |
+| --- | ---: | --- |
+| BSO `node_modules` | 31 MB | BSO's cached npm-compatible dependencies |
+| Deno cache | 514 MB | Shared cache; much of it was not used by BSO |
+| `~/.deno` | 128 MB | Deno installation and data, not BSO application code |
+| `build/marp-tools` | 129 MB | Marp CLI and patched math dependencies; only needed for configured matching slides |
+| `build/` total | 1.6 GB | Includes generated course content and test trees; not the size of BSO |
+| Docusaurus app dependencies | Not measured | The app's own `node_modules`, under `docusaurusDir`; likely source of the much larger course-repository `scripts/` tree |
+
+The storage costs depend on the command and the course configuration. These are the measured persistent components associated with each command; they are not additive if a cache is already present:
+
+| Command or feature | Measured persistent footprint | Files and installations |
+| --- | --- | --- |
+| `build` | 31 MB shared BSO `node_modules`; add 129 MB only when matching slides need Marp | Writes course artifacts under `outputDir`. Pandoc and TeX are external, needed only for PDF generation. |
+| `pack` | No command-specific dependency install measured | Writes the `.imscc` into `outputDir`; package size depends on course content. |
+| `lint` | 31 MB shared BSO `node_modules` | Does not install course dependencies or create course output. |
+| `preview` | Docusaurus dependencies not measured; add the 129 MB Marp cache only when matching slides need rendering | Writes generated preview assets and may install Docusaurus dependencies in `<docusaurusDir>/node_modules`; Marp goes in `<parent of outputDir>/marp-tools`. Details are in the [user manual](user-manual.md#what-bso-preview-installs-and-where). |
+| Readers | Pandoc and TeX sizes not measured; installed separately | BSO neither downloads nor removes these tools. PDF size depends on source material. |
+
+`deno compile` is technically possible, but not a useful distribution replacement today. On Linux x86_64 with Deno 2.9.7, the compiled BSO executable measured 124,989,504 bytes (119.2 MiB); Deno reported 19.48 MB of embedded files. The standalone `denort` runtime it contains measured 104,561,432 bytes (99.7 MiB), so the runtime dominates and minifying or tree-shaking application dependencies cannot materially remove that floor. In this proof of concept, `--help`, `lint` and `pack` worked; `--version` reported `unknown`, and `build` failed because `assets/brightspacosaurus.css` is not embedded in the executable. `preview` additionally relies on external npm and a Docusaurus app; configured slides rely on npm/Marp, and reader PDFs still require Pandoc and TeX. The measurement used the locked `@std/path` 1.1.4 source and dependency versions resolved from `deno.json`; JSR itself was unreachable from the measurement environment. Keep JSR/npm as the supported distribution; a binary would need explicit asset embedding and command-specific testing before it could be supported.
+
+These results do not justify dependency-lazy-loading changes: Marp is already installed only when slides need rendering, Pandoc/TeX are external, and Docusaurus dependencies belong to the configured preview app. `deno task test`, `deno task test:fast` and `deno task test:pdf` remove their own known test directories from `build/` after the test process exits, including on failure; they preserve build outputs and caches.
 
 ---
 

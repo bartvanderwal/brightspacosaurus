@@ -141,7 +141,7 @@ export interface ReaderConvertResult {
  * Requirements: 1.3, 1.7
  */
 export interface SlidesLessonConfig {
-  /** Generate preview slides from the lesson Markdown. */
+  /** Generate slides from the lesson Markdown. */
   generate?: boolean;
   /** Manual slide glob relative to the repository root. */
   decks?: string;
@@ -152,8 +152,18 @@ export interface SlidesConfig {
   generateForPrefix?: string;
   /** Explicit lesson selection overrides generateForPrefix. */
   lessons?: Record<string, string | SlidesLessonConfig>;
-  /** Empty disables the banner; omitted uses the development disclaimer. */
+  /** Marp theme CSS path relative to the repository root. */
+  theme?: string;
+  /** Logo path relative to the repository root; defaults to readerCoverLogo. */
+  logo?: string;
+  /** Empty disables the banner; omitted shows `Preview`. */
   disclaimer?: string;
+  /**
+   * Keep the presenter notes (HTML comments) in the slides that go into the
+   * `.imscc`. Omitted or false removes them, because every student who opens the
+   * topic could read them; the local preview always keeps them (#117).
+   */
+  notes?: boolean;
 }
 
 export interface BsoConfig {
@@ -185,7 +195,9 @@ export interface BsoConfig {
   name?: string;
   /** Path to the Docusaurus directory for `bso preview` (relative to Repo_Root). Optional. */
   docusaurusDir?: string;
-  /** Preview-only Marp presentations; never included in the cartridge. */
+  /** Root directory used by the course's Docusaurus docs plugin (relative to Repo_Root). */
+  docusaurusDocsDir?: string;
+  /** Marp presentations rendered in preview and included in the cartridge. */
   slides?: SlidesConfig;
   /** Configuration for instructor manual generation. Optional. */
   teacherManual?: TeacherManualConfig;
@@ -273,6 +285,8 @@ export interface ResolvedConfig {
   name: string;
   /** Absolute path to the Docusaurus directory. null = preview not configured. */
   docusaurusDir: string | null;
+  /** Absolute docs-plugin root used to calculate Docusaurus document IDs. */
+  docusaurusDocsDir?: string;
   slides?: SlidesConfig;
   /** Instructor manual configuration with absolute paths. null = skip. */
   teacherManual: ResolvedTeacherManualConfig | null;

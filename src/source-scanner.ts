@@ -38,6 +38,11 @@ function isReaderFile(fileName: string): boolean {
     fileName === "plantuml-essentials.md";
 }
 
+export function isNavigationExcludedFile(fileName: string): boolean {
+  const name = fileName.split(/[\\/]/).pop()?.toLowerCase() ?? "";
+  return name.startsWith("transcript-") || name.includes("-antwoorden-docent");
+}
+
 /**
  * Scans a directory recursively for .md files and classifies them.
  * Files directly in the top-level directory that meet the reader criteria go into readerFiles.
@@ -74,12 +79,12 @@ async function scanDir(
           readerFiles.push(fullPath);
         } else if (
           entry.name.startsWith("quiz-") &&
-          !entry.name.includes("-antwoorden-docent")
+          !isNavigationExcludedFile(entry.name)
         ) {
           quizFiles.push(fullPath);
         } else if (
           !entry.name.startsWith("quiz-") &&
-          !entry.name.startsWith("transcript-") &&
+          !isNavigationExcludedFile(entry.name) &&
           !entry.name.startsWith("TODO-")
         ) {
           markdownFiles.push(fullPath);

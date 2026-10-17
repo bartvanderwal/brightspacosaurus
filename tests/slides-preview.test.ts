@@ -6,7 +6,9 @@ import {
 } from "@std/assert";
 import { dirname, join, resolve } from "@std/path";
 import {
+  exportSlidesToContent,
   renderPreviewSlides,
+  stripPresenterNotes,
   type SlidesConfig,
   type SlidesRunner,
 } from "../src/slides-preview.ts";
@@ -46,7 +48,7 @@ function fake(captured: string[], argsCaptured: string[][] = []): SlidesRunner {
     captured.push(await Deno.readTextFile(args[args.indexOf("marp") + 1]));
     await Deno.writeTextFile(
       args[args.indexOf("--output") + 1],
-      "<html><head></head><body><section>Slide</section><!-- Notes --></body></html>",
+      '<html><head></head><body><section class="lead">Slide</section><!-- Notes --></body></html>',
     );
   };
 }
@@ -151,7 +153,7 @@ Deno.test("slides preview: deterministic glob selection combines slides and reta
     );
     assertStringIncludes(
       html,
-      'section::before{content:"In ontwikkeling voor 2026/2027, periode 3"',
+      'section::before{content:"Preview"',
     );
     assertStringIncludes(html, "<!-- Notes -->");
     await assertRejects(
@@ -261,6 +263,63 @@ Deno.test("slides preview: generated lesson slides combine with manual decks", a
     assertStringIncludes(captured[0], "theme: gaia");
     assertStringIncludes(captured[0], "data:image/png;base64,cG5nIGJ5dGVz");
     assertEquals(captured[0].match(/marp: true/g)?.length, 1);
+  });
+});
+
+Deno.test("slides preview: shared theme and logo are applied to lead slides", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "shared/theme.css",
+      "/* @theme course-theme */\nsection { color: red; }\n",
+    );
+    await Deno.writeFile(
+      join(root, "shared/logo.png"),
+      new Uint8Array([137, 80, 78, 71]),
+    );
+    await write(root, "decks/slides.md", deck);
+    const captured: string[] = [];
+    const args: string[][] = [];
+    await renderPreviewSlides(
+      {
+        ...config,
+        theme: "shared/theme.css",
+        logo: "shared/logo.png",
+      },
+      root,
+      "lessons",
+      "static",
+      fake(captured, args),
+    );
+
+    assertStringIncludes(captured[0], "theme: course-theme");
+    assert(!captured[0].includes("theme: default"));
+    assertEquals(args[1].slice(-2), [
+      "--theme-set",
+      join(root, "shared/theme.css"),
+    ]);
+    const html = await Deno.readTextFile(
+      join(root, "static/slides/week/lesson/index.html"),
+    );
+    assertStringIncludes(
+      html,
+      `src="data:image/png;base64,${btoa(String.fromCharCode(137, 80, 78, 71))}"`,
+    );
+    assertStringIncludes(html, 'class="bso-slide-logo"');
+    assertEquals(html.match(/bso-slide-logo/g)?.length, 1);
+
+    const generated: string[] = [];
+    await renderPreviewSlides(
+      {
+        lessons: { "week/lesson.md": { generate: true } },
+        theme: "shared/theme.css",
+      },
+      root,
+      "lessons",
+      "generated-static",
+      fake(generated),
+    );
+    assertStringIncludes(generated[0], "theme: course-theme");
   });
 });
 
@@ -1091,4 +1150,142 @@ Deno.test({
       );
     });
   },
+});
+
+Deno.test("slides preview: slides: true selects a deck and is passed to Marp as marp: true (#112)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "decks/a.md",
+      "---\nslides: true # new name\ntheme: gaia\n---\n# Slide A\n",
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(config, root, "lessons", "static", fake(captured));
+    assertEquals(captured.length, 1);
+    assertStringIncludes(captured[0], "marp: true");
+    assertEquals(captured[0].includes("slides:"), false);
+    assertStringIncludes(captured[0], "theme: gaia");
+  });
+});
+
+Deno.test("slides preview: marp and slides together, or slides: false, do not select a deck", async () => {
+  await fixture(async (root) => {
+    await write(root, "decks/both.md", "---\nmarp: true\nslides: true\n---\n# No");
+    await write(root, "decks/off.md", "---\nslides: false\n---\n# No");
+    await write(root, "decks/quoted.md", '---\nslides: "true"\n---\n# No');
+    assertEquals(
+      await renderPreviewSlides(config, root, "lessons", "static", () => {
+        throw new Error("must not run");
+      }),
+      {},
+    );
+  });
+});
+
+Deno.test("slides export: one topic per lesson next to the lesson, titled after it, deterministic (#112)", async () => {
+  await fixture(async (root) => {
+    await write(root, "decks/a.md", deck.replace("# Slide", "# A"));
+    await write(root, "shared/logo.png", "logo");
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>Lesson 1.1: Fizz &amp; Buzz</h1></body></html>",
+    );
+    const contentDir = join(root, "content");
+    const run = () =>
+      exportSlidesToContent(
+        { ...config, logo: "shared/logo.png" },
+        root,
+        "lessons",
+        "static",
+        contentDir,
+        fake([]),
+      );
+    const exported = await run();
+    assertEquals(exported, ["week/lesson-slides.html"]);
+    const html = await Deno.readTextFile(
+      join(contentDir, "week", "lesson-slides.html"),
+    );
+    assertStringIncludes(
+      html,
+      '<meta name="bso-title" content="Slides: Lesson 1.1: Fizz &amp;amp; Buzz">',
+    );
+    assertStringIncludes(html, '<section class="lead">Slide');
+    assertStringIncludes(html, 'class="bso-slide-logo"');
+    assertStringIncludes(html, 'src="data:image/png;base64,bG9nbw=="');
+    assertEquals(await run(), exported);
+    assertEquals(
+      await Deno.readTextFile(join(contentDir, "week", "lesson-slides.html")),
+      html,
+    );
+  });
+});
+
+Deno.test("slides export: no configuration exports nothing", async () => {
+  assertEquals(
+    await exportSlidesToContent(
+      undefined,
+      "missing-root",
+      "lessons",
+      "static",
+      "missing-content",
+      () => {
+        throw new Error("must not run");
+      },
+    ),
+    [],
+  );
+});
+
+Deno.test("stripPresenterNotes removes only the note elements, including nested markup (#117)", () => {
+  const html =
+    '<div id="p"><section>Slide</section></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Secret</p><div>inner</div></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><ul><li>Also secret</li></ul></div><script>x</script>';
+  assertEquals(
+    stripPresenterNotes(html),
+    '<div id="p"><section>Slide</section></div><script>x</script>',
+  );
+  const plain = "<html><body><section>No notes</section></body></html>";
+  assertEquals(stripPresenterNotes(plain), plain);
+});
+
+Deno.test("slides export drops presenter notes unless slides.notes is true (#117)", async () => {
+  const withNotes: SlidesRunner = async (args) => {
+    if (args[0] === "install") {
+      await installedTools(args[2]);
+      return;
+    }
+    await Deno.writeTextFile(
+      args[args.indexOf("--output") + 1],
+      '<html><head></head><body><section>Slide</section><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Teacher only</p></div></body></html>',
+    );
+  };
+  await fixture(async (root) => {
+    await write(root, "decks/a.md", deck);
+    await write(root, "content/week/lesson.html", "<h1>Lesson</h1>");
+    const contentDir = join(root, "content");
+    const read = () =>
+      Deno.readTextFile(join(contentDir, "week", "lesson-slides.html"));
+
+    await exportSlidesToContent(config, root, "lessons", "static", contentDir, withNotes);
+    const stripped = await read();
+    assertStringIncludes(stripped, "<section>Slide</section>");
+    assertEquals(stripped.includes("Teacher only"), false);
+
+    await exportSlidesToContent(
+      { ...config, notes: true },
+      root,
+      "lessons",
+      "static",
+      contentDir,
+      withNotes,
+    );
+    assertStringIncludes(await read(), "Teacher only");
+
+    // The preview keeps the notes: it renders through renderPreviewSlides.
+    await renderPreviewSlides(config, root, "lessons", "static", withNotes);
+    assertStringIncludes(
+      await Deno.readTextFile(join(root, "static", "slides", "week", "lesson", "index.html")),
+      "Teacher only",
+    );
+  });
 });

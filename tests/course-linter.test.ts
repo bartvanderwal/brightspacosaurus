@@ -18,6 +18,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../src/config-loader.ts";
+import { MAX_DOWNLOADABLE_FILE_SIZE } from "../src/downloadable-files.ts";
 
 const card = ":::flashcard\nterm: Test\n\nA **definition**.\n:::";
 const valid = `::::flashcards\n\n${card}\n\n${card}\n\n::::`;
@@ -71,6 +72,180 @@ Deno.test("lint ignores literal examples and reports include and diagram authori
   assertEquals(
     lintMarkdown(":::flashcards\n:::", "lesson.md")[0].severity,
     "warning",
+  );
+});
+
+Deno.test("module index titles use H1, and course lint validates downloads and Docusaurus leftovers", async () => {
+  assertEquals(
+    lintMarkdown("---\ntitle: Frontmatter title\n---\n", "index.md", {
+      moduleIndex: true,
+    }).map((issue) => issue.rule),
+    ["module-index-title"],
+  );
+  assertEquals(
+    lintMarkdown("# Topic title\n", "index.md", { moduleIndex: true }),
+    [],
+  );
+
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({
+    dir: "build",
+    prefix: "lint-downloads-",
+  });
+  const moduleDir = join(root, "lessons", "topic");
+  const filesDir = join(moduleDir, "files");
+  try {
+    await Deno.mkdir(filesDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(moduleDir, "index.md"),
+      "---\ntitle: Frontmatter title\n---\n",
+    );
+    await Deno.writeTextFile(
+      join(moduleDir, "lesson.md"),
+      [
+        "# Lesson",
+        "",
+        "[Starter](files/starter%20code.zip)",
+        "[Missing](files/missing.zip)",
+        "[Large](files/large.zip)",
+        "[Outside](../../outside.zip)",
+      ].join("\n"),
+    );
+    await Deno.writeFile(
+      join(filesDir, "starter code.zip"),
+      new Uint8Array([1]),
+    );
+    const large = await Deno.open(join(filesDir, "large.zip"), {
+      write: true,
+      create: true,
+    });
+    try {
+      await large.seek(MAX_DOWNLOADABLE_FILE_SIZE, Deno.SeekMode.Start);
+      await large.write(new Uint8Array([0]));
+    } finally {
+      large.close();
+    }
+    await Deno.writeTextFile(
+      join(moduleDir, "_category_.json"),
+      '{"label":"Docusaurus category"}',
+    );
+
+    const config = resolveConfig(
+      { courseName: "Lint", version: "1", sourcesDir: "lessons" },
+      {},
+      root,
+    );
+    const rules = (await lintCourse(config)).diagnostics.map((issue) =>
+      issue.rule
+    );
+    assertEquals(rules, [
+      "docusaurus-category-metadata",
+      "lesson-frontmatter",
+      "module-index-title",
+      "downloadable-missing",
+      "downloadable-too-large",
+      "downloadable-path",
+    ]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("lint finds category metadata recursively in the source directory", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({
+    dir: "build",
+    prefix: "lint-category-metadata-",
+  });
+  try {
+    const sourceDir = join(root, "lessons");
+    const topicDir = join(sourceDir, "topic", "nested");
+    await Deno.mkdir(topicDir, { recursive: true });
+    await Deno.writeTextFile(
+      join(topicDir, "_category_.json"),
+      '{"label":"Do not maintain this"}',
+    );
+    await Deno.writeTextFile(join(topicDir, "lesson.md"), "# Lesson\n");
+
+    const result = await lintCourse(resolveConfig(
+      { courseName: "Lint", version: "1", sourcesDir: "lessons" },
+      {},
+      root,
+    ));
+    assertEquals(
+      result.diagnostics.map((diagnostic) => diagnostic.rule),
+      ["docusaurus-category-metadata"],
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("reader heading numbers ascend per level and respect back matter and appendices", () => {
+  const valid = `---
+title: Reader demo
+---
+
+# Reader
+## 1. Intro
+### 1.1 First
+### 1.2 Second
+## 2. Next
+## Bronnen
+## Literatuurlijst
+## Versiegeschiedenis
+## Bijlage A: Eerste
+## Bijlage B: Tweede
+`;
+  assertEquals(lintMarkdown(valid, "reader-demo.md"), []);
+
+  const invalid = `# Reader
+## 1. Intro
+### 1.1 First
+### 1.3 Third
+## 3. Next
+## 3. Duplicate
+## 4. Bronnen
+## Bijlage A: First
+## Bijlage C: Third
+## Bijlage
+## 6. Bijlage B: Bad
+## C. Sources
+## Missing number
+`;
+  const findings = lintMarkdown(invalid, "reader-demo.md").filter((issue) =>
+    issue.rule === "reader-heading-numbering"
+  );
+  assertEquals(
+    findings.map(({ line }) => line),
+    [4, 5, 6, 7, 9, 10, 11, 12, 13],
+  );
+
+  assertEquals(
+    lintMarkdown("## 1. One\n## 3. Three\n", "lesson.md"),
+    [],
+  );
+  assertEquals(
+    lintMarkdown("## 1. One\n### 1.1 First\n### 1.3 Third\n", "reader-demo.md")
+      .filter(
+        (issue) => issue.rule === "reader-heading-numbering",
+      ).length,
+    1,
+  );
+  assertEquals(
+    lintMarkdown("## 0. Invalid\n", "reader-demo.md")[0].rule,
+    "reader-heading-numbering",
+  );
+  assertEquals(
+    lintMarkdown("## Bijlage C: First\n", "reader-demo.md").length,
+    1,
+  );
+  assertEquals(
+    lintMarkdown(
+      "---\nlintHeadingNumbers: false\n---\n\n## Unnumbered heading\n",
+      "reader-demo.md",
+    ),
+    [],
   );
 });
 
@@ -579,7 +754,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "41 errors, 13 warnings",
+        "42 errors, 14 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),
@@ -835,6 +1010,35 @@ Deno.test("lint finds diagram authoring errors inside a QuizDown block (#101)", 
 });
 
 Deno.test("lint accepts a valid diagram inside a QuizDown block", () => {
-  const source = "# Quiz\n\n````quiz\n? Welk?\n\n```plantuml\n@startuml\nclass A\n@enduml\n```\n\n- (x) Ja\n- ( ) Nee\n````\n";
+  const source =
+    "# Quiz\n\n````quiz\n? Welk?\n\n```plantuml\n@startuml\nclass A\n@enduml\n```\n\n- (x) Ja\n- ( ) Nee\n````\n";
   assertEquals(lintMarkdown(source, "/repo/quiz-diagram.md"), []);
+});
+
+Deno.test("lint warns about three or more '../' in links, images and includes, not in code", () => {
+  const rule = (markdown: string) =>
+    lintMarkdown(markdown, "lesson.md").filter((issue) =>
+      issue.rule === "deep-relative-path"
+    );
+  const deepLink = rule("See [notes](../../../shared/notes.md).\n");
+  assertEquals(deepLink.length, 1);
+  assertEquals(deepLink[0].severity, "warning");
+  assertEquals(deepLink[0].line, 1);
+  assertStringIncludes(deepLink[0].message, "../../../shared/notes.md");
+  assertStringIncludes(deepLink[0].message, "brittle file paths");
+  assertEquals(rule("![fig](../../../images/a.png)\n").length, 1);
+  assertEquals(
+    rule("{@include: [Goals](../../../partials/goals.md)}\n").length,
+    1,
+  );
+  assertEquals(rule("[x](../../../a.md#part)\n").length, 1);
+  assertEquals(rule("[x](../a/../../../b.md)\n").length, 1);
+  assertEquals(rule("[x](../../a/../../b.md)\n").length, 0);
+  // Two steps are fine, and so is code that merely shows the path.
+  assertEquals(rule("[x](../../a.md) [y](../a.md)\n").length, 0);
+  assertEquals(
+    rule("```\n[x](../../../a.md)\n```\n\n`[x](../../../a.md)`\n").length,
+    0,
+  );
+  assertEquals(rule("[x](https://example.org/a/../../../b)\n").length, 1);
 });

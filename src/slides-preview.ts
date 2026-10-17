@@ -17,7 +17,8 @@ export type { SlidesConfig } from "./types.ts";
 /** Injectable command boundary, so selection and rewriting can be tested offline. */
 export type SlidesRunner = (args: string[], cwd: string) => Promise<void>;
 
-const DEFAULT_DISCLAIMER = "In ontwikkeling voor 2026/2027, periode 3";
+/** Neutral on purpose: no school year or period; a course sets its own text (#113). */
+const DEFAULT_DISCLAIMER = "Preview";
 
 function within(path: string, root: string): void {
   const rel = relative(root, path);
@@ -81,6 +82,7 @@ async function collect(
  * Deliberately conservative: only an unquoted top-level YAML boolean enables
  * slide-deck recognition. `slides: true` is the semantic spelling; `marp: true`
  * remains supported for existing decks and is normalized for the Marp CLI.
+ * Nested keys, block scalars, quoted "true", and ordinary Markdown do not.
  */
 function frontmatter(
   text: string,
@@ -105,6 +107,13 @@ function frontmatter(
     header: match[0].replace(/^slides[ \t]*:.*$/m, "marp: true"),
     body: text.slice(match[0].length),
   };
+}
+
+function setTheme(header: string, theme: string): string {
+  if (/^theme[ \t]*:/m.test(header)) {
+    return header.replace(/^theme[ \t]*:.*$/m, `theme: ${theme}`);
+  }
+  return header.replace(/\n---[ \t]*(?:\n|$)/, `\ntheme: ${theme}\n---\n`);
 }
 
 const MIME: Record<string, string> = {
@@ -403,6 +412,35 @@ function banner(value: string): string {
   return `<style id="bso-slide-disclaimer">section::before{content:"${escaped}";position:absolute;top:8px;left:12px;right:12px;font:12px sans-serif;z-index:10;pointer-events:none;opacity:.75}</style>`;
 }
 
+async function dataImage(path: string, root: string): Promise<string> {
+  const image = isAbsolute(path) ? path : resolve(root, path);
+  await confined(image, root);
+  const extension = image.split(".").pop()?.toLowerCase() ?? "";
+  const mime = MIME[extension];
+  if (!mime) {
+    throw new Error(`Slides preview: unsupported logo image: ${path}`);
+  }
+  const stat = await Deno.stat(image).catch(() => undefined);
+  if (!stat?.isFile) {
+    throw new Error(`Slides preview: logo is not a file: ${path}`);
+  }
+  const bytes = await Deno.readFile(image);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+function addLogo(html: string, logo: string): string {
+  let added = false;
+  return html.replace(/<section\b[^>]*>/gi, (opening) => {
+    if (added) return opening;
+    const classes = opening.match(/\bclass=(["'])(.*?)\1/i)?.[2].split(/\s+/);
+    if (!classes?.includes("lead")) return opening;
+    added = true;
+    return `${opening}<img class="bso-slide-logo" src="${logo}" alt="" style="position:absolute;top:1rem;right:1rem;max-width:20%;max-height:15%;object-fit:contain">`;
+  });
+}
+
 const runNpm: SlidesRunner = async (args, cwd) => {
   const result = await new Deno.Command("npm", {
     args,
@@ -549,6 +587,27 @@ export async function renderPreviewSlides(
     decks: string[];
     generate: boolean;
   }[] = [];
+  const themePath = config.theme
+    ? isAbsolute(config.theme)
+      ? config.theme
+      : resolve(root, config.theme)
+    : undefined;
+  let themeName: string | undefined;
+  if (themePath) {
+    await confined(themePath, root);
+    const themeStat = await Deno.stat(themePath).catch(() => undefined);
+    if (!themeStat?.isFile) {
+      throw new Error(`Slides preview: theme is not a file: ${themePath}`);
+    }
+    const themeCss = await Deno.readTextFile(themePath);
+    themeName = themeCss.match(/@theme[ \t]+([-\w]+)/)?.[1];
+    if (!themeName) {
+      throw new Error(
+        `Slides preview: theme CSS must declare a name with @theme: ${themePath}`,
+      );
+    }
+  }
+  const logo = config.logo ? await dataImage(config.logo, root) : undefined;
   const files = mappings.length ? await collect(root, output, tools) : [];
   const urls = new Set<string>();
   for (const [lessonPath, selection] of mappings) {
@@ -636,15 +695,19 @@ export async function renderPreviewSlides(
     const chunks: string[] = [];
     const svgImages = new Map<string, string>();
     if (plan.generate) {
-      chunks.push(
-        await embedImages(
-          generateLessonSlides(
-            (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
-          ),
-          plan.lesson,
-          root,
-          svgImages,
+      const generated = await embedImages(
+        generateLessonSlides(
+          (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
         ),
+        plan.lesson,
+        root,
+        svgImages,
+      );
+      const generatedDeck = frontmatter(generated)!;
+      chunks.push(
+        themeName
+          ? setTheme(generatedDeck.header, themeName) + generatedDeck.body
+          : generated,
       );
     }
     for (const [index, source] of plan.decks.entries()) {
@@ -658,10 +721,17 @@ export async function renderPreviewSlides(
       const deck = frontmatter(embedded)!;
       if (plan.generate && index === 0) {
         const generated = frontmatter(chunks[0])!;
-        chunks[0] = deck.header + generated.body;
+        chunks[0] =
+          (themeName ? setTheme(deck.header, themeName) : deck.header) +
+          generated.body;
         chunks.push(deck.body);
       } else {
-        chunks.push(chunks.length ? deck.body : deck.header + deck.body);
+        chunks.push(
+          chunks.length
+            ? deck.body
+            : (themeName ? setTheme(deck.header, themeName) : deck.header) +
+              deck.body,
+        );
       }
     }
     const destination = join(
@@ -686,7 +756,7 @@ export async function renderPreviewSlides(
         await prepareTools(tools, root, runner);
         toolsPrepared = true;
       }
-      await runner([
+      const marpArgs = [
         "exec",
         "--prefix",
         tools,
@@ -699,8 +769,10 @@ export async function renderPreviewSlides(
         "--no-config",
         "--no-html",
         "--allow-local-files",
-      ], root);
-      const html = (await Deno.readTextFile(destination)).replace(
+      ];
+      if (themePath) marpArgs.push("--theme-set", themePath);
+      await runner(marpArgs, root);
+      let html = (await Deno.readTextFile(destination)).replace(
         /<img\b[^>]*>/gi,
         (tag) =>
           tag.replace(
@@ -711,6 +783,7 @@ export async function renderPreviewSlides(
                 : attribute,
           ),
       );
+      if (logo) html = addLogo(html, logo);
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
       await Deno.writeTextFile(
         destination,
@@ -732,4 +805,98 @@ export async function renderPreviewSlides(
     }
   }
   return result;
+}
+
+/**
+ * Removes the presenter notes Marp writes as `<div class="bespoke-marp-note">`
+ * elements, balancing nested divs. The rest of the deck stays byte for byte.
+ */
+export function stripPresenterNotes(html: string): string {
+  const open = /<div class="bespoke-marp-note"[^>]*>/g;
+  const tag = /<(\/?)div\b[^>]*>/g;
+  let result = "";
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = open.exec(html)) !== null) {
+    if (match.index < last) continue;
+    tag.lastIndex = match.index + match[0].length;
+    let depth = 1;
+    let end = html.length;
+    let next: RegExpExecArray | null;
+    while ((next = tag.exec(html)) !== null) {
+      depth += next[1] ? -1 : 1;
+      if (depth === 0) {
+        end = next.index + next[0].length;
+        break;
+      }
+    }
+    result += html.slice(last, match.index);
+    last = end;
+    open.lastIndex = end;
+  }
+  return result + html.slice(last);
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(
+    /</g,
+    "&lt;",
+  ).replace(/>/g, "&gt;");
+}
+
+/**
+ * Renders the lesson presentations like the preview and copies each one into
+ * the build's content folder as `<lesson>-slides.html` (#112), so `pack` lists it
+ * as a topic right after its lesson. The title (`Slides: <lesson title>`) is
+ * written as `bso-title`, because a deck's first `<h1>` is a slide title.
+ *
+ * Presenter notes are removed unless `slides.notes` is true.
+ *
+ * Returns the paths relative to `contentDir`, for example `week-1/lesson-slides.html`.
+ */
+export async function exportSlidesToContent(
+  config: SlidesConfig | undefined,
+  repoRoot: string,
+  sourcesDir: string,
+  staticDir: string,
+  contentDir: string,
+  runner: SlidesRunner = runNpm,
+): Promise<string[]> {
+  if (!config) return [];
+  const rendered = await renderPreviewSlides(
+    config,
+    repoRoot,
+    sourcesDir,
+    staticDir,
+    runner,
+  );
+  const root = await Deno.realPath(resolve(repoRoot));
+  const sources = resolve(root, sourcesDir);
+  const staticRoot = resolve(root, staticDir);
+  const exported: string[] = [];
+  for (const [lesson, url] of Object.entries(rendered)) {
+    const stem = relative(sources, lesson).replaceAll("\\", "/").replace(
+      /\.md$/i,
+      "",
+    );
+    const lessonHtml = await Deno.readTextFile(join(contentDir, `${stem}.html`))
+      .catch(() => "");
+    const h1 = lessonHtml.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1].trim();
+    const title = `Slides: ${h1 ?? stem.split("/").pop()}`;
+    const rendered = await Deno.readTextFile(
+      join(staticRoot, ...url.split("/").map(decodeURIComponent)),
+    );
+    // The notes are for the teacher; the topic is open to every student (#117).
+    const html = config.notes === true ? rendered : stripPresenterNotes(rendered);
+    const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;
+    const withTitle = /<head[^>]*>/i.test(html)
+      ? html.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)
+      : `${meta}${html}`;
+    const relativeHref = `${stem}-slides.html`;
+    const destination = join(contentDir, relativeHref);
+    await Deno.mkdir(dirname(destination), { recursive: true });
+    await Deno.writeTextFile(destination, withTitle);
+    exported.push(relativeHref);
+  }
+  return exported;
 }

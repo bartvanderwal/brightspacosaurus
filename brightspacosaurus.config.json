@@ -3,6 +3,7 @@
   "version": "0.10.0",
   "name": "demo-course",
   "sourcesDir": "examples/demo-course/lessons/",
+  "readerCoverLogo": "assets/brightspacosaurus-favicon.png",
   "readersDir": "examples/demo-course/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "demo-course-docs",

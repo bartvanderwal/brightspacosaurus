@@ -2,7 +2,7 @@
 
 Publication pipeline for course material from Git to Brightspace
 
-- *_*Author(s)*: Bart van der Wal
+- *Author(s)*: Bart van der Wal, Claude Sonnet 5.5
 - *Version*: 1.0
 
 ## 1. Introduction
@@ -135,6 +135,7 @@ The most important fields:
 | `courseName`           | yes      | Course name as shown in the manifest                                                         |
 | `version`              | yes      | Version number (semver), used in the `.imscc` filename and HTML badge                        |
 | `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
+| `docusaurusDocsDir`    | no       | Docusaurus docs-plugin root for document IDs (default: parent of `sourcesDir`)                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
 | `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner) |
@@ -142,9 +143,12 @@ The most important fields:
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
-| `slides.lessons`       | no       | Preview-only mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); see below |
-| `slides.generateForPrefix` | no    | Generate preview slides for source Markdown filenames beginning with this case-sensitive prefix; explicit `slides.lessons` entries override it |
-| `slides.disclaimer`    | no       | Banner on every presented slide; default `In ontwikkeling voor 2026/2027, periode 3`; `""` disables it |
+| `slides.lessons`       | no       | Mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); matching decks go into the preview and `.imscc` |
+| `slides.generateForPrefix` | no    | Generate slides for source Markdown filenames beginning with this case-sensitive prefix; explicit `slides.lessons` entries override it |
+| `slides.notes`         | no       | `true` keeps presenter notes in `.imscc` slides; default `false` removes them (the preview always shows them) |
+| `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
+| `slides.theme`         | no       | Marp theme CSS file, relative to the repository root; overrides deck-level theme selection in preview and the `.imscc` |
+| `slides.logo`          | no       | Logo on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
 | `quiz.locale`          | no       | Language of the quiz labels and default headings: `en` or `nl`. Defaults to `diagrams.locale` (the general language of BSO's generated labels), and to `en` when neither is set |
@@ -259,7 +263,15 @@ For Docusaurus preview parity and implementation details, see the [Software Guid
 
 The `error` or `warning` word is colored (red and dark orange) only when stderr is a terminal, `NO_COLOR` is not set and `TERM` is not `dumb`; in a pipe or log the output stays plain. Only that word is colored, so `file:line:column` stays clickable. When there are diagnostics, one blank line precedes the summary line `Checked N Markdown files: X errors, Y warnings.`
 
-`lesson-frontmatter` (warning) reports YAML frontmatter keys that BSO ignores in a lesson file, and names them. BSO reads one key from a lesson's frontmatter: `sidebar_position`, a number that orders the page in the Brightspace menu, as in the Docusaurus sidebar (see 8.2); it does not trigger the warning, but a value that is not a number does. Readers use `title`, `author`, `version`, `date`, `updated`, `coverImage` and `coverAlt` instead. For any other key in a lesson, put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
+`lesson-frontmatter` (warning) reports YAML frontmatter keys that BSO ignores in a lesson file, and names them. BSO reads one key from a lesson's frontmatter: `sidebar_position`, a number that orders the page in the Brightspace menu, as in the Docusaurus sidebar (see 8.2); it does not trigger the warning, but a value that is not a number does. Readers use `title`, `author`, `version`, `date`, `updated`, `coverImage`, `coverAlt` and `lintHeadingNumbers` instead. For any other key in a lesson, put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
+
+`module-index-title` (error) reports a first-level module `index.md` without a non-empty H1. Its H1 supplies the module title; a YAML `title:` field is not used. `docusaurus-category-metadata` (warning) reports `_category_.json` files in `sourcesDir`: BSO does not read these Docusaurus files.
+
+`downloadable-missing`, `downloadable-too-large` and `downloadable-path` (errors) report local download links that are missing, exceed 50 MiB, or point outside `sourcesDir` / use invalid URL encoding.
+
+`reader-heading-numbering` (error) requires manual hierarchical numbers on reader section headings and checks their order, gaps and repeats. It also checks appendix letters (`Bijlage A`, `Bijlage B`, or `Appendix A`, `Appendix B`) and keeps `Bronnen`, `Sources`, `Literatuurlijst` and `Versiegeschiedenis` unnumbered. Add `lintHeadingNumbers: false` to a reader's frontmatter to opt out.
+
+`deep-relative-path` (warning) reports a link, image or `{@include}` target with three or more `../` in a row, such as `../../../shared/notes.md`. A path like that breaks as soon as the file moves. Move the file closer, or into a shared folder inside `sourcesDir`, and use a shorter path. BSO has no root-relative paths (a path starting with `/`), so shortening the path is the fix, not a leading slash. The rule skips code blocks and inline code.
 
 `hard-wrapped-lines` (warning) reports a paragraph that looks wrapped at a fixed column: three or more lines that are all at least 50 characters long and differ by at most 25 characters. Markdown renders such line breaks as spaces, so the output does not change, but diffs get noisy and AI-assisted editing has to rewrap text. Write each paragraph on one line and let the editor wrap it. Breaks that end in two spaces or a backslash are intentional and ignored.
 
@@ -513,7 +525,7 @@ With `--readers-only` you generate only the reader and teacher PDFs without the 
 
 For fast author feedback, use `bso preview` when `docusaurusDir` is configured. This starts the Docusaurus development server for the course repository, so most content and formatting issues can be caught locally before creating and importing a new `.imscc` package.
 
-#### Instructor slides in the local preview
+#### Slides in the preview and in Brightspace
 
 Use `slides.generateForPrefix` to generate slides for every Markdown filename in `sourcesDir` that starts with a course-specific prefix. This is useful when all lesson overviews share a naming convention. `slides.lessons` remains available for per-lesson selection and overrides the prefix rule:
 
@@ -528,20 +540,24 @@ Use `slides.generateForPrefix` to generate slides for every Markdown filename in
       },
       "lesoverzicht-8.1.md": { "generate": false }
     },
-    "disclaimer": "In ontwikkeling voor 2026/2027, periode 3"
+    "disclaimer": "Preview: slides zijn nog in ontwikkeling",
+    "theme": "shared/slides-theme.css",
+    "logo": "shared/han-logo.png"
   }
 }
 ```
 
-The prefix is case-sensitive and matches the filename (not its parent directory). A matching file's explicit `slides.lessons` entry takes precedence; set `{ "generate": false }` to opt it out, or a string/decks value to use manual slides instead. Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. An options object can generate slides from one lesson, select manual decks, or do both.
+The prefix is case-sensitive and matches the filename (not its parent directory). A matching file's explicit `slides.lessons` entry takes precedence; set `{ "generate": false }` to opt it out, or a string/decks value to use manual slides instead. Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. An options object can generate slides from one lesson, select manual decks, or do both. Generated and manual slides are available in the preview and are added to the `.imscc`.
 
-Generated decks use the lesson H1 as the title slide and create a slide for each H2. They retain lists, tables and images, omit paragraphs, split long lists and tables across slides, and show each `Kernbegrippen`/`Core concepts` definition on its own slide after the term list. Manual decks use the semantic `slides: true` YAML frontmatter marker; existing `marp: true` decks remain supported for compatibility. BSO normalizes either marker for Marp. When generated and manual decks are combined, generated slides come first, followed by matching manual decks in filename order; the first manual deck's frontmatter supplies presentation-wide settings (generated-only decks use the default theme). Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
+Generated decks use the lesson H1 as the title slide and create a slide for each H2. They retain lists, tables and images, omit paragraphs, split long lists and tables across slides, and show each `Kernbegrippen`/`Core concepts` definition on its own slide after the term list. Manual decks use the semantic `slides: true` YAML frontmatter marker; existing `marp: true` decks remain supported for compatibility. BSO normalizes either marker for Marp. When generated and manual decks are combined, generated slides come first, followed by matching manual decks in filename order; the first manual deck's frontmatter supplies presentation-wide settings. A configured course theme overrides a deck's theme. The optional logo is embedded on slides marked `<!-- _class: lead -->`; when `slides.logo` is omitted, `readerCoverLogo` is reused if set. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
 
 Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
 
-BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-preview-only-marp-presentations).
+BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. Marp theme CSS can style `section`, headings such as `section h1`/`section h2`, pagination with `section::after`, title slides with `section.lead`, and `section header`/`section footer`. BSO reserves `section::before` for the disclaimer banner and `.bso-slide-logo` for the generated title logo; themes should not use those selectors. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-marp-presentations-in-the-preview-and-the-cartridge).
 
-Slides are never added to the `.imscc`. **Hidden is not secured:** anyone who knows the URL can open the slides. Keep this feature local; reconsider access control before deploying the preview online.
+`bso build` also adds the slides to the `.imscc`: each lesson with slides gets one extra topic `Slides: <lesson title>` right after the lesson in its module, a self-contained HTML file with the images embedded and the disclaimer on every slide. Every student who can see the module can open it, so keep the disclaimer for slides that are not final. The presenter notes (HTML comments in the deck) are removed from these slides, because Marp writes them into the HTML where students could read them; set `"notes": true` in `slides` to keep them anyway. The preview always shows them. Rendering needs npm and takes a while; skip it with `bso build --skip-slides`. A course without `slides` in its configuration needs neither. Check in your Brightspace sandbox that the topic opens and navigates before you rely on it: Marp's HTML contains a script.
+
+In the preview, **hidden is not secured:** anyone who knows the URL can open the slides. Keep the preview local; reconsider access control before deploying it online.
 
 ### 5.2 Import behavior: additive with overwrite option
 
@@ -850,6 +866,7 @@ The Source Scanner classifies files with the `reader-` prefix as reader files. B
 - Generated reader PDFs get a mandatory separate cover page before the table of contents. The cover title comes from Markdown frontmatter `title`, otherwise from the first H1, otherwise from the file name. `author`/`auteur` and `version`/`versie` frontmatter are used when present, otherwise the course name and version.
 - The cover shows when the reader first appeared and when it was last changed, each on its own line, for example `Oorspronkelijke datum: 2026-05-15` and `Laatste wijziging: 2026-10-01`. The original date comes from `date`/`datum` in the frontmatter. The last change comes from Git: the last commit that touched the reader file. Without Git, BSO uses `updated`/`bijgewerkt` from the frontmatter. With only one date, or two equal dates, the cover shows one date line. Labels follow `diagrams.locale` (Dutch or English). BSO never inserts the current date, so repeated builds stay reproducible.
 - Every chapter starts on a new page. The chapter level is the highest heading level in the reader; when that level occurs only once, as a title above `##` chapters, the next level counts. Headings in code blocks are ignored, and a manual `\clearpage` before a chapter gives no blank page, so you can remove those from your readers. Turn it off with `"readerChapterNewPage": false`.
+- Write section numbers directly in reader headings, for example `## 1. Inleiding` and `### 1.1 Doel`. PDF generation does not add another number, so the authored number is shown once in both the Docusaurus preview and the PDF. `bso lint` checks numbering; add `lintHeadingNumbers: false` to frontmatter to opt out.
 - In CI with a shallow clone (for example GitLab's `GIT_DEPTH`) the last commit that touched a file may be missing, or replaced by a later one. BSO detects a shallow clone and then ignores the Git date, falling back to `updated`. For the real date in CI, fetch the full history (`GIT_DEPTH: 0`) for the job that builds the readers.
 - Add a cover image with `coverImage` in the frontmatter, relative to the reader file, for example `coverImage: img/git-branches.png`. The image appears between author and date, scaled to at most 80% of the page width and 45% of its height. Use PNG or JPG, and a path without spaces or LaTeX special characters (`%`, `#`, `{`, `}`). If the file is missing or the path is unusable, BSO prints a warning and builds the cover without image. `coverAlt` may hold a description for editors; the PDF does not use it yet.
 - Add a logo to every reader cover page with `readerCoverLogo` in `brightspacosaurus.config.json`, relative to the repository root, for example `"readerCoverLogo": "shared/han-logo.png"`. The logo appears at the bottom of the cover, above the date, at most 4 cm wide and 3 cm high. The same path rules and warnings apply as for `coverImage`.
@@ -882,12 +899,28 @@ _Figure 10_: Brightspace Manage Files — reader PDFs are linked from lesson pag
 
 ### 8.2 Menu module and order
 
-The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name, so a folder `algemeen` comes before `week-1`. The module title is the H1 of the folder's `index.md`, otherwise the folder name.
+The Brightspace menu follows the folders in `sourcesDir`: each first-level folder becomes a module, sorted by name. Name these folders for the course structure that makes sense to students—weeks, topics, themes or units all work. For a topic-based course, for example:
+
+```text
+lessons/
+  databases/
+    index.md
+    relational-model.md
+    sql-basics.md
+  web-development/
+    index.md
+    html.md
+    css.md
+```
+
+Put a non-empty H1 in each module's lead page; that heading becomes the module name in Brightspace and in the preview. BSO uses `index.md`, `weekintro-N.md`, `weekindex-N.md`, `intro.md`, or `overview.md` as the lead page. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without a lead page, the folder name is used.
+
+The preview derives its sidebar from the same course folders and ordering as the Brightspace menu. You do not need to maintain Docusaurus `sidebars.js` or `_category_.json` files in the course content. BSO ignores `_category_.json`; `bso lint` warns if one remains in `sourcesDir`.
 
 Within a module BSO orders the pages like the Docusaurus sidebar:
 
 1. the teacher page (`teacherPage`), always first in its module;
-2. the folder's `index.md`;
+2. the folder's lead page;
 3. pages with `sidebar_position` in their front matter, ascending;
 4. the rest by lesson code (for example `1.2`) and title.
 
@@ -897,7 +930,9 @@ Reader PDFs get their own module by default. To put them in a content module ins
 "readersModule": { "slug": "algemeen", "title": "Algemeen" }
 ```
 
-`title` sets the module title; without it the module keeps the H1 of its `index.md` or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+`title` sets the module title; without it the module keeps the lead page's H1 or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+
+`build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both are generated from the same navigation model; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. The sidebar has one category level per first-level folder in `sourcesDir`; deeper folders remain within that category. Readers can be placed in a content module with `readersModule`. The repository README is not included in the course navigation. Set `docusaurusDocsDir` to the docs-plugin root when it differs from the parent of `sourcesDir`; document IDs are paths relative to that root.
 
 The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 
@@ -912,6 +947,14 @@ BSO automatically includes images from lesson pages (Markdown `![alt](path)`) in
 3. The image is in a directory that BSO scans.
 
 BSO converts Markdown image references to HTML img tags and copies the image files into the `.imscc` archive. If a referenced image does not exist, BSO logs a warning with the source file and the missing path.
+
+You can also link a downloadable file from a lesson or module page:
+
+```markdown
+[Download the starter code](bestanden/startcode.zip)
+```
+
+Use a local path relative to that Markdown file, and keep the file inside `sourcesDir`. BSO copies it into the `.imscc` and declares it as a content dependency, so it is available in Brightspace Manage Files. The preview serves the same file as a download. Each file may be at most **50 MiB**; `bso lint` reports missing files, files above the limit, and paths outside `sourcesDir`. Build and preview also reject invalid or oversized links.
 
 In addition to the images referenced from Markdown, you can supply extra static assets (banners, logos) via the `assetsDir` configuration field, which BSO copies into the build.
 
@@ -950,6 +993,25 @@ theme: {
 The import loads the complete shared stylesheet: practice quizzes, flashcards, teacher-page tabs and code-block copy controls. No path to a neighbouring BSO checkout, no hardcoded `node_modules` directory and no extra npm package is needed; this works with the `bso` you already run from JSR. Brightspace export already includes the complete stylesheet automatically; the BSO `customCss` configuration field does not register a stylesheet with Docusaurus.
 
 Start the preview with `bso preview` (or `deno task demo` from a BSO checkout). The file is created before Docusaurus starts, so a bare `npm start` on a fresh clone fails to resolve the import; run `bso preview` once first. Every start refreshes the file after you update BSO.
+
+#### What `bso preview` installs, and where
+
+BSO does not install or remove dependencies silently. On the first preview, if the configured Docusaurus app has no `node_modules`, BSO runs `npm ci` when `package-lock.json` exists, or `npm install` otherwise. npm writes the app's dependencies to `<docusaurusDir>/node_modules`; subsequent previews reuse them. npm may also maintain its normal user-level download cache.
+
+If the course configures slides and matching Marp decks are found, BSO installs the pinned Marp CLI and its patched math dependencies via npm. That cache is `<parent of outputDir>/marp-tools` (for the default `build/brightspace` output, `build/marp-tools`). Without matching slides, this extra installation is skipped. The generated preview files go in `preview-static/` beside the output directory; they are not part of the Docusaurus app's dependencies.
+
+The Docusaurus app and Marp dependencies are external to BSO. `bso preview` does not install Deno, Pandoc, TeX, or a browser. Reader PDFs need Pandoc and a TeX engine installed separately; BSO leaves those tools where you installed them.
+
+The 2026-10-15 footprint snapshot reported these approximate sizes; they are machine-specific, and shared caches may contain unrelated files:
+
+| Component | Approximate size | Where / when |
+| --- | ---: | --- |
+| BSO dependencies | 31 MB | Shared BSO `node_modules`; not installed by each preview |
+| Docusaurus dependencies | Not measured | `<docusaurusDir>/node_modules`, installed by npm on the first preview if absent |
+| Marp and its math dependencies | 129 MB | `<parent of outputDir>/marp-tools`, installed only when configured matching slides need rendering |
+| Deno cache | 514 MB | User-level shared cache; most was not attributable to BSO |
+| Deno installation and data | 128 MB | `~/.deno`; shared runtime, not installed by BSO |
+| `build/` total | 1.6 GB | Includes course output and test trees; not BSO or preview dependencies alone |
 
 ---
 

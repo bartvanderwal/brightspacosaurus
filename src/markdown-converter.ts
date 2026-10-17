@@ -9,6 +9,11 @@
 
 import type { ConvertOptions, ConvertResult } from "./types.ts";
 import { loadAssetText } from "./assets.ts";
+import {
+  findDownloadableLinks,
+  MAX_DOWNLOADABLE_FILE_SIZE,
+  resolveDownloadableFile,
+} from "./downloadable-files.ts";
 import { basename, dirname, extname, join, relative, resolve } from "@std/path";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
@@ -404,6 +409,37 @@ export async function convertMarkdown(
   await Deno.mkdir(outputSubDir, { recursive: true });
 
   const copiedImages: string[] = [];
+  const copiedDownloadables = new Set<string>();
+
+  for (const link of findDownloadableLinks(cleanedMarkdown)) {
+    const file = await resolveDownloadableFile(
+      link.url,
+      sourcePath,
+      baseDir,
+    );
+    if ("error" in file) {
+      const reason = file.error === "missing"
+        ? "file not found"
+        : file.error === "too-large"
+        ? `file exceeds the ${
+          MAX_DOWNLOADABLE_FILE_SIZE / (1024 * 1024)
+        } MiB limit`
+        : file.error === "outside-sources"
+        ? "file must be inside sourcesDir"
+        : "invalid URL encoding";
+      const err = new Error(
+        `${sourcePath}:${link.line}:${link.column}: ${reason}: ${link.url}`,
+      ) as Error & { exitCode: number };
+      err.exitCode = 3;
+      throw err;
+    }
+    const destination = join(outputDir, ...file.relativePath.split("/"));
+    if (!copiedDownloadables.has(destination)) {
+      await Deno.mkdir(dirname(destination), { recursive: true });
+      await Deno.copyFile(file.path, destination);
+      copiedDownloadables.add(destination);
+    }
+  }
 
   for (const imgRelPath of relativeImages) {
     const imgAbsSource = resolve(sourceDir, imgRelPath);

@@ -4,11 +4,15 @@ date: 2026-09-06
 
 # Reader: Testing Basics
 
+Example reader for the demo course of Brightspacosaurus
+
+## 1. Learning goals
+
 {@include: [Learning goals](../partials/learning-goals.md)}
 
 A short reference on the arrange-act-assert pattern for unit tests.
 
-## Arrange-Act-Assert
+## 2. Arrange-Act-Assert
 
 Most unit tests follow three phases:
 
@@ -16,7 +20,7 @@ Most unit tests follow three phases:
 2. **Act** — call the method being tested.
 3. **Assert** — verify the result matches expectations.
 
-## Test flow
+## 3. Test flow
 
 ```mermaid
 flowchart TD
@@ -26,7 +30,7 @@ flowchart TD
     C -->|no| E[Test fails]
 ```
 
-## Class diagram
+## 4. Class diagram
 
 ```plantuml
 @startuml
