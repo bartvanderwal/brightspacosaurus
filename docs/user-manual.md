@@ -983,6 +983,25 @@ The import loads the complete shared stylesheet: practice quizzes, flashcards, t
 
 Start the preview with `bso preview` (or `deno task demo` from a BSO checkout). The file is created before Docusaurus starts, so a bare `npm start` on a fresh clone fails to resolve the import; run `bso preview` once first. Every start refreshes the file after you update BSO.
 
+#### What `bso preview` installs, and where
+
+BSO does not install or remove dependencies silently. On the first preview, if the configured Docusaurus app has no `node_modules`, BSO runs `npm ci` when `package-lock.json` exists, or `npm install` otherwise. npm writes the app's dependencies to `<docusaurusDir>/node_modules`; subsequent previews reuse them. npm may also maintain its normal user-level download cache.
+
+If the course configures slides and matching Marp decks are found, BSO installs the pinned Marp CLI and its patched math dependencies via npm. That cache is `<parent of outputDir>/marp-tools` (for the default `build/brightspace` output, `build/marp-tools`). Without matching slides, this extra installation is skipped. The generated preview files go in `preview-static/` beside the output directory; they are not part of the Docusaurus app's dependencies.
+
+The Docusaurus app and Marp dependencies are external to BSO. `bso preview` does not install Deno, Pandoc, TeX, or a browser. Reader PDFs need Pandoc and a TeX engine installed separately; BSO leaves those tools where you installed them.
+
+The 2026-10-15 footprint snapshot reported these approximate sizes; they are machine-specific, and shared caches may contain unrelated files:
+
+| Component | Approximate size | Where / when |
+| --- | ---: | --- |
+| BSO dependencies | 31 MB | Shared BSO `node_modules`; not installed by each preview |
+| Docusaurus dependencies | Not measured | `<docusaurusDir>/node_modules`, installed by npm on the first preview if absent |
+| Marp and its math dependencies | 129 MB | `<parent of outputDir>/marp-tools`, installed only when configured matching slides need rendering |
+| Deno cache | 514 MB | User-level shared cache; most was not attributable to BSO |
+| Deno installation and data | 128 MB | `~/.deno`; shared runtime, not installed by BSO |
+| `build/` total | 1.6 GB | Includes course output and test trees; not BSO or preview dependencies alone |
+
 ---
 
 ## 11. Bulk-deleting content via the browser console
