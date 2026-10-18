@@ -8,9 +8,11 @@ import { dirname, join, resolve } from "@std/path";
 import {
   exportSlidesToContent,
   renderPreviewSlides,
-  stripPresenterNotes,
   type SlidesConfig,
   type SlidesRunner,
+  stripExitControls,
+  stripPresenterNotes,
+  withExitControls,
 } from "../src/slides-preview.ts";
 
 async function fixture(run: (root: string) => Promise<void>): Promise<void> {
@@ -1160,7 +1162,13 @@ Deno.test("slides preview: slides: true selects a deck and is passed to Marp as 
       "---\nslides: true # new name\ntheme: gaia\n---\n# Slide A\n",
     );
     const captured: string[] = [];
-    await renderPreviewSlides(config, root, "lessons", "static", fake(captured));
+    await renderPreviewSlides(
+      config,
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
     assertEquals(captured.length, 1);
     assertStringIncludes(captured[0], "marp: true");
     assertEquals(captured[0].includes("slides:"), false);
@@ -1170,7 +1178,11 @@ Deno.test("slides preview: slides: true selects a deck and is passed to Marp as 
 
 Deno.test("slides preview: marp and slides together, or slides: false, do not select a deck", async () => {
   await fixture(async (root) => {
-    await write(root, "decks/both.md", "---\nmarp: true\nslides: true\n---\n# No");
+    await write(
+      root,
+      "decks/both.md",
+      "---\nmarp: true\nslides: true\n---\n# No",
+    );
     await write(root, "decks/off.md", "---\nslides: false\n---\n# No");
     await write(root, "decks/quoted.md", '---\nslides: "true"\n---\n# No');
     assertEquals(
@@ -1266,7 +1278,14 @@ Deno.test("slides export drops presenter notes unless slides.notes is true (#117
     const read = () =>
       Deno.readTextFile(join(contentDir, "week", "lesson-slides.html"));
 
-    await exportSlidesToContent(config, root, "lessons", "static", contentDir, withNotes);
+    await exportSlidesToContent(
+      config,
+      root,
+      "lessons",
+      "static",
+      contentDir,
+      withNotes,
+    );
     const stripped = await read();
     assertStringIncludes(stripped, "<section>Slide</section>");
     assertEquals(stripped.includes("Teacher only"), false);
@@ -1284,8 +1303,30 @@ Deno.test("slides export drops presenter notes unless slides.notes is true (#117
     // The preview keeps the notes: it renders through renderPreviewSlides.
     await renderPreviewSlides(config, root, "lessons", "static", withNotes);
     assertStringIncludes(
-      await Deno.readTextFile(join(root, "static", "slides", "week", "lesson", "index.html")),
+      await Deno.readTextFile(
+        join(root, "static", "slides", "week", "lesson", "index.html"),
+      ),
       "Teacher only",
     );
   });
+});
+
+Deno.test("exit controls close the deck tab with Esc or Alt+P, and the export removes them", () => {
+  const deck =
+    "<html><head><title>x</title></head><body><section>a</section></body></html>";
+  const withControls = withExitControls(deck);
+  assertStringIncludes(withControls, 'id="bso-slides-exit"');
+  assertStringIncludes(withControls, "Escape");
+  assertStringIncludes(withControls, "KeyP");
+  assertStringIncludes(withControls, "window.close()");
+  assertEquals(
+    withControls.indexOf("<script") < withControls.indexOf("</head>"),
+    true,
+  );
+  assertEquals(stripExitControls(withControls), deck);
+  assertEquals(stripExitControls(deck), deck);
+  assertStringIncludes(
+    withExitControls("<section>a</section>"),
+    "bso-slides-exit",
+  );
 });

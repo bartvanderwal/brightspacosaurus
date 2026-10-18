@@ -404,6 +404,30 @@ async function embedImages(
   return text;
 }
 
+const EXIT_CONTROLS_ID = "bso-slides-exit";
+
+/**
+ * Lets the presenter leave a preview deck with Esc or the Alt/Option+P that
+ * opened it: the deck lives in a tab the shortcut opened, so the tab closes.
+ * In full screen the browser takes the first Esc itself. Preview only; the
+ * export removes it again (`stripExitControls`).
+ */
+export function withExitControls(html: string): string {
+  const script =
+    `<script id="${EXIT_CONTROLS_ID}">document.addEventListener("keydown",function(e){var alt=e.altKey&&e.code==="KeyP"&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey;var esc=e.key==="Escape"&&!document.fullscreenElement;if(!alt&&!esc)return;e.preventDefault();window.close()})</script>`;
+  return /<\/head>/i.test(html)
+    ? html.replace(/<\/head>/i, `${script}</head>`)
+    : html + script;
+}
+
+/** Removes the preview-only exit script, so it never reaches the `.imscc`. */
+export function stripExitControls(html: string): string {
+  return html.replace(
+    new RegExp(`<script id="${EXIT_CONTROLS_ID}">[\\s\\S]*?</script>`),
+    "",
+  );
+}
+
 function banner(value: string): string {
   const escaped = value.replace(
     /[\\'"\n\r\f<>\u2028\u2029]/g,
@@ -787,9 +811,11 @@ export async function renderPreviewSlides(
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
       await Deno.writeTextFile(
         destination,
-        disclaimer
-          ? html.replace(/<\/head>/i, `${banner(disclaimer)}</head>`)
-          : html,
+        withExitControls(
+          disclaimer
+            ? html.replace(/<\/head>/i, `${banner(disclaimer)}</head>`)
+            : html,
+        ),
       );
       result[plan.lesson] = plan.url;
     } catch (error) {
@@ -887,7 +913,9 @@ export async function exportSlidesToContent(
       join(staticRoot, ...url.split("/").map(decodeURIComponent)),
     );
     // The notes are for the teacher; the topic is open to every student (#117).
-    const html = config.notes === true ? rendered : stripPresenterNotes(rendered);
+    const html = stripExitControls(
+      config.notes === true ? rendered : stripPresenterNotes(rendered),
+    );
     const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;
     const withTitle = /<head[^>]*>/i.test(html)
       ? html.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)
