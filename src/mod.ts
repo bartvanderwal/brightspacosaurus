@@ -36,6 +36,7 @@ export type {
   ScanOptions,
   ScanResult,
   SlidesConfig,
+  SlidesLessonConfig,
   TeacherManualConfig,
 } from "./types.ts";
 

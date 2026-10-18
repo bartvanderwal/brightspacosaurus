@@ -143,11 +143,12 @@ The most important fields:
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
-| `slides.lessons`       | no       | Mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); the slides go into the preview and the `.imscc`; see below |
-| `slides.notes`         | no       | `true` keeps the presenter notes in the slides inside the `.imscc`; default `false` removes them (the preview always shows them) |
+| `slides.lessons`       | no       | Mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); matching decks go into the preview and `.imscc` |
+| `slides.generateForPrefix` | no    | Generate slides for source Markdown filenames beginning with this case-sensitive prefix; explicit `slides.lessons` entries override it |
+| `slides.notes`         | no       | `true` keeps presenter notes in `.imscc` slides; default `false` removes them (the preview always shows them) |
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
 | `slides.theme`         | no       | Marp theme CSS file, relative to the repository root; overrides deck-level theme selection in preview and the `.imscc` |
-| `slides.logo`          | no       | Logo image on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |
+| `slides.logo`          | no       | Logo on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
 | `quiz.maxAttempts`     | no       | Maximum number of attempts for generated quizzes (default `0`, unlimited)                    |
 | `quiz.locale`          | no       | Language of the quiz labels and default headings: `en` or `nl`. Defaults to `diagrams.locale` (the general language of BSO's generated labels), and to `en` when neither is set |
@@ -526,13 +527,18 @@ For fast author feedback, use `bso preview` when `docusaurusDir` is configured. 
 
 #### Slides in the preview and in Brightspace
 
-Map lessons to Marp Markdown in the content repository's `brightspacosaurus.config.json`:
+Use `slides.generateForPrefix` to generate slides for every Markdown filename in `sourcesDir` that starts with a course-specific prefix. This is useful when all lesson overviews share a naming convention. `slides.lessons` remains available for per-lesson selection and overrides the prefix rule:
 
 ```json
 {
   "slides": {
+    "generateForPrefix": "lesoverzicht",
     "lessons": {
-      "lesoverzicht-6.3.md": "instructor-material/week-6/les-3/slides-*.md"
+      "lesoverzicht-6.3.md": {
+        "generate": true,
+        "decks": "instructor-material/week-6/les-3/slides-*.md"
+      },
+      "lesoverzicht-8.1.md": { "generate": false }
     },
     "disclaimer": "Preview: slides zijn nog in ontwikkeling",
     "theme": "shared/slides-theme.css",
@@ -541,7 +547,11 @@ Map lessons to Marp Markdown in the content repository's `brightspacosaurus.conf
 }
 ```
 
-Lesson paths are relative to `sourcesDir`; slide globs, `theme` and `logo` paths are relative to the repository root. Only decks with `marp: true` in YAML frontmatter qualify; `slides: true` works as well, BSO then tells Marp `marp: true` itself (use one of the two, not both). Matching decks are combined in filename order into one presentation; the first deck's frontmatter supplies other presentation-wide settings. A configured course theme overrides its `theme` setting. The optional logo is embedded on slides marked `<!-- _class: lead -->`; when `slides.logo` is omitted, `readerCoverLogo` is reused if set. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
+The prefix is case-sensitive and matches the filename (not its parent directory). A matching file's explicit `slides.lessons` entry takes precedence; set `{ "generate": false }` to opt it out, or a string/decks value to use manual slides instead. Lesson paths are relative to `sourcesDir`; slide globs are relative to the repository root. An options object can generate slides from one lesson, select manual decks, or do both. Generated and manual slides are available in the preview and are added to the `.imscc`.
+
+Slides are optional: without a `slides` setting, BSO creates no slide decks, and regular Markdown remains unchanged. For manual decks, `slides: true` is the semantic BSO marker; `marp: true` remains supported when you want Marp's own tools to recognize the deck. Generated slides are a concise view of the lesson rather than a replacement for its reading view. BSO currently omits paragraphs and keeps lists, tables and images; sections with no such visual content do not get a slide. The longer-term authoring goal is to keep explanations available as reader-accessible speaker notes, support quotations, and warn about sections too dense for a slide. H3 subsections and section-introduction slides are also a design goal, not current behavior. See [the slide authoring model](software-guidebook.md#authoring-model-one-source-two-views) for the distinction between current behavior and these goals.
+
+Generated decks use the lesson H1 as the title slide and create a slide for each H2. They retain lists, tables and images, omit paragraphs, split long lists and tables across slides, and show each `Kernbegrippen`/`Core concepts` definition on its own slide after the term list. Manual decks use the semantic `slides: true` YAML frontmatter marker; existing `marp: true` decks remain supported for compatibility. BSO normalizes either marker for Marp. When generated and manual decks are combined, generated slides come first, followed by matching manual decks in filename order; the first manual deck's frontmatter supplies presentation-wide settings. A configured course theme overrides a deck's theme. The optional logo is embedded on slides marked `<!-- _class: lead -->`; when `slides.logo` is omitted, `readerCoverLogo` is reused if set. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
 
 Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
 

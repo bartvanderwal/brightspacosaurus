@@ -540,6 +540,26 @@ The stylesheet cannot be a package export: Deno rejects CSS entries in the modul
 
 `renderPreviewSlides` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. `bso build` reuses it through `exportSlidesToContent` (#112): each presentation is copied to `content/<lesson>-slides.html` with a `bso-title` meta (`Slides: <lesson title>`), which `pack` prefers over the first `<h1>`, because that is a slide title. `pack` then lists it as a web content topic next to its lesson. The export removes the presenter notes (`stripPresenterNotes`, the `bespoke-marp-note` elements) unless `slides.notes` is true (#117); the preview keeps them. `--skip-slides` skips this step. The preview keeps its own entry point below. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
 
+`slides.generateForPrefix` selects every Markdown filename in `sourcesDir` beginning with the configured case-sensitive prefix. Explicit entries in `slides.lessons` take precedence, including `{ "generate": false }` opt-outs. Manual deck frontmatter uses `slides: true` as the semantic marker; the legacy `marp: true` marker remains accepted, and BSO normalizes either to the Marp CLI header.
+
+#### Authoring model: one source, two views
+
+Slides are an optional view of the lesson, not a second document to maintain. With no `slides` configuration, BSO generates and exports no decks; ordinary Markdown remains ordinary Markdown. No explicit `false` flag is needed to keep a lesson in reading mode. Courses opt in through `slides.generateForPrefix` or `slides.lessons`. For an authored deck, `slides: true` is BSO's semantic marker and `marp: true` remains supported for compatibility with Marp and its editor integrations. The marker identifies a deck; it does not mean every lesson must be presented as slides.
+
+The intended authoring rule is **write the lesson once and derive a concise presentation from it**. The reading view keeps its explanations. The slide view emphasizes the visual structure:
+
+- Keep the lesson's H1 as the title slide.
+- Use each H2 as a topic boundary, but do not spend a slide on a section that has only prose.
+- Put lists, tables, diagrams/images and meaningful quotations on slides; leave long explanatory paragraphs out of the slide body.
+- Preserve that prose as presenter notes where practical, so a reader who wants the accompanying explanation can access it without crowding the projected view.
+- Warn authors when a section's lists, tables and images are too extensive for a readable slide.
+
+The generated renderer currently keeps lists, tables and images, omits prose, and splits long lists and tables. It does not yet treat quotations as slide content, move generated prose into presenter notes, or lint lesson sections for slide suitability and density. Presenter notes authored as HTML comments in manual decks are shown in the preview; cartridge export removes them by default and `slides.notes: true` retains them. Notes are not protected content, so material that learners may read should be treated as learner-visible.
+
+For dense topics, the planned outline convention is an H2 topic with H3 subsections. The H2 gets a section-introduction slide, and each H3 gets its own content slide(s); an H3 with more content can be split across its lists, tables or images. H4 headings remain content within the H3 slide rather than introducing another navigation level. This bounded outline keeps the slide hierarchy legible. It is a design goal, not current renderer behavior: today generated slides use H2 sections and can split long lists or tables, but do not create H3 section-introduction slides. A future slide-aware lint pass should distinguish style advice (an H2 containing only prose) from a density warning (an H2 whose visual content is unlikely to fit), without rewriting the source.
+
+“Multimodal” usually suggests different media such as text, audio and video. For the narrower idea of the same lesson in reading and slide views, **same-source, dual-view content** (or **dual-mode material**) is clearer. A future demo could itself be authored as such a lesson and use a screencast as a linked or embedded asset once the chosen media path supports it.
+
 For a content repository's own Docusaurus configuration, add:
 
 ```js
