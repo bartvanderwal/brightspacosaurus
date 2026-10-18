@@ -32,7 +32,7 @@ export function findDownloadableLinks(markdown: string): DownloadableLink[] {
       if (
         path && !path.startsWith("/") &&
         !/^[a-z][a-z\d+.-]*:/i.test(path) &&
-        !/\.md$/i.test(path) &&
+        !/\.(?:md|html?)$/i.test(path) &&
         /\.[^./]+$/.test(filename)
       ) {
         links.push({

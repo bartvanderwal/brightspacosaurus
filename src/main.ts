@@ -19,7 +19,6 @@ import {
   dirname,
   extname,
   fromFileUrl,
-  isAbsolute,
   join,
   relative,
   resolve,
