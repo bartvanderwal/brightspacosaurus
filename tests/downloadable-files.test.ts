@@ -9,7 +9,10 @@ import {
 
 async function makeBuildTempDir(): Promise<string> {
   await Deno.mkdir("build", { recursive: true });
-  return await Deno.makeTempDir({ dir: "build", prefix: "downloads-" });
+  return await Deno.makeTempDir({
+    dir: resolve("build"),
+    prefix: "downloads-",
+  });
 }
 
 Deno.test("download link parser ignores folders and extensionless page links", () => {
