@@ -53,6 +53,8 @@ Four kinds of documentation, each with its own role:
 | [User manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/) | Full reference: config fields, edge cases, Brightspace import process, troubleshooting | Author or administrator setting it up |
 | [Software Guidebook](https://bartvanderwal.github.io/brightspacosaurus/guidebook/software-guidebook/) | Architecture and design decisions (sources in `docs/`) | Developer, contributor |
 
+For AI-assisted workflows in a course project, see the [installable BSO authoring skills](skills/README.md). They are separate from the BSO development instructions.
+
 ## Brightspacosaurus intro/history
 
 Brightspacosaurus was created by Bart van der Wal, lecturer in Software Engineering at the HAN University of Applied Science, Academy of IT and Media Design. He and other colleagues were using a markdown-based approach and publishing through Docusaurus for course materials. This dropped WYSIWYG, but allowed including code previews with syntax highlighting, adding UML diagrams with diagrams-as-code tools like PlantUML and Mermaid, and even programmable parts like quizzes, using React/MD. They also preferred Git versionable, diffable files, and also having the modern option of AI-enhancement in the editor. This is of course impossible in Brightspace itself where the presence of direct student information makes access of LLM's unwanted/unacceptable.
