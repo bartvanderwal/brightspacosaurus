@@ -298,6 +298,43 @@ const el = <Button title="A & B" />;
   assertEquals(feedback?.includes("&amp;#x3C; and &amp;#x26;."), true);
 });
 
+Deno.test("QuizConverter: preserves prompt content after a details block", () => {
+  const quiz = parseQuizMarkdown(`# Diagram quiz
+
+## Question 1
+Before the diagram:
+
+![Diagram](diagram.png)
+
+<details>
+<summary>PlantUML source</summary>
+
+\`\`\`text
+@startuml
+Alice -> Bob
+@enduml
+\`\`\`
+
+</details>
+
+After the details block, what does the diagram show?
+
+- A. A message
+- B. No message
+Correct answer: **A**
+`);
+  const xml = generateQtiXml(quiz, "quiz-details");
+  const question = xml.split('<item ident="q1">')[1]?.split("</item>")[0];
+
+  assertEquals(question?.includes("diagram.png"), true);
+  assertEquals(question?.includes("PlantUML source"), true);
+  assertEquals(question?.includes("@startuml"), true);
+  assertEquals(
+    question?.includes("After the details block, what does the diagram show?"),
+    true,
+  );
+});
+
 Deno.test("QuizConverter: a four-backtick quiz fence may contain three-backtick code blocks", () => {
   const quiz = parseQuizMarkdown(`# Code quiz
 
