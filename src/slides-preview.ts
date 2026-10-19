@@ -660,11 +660,7 @@ export async function renderPreviewSlides(
         }
       }
     }
-    if (
-      !decks.length && !generate &&
-      !(config.generateForPrefix && typeof selection !== "string" &&
-        selection.generate === false)
-    ) continue;
+    if (!decks.length && !generate) continue;
     const slug = relative(sources, lesson).replaceAll("\\", "/").replace(
       /\.md$/i,
       "",

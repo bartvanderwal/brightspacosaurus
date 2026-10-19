@@ -10,13 +10,14 @@ name: Demo preview on GitHub Pages
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event.pull_request.number || 'deploy' }}
   cancel-in-progress: false
 
 jobs:
@@ -62,9 +63,11 @@ jobs:
         run: deno task test:fast
 
       - name: Voortgangsverkenner files for the preview
+        if: github.event_name != 'pull_request'
         run: deno run --config deno.json --allow-read --allow-write=build demo-course-docs/write-dashboard-static.ts build/preview-static
 
       - name: Wait for Kroki (PlantUML and Mermaid)
+        if: github.event_name != 'pull_request'
         run: |
           for attempt in $(seq 1 30); do
             if curl -sf -X POST -H "Content-Type: text/plain" --data 'graph TD; A-->B' http://localhost:8000/mermaid/svg > /dev/null; then
@@ -76,6 +79,7 @@ jobs:
 
       # Readers are PDFs in Brightspace; the demo shows those PDFs too.
       - name: Install pandoc 3.9 and LuaLaTeX
+        if: github.event_name != 'pull_request'
         run: |
           curl -fsSL -o /tmp/pandoc.deb https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-amd64.deb
           sudo apt-get update -q
@@ -83,6 +87,7 @@ jobs:
             texlive-latex-extra texlive-fonts-recommended lmodern fonts-dejavu-core
 
       - name: Build the reader PDFs
+        if: github.event_name != 'pull_request'
         run: |
           jq '.diagrams.krokiUrl = "http://localhost:8000"' brightspacosaurus.config.json > build/pages-config.json
           deno run -A src/main.ts build --readers-only --config build/pages-config.json
@@ -90,10 +95,12 @@ jobs:
           cp build/brightspace/readers/*.pdf build/preview-static/readers/
 
       - name: Install Docusaurus
+        if: github.event_name != 'pull_request'
         working-directory: demo-course-docs
         run: npm ci
 
       - name: Build the preview
+        if: github.event_name != 'pull_request'
         working-directory: demo-course-docs
         env:
           DOCS_URL: https://bartvanderwal.github.io
@@ -104,10 +111,12 @@ jobs:
           npx docusaurus build
 
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: demo-course-docs/build
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-26.04
     permissions:

@@ -958,6 +958,8 @@ You can also link a downloadable file from a lesson or module page:
 
 Use a local path relative to that Markdown file, and keep the file inside `sourcesDir`. BSO copies it into the `.imscc` and declares it as a content dependency, so it is available in Brightspace Manage Files. The preview serves the same file as a download. Each file may be at most **50 MiB**; `bso lint` reports missing files, files above the limit, and paths outside `sourcesDir`. Build and preview also reject invalid or oversized links.
 
+Links to Markdown or HTML pages (`.md`, `.html`, `.htm`), directories (`other-topic/`) and extensionless pages are not downloads. BSO leaves HTML and directory links unchanged and does not check whether their targets exist.
+
 In addition to the images referenced from Markdown, you can supply extra static assets (banners, logos) via the `assetsDir` configuration field, which BSO copies into the build.
 
 ---

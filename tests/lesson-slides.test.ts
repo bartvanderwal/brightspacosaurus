@@ -61,6 +61,30 @@ ${Array.from({ length: 13 }, (_, index) => `- topic ${index + 1}`).join("\n")}
   assert(glossarySlides.every((slide) => slide.includes("# 8. Kernbegrippen")));
 });
 
+Deno.test("generated lesson slides preserve reference images and their definitions", () => {
+  const result = generateLessonSlides(`# Lesson
+
+## Diagram
+
+![Full][schema]
+
+![Collapsed][]
+
+![Shortcut]
+
+[schema]: ./schema.png "Schema"
+[Collapsed]: ./collapsed.png
+[Shortcut]: ./shortcut.png
+`);
+
+  assertStringIncludes(result, "# Diagram\n\n![Full][schema]");
+  assertStringIncludes(result, "![Collapsed][]");
+  assertStringIncludes(result, "![Shortcut]");
+  assertStringIncludes(result, '[schema]: ./schema.png "Schema"');
+  assertStringIncludes(result, "[Collapsed]: ./collapsed.png");
+  assertStringIncludes(result, "[Shortcut]: ./shortcut.png");
+});
+
 Deno.test("generated lesson slides repeat table headers when splitting rows", () => {
   const rows = Array.from(
     { length: 12 },

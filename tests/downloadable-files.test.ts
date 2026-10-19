@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { join } from "@std/path";
+import { join, resolve } from "@std/path";
 import {
   copyDownloadableFiles,
   findDownloadableLinks,
@@ -9,13 +9,16 @@ import {
 
 async function makeBuildTempDir(): Promise<string> {
   await Deno.mkdir("build", { recursive: true });
-  return await Deno.makeTempDir({ dir: "build", prefix: "downloads-" });
+  return await Deno.makeTempDir({
+    dir: resolve("build"),
+    prefix: "downloads-",
+  });
 }
 
-Deno.test("download link parser ignores folders and extensionless page links", () => {
+Deno.test("download link parser ignores folders and page links", () => {
   assertEquals(
     findDownloadableLinks(
-      "[Folder](other-topic/)\n[Page](README)\n[Markdown](page.md)\n[Zip](files/task.zip)",
+      "[Folder](other-topic/)\n[Page](README)\n[Markdown](page.md)\n[HTML](../week-2/les.html)\n[HTM](page.HTM?view=1#section)\n[HTML fragment](page.HTML#section)\n[Zip](files/task.zip)",
     ).map(({ url }) => url),
     ["files/task.zip"],
   );

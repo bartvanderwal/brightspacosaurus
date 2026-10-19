@@ -124,12 +124,12 @@ function sectionBlocks(
       blocks.push(...tableBlocks(node, source));
     } else if (node.type === "paragraph") {
       for (const child of node.children ?? []) {
-        if (child.type === "image") {
+        if (child.type === "image" || child.type === "imageReference") {
           const image = sourceFor(child, source);
           if (image) blocks.push({ markdown: image });
         }
       }
-    } else if (node.type === "image") {
+    } else if (node.type === "image" || node.type === "imageReference") {
       const image = sourceFor(node, source);
       if (image) blocks.push({ markdown: image });
     }

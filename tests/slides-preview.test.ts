@@ -1210,7 +1210,8 @@ Deno.test("slides export: one topic per lesson next to the lesson, titled after 
       html,
       '<meta name="bso-title" content="Slides: Lesson 1.1: Fizz &amp;amp; Buzz">',
     );
-    assertStringIncludes(html, '<section class="lead">Slide');
+    assertStringIncludes(html, '<section class="lead">');
+    assertStringIncludes(html, ">Slide</section>");
     assertStringIncludes(html, 'class="bso-slide-logo"');
     assertStringIncludes(html, 'src="data:image/png;base64,bG9nbw=="');
     assertEquals(await run(), exported);
