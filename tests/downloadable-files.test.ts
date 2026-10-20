@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { join } from "@std/path";
+import { join, resolve } from "@std/path";
 import {
   copyDownloadableFiles,
   findDownloadableLinks,
@@ -9,13 +9,16 @@ import {
 
 async function makeBuildTempDir(): Promise<string> {
   await Deno.mkdir("build", { recursive: true });
-  return await Deno.makeTempDir({ dir: "build", prefix: "downloads-" });
+  return await Deno.makeTempDir({
+    dir: resolve("build"),
+    prefix: "downloads-",
+  });
 }
 
 Deno.test("download link parser ignores folders and extensionless page links", () => {
   assertEquals(
     findDownloadableLinks(
-      "[Folder](other-topic/)\n[Page](README)\n[Markdown](page.md)\n[Zip](files/task.zip)",
+      "[Folder](other-topic/)\n[Page](README)\n[Markdown](page.md)\n[HTML page](../week-2/lesson.html?view=full#content)\n[Zip](files/task.zip)",
     ).map(({ url }) => url),
     ["files/task.zip"],
   );
@@ -31,7 +34,7 @@ Deno.test("download file resolution rejects paths and symlinks outside sourcesDi
     await Deno.mkdir(topic, { recursive: true });
     await Deno.writeTextFile(sourceFile, "# Lesson");
     await Deno.writeFile(outsideFile, new Uint8Array([1]));
-    await Deno.symlink(outsideFile, join(topic, "escape.zip"));
+    await Deno.symlink(resolve(outsideFile), join(topic, "escape.zip"));
 
     assertEquals(
       await resolveDownloadableFile("../../outside.zip", sourceFile, sources),
