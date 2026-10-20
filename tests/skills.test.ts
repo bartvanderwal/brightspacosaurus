@@ -10,7 +10,7 @@ Deno.test(
       if (entry.isDirectory) entries.push(entry.name);
     }
     entries.sort();
-    assertEquals(entries.length, 10);
+    assertEquals(entries.length, 9);
 
     for (const name of entries) {
       const skill = await Deno.readTextFile(
@@ -26,7 +26,10 @@ Deno.test(
       assertEquals(match[1], name, `${name}: name must match its directory`);
       const description = match[2];
       assert(description.length >= 1 && description.length <= 1024);
-      assert(!/\bGebruik\b/i.test(description), `${name}: metadata must be English`);
+      assert(
+        !/\bGebruik\b/i.test(description),
+        `${name}: metadata must be English`,
+      );
       assertMatch(skill, /Minimum verified BSO version: \*\*0\.29\.0\*\*/);
       assertMatch(skill, /Validate|validation/i);
       assertMatch(
@@ -127,13 +130,7 @@ Deno.test("course setup and quiz skills fit the demo client", async () => {
   assertMatch(quiz, /^= Buzz ~10$/m);
 });
 
-Deno.test("privacy boundaries are explicit", async () => {
-  const issues = await Deno.readTextFile(
-    new URL("bso-assignment-issues/SKILL.md", skillsDir),
-  );
-  assertMatch(issues, /schema.*verified|schema.*verify/i);
-  assertMatch(issues, /Never send student data/i);
-
+Deno.test("dashboard privacy boundaries are explicit", async () => {
   const dashboard = await Deno.readTextFile(
     new URL("bso-progress-dashboard/SKILL.md", skillsDir),
   );

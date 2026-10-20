@@ -1,6 +1,6 @@
 # BSO authoring skills
 
-This repository includes ten small, on-demand [Agent Skills](https://agentskills.io/specification) for authors of Brightspacosaurus client courses. They guide course workflows; they are not instructions for developing BSO. Skills are independent: install only the workflows your project needs.
+This repository includes nine small, on-demand [Agent Skills](https://agentskills.io/specification) for authors of Brightspacosaurus client courses. They guide course workflows; they are not instructions for developing BSO. Skills are independent: install only the workflows your project needs.
 
 ## Available skills
 
@@ -11,7 +11,6 @@ This repository includes ten small, on-demand [Agent Skills](https://agentskills
 | [`bso-readers`](bso-readers/SKILL.md) | Reader Markdown and PDF prerequisites/troubleshooting |
 | [`bso-course-lint`](bso-course-lint/SKILL.md) | `bso lint` diagnostics and editor workflow |
 | [`bso-quizdown`](bso-quizdown/SKILL.md) | QuizDown authoring, preview and QTI validation |
-| [`bso-assignment-issues`](bso-assignment-issues/SKILL.md) | Safely assess assignment-to-CSV workflows; no assumed schema |
 | [`bso-progress-dashboard`](bso-progress-dashboard/SKILL.md) | GitLab dashboard mapping, token permissions and privacy |
 | [`bso-brightspace-export`](bso-brightspace-export/SKILL.md) | Cartridge build and safe Brightspace import |
 | [`bso-content-authoring`](bso-content-authoring/SKILL.md) | Lessons, includes, accessibility, flashcards and optional slides |
@@ -59,7 +58,6 @@ The CLI has anonymous telemetry. Disable it for a command by setting `DISABLE_TE
 
 - Skills contain workflow instructions only; fixtures and prompts must not contain student data, tokens, credentials or real class records.
 - BSO's GitLab dashboard can show student progress and has local browser caching; follow the privacy and token guidance in `bso-progress-dashboard`.
-- There is no established `issues.csv` schema/import workflow or BSO CSV command. The relevant skill explicitly stops rather than inventing one.
 - Do not assume installing an npm package makes an editor discover skills. Install to a directory the selected agent actually discovers.
 
 ## Sources
