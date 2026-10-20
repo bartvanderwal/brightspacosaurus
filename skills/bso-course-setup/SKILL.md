@@ -1,6 +1,6 @@
 ---
 name: bso-course-setup
-description: "Set up a Markdown course for Brightspacosaurus: inventory lessons, choose source folders and prefixes, configure, build and pack. Gebruik dit voor een BSO-cursus opzetten, bestaand lesmateriaal inventariseren, configuratie maken, bouwen of inpakken."
+description: "Set up a Markdown course for Brightspacosaurus: inventory lessons, choose source folders and prefixes, configure, build and pack."
 ---
 
 # Set up a BSO course

@@ -1,6 +1,6 @@
 ---
 name: bso-docusaurus-preview
-description: "Add or configure a Docusaurus preview for a BSO course, connect its plugins and shared CSS, and compare preview with export. Gebruik dit voor Docusaurus-preview, remarkplugins, clientModules, gedeelde CSS of preview/export-pariteit."
+description: "Add or configure a Docusaurus preview for a BSO course, connect its plugins and shared CSS, and compare preview with export."
 ---
 
 # Add a Docusaurus preview

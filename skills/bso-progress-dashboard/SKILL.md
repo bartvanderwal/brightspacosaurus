@@ -1,6 +1,6 @@
 ---
 name: bso-progress-dashboard
-description: "Configure and safely preview the BSO GitLab progress dashboard, including repo/class/week mapping, read-only token permissions, traffic lights and local cache. Gebruik dit voor de Voortgangsverkenner, GitLab-dashboard, wekenmapping, privacy of tokenrechten."
+description: "Configure and safely preview the BSO GitLab progress dashboard, including repo/class/week mapping, read-only token permissions, traffic lights and local cache."
 ---
 
 # Configure the progress dashboard

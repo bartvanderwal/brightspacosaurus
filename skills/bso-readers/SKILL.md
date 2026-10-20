@@ -1,6 +1,6 @@
 ---
 name: bso-readers
-description: "Create and troubleshoot BSO reader PDFs, including pandoc, PDF engines, fonts, Markdown frontmatter, includes, images, covers and logos. Gebruik dit voor readers, reader-PDF's, pandoc-installatie of problemen met PDF-generatie."
+description: "Create and troubleshoot BSO reader PDFs, including pandoc, PDF engines, fonts, Markdown frontmatter, includes, images, covers and logos."
 ---
 
 # Create BSO readers

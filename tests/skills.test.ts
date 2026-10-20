@@ -3,14 +3,14 @@ import { assert, assertEquals, assertMatch } from "@std/assert";
 const skillsDir = new URL("../skills/", import.meta.url);
 
 Deno.test(
-  "each BSO authoring skill has valid matching metadata and bilingual triggers",
+  "each BSO authoring skill has valid matching English metadata",
   async () => {
     const entries: string[] = [];
     for await (const entry of Deno.readDir(skillsDir)) {
       if (entry.isDirectory) entries.push(entry.name);
     }
     entries.sort();
-    assertEquals(entries.length, 11);
+    assertEquals(entries.length, 10);
 
     for (const name of entries) {
       const skill = await Deno.readTextFile(
@@ -26,7 +26,7 @@ Deno.test(
       assertEquals(match[1], name, `${name}: name must match its directory`);
       const description = match[2];
       assert(description.length >= 1 && description.length <= 1024);
-      assertMatch(description, /Gebruik dit/, `${name}: include Dutch discovery terms`);
+      assert(!/\bGebruik\b/i.test(description), `${name}: metadata must be English`);
       assertMatch(skill, /Minimum verified BSO version: \*\*0\.29\.0\*\*/);
       assertMatch(skill, /Validate|validation/i);
       assertMatch(
@@ -127,13 +127,7 @@ Deno.test("course setup and quiz skills fit the demo client", async () => {
   assertMatch(quiz, /^= Buzz ~10$/m);
 });
 
-Deno.test("future integrations and privacy boundaries are explicit", async () => {
-  const ans = await Deno.readTextFile(
-    new URL("bso-ans-sync/SKILL.md", skillsDir),
-  );
-  assertMatch(ans, /no supported BSO Ans export\/synchronization command/i);
-  assertMatch(ans, /Do not invent a command/i);
-
+Deno.test("privacy boundaries are explicit", async () => {
   const issues = await Deno.readTextFile(
     new URL("bso-assignment-issues/SKILL.md", skillsDir),
   );
@@ -145,4 +139,14 @@ Deno.test("future integrations and privacy boundaries are explicit", async () =>
   );
   assertMatch(dashboard, /Never write tokens/i);
   assertMatch(dashboard, /local cache contains student identifiers/i);
+});
+
+Deno.test("content authoring explains how to start a course lesson", async () => {
+  const authoring = await Deno.readTextFile(
+    new URL("bso-content-authoring/SKILL.md", skillsDir),
+  );
+  assertMatch(authoring, /course outline, learner level, learning outcomes/);
+  assertMatch(authoring, /configured `sourcesDir`/);
+  assertMatch(authoring, /lessons\/01-foundations\//);
+  assertMatch(authoring, /each lesson in its own Markdown file/);
 });

@@ -1,6 +1,6 @@
 ---
 name: bso-upgrade-troubleshooting
-description: "Diagnose BSO CLI/runtime, source-checkout and Docusaurus npm-package version mismatches, breaking migrations and Deno permissions without changing them silently. Gebruik dit bij BSO-upgrades, versieconflicten, CLI-fouten, npm/JSR-versies of Deno-permissies."
+description: "Diagnose BSO CLI/runtime, source-checkout and Docusaurus npm-package version mismatches, breaking migrations and Deno permissions without changing them silently."
 ---
 
 # Diagnose BSO version and setup issues

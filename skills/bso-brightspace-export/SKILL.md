@@ -1,6 +1,6 @@
 ---
 name: bso-brightspace-export
-description: "Build and pack a BSO course, then plan a safe Brightspace sandbox import with version control, selective/additive behavior, hidden teacher material and navigation checks. Gebruik dit voor BSO-export, .imscc, Brightspace-import, opnieuw importeren of navigatiecontrole."
+description: "Build and pack a BSO course, then plan a safe Brightspace sandbox import with version control, selective/additive behavior, hidden teacher material and navigation checks."
 ---
 
 # Export and import a BSO course

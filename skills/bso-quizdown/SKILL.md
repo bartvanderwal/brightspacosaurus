@@ -1,6 +1,6 @@
 ---
 name: bso-quizdown
-description: "Author, lint and preview BSO QuizDown quizzes with assignments, shared context, sub-questions, answer types, hints and points; validate QTI output. Gebruik dit voor QuizDown/quizdown, quizzen, opdrachten, deelvragen, hints en punten."
+description: "Author, lint and preview BSO QuizDown quizzes with assignments, shared context, sub-questions, answer types, hints and points; validate QTI output."
 ---
 
 # Author QuizDown quizzes

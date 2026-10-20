@@ -1,6 +1,6 @@
 ---
 name: bso-assignment-issues
-description: "Assess whether a course's lesson assignments can become issues.csv, first verifying the real CSV schema, import target and workflow. Gebruik dit voor opdrachten omzetten naar issues.csv, GitLab-issues of CSV-import."
+description: "Assess whether a course's lesson assignments can become issues.csv, first verifying the real CSV schema, import target and workflow."
 ---
 
 # Prepare assignment issues safely

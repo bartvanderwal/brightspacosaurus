@@ -1,6 +1,6 @@
 # BSO authoring skills
 
-This repository includes eleven small, on-demand [Agent Skills](https://agentskills.io/specification) for authors of Brightspacosaurus client courses. They guide course workflows; they are not instructions for developing BSO. Skills are independent: install only the workflows your project needs.
+This repository includes ten small, on-demand [Agent Skills](https://agentskills.io/specification) for authors of Brightspacosaurus client courses. They guide course workflows; they are not instructions for developing BSO. Skills are independent: install only the workflows your project needs.
 
 ## Available skills
 
@@ -11,7 +11,6 @@ This repository includes eleven small, on-demand [Agent Skills](https://agentski
 | [`bso-readers`](bso-readers/SKILL.md) | Reader Markdown and PDF prerequisites/troubleshooting |
 | [`bso-course-lint`](bso-course-lint/SKILL.md) | `bso lint` diagnostics and editor workflow |
 | [`bso-quizdown`](bso-quizdown/SKILL.md) | QuizDown authoring, preview and QTI validation |
-| [`bso-ans-sync`](bso-ans-sync/SKILL.md) | Check the current boundary: ANS export/sync is not implemented |
 | [`bso-assignment-issues`](bso-assignment-issues/SKILL.md) | Safely assess assignment-to-CSV workflows; no assumed schema |
 | [`bso-progress-dashboard`](bso-progress-dashboard/SKILL.md) | GitLab dashboard mapping, token permissions and privacy |
 | [`bso-brightspace-export`](bso-brightspace-export/SKILL.md) | Cartridge build and safe Brightspace import |
@@ -42,7 +41,7 @@ The Skills CLI is a separate npm-based installer; the BSO course tool itself sti
 
 Agent Skills defines the `SKILL.md` format, not a universal discovery path or installer. Current locations depend on the agent. VS Code supports project skills in `.github/skills/`, `.claude/skills/` and `.agents/skills/`. The Skills CLI currently lists GitHub Copilot (`github-copilot`), Claude Code (`claude-code`), Codex, Cursor, OpenCode and many other targets; the CLI's table is the source of truth for target names and directories. The example above explicitly selects GitHub Copilot. These are integrations that recognize Agent Skills, not a guarantee that every agent discovers every location or activates a skill for every prompt. Check the current documentation for the agent and CLI version in use.
 
-Skills are on-demand instructions: the `name` and `description` help an agent choose a workflow. Each description includes Dutch and English trigger phrases. The skill body tells the agent to answer in the user's language; no separate translated duplicate is installed. This bilingual metadata is a practical discoverability aid, not a format-level multilingual feature or guarantee that every agent will activate a skill from every Dutch prompt.
+Skills are on-demand instructions: the English `name` and `description` help an agent choose a workflow. The skill body tells the agent to respond in the user's language; no separate translated duplicate is installed.
 
 For a safe update, commit or back up the client project first, inspect local edits to installed skills, then run:
 
@@ -60,7 +59,7 @@ The CLI has anonymous telemetry. Disable it for a command by setting `DISABLE_TE
 
 - Skills contain workflow instructions only; fixtures and prompts must not contain student data, tokens, credentials or real class records.
 - BSO's GitLab dashboard can show student progress and has local browser caching; follow the privacy and token guidance in `bso-progress-dashboard`.
-- BSO currently exports quizzes to Brightspace QTI; ANS sync is future work. There is no established `issues.csv` schema/import workflow or BSO CSV command. The relevant skills explicitly stop rather than inventing one.
+- There is no established `issues.csv` schema/import workflow or BSO CSV command. The relevant skill explicitly stops rather than inventing one.
 - Do not assume installing an npm package makes an editor discover skills. Install to a directory the selected agent actually discovers.
 
 ## Sources

@@ -1,6 +1,6 @@
 ---
 name: bso-course-lint
-description: "Run BSO course lint, interpret and fix authoring diagnostics, and show file:line:column locations in an editor. Gebruik dit voor bso lint, cursusmateriaal controleren, quizfouten of foutmeldingen in VS Code."
+description: "Run BSO course lint, interpret and fix authoring diagnostics, and show file:line:column locations in an editor."
 ---
 
 # Lint BSO course material
