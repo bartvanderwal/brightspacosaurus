@@ -2,6 +2,13 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.29.1
+
+### Fixed
+
+- Relative `.html`/`.htm` page links and directory links are not downloads; they remain unchanged without requiring a local file (#131).
+- Disabled lesson-slide overrides no longer render empty decks, and generated slides preserve reference-style images (#131).
+
 ## 0.29.0
 
 ### Added

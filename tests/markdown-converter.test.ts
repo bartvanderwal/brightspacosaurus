@@ -791,7 +791,7 @@ Deno.test("Relatieve/interne link krijgt geen target=_blank", async () => {
     const sourcePath = join(sourceDir, "interne-link.md");
     await Deno.writeTextFile(
       sourcePath,
-      "# Les 1\n\n[andere les](../week-2/les.html)\n",
+      "# Les 1\n\n[andere les](../week-2/les.html)\n[map](other-topic/)\n",
     );
 
     const result = await convertMarkdown({
@@ -802,6 +802,8 @@ Deno.test("Relatieve/interne link krijgt geen target=_blank", async () => {
 
     const html = await Deno.readTextFile(result.outputPath);
 
+    assertStringIncludes(html, 'href="../week-2/les.html"');
+    assertStringIncludes(html, 'href="other-topic/"');
     // De relatieve link mag geen target="_blank" krijgen
     assertEquals(
       html.includes('target="_blank"'),
