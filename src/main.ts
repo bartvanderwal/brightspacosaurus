@@ -631,27 +631,44 @@ async function collectManifestEntries(
         const id = "res_" + relPath.replace(/[^a-z0-9]/gi, "_");
         // HTML titles are already entity-escaped; decode before the manifest escapes XML.
         const html = await Deno.readTextFile(fullPath);
+        // A slide deck names itself with a `bso-title` meta: its first h1 is a slide title.
+        const metaTitle = html.match(/<meta name="bso-title" content="([^"]*)">/i);
         const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-        const title = h1Match
+        const title = metaTitle
+          ? decodeHtmlEntities(metaTitle[1].trim())
+          : h1Match
           ? decodeHtmlEntities(h1Match[1].trim())
           : basename(fullPath, extname(fullPath));
-        const assetRegex =
-          /(?:src|href)="([^"]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js|woff2))"/gi;
-        const dependencies: string[] = [];
+        const assetRegex = /(?:src|href)="([^"]+)"/gi;
+        const dependencies = new Set<string>();
         let match: RegExpExecArray | null;
         while ((match = assetRegex.exec(html)) !== null) {
-          const assetSrc = match[1];
+          const assetSrc = match[1].split(/[?#]/, 1)[0];
+          if (!assetSrc || /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(assetSrc)) {
+            continue;
+          }
+          let decodedPath: string;
+          try {
+            decodedPath = decodeURIComponent(assetSrc);
+          } catch {
+            continue;
+          }
+          const assetAbs = resolve(dirname(fullPath), decodedPath);
+          const relativeAsset = relative(contentDir, assetAbs);
           if (
-            !assetSrc.startsWith("http://") &&
-            !assetSrc.startsWith("https://") && !assetSrc.startsWith("#")
-          ) {
-            // Resolve relative paths against the HTML file.
-            const assetAbs = resolve(dirname(fullPath), assetSrc);
-            dependencies.push(
-              `content/${normalizePath(relative(contentDir, assetAbs))}`,
-            );
+            !relativeAsset || relativeAsset === ".." ||
+            relativeAsset.startsWith("../") ||
+            relativeAsset.startsWith("..\\") || isAbsolute(relativeAsset) ||
+            /\.(?:html?|md)$/i.test(relativeAsset)
+          ) continue;
+          try {
+            if (!(await Deno.stat(assetAbs)).isFile) continue;
+            dependencies.add(`content/${relativeAsset.replaceAll("\\", "/")}`);
+          } catch {
+            // Missing local files are reported by `bso lint`.
           }
         }
+
         const positionMatch = html.match(
           /<meta name="bso-sidebar-position" content="(-?\d+(?:\.\d+)?)">/,
         );
@@ -660,7 +677,7 @@ async function collectManifestEntries(
           title,
           href: relPath,
           type: "webcontent",
-          dependencies,
+          dependencies: [...dependencies].sort(),
           ...(positionMatch ? { position: Number(positionMatch[1]) } : {}),
         });
       }

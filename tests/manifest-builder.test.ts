@@ -49,6 +49,14 @@ Deno.test("Eigenschap 3: manifest bevat een resource-entry voor elk bronbestand 
       ),
       ([courseTitle, htmlEntries, qtiEntries]) => {
         const allEntries = [...htmlEntries, ...qtiEntries];
+        // A package never holds two resources with the same href or id; the
+        // navigation model looks entries up by href.
+        fc.pre(
+          new Set(allEntries.map((entry) => entry.href)).size ===
+              allEntries.length &&
+            new Set(allEntries.map((entry) => entry.id)).size ===
+              allEntries.length,
+        );
         const xml = buildManifest(courseTitle, allEntries);
 
         // Eigenschap: het manifest is geldige XML (begint met declaratie)
@@ -160,9 +168,10 @@ Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => 
       type: "webcontent",
     },
     {
-      id: "res_content_module_a_intro_html",
+      id: "res_content_module_a_lesson_html",
       title: "Introductie",
-      href: "content/module-a/intro.html",
+      // Not a lead page (`index`, `intro`, ...): the module keeps its folder name.
+      href: "content/module-a/lesson.html",
       type: "webcontent",
     },
   ]);
@@ -192,7 +201,7 @@ Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => 
     true,
   );
   assertEquals(
-    xml.includes('identifierref="res_content_module_a_intro_html"'),
+    xml.includes('identifierref="res_content_module_a_lesson_html"'),
     true,
   );
 

@@ -513,12 +513,10 @@ ${fileElements.join("\n")}
     </resource>`;
   }).join("\n");
 
-  const sharedNavigation = navigation ?? buildNavigationModel(
-    sortManifestEntriesForNavigation(entries, {
-      firstHref: dashboard.teacherPageHref,
-    }),
-    { readersModule },
-  );
+  // Entries arrive in navigation order (sortManifestEntriesForNavigation); the
+  // caller decides the order, so it is not sorted again here.
+  const sharedNavigation = navigation ??
+    buildNavigationModel(entries, { readersModule });
   const itemsXml = buildOrganizationItems(
     contentEntries,
     sharedNavigation,

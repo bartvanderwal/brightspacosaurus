@@ -398,6 +398,8 @@ Deno.test("bso lint reports missing generated navigation outputs", async () => {
   try {
     const config = testConfig(repoRoot);
     await Deno.mkdir(config.sourcesDir, { recursive: true });
+    // `bso lint` scans the readers folder too, and stops when it is missing.
+    if (config.readersDir) await Deno.mkdir(config.readersDir, { recursive: true });
     await Deno.writeTextFile(
       join(config.sourcesDir, "lesson.md"),
       "# Lesson\n",
