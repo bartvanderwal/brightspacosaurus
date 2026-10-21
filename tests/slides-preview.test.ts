@@ -305,7 +305,9 @@ Deno.test("slides preview: shared theme and logo are applied to lead slides", as
     );
     assertStringIncludes(
       html,
-      `src="data:image/png;base64,${btoa(String.fromCharCode(137, 80, 78, 71))}"`,
+      `src="data:image/png;base64,${
+        btoa(String.fromCharCode(137, 80, 78, 71))
+      }"`,
     );
     assertStringIncludes(html, 'class="bso-slide-logo"');
     assertEquals(html.match(/bso-slide-logo/g)?.length, 1);
@@ -1222,7 +1224,12 @@ Deno.test("slides export: one topic per lesson next to the lesson, titled after 
       html,
       '<meta name="bso-title" content="Slides: Lesson 1.1: Fizz &amp;amp; Buzz">',
     );
-    assertStringIncludes(html, '<section class="lead">Slide');
+    // The course logo is placed at the start of the lead slide (#114).
+    assertStringIncludes(
+      html,
+      '<section class="lead"><img class="bso-slide-logo"',
+    );
+    assertStringIncludes(html, ">Slide</section>");
     assertStringIncludes(html, 'class="bso-slide-logo"');
     assertStringIncludes(html, 'src="data:image/png;base64,bG9nbw=="');
     assertEquals(await run(), exported);
