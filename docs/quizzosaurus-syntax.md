@@ -2,7 +2,7 @@
 
 **QuizDown** is the preferred authoring syntax for quizzes: Markdown with a small set of structure markers. **Quizzosaurus** (QZO) is the package that holds the model, the parsers, the linter and the generators. BSO uses it to build QTI for Brightspace; remark-quizzosaurus uses it for interactive quizzes in Docusaurus.
 
-This document lives in BSO because the parser lives in BSO ([`src/quiz-parser.ts`](../src/quiz-parser.ts)). It moves along when the quiz code is extracted into the Quizzosaurus package (#11).
+This document lives in BSO because the parser lives in BSO ([`src/quiz-parser.ts`](https://github.com/bartvanderwal/brightspacosaurus/blob/main/src/quiz-parser.ts)). It moves along when the quiz code is extracted into the Quizzosaurus package (#11).
 
 Decision record: [ADR 020](adr/adr020-quizdown-syntax-and-quizzosaurus-package.md).
 
@@ -11,7 +11,7 @@ Status: sections 2 to 6 (markers, `@` assignments, option labels, the heading fo
 ## 1. Principles
 
 1. **Composition.** QuizDown defines only the **structure** of a quiz: question, hint, option, answer, assignment. All **text** inside that structure is ordinary Markdown. Bold, *italic*, `inline code`, fenced code blocks and diagrams (`kroki`, PlantUML, Mermaid) work in prompts, options, hints and shared assignment text. Structure markers are never recognised inside fenced code.
-2. **Parity.** The QTI export and the Docusaurus preview render the same Markdown tree ([`src/quiz-markdown.ts`](../src/quiz-markdown.ts)), so output looks the same in both.
+2. **Parity.** The QTI export and the Docusaurus preview render the same Markdown tree ([`src/quiz-markdown.ts`](https://github.com/bartvanderwal/brightspacosaurus/blob/main/src/quiz-markdown.ts)), so output looks the same in both.
 3. **Strict, not forgiving (conceptual integrity).** Every concept has one canonical spelling. QuizDown does not silently repair or reinterpret input; deviating input is an **error** with an actionable message, not a guess. A tolerant parser looks friendly, but every accepted variant becomes something that authors, other tools and later versions must keep supporting. See section 10.
 4. **Several formats, one model.** The legacy format (`## Vraag N`) keeps working. Each format is a separate, strictly defined syntax, recognised by its explicit markers, and both are parsed into the same format-neutral model. Legacy gets no new features. See section 8.
 
