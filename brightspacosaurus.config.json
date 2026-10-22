@@ -8,8 +8,13 @@
   "outputDir": "build/brightspace",
   "docusaurusDir": "demo-course-docs",
   "slides": {
+    "generateForPrefix": "lesson-",
     "lessons": {
-      "week-1/lesson-1-fizzbuzz.md": "examples/demo-course/slides/slides-*.md"
+      "week-1/lesson-1-fizzbuzz.md": {
+        "generate": true,
+        "decks": "examples/demo-course/slides/slides-fizzbuzz.md"
+      },
+      "week-1/lesson-2-test-strategy.md": "examples/demo-course/slides/slides-test-strategy.md"
     }
   },
   "diagrams": {
