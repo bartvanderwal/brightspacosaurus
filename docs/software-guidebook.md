@@ -294,7 +294,7 @@ This chapter describes the architecture of BSO in C4 terms, from containers to c
 
 - **6.1** Container diagram
 - **6.2** Module structure
-- **6.3** Component diagram
+- **6.3** Component diagram (feature groups, and the build pipeline in 6.3.1)
 - **6.4** Data flow
 - **6.5** Config resolution pipeline
 
@@ -329,75 +329,137 @@ SHOW_LEGEND()
 
 ### 6.2 Module structure
 
-The core lives under `src/`, split by conversion responsibility:
+The core lives under `src/`. Every module belongs to one of seven feature groups; the diagram in 6.3 shows the groups, and the table lists every module. The groups are also the starting point for a feature-oriented folder layout (#138).
 
-| Module                    | Responsibility                                                                                                      |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `main.ts`                 | CLI entry point (`build`, `pack`), guarded by `import.meta.main`.                                                 |
-| `config-loader.ts`        | Load, validate and resolve `brightspacosaurus.config.json`.                                                         |
-| `source-scanner.ts`       | Scan source directories, classify files by prefix.                                                                  |
-| `markdown-converter.ts`   | Markdown → HTML (unified / remark / rehype).                                                                        |
-| `diagram-config.ts`       | Resolve BSO diagram settings into shared `remark-kroki-a11y` options for BSO and preview parity.                    |
-| `diagram-renderer.ts`     | Register `remark-kroki-a11y`, normalize diagram metadata, classify render errors, and apply strict/fallback policy. |
-| `diagram-adapter.ts`      | Adapt generated diagram HTML to Brightspace-safe native disclosures and deterministic ARIA relationships.           |
-| `diagram-validation.ts`   | Detect static diagram authoring issues without rendering, reusable by future linting.                               |
-| `quiz-converter.ts`       | Quiz Markdown → QTI 1.2 XML.                                                                                        |
-| `reader-pdf-converter.ts` | Reader Markdown → PDF via pandoc.                                                                                   |
-| `manifest-builder.ts`     | Generate `imsmanifest.xml` and sort Brightspace navigation entries by module/week and natural lesson/quiz code.      |
-| `packer.ts`               | Pack the build directory into a `.imscc` archive.                                                                   |
-| `assets.ts`               | Load bundled assets (CSS, LaTeX, Lua) in a JSR-safe way.                                                            |
-| `types.ts`                | Shared TypeScript interfaces.                                                                                       |
-| `mod.ts`                  | Barrel export for library use via JSR.                                                                              |
+| Group | Module | Responsibility |
+| --- | --- | --- |
+| Pipeline | `main.ts` | CLI entry point (`build`, `pack`, `preview`, `lint`), guarded by `import.meta.main`. |
+| Pipeline | `config-loader.ts` | Load, validate and resolve `brightspacosaurus.config.json`. |
+| Pipeline | `source-scanner.ts` | Scan source directories and classify files by naming convention. |
+| Pipeline | `manifest-builder.ts` | Build the navigation model and `imsmanifest.xml` from the converted output, in a deterministic order. |
+| Pipeline | `navigation-exclusions.ts` | Which files stay out of the menu (transcripts, teacher answers). Has no imports, so Node can load it. |
+| Pipeline | `packer.ts` | Pack the build directory into a `.imscc` archive. |
+| Pipeline | `assets.ts` | Load bundled assets (CSS, LaTeX, Lua) in a JSR-safe way. |
+| Pipeline | `front-matter.ts` | Read the one front matter key BSO uses (`sidebar_position`). |
+| Pipeline | `types.ts`, `mod.ts` | Shared interfaces, and the barrel export for library use via JSR. |
+| Lessons | `markdown-converter.ts` | Lesson Markdown to HTML (unified, remark, rehype), reader-link conversion and asset copying. |
+| Lessons | `includes.ts` | Expand `{@include: [text](path)}` directives; shared by the export and the preview. |
+| Lessons | `downloadable-files.ts` | Find relative links to files, check them (inside `sourcesDir`, at most 50 MiB) and copy them. |
+| Lessons | `flashcards.ts` | Shared remark transformation that turns glossary lists and flashcard containers into flashcards. |
+| Lessons | `diagram-config.ts` | Map BSO's diagram settings to `remark-kroki-a11y` options, for the export and the preview. |
+| Lessons | `diagram-renderer.ts` | Register `remark-kroki-a11y`, normalise diagram metadata and apply the strict or fallback policy. |
+| Lessons | `diagram-adapter.ts` | Adapt generated diagram HTML to Brightspace-safe native disclosures with stable ARIA ids. |
+| Lessons | `diagram-validation.ts` | Check diagram authoring without rendering; used by the renderer and the linter. |
+| Quizzes | `quiz-converter.ts` | Quiz Markdown to QTI 1.2 XML. |
+| Quizzes | `quiz-parser.ts` | Shared, runtime-independent quiz parsing and validation (QuizDown). |
+| Quizzes | `quiz-markdown.ts` | Parse quiz text (prompts, options, hints) to one tree for the export and the preview. |
+| Quizzes | `quiz-config.ts` | Quiz settings shared by the CLI and the preview. |
+| Quizzes | `quiz-diagrams.ts`, `quiz-diagram-fields.ts` | Render diagrams in quiz questions, and the runtime-neutral helpers for their fields. |
+| Quizzes | `quiz-highlight.ts` | Syntax highlighting for code in questions, with inline styles because QTI has no stylesheet. |
+| Quizzes | `quiz-bias.ts` | Detect length, position and signal-word bias in multiple-choice quizzes. |
+| Readers | `reader-pdf-converter.ts` | Reader Markdown to PDF via pandoc. |
+| Readers | `reader-headings.ts` | Heading rules shared by the reader preview and the PDF build. |
+| Readers | `manual-source.ts` | Assemble the printed user manual from the manual and the demo's feature pages. |
+| Slides | `lesson-slides.ts` | Generate a Marp deck from a lesson: H1 title slide, a slide per H2, lists, tables and images. |
+| Slides | `slides-preview.ts` | Render decks with Marp for the preview and the `.imscc`; theme, logo, disclaimer and exit script. |
+| Slides | `slides-preview-remark.ts` | Invisible per-document slide metadata for the Docusaurus preview. |
+| Slides | `marp-exporter.ts` | Derive Marp Markdown from instructor slides. No other module imports it, only its test. |
+| Lint | `course-linter.ts` | `bso lint`: offline checks for flashcards, includes, diagrams, quizzes, frontmatter and paths. |
+| Lint | `quizdown-lint.ts` | Standalone QuizDown linter (ADR 020); depends only on the parser. |
+| Preview | `quiz-preview.ts` | Docusaurus remark adapter that uses the same quiz model as the QTI export. |
+| Preview | `teacher-page.ts`, `teacher-dashboard.ts` | The teacher page with its versions, and the Voortgangsverkenner files. |
+| Preview | `preview-styles.ts` | Put BSO's stylesheet in the Docusaurus app for `bso preview`. |
+
+Two rules follow from how the preview loads the code:
+
+- The Docusaurus config loads some modules **in Node** (`manifest-builder`, `flashcards`, `includes`, `diagram-*`, `quiz-preview`, `teacher-page` and the modules they import). Node cannot resolve JSR packages such as `@std/path`, so these modules must not import them, not even indirectly. `tests/docusaurus-config-imports.test.ts` guards this.
+- Runtime-neutral modules (`includes`, `quiz-parser`, `quiz-markdown`, `front-matter`, `navigation-exclusions`) stay free of Deno and Node APIs, so the export and the preview share one implementation.
 
 ### 6.3 Component diagram
 
-Components inside the single `Brightspacosaurus CLI` container:
+38 modules do not fit in one readable diagram, so the components are shown on two levels. This diagram shows the seven feature groups of 6.2 as components. The arrows come from the `import` statements in `src/`; `main.ts` loads the slides group with a dynamic `import()`.
 
 ```plantuml
 @startuml
 !include <C4/C4_Component>
+LAYOUT_TOP_DOWN()
 
 Container_Boundary(cli, "Brightspacosaurus CLI") {
-  Component(main, "main.ts", "«CLI entry point» Deno", "Parses the `build`/`pack` subcommands and flags, guarded by import.meta.main; orchestrates the pipeline and reports progress to stdout, errors to stderr, with a matching exit code.")
-  Component(cfg, "config-loader.ts", "«loader» TypeScript module", "Finds, parses and validates brightspacosaurus.config.json, then resolves it into a single ResolvedConfig by merging CLI argument > config file > documented default.")
-  Component(scan, "source-scanner.ts", "«classifier» TypeScript module", "Walks the configured source directory and classifies every file by its name prefix (lesson, quiz, reader, instructor answer key, work-in-progress) so the matching converter runs for each.")
-  Component(md, "markdown-converter.ts", "«unified pipeline» remark / rehype", "Converts lesson Markdown into standalone HTML topics (GFM, frontmatter support) and copies referenced images into the build output.")
-  Component(diagramCfg, "diagram-config.ts", "«mapper» TypeScript module", "Maps resolved diagram config to shared remark-kroki-a11y options: endpoint, output mode, labels, aliases, and no-JS settings.")
-  Component(diagramRenderer, "diagram-renderer.ts", "«remark integration» TypeScript module", "Normalizes diagram metadata, registers remark-kroki-a11y, and classifies strict/fallback rendering errors.")
-  Component(diagramAdapter, "diagram-adapter.ts", "«rehype adapter» TypeScript module", "Converts provider output into Brightspace-safe native disclosures with deterministic ARIA IDs.")
-  Component(diagramValidation, "diagram-validation.ts", "«validator» TypeScript module", "Detects static diagram authoring issues before rendering; reusable by a future lint command.")
-  Component(quiz, "quiz-converter.ts", "«converter» TypeScript module", "Converts quiz Markdown (prefix quiz-) into QTI 1.2 XML questions that Brightspace's Quizzes tool can import, including rich content in question and answer text.")
-  Component(reader, "reader-pdf-converter.ts", "«converter» pandoc + xelatex", "Converts reader Markdown into print-quality PDF using a custom LaTeX header and Lua filters; skipped gracefully when pandoc is not installed.")
-  Component(manifest, "manifest-builder.ts", "«generator» TypeScript module", "Builds imsmanifest.xml from the converted HTML, QTI and PDF output in deterministic, sorted order, keeping the manifest diff-friendly across builds.")
-  Component(packer, "packer.ts", "«archiver» ZIP", "Packs the build directory into a .imscc archive with deterministic file ordering, ready for the author to import into Brightspace.")
-  Component(assets, "assets.ts", "«JSR-safe loader» fetch + import.meta.resolve", "Loads bundled assets (default CSS, LaTeX header, Lua filters), working identically from local source (file://) and from the JSR cache (https://).")
-  Component(mod, "mod.ts", "«library barrel» JSR export", "Re-exports the public API (config, scanner, converters, manifest, packer) so BSO can be consumed as a library from JSR, not only as a CLI.")
+  Component(pipeline, "Pipeline", "main, config-loader, source-scanner, manifest-builder, packer, assets", "The commands, the configuration, the manifest and the .imscc package.")
+  Component(lessons, "Lessons", "markdown-converter, includes, flashcards, diagram-*, downloadable-files", "Lesson Markdown to HTML, with flashcards, diagrams and downloads.")
+  Component(quizzes, "Quizzes", "quiz-converter, quiz-parser, quiz-diagrams, quiz-highlight, quiz-bias", "Quiz Markdown to QTI 1.2.")
+  Component(readers, "Readers", "reader-pdf-converter, reader-headings, manual-source", "Reader Markdown to PDF, and the printed user manual.")
+  Component(slides, "Slides", "lesson-slides, slides-preview", "Marp decks from lessons and from authored decks.")
+  Component(lint, "Lint", "course-linter, quizdown-lint", "bso lint: offline checks of the course material.")
+  Component(preview, "Preview", "quiz-preview, teacher-page, teacher-dashboard, preview-styles", "What the Docusaurus preview and the teacher page need.")
 }
 
-Rel(main, cfg, "resolves the active configuration via")
-Rel(main, scan, "scans and classifies source files via")
-Rel(scan, md, "hands lesson files to")
-Rel(md, diagramValidation, "validates diagram metadata with")
-Rel(md, diagramRenderer, "renders PlantUML/Mermaid through")
-Rel(diagramRenderer, diagramCfg, "uses shared provider options from")
-Rel(diagramRenderer, kroki_plugin, "registers")
-Rel(kroki_plugin, kroki, "calls over HTTP")
-Rel(md, diagramAdapter, "adapts rendered HTML through")
-Rel(scan, quiz, "hands quiz files to")
-Rel(scan, reader, "hands reader files to")
-Rel(md, manifest, "contributes HTML topic entries to")
-Rel(quiz, manifest, "contributes QTI question entries to")
-Rel(reader, manifest, "contributes PDF reader entries to")
-Rel(manifest, packer, "hands the manifest and build directory to")
-Rel(assets, md, "supplies default CSS to")
-Rel(assets, reader, "supplies the LaTeX header and Lua filters to")
-Rel(mod, cfg, "re-exports for library consumers")
-Rel(mod, scan, "re-exports for library consumers")
-Rel(mod, md, "re-exports for library consumers")
-Rel(mod, quiz, "re-exports for library consumers")
-Rel(mod, reader, "re-exports for library consumers")
-Rel(mod, manifest, "re-exports for library consumers")
-Rel(mod, packer, "re-exports for library consumers")
+System_Ext(kroki, "Kroki", "Renders PlantUML and Mermaid over HTTP.")
+System_Ext(pandoc, "pandoc + LaTeX", "External process for PDF generation.")
+System_Ext(marp, "Marp CLI", "Installed with npm for the slide preview.")
+System_Ext(docusaurus, "Docusaurus preview app", "Loads some modules in Node, so they must not import JSR packages.")
+
+Rel(pipeline, lessons, "converts lessons with")
+Rel(pipeline, quizzes, "converts quizzes with")
+Rel(pipeline, readers, "converts readers with")
+Rel(pipeline, slides, "renders slides with")
+Rel(pipeline, lint, "lints with")
+Rel(pipeline, preview, "starts the preview with")
+Rel(quizzes, lessons, "reuses diagram rendering of")
+Rel(lessons, preview, "adds the teacher page with")
+Rel(lint, lessons, "checks")
+Rel(lint, quizzes, "checks")
+Rel(lint, readers, "checks")
+Rel(preview, quizzes, "uses the quiz model of")
+
+Rel(lessons, kroki, "renders diagrams through")
+Rel(readers, pandoc, "runs")
+Rel(slides, marp, "runs")
+Rel(docusaurus, preview, "loads in Node")
+Rel(docusaurus, lessons, "loads in Node")
+Rel(docusaurus, pipeline, "loads manifest-builder in Node")
+
+SHOW_LEGEND()
+@enduml
+```
+
+#### 6.3.1 Building the package
+
+The components that `bso build` and `bso pack` use for lessons, quizzes and readers.
+
+```plantuml
+@startuml
+!include <C4/C4_Component>
+LAYOUT_TOP_DOWN()
+
+Component(main, "main.ts", "CLI entry point", "Runs build and pack in order.")
+Component(scan, "source-scanner.ts", "classifier", "Classifies source files by naming convention.")
+Component(md, "markdown-converter.ts", "unified pipeline", "Lesson Markdown to HTML topics.")
+Component(includes, "includes.ts", "runtime-neutral", "Expands {@include} directives.")
+Component(flash, "flashcards.ts", "remark transformation", "Glossary lists and containers to flashcards.")
+Component(diagrams, "diagram-renderer.ts", "remark integration", "Renders PlantUML and Mermaid.")
+Component(quizConv, "quiz-converter.ts", "converter", "Quiz Markdown to QTI 1.2.")
+Component(quizParser, "quiz-parser.ts", "runtime-neutral", "QuizDown parsing and validation.")
+Component(reader, "reader-pdf-converter.ts", "converter", "Reader Markdown to PDF.")
+Component(manifest, "manifest-builder.ts", "generator", "Navigation model and imsmanifest.xml.")
+Component(packer, "packer.ts", "archiver", "Packs the build directory into a .imscc archive.")
+
+System_Ext(kroki, "Kroki", "Renders PlantUML and Mermaid.")
+System_Ext(pandoc, "pandoc + LaTeX", "PDF generation.")
+
+Rel(main, scan, "scans with")
+Rel(main, md, "converts lessons with")
+Rel(main, quizConv, "converts quizzes with")
+Rel(main, reader, "converts readers with")
+Rel(main, manifest, "builds the manifest with")
+Rel(main, packer, "packs with")
+Rel(md, includes, "expands includes with")
+Rel(md, flash, "builds flashcards with")
+Rel(md, diagrams, "renders diagrams with")
+Rel(quizConv, quizParser, "parses with")
+Rel(quizConv, diagrams, "renders diagrams with")
+Rel(diagrams, kroki, "calls over HTTP")
+Rel(reader, pandoc, "runs")
 
 SHOW_LEGEND()
 @enduml
