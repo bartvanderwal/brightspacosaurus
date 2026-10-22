@@ -225,6 +225,36 @@ function sortLikeBrightspace(items, titles, positions, firstId) {
   });
 }
 
+// The docs options of one example course: the same menu order, remark plugins
+// and slides map for every course on the site.
+function courseDocsOptions(coursePath, routeBasePath) {
+  return {
+    path: coursePath,
+    include: ["lessons/**/*.md", "readers/**/*.md"],
+    routeBasePath,
+    sidebarItemsGenerator: async (
+      { defaultSidebarItemsGenerator, ...args },
+    ) =>
+      titleReadersCategory(sortLikeBrightspace(
+        await defaultSidebarItemsGenerator(args),
+        new Map(args.docs.map((doc) => [doc.id, doc.title])),
+        // Same sidebar_position order as the Brightspace menu.
+        new Map(args.docs.filter((doc) => typeof doc.sidebarPosition === "number")
+          .map((doc) => [doc.id, doc.sidebarPosition])),
+        // The teacher page first in its module, as in the Brightspace menu.
+        args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
+      )),
+    beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
+    remarkPlugins: [[remarkPreviewSlides, {
+      lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
+      baseUrl,
+    }], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [
+      remarkDiagrams,
+      diagramOptions,
+    ]],
+  };
+}
+
 module.exports = {
   title: "Demo Course Preview",
   tagline: "Preview for Brightspacosaurus demo course",
@@ -263,6 +293,9 @@ module.exports = {
     require.resolve("remark-kroki-a11y/diagramTabs.js"),
   ],
   plugins: [["@docusaurus/plugin-content-docs", {
+    id: "topics",
+    ...courseDocsOptions("../examples/cursorisch-aanbod", "cursorisch-aanbod"),
+  }], ["@docusaurus/plugin-content-docs", {
     id: "guidebook",
     path: "../docs",
     routeBasePath: "guidebook",
@@ -286,36 +319,12 @@ module.exports = {
     indexDocs: true,
     indexBlog: false,
     indexPages: false,
-    docsRouteBasePath: ["/", "guidebook"],
+    docsRouteBasePath: ["/", "cursorisch-aanbod", "guidebook"],
     highlightSearchTermsOnTargetPage: true,
     explicitSearchResultPath: true,
   }]],
   presets: [["@docusaurus/preset-classic", {
-    docs: {
-      path: "../examples/demo-course",
-      include: ["lessons/**/*.md", "readers/**/*.md"],
-      routeBasePath: "/",
-      sidebarItemsGenerator: async (
-        { defaultSidebarItemsGenerator, ...args },
-      ) =>
-        titleReadersCategory(sortLikeBrightspace(
-          await defaultSidebarItemsGenerator(args),
-          new Map(args.docs.map((doc) => [doc.id, doc.title])),
-          // Same sidebar_position order as the Brightspace menu.
-          new Map(args.docs.filter((doc) => typeof doc.sidebarPosition === "number")
-            .map((doc) => [doc.id, doc.sidebarPosition])),
-          // The teacher page first in its module, as in the Brightspace menu.
-          args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
-        )),
-      beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
-      remarkPlugins: [[remarkPreviewSlides, {
-        lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
-        baseUrl,
-      }      ], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [
-        remarkDiagrams,
-        diagramOptions,
-      ]],
-    },
+    docs: courseDocsOptions("../examples/demo-course", "/"),
     blog: false,
     theme: { customCss: require.resolve("./src/css/custom.css") },
   }]],
@@ -323,7 +332,9 @@ module.exports = {
     navbar: {
       title: "Demo Course",
       items: [
-        { to: "/lessons/", label: "Demo course", position: "left" },
+        { to: "/", label: "Home", position: "left", activeBaseRegex: "^/(brightspacosaurus/)?$" },
+        { to: "/lessons/", label: "Example: weeks", position: "left" },
+        { type: "docSidebar", sidebarId: "defaultSidebar", docsPluginId: "topics", label: "Example: topics", position: "left" },
         { to: "/guidebook/software-guidebook", label: "Software Guidebook", position: "left" },
         { to: "/guidebook/user-manual", label: "User manual", position: "left" },
         { href: "https://github.com/bartvanderwal/brightspacosaurus", label: "GitHub", position: "right" },
