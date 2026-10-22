@@ -14,5 +14,9 @@
   },
   "diagrams": {
     "krokiUrl": "http://localhost:8000/"
+  },
+  "slides": {
+    "generateForPrefix": "lesson-",
+    "disclaimer": ""
   }
 }

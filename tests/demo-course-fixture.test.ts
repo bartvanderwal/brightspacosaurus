@@ -94,3 +94,18 @@ Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios
   assertStringIncludes(flashcards, "**unit test**");
   assertStringIncludes(flashcards, "_end-to-end test_");
 });
+
+Deno.test("the demo courses cover slides with and without the disclaimer banner", async () => {
+  // The Pages demo (root config) keeps the default banner `Preview`.
+  const demo = JSON.parse(
+    await Deno.readTextFile("brightspacosaurus.config.json"),
+  );
+  assertEquals(demo.slides.disclaimer, undefined);
+  // The topic course turns the banner off with an empty text.
+  const topic = JSON.parse(
+    await Deno.readTextFile(
+      "examples/cursorisch-aanbod/brightspacosaurus.config.json",
+    ),
+  );
+  assertEquals(topic.slides.disclaimer, "");
+});
