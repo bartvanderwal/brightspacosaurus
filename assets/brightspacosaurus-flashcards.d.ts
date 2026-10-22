@@ -3,5 +3,7 @@
  * Brightspace pages and defines `globalThis.bsoFlashcards` with `initializeFlashcards`.
  * A Docusaurus client module imports it and calls
  * `globalThis.bsoFlashcards?.initializeFlashcards(document)` in `onRouteDidUpdate`.
+ *
+ * @module
  */
 export {};

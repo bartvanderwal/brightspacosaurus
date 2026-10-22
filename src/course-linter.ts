@@ -1,4 +1,8 @@
-/** Offline checks for BSO-specific Markdown, complementary to Markdown style linters. */
+/**
+ * Offline checks for BSO-specific Markdown, complementary to Markdown style linters.
+ *
+ * @module
+ */
 import {
   basename,
   dirname,

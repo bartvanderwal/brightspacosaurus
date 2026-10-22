@@ -3,5 +3,7 @@
  * script in Brightspace pages and defines `globalThis.bsoTabs.initializeTabs`.
  * A Docusaurus client module imports it and calls
  * `globalThis.bsoTabs?.initializeTabs(document)` in `onRouteDidUpdate`.
+ *
+ * @module
  */
 export {};

@@ -3,5 +3,7 @@
  * Brightspace pages and defines `globalThis.bsoQuizzes` with `initializeQuizzes`, `shuffleOptions`.
  * A Docusaurus client module imports it and calls
  * `globalThis.bsoQuizzes?.initializeQuizzes(document)` in `onRouteDidUpdate`.
+ *
+ * @module
  */
 export {};
