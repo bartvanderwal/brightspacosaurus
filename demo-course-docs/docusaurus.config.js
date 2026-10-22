@@ -273,7 +273,10 @@ module.exports = {
       "definition-of-done.md",
       "adr/*.md",
     ],
-    remarkPlugins: [remarkRepoLinks, [remarkDiagrams, diagramOptions]],
+    // Before Docusaurus resolves Markdown links itself: links that leave docs/
+    // become GitHub links first, so there is no "couldn't be resolved" warning.
+    beforeDefaultRemarkPlugins: [remarkRepoLinks],
+    remarkPlugins: [[remarkDiagrams, diagramOptions]],
   }]],
   presets: [["@docusaurus/preset-classic", {
     docs: {
