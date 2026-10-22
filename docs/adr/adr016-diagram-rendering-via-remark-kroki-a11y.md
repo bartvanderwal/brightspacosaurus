@@ -10,7 +10,7 @@ Brightspacosaurus must render PlantUML and Mermaid diagrams in lesson pages to B
 
 Rendering goes through Kroki, which "provides a unified API to create diagrams from any of the following libraries", including PlantUML and Mermaid (Kroki, n.d.).
 
-Diagrams are complex images in the sense of the W3C accessibility tutorials: "Complex images contain substantial information – more than can be conveyed in a short phrase or sentence." For those, "a two-part text alternative is required", consisting of a short description and "the long description – a textual representation of the essential information conveyed by the image" (W3C Web Accessibility Initiative, n.d.). `remark-kroki-a11y` provides this; its README states that it improves accessibility by "Providing source code", "Generating natural language descriptions" and "Keyboard navigation - Uses native <details> elements accessible via keyboard" (van der Wal, n.d.).
+Diagrams are complex images in the sense of the W3C accessibility tutorials: "Complex images contain substantial information – more than can be conveyed in a short phrase or sentence." For those, "a two-part text alternative is required", consisting of a short description and "the long description – a textual representation of the essential information conveyed by the image" (W3C Web Accessibility Initiative, n.d.). `remark-kroki-a11y` provides this; its README states that it improves accessibility by "Providing source code", "Generating natural language descriptions" and "Keyboard navigation - Uses native &lt;details&gt; elements accessible via keyboard" (van der Wal, n.d.).
 
 The feature specs are in `.kiro/specs/diagram-rendering-a11y/` and `specs/001-diagram-rendering-a11y/`.
 
