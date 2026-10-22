@@ -65,6 +65,8 @@
   "imports": {
     "fast-check": "npm:fast-check@^4.7.0",
     "jszip": "npm:jszip@^3.10.0",
+    "pptxgenjs": "npm:pptxgenjs@^4.0.1",
+    "image-size": "npm:image-size@^2.0.2",
     "unified": "npm:unified@^11.0.0",
     "remark-parse": "npm:remark-parse@^11.0.0",
     "remark-frontmatter": "npm:remark-frontmatter@^5.0.0",
