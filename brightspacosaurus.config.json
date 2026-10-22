@@ -15,7 +15,8 @@
         "decks": "examples/demo-course/slides/slides-fizzbuzz.md"
       },
       "week-1/lesson-2-test-strategy.md": "examples/demo-course/slides/slides-test-strategy.md"
-    }
+    },
+    "disclaimer": ""
   },
   "diagrams": {
     "locale": "en",

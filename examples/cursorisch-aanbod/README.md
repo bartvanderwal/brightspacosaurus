@@ -18,7 +18,7 @@ readers/          reader-agentic-ui-glossary.md
 - Order inside a module follows `sidebar_position` in the front matter.
 - **Readers in a content module.** `readersModule` (`{ "slug": "algemeen", "title": "Algemeen" }`) puts the reader PDF in the `algemeen` module, after its pages. The [demo-course](../demo-course) keeps the default, a separate `Readers` module, so both situations are covered by an example.
 - **Diagrams** use a local Kroki server (`diagrams.krokiUrl` is `http://localhost:8000/`). Without it, remove `diagrams` from the configuration to use the default, `https://kroki.io`.
-- **Slides without a banner.** `slides.generateForPrefix` makes a deck from every `lesson-*` page, and `slides.disclaimer: ""` leaves out the banner that the [demo-course](../demo-course) shows (its default is `Preview`), so both cases have an example.
+- **Slides with a banner.** `slides.generateForPrefix` makes a deck from every `lesson-*` page, and `slides.disclaimer` sets the banner text on every slide. The [demo-course](../demo-course) turns the banner off with an empty text, so both cases have an example.
 - No Docusaurus files are needed: no `_category_.json` and no `sidebars.js` (BSO does not read them).
 - The course title (`courseName`) is in `brightspacosaurus.config.json`.
 
