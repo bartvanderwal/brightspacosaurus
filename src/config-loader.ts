@@ -216,7 +216,8 @@ export function validateConfig(config: unknown): config is BsoConfig {
     for (const key of Object.keys(slides)) {
       if (
         key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
-        key !== "theme" && key !== "logo" && key !== "generateForPrefix"
+        key !== "theme" && key !== "logo" && key !== "generateForPrefix" &&
+        key !== "pptx"
       ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
@@ -282,6 +283,9 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     if (slides.notes !== undefined && typeof slides.notes !== "boolean") {
       throw new Error("Field 'slides.notes' must be true or false.");
+    }
+    if (slides.pptx !== undefined && typeof slides.pptx !== "boolean") {
+      throw new Error("Field 'slides.pptx' must be true or false.");
     }
     for (const field of ["theme", "logo"] as const) {
       const path = slides[field];

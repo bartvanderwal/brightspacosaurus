@@ -16,7 +16,8 @@
       },
       "week-1/lesson-2-test-strategy.md": "examples/demo-course/slides/slides-test-strategy.md"
     },
-    "disclaimer": ""
+    "disclaimer": "",
+    "pptx": true
   },
   "diagrams": {
     "locale": "en",

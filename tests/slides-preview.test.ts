@@ -6,6 +6,7 @@ import {
 } from "@std/assert";
 import { dirname, join, resolve } from "@std/path";
 import {
+  deckWantsPptx,
   exportSlidesToContent,
   renderPreviewSlides,
   type SlidesConfig,
@@ -1336,4 +1337,66 @@ Deno.test("exit controls close the deck tab with Esc or Alt+P, and the export re
     withExitControls("<section>a</section>"),
     "bso-slides-exit",
   );
+});
+
+Deno.test("deckWantsPptx: deck value wins, auto and absent take the course default", () => {
+  const withValue = (value: string) =>
+    `---\nslides: true\npptx: ${value}\n---\n# A\n`;
+  assertEquals(deckWantsPptx("---\nslides: true\n---\n# A"), false);
+  assertEquals(deckWantsPptx("---\nslides: true\n---\n# A", true), true);
+  assertEquals(deckWantsPptx(withValue("auto"), true), true);
+  assertEquals(deckWantsPptx(withValue("auto"), false), false);
+  assertEquals(deckWantsPptx(withValue("true"), false), true);
+  assertEquals(deckWantsPptx(withValue("false"), true), false);
+  assertEquals(deckWantsPptx("# no front matter", true), true);
+});
+
+Deno.test("slides pptx: course default, deck override, link and export copy (#115)", async () => {
+  await fixture(async (root) => {
+    await write(root, "decks/a.md", deck.replace("# Slide", "# A"));
+    await write(
+      root,
+      "decks/b.md",
+      deck.replace("marp: true", "marp: true\npptx: false").replace(
+        "# Slide",
+        "# B",
+      ),
+    );
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>L</h1></body></html>",
+    );
+    const contentDir = join(root, "content");
+    const run = (pptx?: boolean) =>
+      exportSlidesToContent(
+        { ...config, pptx },
+        root,
+        "lessons",
+        "static",
+        contentDir,
+        fake([]),
+      );
+    await run(true);
+    const html = await Deno.readTextFile(
+      join(contentDir, "week", "lesson-slides.html"),
+    );
+    assertStringIncludes(html, 'href="lesson-a.pptx"');
+    assert(!html.includes("b.pptx"));
+    const bytes = await Deno.readFile(
+      join(contentDir, "week", "lesson-a.pptx"),
+    );
+    assertEquals(bytes[0], 0x50); // zip header "PK"
+    await Deno.remove(join(contentDir, "week"), { recursive: true });
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>L</h1></body></html>",
+    );
+    await run(false);
+    const off = await Deno.readTextFile(
+      join(contentDir, "week", "lesson-slides.html"),
+    );
+    assert(!off.includes(".pptx"));
+  });
 });

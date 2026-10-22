@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Added
+
+- Manual slide decks can be exported as an editable `.pptx` (module `src/pptx/`): `slides.pptx` sets the course default (off), a deck overrides it with `pptx: true | false | auto` in its front matter. The file is linked from the slides page and packed into the `.imscc` (#115).
+
 ## 0.29.0
 
 ### Added

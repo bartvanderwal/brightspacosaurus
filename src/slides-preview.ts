@@ -1,4 +1,5 @@
 import {
+  basename,
   dirname,
   globToRegExp,
   isAbsolute,
@@ -11,6 +12,7 @@ import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import type { SlidesConfig } from "./types.ts";
 import { generateLessonSlides } from "./lesson-slides.ts";
+import { convertDeckToPptx } from "./pptx/mod.ts";
 
 export type { SlidesConfig } from "./types.ts";
 
@@ -428,6 +430,51 @@ export function stripExitControls(html: string): string {
   );
 }
 
+const PPTX_STYLE_ID = "bso-pptx-style";
+
+/**
+ * Whether a deck gets a `.pptx`. The deck's own `pptx: true | false | auto`
+ * wins; `auto` (or no value) takes the course-wide `slides.pptx` setting.
+ */
+export function deckWantsPptx(deck: string, courseDefault = false): boolean {
+  const header = deck.replace(/^\uFEFF/, "").match(
+    /^---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/,
+  )?.[1] ?? "";
+  const value = header.match(
+    /^pptx[ \t]*:[ \t]*["']?(\w+)["']?[ \t]*(?:#.*)?$/m,
+  )?.[1];
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return courseDefault;
+}
+
+/** A link to each `.pptx` in the top corner of the slides page. */
+export function withPptxLinks(html: string, names: string[]): string {
+  if (!names.length) return html;
+  const style =
+    `<style id="${PPTX_STYLE_ID}">.bso-pptx{position:fixed;top:10px;right:12px;z-index:20;display:flex;gap:8px;font:13px sans-serif}.bso-pptx a{background:#fff;color:#0b4a8f;border:1px solid #9aa4b2;border-radius:14px;padding:3px 10px;text-decoration:none}.bso-pptx a:hover{background:#eef4fb}@media print{.bso-pptx{display:none}}</style>`;
+  const links = `<nav class="bso-pptx" aria-label="Downloads">${
+    names.map((name) =>
+      `<a href="${escapeAttribute(name)}" download>Download ${
+        escapeAttribute(name)
+      }</a>`
+    ).join("")
+  }</nav>`;
+  const withStyle = /<\/head>/i.test(html)
+    ? html.replace(/<\/head>/i, `${style}</head>`)
+    : style + html;
+  return /<\/body>/i.test(withStyle)
+    ? withStyle.replace(/<\/body>/i, `${links}</body>`)
+    : withStyle + links;
+}
+
+/** The names that the pptx links of a slides page point to. */
+function pptxLinkNames(html: string): string[] {
+  const nav = html.match(/<nav class="bso-pptx"[^>]*>([\s\S]*?)<\/nav>/)?.[1] ??
+    "";
+  return [...nav.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+}
+
 function banner(value: string): string {
   const escaped = value.replace(
     /[\\'"\n\r\f<>\u2028\u2029]/g,
@@ -612,9 +659,7 @@ export async function renderPreviewSlides(
     generate: boolean;
   }[] = [];
   const themePath = config.theme
-    ? isAbsolute(config.theme)
-      ? config.theme
-      : resolve(root, config.theme)
+    ? isAbsolute(config.theme) ? config.theme : resolve(root, config.theme)
     : undefined;
   let themeName: string | undefined;
   if (themePath) {
@@ -805,12 +850,43 @@ export async function renderPreviewSlides(
       );
       if (logo) html = addLogo(html, logo);
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
+      const pptxNames: string[] = [];
+      {
+        const used = new Set<string>();
+        for (const source of plan.decks) {
+          const markdown = (await Deno.readTextFile(source)).replace(
+            /\r\n/g,
+            "\n",
+          );
+          if (!deckWantsPptx(markdown, config.pptx === true)) continue;
+          let name = `${basename(source).replace(/\.md$/i, "")}.pptx`;
+          for (let n = 2; used.has(name); n++) {
+            name = `${basename(source).replace(/\.md$/i, "")}-${n}.pptx`;
+          }
+          used.add(name);
+          const bytes = await convertDeckToPptx(markdown, {
+            baseDir: dirname(source),
+            notes: config.notes === true,
+            logo: config.logo
+              ? (isAbsolute(config.logo)
+                ? config.logo
+                : resolve(root, config.logo))
+              : undefined,
+            disclaimer,
+          });
+          await Deno.writeFile(join(dirname(destination), name), bytes);
+          pptxNames.push(name);
+        }
+      }
       await Deno.writeTextFile(
         destination,
-        withExitControls(
-          disclaimer
-            ? html.replace(/<\/head>/i, `${banner(disclaimer)}</head>`)
-            : html,
+        withPptxLinks(
+          withExitControls(
+            disclaimer
+              ? html.replace(/<\/head>/i, `${banner(disclaimer)}</head>`)
+              : html,
+          ),
+          pptxNames,
         ),
       );
       result[plan.lesson] = plan.url;
@@ -913,9 +989,30 @@ export async function exportSlidesToContent(
       config.notes === true ? rendered : stripPresenterNotes(rendered),
     );
     const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;
-    const withTitle = /<head[^>]*>/i.test(html)
-      ? html.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)
-      : `${meta}${html}`;
+    // Each linked .pptx goes along, named after the lesson, so decks never clash.
+    let linked = html;
+    for (const name of pptxLinkNames(html)) {
+      const copy = `${basename(stem)}-${name}`;
+      const from = join(
+        staticRoot,
+        ...url.split("/").slice(0, -1).map(decodeURIComponent),
+        name,
+      );
+      const target = join(contentDir, dirname(stem), copy);
+      await Deno.mkdir(dirname(target), { recursive: true });
+      await Deno.copyFile(from, target);
+      linked = linked.replaceAll(
+        `"${escapeAttribute(name)}"`,
+        `"${escapeAttribute(copy)}"`,
+      )
+        .replaceAll(
+          `Download ${escapeAttribute(name)}`,
+          `Download ${escapeAttribute(copy)}`,
+        );
+    }
+    const withTitle = /<head[^>]*>/i.test(linked)
+      ? linked.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)
+      : `${meta}${linked}`;
     const relativeHref = `${stem}-slides.html`;
     const destination = join(contentDir, relativeHref);
     await Deno.mkdir(dirname(destination), { recursive: true });

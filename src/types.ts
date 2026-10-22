@@ -164,6 +164,13 @@ export interface SlidesConfig {
    * topic could read them; the local preview always keeps them (#117).
    */
   notes?: boolean;
+  /**
+   * Course-wide default for writing a manual deck as an editable PowerPoint
+   * file (`.pptx`) next to the slides. Off by default. A deck overrides it with
+   * `pptx: true`, `pptx: false` or `pptx: auto` (course value) in its own front
+   * matter. Slides generated from a lesson are never converted.
+   */
+  pptx?: boolean;
 }
 
 export interface BsoConfig {

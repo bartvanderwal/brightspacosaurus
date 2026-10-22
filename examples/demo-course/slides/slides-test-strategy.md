@@ -1,5 +1,6 @@
 ---
 slides: true
+pptx: false
 title: Test strategy
 paginate: true
 ---

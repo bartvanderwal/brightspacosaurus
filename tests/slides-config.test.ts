@@ -96,7 +96,11 @@ Deno.test("slide theme and logo paths resolve from the repository root", () => {
 
   assertEquals(
     resolveConfig(
-      { ...base, readerCoverLogo: "shared/reader-logo.png", slides: { lessons: {} } },
+      {
+        ...base,
+        readerCoverLogo: "shared/reader-logo.png",
+        slides: { lessons: {} },
+      },
       {},
       "/repo",
     ).slides,
@@ -145,7 +149,24 @@ Deno.test("slide metadata follows source file identity, not page slug, with base
 
 Deno.test("slides.notes is an optional boolean (#117)", () => {
   const lessons = { "week/lesson.md": "slides/**/*.md" };
-  assertEquals(validateConfig({ ...base, slides: { lessons, notes: true } }), true);
-  assertEquals(validateConfig({ ...base, slides: { lessons, notes: false } }), true);
+  assertEquals(
+    validateConfig({ ...base, slides: { lessons, notes: true } }),
+    true,
+  );
+  assertEquals(
+    validateConfig({ ...base, slides: { lessons, notes: false } }),
+    true,
+  );
   assertEquals(validateConfig({ ...base, slides: { lessons } }), true);
+});
+
+Deno.test("slides.pptx must be a boolean and passes through resolving (#115)", () => {
+  const slides = { lessons: { "week/lesson.md": "slides/*.md" }, pptx: true };
+  assertEquals(validateConfig({ ...base, slides }), true);
+  assertEquals(resolveConfig({ ...base, slides }, {}, "/repo").slides, slides);
+  assertThrows(
+    () => validateConfig({ ...base, slides: { ...slides, pptx: "yes" } }),
+    Error,
+    "slides.pptx",
+  );
 });

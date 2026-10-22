@@ -147,6 +147,7 @@ The most important fields:
 | `slides.generateForPrefix` | no    | Generate slides for source Markdown filenames beginning with this case-sensitive prefix; explicit `slides.lessons` entries override it |
 | `slides.notes`         | no       | `true` keeps presenter notes in `.imscc` slides; default `false` removes them (the preview always shows them) |
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
+| `slides.pptx`          | no       | `true` also writes every manual deck as an editable PowerPoint file; default `false`. A deck overrides it with `pptx: true`, `pptx: false` or `pptx: auto` in its front matter |
 | `slides.theme`         | no       | Marp theme CSS file, relative to the repository root; overrides deck-level theme selection in preview and the `.imscc` |
 | `slides.logo`          | no       | Logo on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
@@ -289,10 +290,7 @@ Quiz bias rules check that students cannot score without knowing the material. `
       "minQuestionsForPosition": 6,
       "giveawayWords": [
         "alleen",
-        "alle bovenstaande",
-        "alle van bovenstaande",
-        "geen van bovenstaande"
-      ]
+        "alle bovenstaande"      ]
     }
   }
 }
@@ -561,7 +559,7 @@ Keep slide source files outside `sourcesDir` and `readersDir`, or in an undersco
 
 BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. Marp theme CSS can style `section`, headings such as `section h1`/`section h2`, pagination with `section::after`, title slides with `section.lead`, and `section header`/`section footer`. BSO reserves `section::before` for the disclaimer banner and `.bso-slide-logo` for the generated title logo; themes should not use those selectors. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-marp-presentations-in-the-preview-and-the-cartridge).
 
-`bso build` also adds the slides to the `.imscc`: each lesson with slides gets one extra topic `Slides: <lesson title>` right after the lesson in its module, a self-contained HTML file with the images embedded and the disclaimer on every slide. Every student who can see the module can open it, so keep the disclaimer for slides that are not final. The presenter notes (HTML comments in the deck) are removed from these slides, because Marp writes them into the HTML where students could read them; set `"notes": true` in `slides` to keep them anyway. The preview always shows them. Rendering needs npm and takes a while; skip it with `bso build --skip-slides`. A course without `slides` in its configuration needs neither. Check in your Brightspace sandbox that the topic opens and navigates before you rely on it: Marp's HTML contains a script.
+`bso build` also adds the slides to the `.imscc`: each lesson with slides gets one extra topic `Slides: <lesson title>` right after the lesson in its module, a self-contained HTML file with the images embedded and the disclaimer on every slide. Every student who can see the module can open it, so keep the disclaimer for slides that are not final. The presenter notes (HTML comments in the deck) are removed from these slides, because Marp writes them into the HTML where students could read them; set `"notes": true` in `slides` to keep them anyway. The preview always shows them. Rendering needs npm and takes a while; skip it with `bso build --skip-slides`. A course without `slides` in its configuration needs neither. With `"pptx": true` in `slides` (or `pptx: true` in one deck's front matter), each manual deck also gets an editable `.pptx`, linked from the slides page and packed into the `.imscc`; `pptx: false` in a deck opts it out. Decks generated from a lesson are never converted. Check in your Brightspace sandbox that the topic opens and navigates before you rely on it: Marp's HTML contains a script.
 
 In the preview, **hidden is not secured:** anyone who knows the URL can open the slides. Keep the preview local; reconsider access control before deploying it online.
 
