@@ -22,3 +22,8 @@ demo-course-docs/playwright-report/
 
 # Extracted npm tarball during release (see AGENTS.md)
 package/
+
+# Scratch files and folders
+/pictures-tmp.md
+tmp-*/
+*-tmp/
