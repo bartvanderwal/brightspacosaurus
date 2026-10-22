@@ -9,6 +9,7 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import fc from "fast-check";
 import { join } from "@std/path";
 import { convertMarkdown } from "../src/markdown-converter.ts";
+import { DIAGRAMISH_LANGUAGES } from "../src/diagram-validation.ts";
 import {
   classifyDiagramError,
   DiagramError,
@@ -33,7 +34,12 @@ async function removeDir(path: string): Promise<void> {
 
 const unsupportedLanguageArb = fc
   .stringMatching(/^[a-z][a-z0-9_-]{0,12}$/)
-  .filter((language) => !["plantuml", "mermaid", "kroki"].includes(language));
+  // Names of diagram tools that BSO does not render (`d2`, `dot`, ...) are
+  // reported on purpose, so they are not "unsupported code" that passes through.
+  .filter((language) =>
+    !["plantuml", "mermaid", "kroki"].includes(language) &&
+    !DIAGRAMISH_LANGUAGES.has(language)
+  );
 
 const codeArb = fc
   .array(fc.stringMatching(/^[A-Za-z0-9_ .,+\-/*()="';:]{0,50}$/), {

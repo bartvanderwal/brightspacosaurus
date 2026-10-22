@@ -45,7 +45,8 @@ interface MdastNode {
   children?: MdastNode[];
 }
 
-const DIAGRAMISH_LANGUAGES = new Set([
+/** Fence languages of diagram tools BSO does not render: they are reported, not passed through. */
+export const DIAGRAMISH_LANGUAGES = new Set([
   "blockdiag",
   "c4plantuml",
   "d2",
