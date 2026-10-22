@@ -278,6 +278,18 @@ module.exports = {
     beforeDefaultRemarkPlugins: [remarkRepoLinks],
     remarkPlugins: [[remarkDiagrams, diagramOptions]],
   }]],
+  // Search that works offline on the built site (GitHub Pages): the index is
+  // written by `docusaurus build`, so the dev server (`bso preview`) has none.
+  themes: [[require.resolve("@easyops-cn/docusaurus-search-local"), {
+    hashed: true,
+    language: ["en", "nl"],
+    indexDocs: true,
+    indexBlog: false,
+    indexPages: false,
+    docsRouteBasePath: ["/", "guidebook"],
+    highlightSearchTermsOnTargetPage: true,
+    explicitSearchResultPath: true,
+  }]],
   presets: [["@docusaurus/preset-classic", {
     docs: {
       path: "../examples/demo-course",
