@@ -40,5 +40,8 @@
     "orangeThresholdPercent": 10,
     "redThresholdPercent": 50,
     "requireCommentsForDone": false
+  },
+  "diagrams": {
+    "krokiUrl": "http://localhost:8000/"
   }
 }
