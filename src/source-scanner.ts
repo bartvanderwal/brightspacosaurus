@@ -9,6 +9,7 @@
 
 import type { ScanOptions, ScanResult } from "./types.ts";
 import { join, relative, resolve } from "@std/path";
+import { isNavigationExcludedFile } from "./navigation-exclusions.ts";
 
 /**
  * Checks whether a path is within the repository root.
@@ -38,10 +39,6 @@ function isReaderFile(fileName: string): boolean {
     fileName === "plantuml-essentials.md";
 }
 
-export function isNavigationExcludedFile(fileName: string): boolean {
-  const name = fileName.split(/[\\/]/).pop()?.toLowerCase() ?? "";
-  return name.startsWith("transcript-") || name.includes("-antwoorden-docent");
-}
 
 /**
  * Scans a directory recursively for .md files and classifies them.

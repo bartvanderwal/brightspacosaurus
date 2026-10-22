@@ -8,7 +8,7 @@
  */
 
 import type { ManifestEntry, ReadersModuleConfig } from "./types.ts";
-import { isNavigationExcludedFile } from "./source-scanner.ts";
+import { isNavigationExcludedFile } from "./navigation-exclusions.ts";
 
 /**
  * Escapes XML special characters in a string.
