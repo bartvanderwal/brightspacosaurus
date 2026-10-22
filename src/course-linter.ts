@@ -127,6 +127,123 @@ function compareDiagnostics(a: LintDiagnostic, b: LintDiagnostic): number {
     a.column - b.column || compare(a.rule, b.rule);
 }
 
+const quizBlockHtmlTags = new Set([
+  "address",
+  "article",
+  "aside",
+  "base",
+  "basefont",
+  "blockquote",
+  "body",
+  "caption",
+  "center",
+  "col",
+  "colgroup",
+  "dd",
+  "dialog",
+  "dir",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "frame",
+  "frameset",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "head",
+  "header",
+  "hgroup",
+  "hr",
+  "html",
+  "iframe",
+  "legend",
+  "li",
+  "link",
+  "main",
+  "menu",
+  "menuitem",
+  "meta",
+  "nav",
+  "noembed",
+  "noframes",
+  "noscript",
+  "ol",
+  "optgroup",
+  "option",
+  "p",
+  "param",
+  "plaintext",
+  "pre",
+  "search",
+  "section",
+  "script",
+  "style",
+  "table",
+  "tbody",
+  "td",
+  "textarea",
+  "tfoot",
+  "th",
+  "thead",
+  "title",
+  "track",
+  "tr",
+  "ul",
+  "xmp",
+]);
+
+function unsupportedQuizHtmlBlocks(markdown: string): {
+  tag: string;
+  line: number;
+}[] {
+  const found: { tag: string; line: number }[] = [];
+  let quizFence: { character: string; length: number } | undefined;
+  let codeFence: { character: string; length: number } | undefined;
+  for (const [index, line] of markdown.split(/\r?\n/).entries()) {
+    const opening = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+    const closing = line.match(/^\s*(`+|~+)\s*$/);
+    if (codeFence) {
+      if (
+        closing?.[1][0] === codeFence.character &&
+        closing[1].length >= codeFence.length
+      ) codeFence = undefined;
+      continue;
+    }
+    if (
+      quizFence && closing?.[1][0] === quizFence.character &&
+      closing[1].length >= quizFence.length
+    ) {
+      quizFence = undefined;
+      continue;
+    }
+    if (opening) {
+      if (!quizFence && /^\s*(?:quiz|quizz)(?:\s|$)/i.test(opening[2])) {
+        quizFence = { character: opening[1][0], length: opening[1].length };
+      } else {
+        codeFence = { character: opening[1][0], length: opening[1].length };
+      }
+      continue;
+    }
+    for (
+      const match of line.replace(/(`+).*?\1/g, "").matchAll(
+        /<([a-z][\w-]*)\b[^>]*>/gi,
+      )
+    ) {
+      const tag = match[1].toLowerCase();
+      if (quizBlockHtmlTags.has(tag)) found.push({ tag, line: index + 1 });
+    }
+  }
+  return found;
+}
+
 function inspectMarkdown(
   markdown: string,
   sourceFile: string,
@@ -468,6 +585,17 @@ function inspectMarkdown(
   }
 
   if (basename(sourceFile).startsWith("quiz-")) {
+    for (const { tag, line } of unsupportedQuizHtmlBlocks(markdown)) {
+      diagnostics.push({
+        sourceFile,
+        line,
+        column: 1,
+        severity: "warning",
+        rule: "quiz-unsupported-html",
+        message:
+          `The <${tag}> block is not supported in QTI quiz text; use Markdown instead.`,
+      });
+    }
     const quiz = parseQuizMarkdown(markdown, options);
     const quizIssues = isQuizDown(markdown)
       ? lintQuizDown(markdown)
