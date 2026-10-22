@@ -521,6 +521,8 @@ deno task pack
 
 `imsmanifest.xml` records how the package was made: the LOM description holds the BSO version, course name and course version, for example `Brightspacosaurus 0.18.0; course: Demo Course; course version: 0.10.0`. Read it without Brightspace with `unzip -p cursus.v1.0.0.imscc imsmanifest.xml`. No build time is written by default, so repeated builds stay identical; set `SOURCE_DATE_EPOCH` (seconds since 1970) to add `built: <ISO 8601 time>`.
 
+When BSO runs from a checkout, the build also writes the BSO user manual as `docenten/user-manual.pdf`: this manual followed by a chapter *Features*, built from the demo course's feature pages with their collapsible "how" parts expanded.
+
 With `--readers-only` you generate only the reader and teacher PDFs without the rest of the build. With `--skip-readers` you do the opposite: BSO skips all PDF generation with pandoc (readers, instructor manual and user manual) and still copies pre-built PDFs. That makes local builds and tests much faster when the PDFs are not what you are checking.
 
 For fast author feedback, use `bso preview` when `docusaurusDir` is configured. This starts the Docusaurus development server for the course repository, so most content and formatting issues can be caught locally before creating and importing a new `.imscc` package.
@@ -552,6 +554,8 @@ The prefix is case-sensitive and matches the filename (not its parent directory)
 Slides are optional: without a `slides` setting, BSO creates no slide decks, and regular Markdown remains unchanged. For manual decks, `slides: true` is the semantic BSO marker; `marp: true` remains supported when you want Marp's own tools to recognize the deck. Generated slides are a concise view of the lesson rather than a replacement for its reading view. BSO currently omits paragraphs and keeps lists, tables and images; sections with no such visual content do not get a slide. The longer-term authoring goal is to keep explanations available as reader-accessible speaker notes, support quotations, and warn about sections too dense for a slide. H3 subsections and section-introduction slides are also a design goal, not current behavior. See [the slide authoring model](software-guidebook.md#authoring-model-one-source-two-views) for the distinction between current behavior and these goals.
 
 Generated decks use the lesson H1 as the title slide and create a slide for each H2. They retain lists, tables and images, omit paragraphs, split long lists and tables across slides, and show each `Kernbegrippen`/`Core concepts` definition on its own slide after the term list. Manual decks use the semantic `slides: true` YAML frontmatter marker; existing `marp: true` decks remain supported for compatibility. BSO normalizes either marker for Marp. When generated and manual decks are combined, generated slides come first, followed by matching manual decks in filename order; the first manual deck's frontmatter supplies presentation-wide settings. A configured course theme overrides a deck's theme. The optional logo is embedded on slides marked `<!-- _class: lead -->`; when `slides.logo` is omitted, `readerCoverLogo` is reused if set. Start `bso preview`, open the lesson, then press **Alt+P** (macOS: **Option+P**) to open its presentation in a new tab. Nothing happens for lessons without slides, while typing in editable fields, or with Ctrl/Cmd+P. There is no visible button or hint.
+
+In the preview, Alt/Option+P opens the current lesson's slides in a new tab, and Esc (or Alt/Option+P again) closes that tab. In full screen the browser takes the first Esc.
 
 Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
 
@@ -933,6 +937,8 @@ Reader PDFs get their own module by default. To put them in a content module ins
 ```
 
 `title` sets the module title; without it the module keeps the lead page's H1 or the folder name. If no content folder has that name, BSO creates a separate module with the given title.
+
+BSO does not export the `README.md` above `sourcesDir` as a course page. To show such a text to students, put it in a topic folder, for example as `algemeen/studentenhandleiding.md` or as the `index.md` of a module.
 
 `build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both are generated from the same navigation model; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. The sidebar has one category level per first-level folder in `sourcesDir`; deeper folders remain within that category. Readers can be placed in a content module with `readersModule`. The repository README is not included in the course navigation. Set `docusaurusDocsDir` to the docs-plugin root when it differs from the parent of `sourcesDir`; document IDs are paths relative to that root.
 

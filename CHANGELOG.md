@@ -8,8 +8,21 @@ All notable changes to Brightspacosaurus are documented here.
 
 - Configurable course-wide Marp themes and title-slide logos, embedded in both the preview and `.imscc`; `readerCoverLogo` is the default slide logo (#114).
 - `bso preview` can generate slides for lessons selected individually or course-wide with `slides.generateForPrefix`; `slides.lessons` provides per-lesson overrides and manual decks. Manual deck frontmatter uses the semantic `slides: true` marker; `marp: true` remains compatible (#109).
+- `bso lint` warns (`deep-relative-path`) about a link, image or `{@include}` target with three or more `../` in a row, because such a path breaks when the file moves (#128).
+- `build`, `pack` and `preview` write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`, and the manifest is built from the same navigation model. A module takes its title from its lead page (`index`, `weekintro-N`, ...) (#78).
+- A preview slide deck closes with Esc or Alt/Option+P (the tab that Alt/Option+P opened); the exit script is left out of the `.imscc`.
+- The BSO user manual PDF gets a chapter *Features* built from the demo course's feature pages, with their collapsible "how" parts expanded.
+
+### Changed
+
+- The category of reader PDFs in the Docusaurus preview is titled like the Brightspace menu: `readersModule.title`, otherwise `Readers`.
+- The package no longer contains a test file (`reader-pdf-converter_test.ts` moved to `tests/`).
 
 ## 0.28.0
+
+### Changed
+
+- **Breaking:** BSO no longer exports the `README.md` above `sourcesDir` as a page in a fixed `week-1` module. A course that relied on it moves that text into a topic folder (for example `algemeen/studentenhandleiding.md`).
 
 ### Added
 
