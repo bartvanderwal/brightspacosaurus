@@ -17,5 +17,5 @@ The numbering is historical rather than contiguous. Brightspacosaurus was extrac
 | [018](adr018-github-flow-and-release-tags.md) | GitHub Flow with release tags |
 | [020](adr020-quizdown-syntax-and-quizzosaurus-package.md) | QuizDown syntax, strict by design, in a Quizzosaurus package |
 | [021](adr021-convention-over-configuration-and-good-defaults.md) | Convention over configuration and good defaults |
-| [022](adr022-opening-lesson-slides-in-the-same-page.md) | Opening a lesson's slides: new tab or the same page (proposed) |
+| [022](adr022-opening-lesson-slides-in-the-same-page.md) | Opening a lesson's slides in the same tab |
 | [023](adr023-separate-content-from-processing.md) | Separate content from processing (proposed) |

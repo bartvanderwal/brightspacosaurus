@@ -410,26 +410,68 @@ async function embedImages(
   return text;
 }
 
-const EXIT_CONTROLS_ID = "bso-slides-exit";
+const FAVICON_TYPES: Record<string, string> = {
+  ico: "image/x-icon",
+  png: "image/png",
+  svg: "image/svg+xml",
+};
 
 /**
- * Lets the presenter leave a preview deck with Esc or the Alt/Option+P that
- * opened it: the deck lives in a tab the shortcut opened, so the tab closes.
- * In full screen the browser takes the first Esc itself. Preview only; the
- * export removes it again (`stripExitControls`).
+ * The favicon of the Docusaurus app, by convention `static/img/favicon.*`, so
+ * the slides tab shows the same icon as the course site. Undefined when there
+ * is none. Preview only: the `.imscc` has no favicon for a topic.
  */
-export function withExitControls(html: string): string {
-  const script =
-    `<script id="${EXIT_CONTROLS_ID}">document.addEventListener("keydown",function(e){var alt=e.altKey&&e.code==="KeyP"&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey;var esc=e.key==="Escape"&&!document.fullscreenElement;if(!alt&&!esc)return;e.preventDefault();window.close()})</script>`;
-  return /<\/head>/i.test(html)
-    ? html.replace(/<\/head>/i, `${script}</head>`)
-    : html + script;
+export async function findDocusaurusFavicon(
+  docusaurusDir: string,
+): Promise<string | undefined> {
+  for (const extension of Object.keys(FAVICON_TYPES)) {
+    const path = join(docusaurusDir, "static", "img", `favicon.${extension}`);
+    const stat = await Deno.stat(path).catch(() => undefined);
+    if (stat?.isFile) return path;
+  }
+  return undefined;
 }
 
-/** Removes the preview-only exit script, so it never reaches the `.imscc`. */
-export function stripExitControls(html: string): string {
+/** Adds the favicon to a slides page as an embedded `<link rel="icon">`. */
+export function withFavicon(
+  html: string,
+  favicon: Uint8Array,
+  path: string,
+): string {
+  const type = FAVICON_TYPES[path.split(".").at(-1) ?? ""] ?? "image/png";
+  let binary = "";
+  for (const byte of favicon) binary += String.fromCharCode(byte);
+  const link = `<link rel="icon" type="${type}" href="data:${type};base64,${
+    btoa(binary)
+  }">`;
+  return /<\/head>/i.test(html)
+    ? html.replace(/<\/head>/i, `${link}</head>`)
+    : link + html;
+}
+
+const BACK_CONTROLS_ID = "bso-slides-back";
+
+/**
+ * Preview only: a small hint in the corner of a deck that says Esc (or
+ * Alt/Option+P again) goes back to the lesson, and the key handler that does
+ * it, plus an Esc button in Marp's on-screen controller (the HUD that appears on
+ * mouse movement). Going back is the browser's own history step (`history.back()`), the same
+ * as the Back button (ADR 022); in full screen the browser takes the first Esc.
+ * The export removes it again (`stripBackControls`).
+ */
+export function withBackControls(html: string, label: string): string {
+  const text = label.replace(/[<>&"]/g, "");
+  const controls =
+    `<div id="${BACK_CONTROLS_ID}"><style>#${BACK_CONTROLS_ID} span{position:fixed;left:.8rem;bottom:.6rem;z-index:50;padding:.1rem .55rem;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font:12px/1.5 system-ui,sans-serif;pointer-events:none}@media print{#${BACK_CONTROLS_ID} span{display:none}}</style><span><b>Esc</b> ${text}</span><script>document.addEventListener("keydown",function(e){var alt=e.altKey&&e.code==="KeyP"&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey;var esc=e.key==="Escape"&&!document.fullscreenElement;if((!alt&&!esc)||e.defaultPrevented||history.length<2||document.body.getAttribute("data-bespoke-view"))return;e.preventDefault();e.stopPropagation();history.back()},true);(function(){function add(){var osc=document.querySelector(".bespoke-marp-osc");if(!osc||osc.querySelector("[data-bespoke-marp-osc=back]"))return;var b=document.createElement("button");b.type="button";b.setAttribute("data-bespoke-marp-osc","back");b.title="${text}";b.setAttribute("aria-label","${text}");b.textContent="Esc \\u2715";b.style.cssText="width:auto;padding:0 10px;height:32px;line-height:32px";b.addEventListener("click",function(){if(history.length>1)history.back()});osc.appendChild(b)}new MutationObserver(add).observe(document.body,{childList:true,subtree:true});add()})()</script></div>`;
+  return /<\/body>/i.test(html)
+    ? html.replace(/<\/body>/i, `${controls}</body>`)
+    : html + controls;
+}
+
+/** Removes the preview-only back hint and key handler, so they never reach the `.imscc`. */
+export function stripBackControls(html: string): string {
   return html.replace(
-    new RegExp(`<script id="${EXIT_CONTROLS_ID}">[\\s\\S]*?</script>`),
+    new RegExp(`<div id="${BACK_CONTROLS_ID}">[\\s\\S]*?</script></div>`),
     "",
   );
 }
@@ -731,6 +773,7 @@ export async function renderPreviewSlides(
   staticDir: string,
   runner: SlidesRunner = runNpm,
   diagrams?: ResolvedDiagramConfig,
+  previewFavicon?: string,
 ): Promise<Record<string, string>> {
   if (!config) return {};
   if (
@@ -896,6 +939,12 @@ export async function renderPreviewSlides(
               (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
               plan.lesson,
             ),
+            {
+              contentsTitle:
+                (diagrams ?? resolveDiagramsConfig({})).locale === "en"
+                  ? "Contents"
+                  : "Inhoudsopgave",
+            },
           ),
           plan.lesson,
           root,
@@ -1011,14 +1060,25 @@ export async function renderPreviewSlides(
           pptxNames.push(name);
         }
       }
+      html = withBackControls(
+        html,
+        (diagrams ?? resolveDiagramsConfig({})).locale === "en"
+          ? "back to the lesson"
+          : "terug naar de les",
+      );
+      if (previewFavicon) {
+        html = withFavicon(
+          html,
+          await Deno.readFile(previewFavicon),
+          previewFavicon,
+        );
+      }
       await Deno.writeTextFile(
         destination,
         withPptxLinks(
-          withExitControls(
-            disclaimer
-              ? html.replace(/<\/head>/i, `${banner(disclaimer)}</head>`)
-              : html,
-          ),
+          disclaimer
+            ? html.replace(/<\/head>/i, `${banner(disclaimer)}</head>`)
+            : html,
           pptxNames,
         ),
       );
@@ -1120,7 +1180,7 @@ export async function exportSlidesToContent(
       join(staticRoot, ...url.split("/").map(decodeURIComponent)),
     );
     // The notes are for the teacher; the topic is open to every student (#117).
-    const html = stripExitControls(
+    const html = stripBackControls(
       config.notes === true ? rendered : stripPresenterNotes(rendered),
     );
     const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;

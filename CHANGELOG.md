@@ -7,9 +7,11 @@ All notable changes to Brightspacosaurus are documented here.
 ### Added
 
 - `bso lint` warns (`slides-empty-separator`) about a `---` in a slide deck that gives an empty slide, such as one directly before a heading that `headingDivider` already splits on; a `---` with content after it stays valid. A generated deck joined with a manual deck that has `headingDivider` no longer gets empty slides from `---` before such headings (#141).
+- A lesson turned into slides gets a contents slide with all its section headings, right after the title slide (not for a lesson with fewer than two sections). `bso lint` warns about such a lesson when its `##` headings have no numbers (`slides-unnumbered-headings`) or when it has more than nine sections (`slides-too-many-sections`) (#140).
+- The slides page of the preview takes the favicon of the Docusaurus app (`static/img/favicon.*`), shows an "Esc" hint and an Esc button in Marp's on-screen controller; Esc steps back with the browser's history (#140).
 - `{@include}` works in lessons that are turned into slides and in manual decks, one level deep: an include inside the included file is not expanded, and `bso lint` warns about it (`slides-nested-include`). Relative image paths of the included text are rewritten to the including file (#143).
 - Generated lesson slides keep `plantuml` and `mermaid` diagrams: each gets a slide of its own, drawn as SVG through the configured Kroki server (`diagrams.krokiUrl`); a diagram that cannot be drawn fails the build with the Kroki address (#140).
-- In the preview, a lesson with slides shows a small "Slides · Alt+P" button in the bottom right corner that opens the slides (#140).
+- In the preview, a lesson with slides shows a small "Slides · Alt+P" button in the bottom right corner. The slides open in the same tab and the browser's Back button returns to the lesson; BSO adds no exit key (ADR 022, #140).
 - Manual slide decks can be exported as an editable `.pptx` (module `src/pptx/`): `slides.pptx` sets the course default (off), a deck overrides it with `pptx: true | false | auto` in its front matter. The file is linked from the slides page and packed into the `.imscc` (#115).
 
 ### Fixed
@@ -25,7 +27,6 @@ All notable changes to Brightspacosaurus are documented here.
 - `bso preview` can generate slides for lessons selected individually or course-wide with `slides.generateForPrefix`; `slides.lessons` provides per-lesson overrides and manual decks. Manual deck frontmatter uses the semantic `slides: true` marker; `marp: true` remains compatible (#109).
 - `bso lint` warns (`deep-relative-path`) about a link, image or `{@include}` target with three or more `../` in a row, because such a path breaks when the file moves (#128).
 - `build`, `pack` and `preview` write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`, and the manifest is built from the same navigation model. A module takes its title from its lead page (`index`, `weekintro-N`, ...) (#78).
-- A preview slide deck closes with Esc or Alt/Option+P (the tab that Alt/Option+P opened); the exit script is left out of the `.imscc`.
 - The BSO user manual PDF gets a chapter *Features* built from the demo course's feature pages, with their collapsible "how" parts expanded.
 
 ### Changed

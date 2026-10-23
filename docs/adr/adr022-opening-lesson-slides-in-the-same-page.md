@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted for option B (same tab). Option E stays open to investigate. A new-tab variant (option A) exists in git as the tag `slides-new-tab` and can be restored if option B does not work in Brightspace.
 
 ## Context
 
@@ -74,9 +74,11 @@ The Slides button is a link to a Docusaurus page for that lesson's slides (not i
 
 ## Decision
 
-Not decided yet; the recommendation below is for discussion.
+The slides open in **the same tab as the lesson** (option B): the Slides button is a plain link without `target`, Alt/Option+P goes to the same URL, and the exit is the browser's Back button. The deck has no script that closes a tab. Reasons: one tab and no tab clutter, the reader's own history does the way back, and it is how a Brightspace topic already works. The slides page shows a small hint that Esc (or Alt/Option+P again) steps back; that handler calls `history.back()`, the same step as the Back button, and does not close or navigate anything itself.
 
-**Recommendation: option B first, then investigate option E.** B is the least that follows both principles: a link and the browser's Back button, nothing rebuilt, and it already matches how a Brightspace topic is opened and left. E would bring the preview closer to Brightspace (the same frame situation, so more of the preview testing holds after import), but it needs a design that does not touch the Docusaurus menu; that is not yet thought through and deserves its own look. Options C and D are not recommended: they need an exit of our own and cannot be reproduced in Brightspace.
+Option E (the preview shows the deck in a frame, as Brightspace does) is to be investigated next, because it would bring the preview closer to Brightspace. Options C and D are not pursued: they need an exit of our own and cannot be reproduced in Brightspace.
+
+Whether the same-tab experience works inside Brightspace's content frame is still untested and is checked in a sandbox course. If it does not work there, the new-tab variant is the safe haven: the tag `slides-new-tab` marks the last commit that had it (button and Alt+P open a new tab; Esc or Alt/Option+P in the deck closes it). That variant has the limit described under option A.
 
 ## Consequences
 

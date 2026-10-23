@@ -357,7 +357,7 @@ The core lives under `src/`. Every module belongs to one of seven feature groups
 | Readers | `reader-headings.ts` | Heading rules shared by the reader preview and the PDF build. |
 | Readers | `manual-source.ts` | Assemble the printed user manual from the manual and the demo's feature pages. |
 | Slides | `lesson-slides.ts` | Generate a Marp deck from a lesson: H1 title slide, a slide per H2, lists, tables and images. |
-| Slides | `slides-preview.ts` | Render decks with Marp for the preview and the `.imscc`; theme, logo, disclaimer and exit script. |
+| Slides | `slides-preview.ts` | Render decks with Marp for the preview and the `.imscc`; theme, logo, disclaimer and the pptx download. |
 | Slides | `slides-preview-remark.ts` | Invisible per-document slide metadata for the Docusaurus preview. |
 | Slides | `marp-exporter.ts` | Derive Marp Markdown from instructor slides. No other module imports it, only its test. |
 | Lint | `course-linter.ts` | `bso lint`: offline checks for flashcards, includes, diagrams, quizzes, frontmatter and paths. |
@@ -637,7 +637,7 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
-The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. A small button in the bottom right corner (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the bottom right corner (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
 ## 8. Design Decisions
 

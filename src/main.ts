@@ -1026,8 +1026,8 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     downloadStaticDir,
   );
   if (copiedDownloadableCount > 0) previewStaticDir = staticDir;
-  const { renderPreviewSlides } = await import("./slides-preview.ts");
-  const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir, undefined, config.diagrams);
+  const { renderPreviewSlides, findDocusaurusFavicon } = await import("./slides-preview.ts");
+  const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir, undefined, config.diagrams, await findDocusaurusFavicon(config.docusaurusDir));
   if (Object.keys(slides).length) previewStaticDir = staticDir;
   if (config.teacherDashboard) {
     previewStaticDir = staticDir;

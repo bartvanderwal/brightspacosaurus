@@ -25,7 +25,8 @@ function presentLessonSlides(event, doc, browser) {
   const url = new URL(path, browser.location.href);
   if (url.origin !== browser.location.origin) return;
   event.preventDefault();
-  browser.open(url.href, "_blank", "noopener,noreferrer");
+  // The same tab: the browser's Back button returns to the lesson (ADR 022).
+  browser.location.assign(url.href);
 }
 
 const BUTTON_STYLE = `
@@ -63,9 +64,7 @@ function showSlidesButton(doc, browser) {
   const button = doc.createElement("a");
   button.className = "bso-slides-button";
   button.href = url.href;
-  button.target = "_blank";
-  button.rel = "noopener noreferrer";
-  button.title = "Open this lesson as slides (Alt/Option+P)";
+  button.title = "Show this lesson as slides (Alt/Option+P); use Back to return";
   button.innerHTML =
     "<span aria-hidden='true'>▶</span> Slides <kbd>Alt+P</kbd>";
   doc.body.append(button);

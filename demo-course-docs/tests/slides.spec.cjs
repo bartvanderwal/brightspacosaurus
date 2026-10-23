@@ -1,5 +1,3 @@
-// deno-lint-ignore-file no-window
-// The code inside page.evaluate() runs in the browser, where `window` exists.
 const { test, expect } = require("@playwright/test");
 
 async function setup(page) {
@@ -7,8 +5,6 @@ async function setup(page) {
   // Wait for hydration: React would replace a span inserted before it finished.
   await page.waitForLoadState("networkidle");
   await page.evaluate(() => {
-    window.slideOpens = [];
-    window.open = (...args) => window.slideOpens.push(args);
     document.querySelector("article").insertAdjacentHTML(
       "beforeend",
       '<span hidden data-bso-slides="/slides/lesson/index.html"></span>',
@@ -30,9 +26,11 @@ test("Option+P uses physical KeyP; a visible button links to the slides", async 
   const button = page.locator("a.bso-slides-button");
   await expect(button).toBeVisible();
   await expect(button).toHaveAttribute("href", /\/slides\/lesson\/index\.html$/);
-  expect(await page.evaluate(() => window.slideOpens)).toEqual([
-    ["http://127.0.0.1:3101/slides/lesson/index.html", "_blank", "noopener,noreferrer"],
-  ]);
+  // The same tab, and the browser's Back button returns to the lesson.
+  await page.waitForURL("**/slides/lesson/index.html");
+  await expect(button).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/lessons\/week-1\/lesson-1-fizzbuzz$/);
 });
 
 test("editable fields and their descendants keep Alt+P", async ({ page }) => {
@@ -56,7 +54,7 @@ test("editable fields and their descendants keep Alt+P", async ({ page }) => {
       return event.defaultPrevented;
     }, html)).toBe(false);
   }
-  expect(await page.evaluate(() => window.slideOpens)).toEqual([]);
+  expect(new URL(page.url()).pathname).toBe("/lessons/week-1/lesson-1-fizzbuzz");
 });
 
 test("print, repeat and lessons without slides are untouched; navigation selects the current lesson", async ({ page }) => {
@@ -72,10 +70,10 @@ test("print, repeat and lessons without slides are untouched; navigation selects
   }
   await page.evaluate(() => document.querySelector("[data-bso-slides]").remove());
   await page.keyboard.press("Alt+p");
-  expect(await page.evaluate(() => window.slideOpens)).toEqual([]);
+  expect(new URL(page.url()).pathname).toBe("/lessons/week-1/lesson-1-fizzbuzz");
   await page.evaluate(() => {
     document.querySelector("article").innerHTML = '<span hidden data-bso-slides="/slides/next/index.html"></span>';
   });
   await page.keyboard.press("Alt+p");
-  expect(await page.evaluate(() => window.slideOpens[0][0])).toContain("/slides/next/index.html");
+  await page.waitForURL("**/slides/next/index.html");
 });

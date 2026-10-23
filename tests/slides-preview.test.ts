@@ -12,9 +12,9 @@ import {
   renderPreviewSlides,
   type SlidesConfig,
   type SlidesRunner,
-  stripExitControls,
+  stripBackControls,
   stripPresenterNotes,
-  withExitControls,
+  withBackControls,
 } from "../src/slides-preview.ts";
 
 async function fixture(run: (root: string) => Promise<void>): Promise<void> {
@@ -447,7 +447,8 @@ Deno.test("slides preview: banner escapes CSS and closing style tags, empty disa
     );
     const path = join(root, "static/slides/week/lesson/index.html");
     const html = await Deno.readTextFile(path);
-    assert(!html.includes("<script>"));
+    // the preview's own back handler is a script; the disclaimer must add none
+    assert(!html.includes("<script>alert(1)"));
     assertStringIncludes(html, "\\22 ");
     assertStringIncludes(html, "\\5c ");
     assertStringIncludes(html, "\\a ");
@@ -1323,26 +1324,6 @@ Deno.test("slides export drops presenter notes unless slides.notes is true (#117
   });
 });
 
-Deno.test("exit controls close the deck tab with Esc or Alt+P, and the export removes them", () => {
-  const deck =
-    "<html><head><title>x</title></head><body><section>a</section></body></html>";
-  const withControls = withExitControls(deck);
-  assertStringIncludes(withControls, 'id="bso-slides-exit"');
-  assertStringIncludes(withControls, "Escape");
-  assertStringIncludes(withControls, "KeyP");
-  assertStringIncludes(withControls, "window.close()");
-  assertEquals(
-    withControls.indexOf("<script") < withControls.indexOf("</head>"),
-    true,
-  );
-  assertEquals(stripExitControls(withControls), deck);
-  assertEquals(stripExitControls(deck), deck);
-  assertStringIncludes(
-    withExitControls("<section>a</section>"),
-    "bso-slides-exit",
-  );
-});
-
 Deno.test("deckWantsPptx: deck value wins, auto and absent take the course default", () => {
   const withValue = (value: string) =>
     `---\nslides: true\npptx: ${value}\n---\n# A\n`;
@@ -1485,4 +1466,20 @@ Deno.test("combined decks with headingDivider get no empty slides, manual separa
     assertEquals(separators.length, 3);
     assertStringIncludes(input, "text\n\n---\n\nmore");
   });
+});
+
+Deno.test("back controls give a hint and an Esc handler that steps back, and the export removes them (#140)", () => {
+  const deck =
+    "<html><head><title>x</title></head><body><section>a</section></body></html>";
+  const withControls = withBackControls(deck, "back to the lesson");
+  assertStringIncludes(withControls, "<b>Esc</b> back to the lesson");
+  assertStringIncludes(withControls, "history.back()");
+  assertStringIncludes(withControls, "Escape");
+  assertStringIncludes(withControls, "KeyP");
+  assertStringIncludes(withControls, "bespoke-marp-osc");
+  assertStringIncludes(withControls, 'data-bespoke-marp-osc","back');
+  assert(!withControls.includes("window.close"));
+  assertEquals(stripBackControls(withControls), deck);
+  assertEquals(stripBackControls(deck), deck);
+  assertStringIncludes(withBackControls("<p>a</p>", "x"), "bso-slides-back");
 });
