@@ -38,6 +38,7 @@
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
     "lint:antipatterns": "cd examples/demo-course-antipatterns && deno run -P ../../src/main.ts lint",
     "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs",
+    "publish": "deno task release",
     "release": "deno run --allow-read --allow-run=git,deno utils/release.ts",
     "release:npm": "deno run --allow-read --allow-write=build --allow-run=npm,deno,tar utils/release-npm.ts"
   },

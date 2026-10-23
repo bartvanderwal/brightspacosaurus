@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Added
+
+- `deno task publish` is an alias of `deno task release`, which checks the tag and publishes to JSR and npm.
+
 ## 0.30.0
 
 ### Added
