@@ -32,9 +32,20 @@ import {
   deriveQuizIdent,
   extractAssessmentTitle,
 } from "./quiz-converter.ts";
-import { convertReaderToPdf, pandocAvailable } from "./reader-pdf-converter.ts";
+import {
+  convertReaderToPdf,
+  coverDatesHeader,
+  coverImageHeader,
+  deriveReaderPdfMetadata,
+  gitLastCommitDate,
+  pandocAvailable,
+} from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
-import { buildFeatureChapter, loadFeaturePages } from "./manual-source.ts";
+import {
+  buildFeatureChapter,
+  loadFeaturePages,
+  splitManualTitleBlock,
+} from "./manual-source.ts";
 import { writeTeacherDashboard } from "./teacher-dashboard.ts";
 import { PREVIEW_GENERATED_DIR, PREVIEW_STYLESHEET, writePreviewStylesheet } from "./preview-styles.ts";
 import {
@@ -343,6 +354,8 @@ export async function runBuild(
       relative(repoRoot, config.sourcesDir) || ".",
       join(dirname(buildDir), "preview-static"),
       contentOutputDir,
+      undefined,
+      config.diagrams,
     );
     for (const href of exported) console.log(`  ✓ content/${href}`);
   }
@@ -354,8 +367,6 @@ export async function runBuild(
     if (!pandocAvailable()) {
       console.warn(
         "⚠ pandoc not found — reader PDF conversion skipped. Install pandoc: https://pandoc.org/installing.html",
-      undefined,
-      config.diagrams,
       );
     } else {
       console.log(`Converting ${readerFiles.length} reader(s) to PDF...`);
@@ -556,9 +567,42 @@ export async function runBuild(
           await Deno.writeTextFile(featureSource, featureChapter);
           featureSources.push(featureSource);
         }
+        // Cover page and chapter breaks come from the same helpers as the readers:
+        // title, author and date lines from the manual's front matter and Git.
+        const chapterFilterPath = await materializeAsset("chapter-filter.lua");
+        const titleBlock = splitManualTitleBlock(await Deno.readTextFile(bsoSource));
+        const manualMetadata = deriveReaderPdfMetadata(
+          [
+            "---",
+            `title: ${titleBlock.title ?? "Brightspacosaurus User Manual"}`,
+            ...(titleBlock.author ? [`author: ${titleBlock.author}`] : []),
+            ...(titleBlock.version ? [`version: Version ${titleBlock.version}`] : []),
+            "coverImage: images/brightspacosaurus-big.png",
+            "---",
+          ].join("\n"),
+          basename(bsoSource),
+          {
+            courseName: "Brightspacosaurus",
+            sourceDate: await gitLastCommitDate(bsoSource, bsoDocsDir),
+            locale: "en",
+          },
+        );
+        // The cover shows the title block; the PDF body starts at the first chapter.
+        const manualBody = join(buildDir, "user-manual-body.md");
+        await Deno.writeTextFile(manualBody, titleBlock.body);
+        const coverHeaders: string[] = [];
+        const datesHeader = coverDatesHeader(manualMetadata.coverLines);
+        if (datesHeader) coverHeaders.push(datesHeader);
+        const coverImagePath = manualMetadata.coverImage
+          ? resolve(bsoDocsDir, manualMetadata.coverImage)
+          : undefined;
+        const imageHeader = coverImagePath ? coverImageHeader(coverImagePath) : null;
+        if (imageHeader) coverHeaders.push(imageHeader);
+        const coverHeaderPath = join(buildDir, "user-manual-cover.tex");
+        await Deno.writeTextFile(coverHeaderPath, coverHeaders.join(""));
         const bsoCmd = new Deno.Command("pandoc", {
           args: [
-            bsoSource,
+            manualBody,
             ...featureSources,
             "-o",
             bsoOutput,
@@ -567,15 +611,18 @@ export async function runBuild(
             "-V",
             "geometry:margin=2.5cm",
             "-V",
-            "lang=nl",
+            "lang=en",
+            `--metadata=title:${manualMetadata.title}`,
+            ...(manualMetadata.author ? [`--metadata=author:${manualMetadata.author}`] : []),
+            `--metadata=date:${manualMetadata.date}`,
+            `--include-in-header=${coverHeaderPath}`,
             `--include-in-header=${headerPath}`,
             `--lua-filter=${includeFilterPath}`,
             `--lua-filter=${detailsFilterPath}`,
+            `--lua-filter=${chapterFilterPath}`,
             "--syntax-highlighting=tango",
             "--toc",
             "--toc-depth=2",
-            `-V`,
-            `date=${new Date().toISOString().slice(0, 10)}`,
           ],
           // Raw LaTeX \includegraphics on the cover page resolves against the cwd, not --resource-path.
           cwd: bsoDocsDir,

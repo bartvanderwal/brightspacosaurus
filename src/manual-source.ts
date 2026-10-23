@@ -122,3 +122,41 @@ export async function loadFeaturePages(dir: string): Promise<FeaturePage[]> {
   }
   return pages.sort((a, b) => a.name.localeCompare(b.name));
 }
+
+/** The title block at the top of a manual, and the Markdown that follows it. */
+export interface ManualTitleBlock {
+  title?: string;
+  subtitle?: string;
+  author?: string;
+  version?: string;
+  /** The manual without its title block, so the PDF starts at the first chapter. */
+  body: string;
+}
+
+/**
+ * Splits the title block (`# Title`, a subtitle line and `- *Author(s)*: ...` /
+ * `- *Version*: ...` items) from the first `##` chapter. The PDF gets a real
+ * cover page from these values, so the block must not appear again in the body.
+ */
+export function splitManualTitleBlock(markdown: string): ManualTitleBlock {
+  const source = stripFrontMatter(markdown);
+  const lines = source.split("\n");
+  const chapter = lines.findIndex((line) => /^##\s/.test(line));
+  const head = lines.slice(0, chapter < 0 ? lines.length : chapter);
+  const title = head.find((line) => /^#\s/.test(line))?.replace(/^#\s+/, "")
+    .trim();
+  if (!title) return { body: source };
+  const field = (pattern: RegExp) =>
+    head.map((line) => line.match(pattern)?.[1].trim()).find(Boolean);
+  const subtitle = head.find((line) => line.trim() && !/^(#\s|-\s)/.test(line))
+    ?.trim();
+  return {
+    title,
+    subtitle,
+    author: field(
+      /^-\s+\*(?:Author\(s\)|Author|Auteur\(s\)|Auteur)\*:\s*(.+)$/,
+    ),
+    version: field(/^-\s+\*(?:Version|Versie)\*:\s*(.+)$/),
+    body: chapter < 0 ? "" : lines.slice(chapter).join("\n"),
+  };
+}

@@ -4,6 +4,7 @@ import {
   flashcardsForPrint,
   loadFeaturePages,
   shiftHeadings,
+  splitManualTitleBlock,
   stripFrontMatter,
 } from "../src/manual-source.ts";
 
@@ -84,4 +85,19 @@ Deno.test("flashcardsForPrint turns cards into bold terms and keeps code literal
     printed,
     "````markdown\n:::flashcard\nterm: Example\n:::\n````",
   );
+});
+
+Deno.test("splitManualTitleBlock takes title, author and version off the PDF body (#53)", () => {
+  const block = splitManualTitleBlock(
+    "# My Manual\n\nA subtitle\n\n- *Author(s)*: A. Writer\n- *Version*: 1.0\n\n## 1. Intro\n\ntext\n",
+  );
+  assertEquals(block.title, "My Manual");
+  assertEquals(block.subtitle, "A subtitle");
+  assertEquals(block.author, "A. Writer");
+  assertEquals(block.version, "1.0");
+  assertEquals(block.body, "## 1. Intro\n\ntext\n");
+  const plain = splitManualTitleBlock("no heading\n\n## One\n");
+  assertEquals(plain.title, undefined);
+  assertEquals(plain.body, "no heading\n\n## One\n");
+  assertEquals(splitManualTitleBlock("# Only title\n").body, "");
 });
