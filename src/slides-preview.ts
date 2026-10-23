@@ -602,6 +602,7 @@ export async function renderDiagramFences(
   markdown: string,
   diagrams: ResolvedDiagramConfig = resolveDiagramsConfig({}),
   fetcher: typeof fetch = fetch,
+  svgImages?: Map<string, string>,
 ): Promise<string> {
   const fence = /^```(plantuml|mermaid)[^\n]*\n([\s\S]*?)\n```[ \t]*$/gm;
   const matches = [...markdown.matchAll(fence)];
@@ -632,8 +633,18 @@ export async function renderDiagramFences(
       );
     }
     const data = btoa(String.fromCharCode(...new TextEncoder().encode(svg)));
+    let target = `data:image/svg+xml;base64,${data}`;
+    if (svgImages) {
+      // Marp rejects SVG data URLs in Markdown; the placeholder is replaced in
+      // the rendered HTML (see `renderPreviewSlides`).
+      const existing = [...svgImages].find(([, value]) => value === target)
+        ?.[0];
+      const placeholder = existing ?? `bso-embedded-svg-${svgImages.size}.svg`;
+      svgImages.set(placeholder, target);
+      target = placeholder;
+    }
     result += markdown.slice(last, index) +
-      `![${title.replace(/[\[\]]/g, "")}](data:image/svg+xml;base64,${data})`;
+      `![${title.replace(/[\[\]]/g, "")}](${target})`;
     last = index + match[0].length;
   }
   return result + markdown.slice(last);
@@ -846,6 +857,8 @@ export async function renderPreviewSlides(
           svgImages,
         ),
         diagrams,
+        undefined,
+        svgImages,
       );
       const generatedDeck = frontmatter(generated)!;
       chunks.push(

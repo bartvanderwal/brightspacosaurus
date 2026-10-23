@@ -1424,6 +1424,21 @@ Deno.test("renderDiagramFences draws each diagram through Kroki and names the se
   );
   assertEquals(calls, ["http://kroki/plantuml/svg A -> B"]);
   assertStringIncludes(out, "![Flow](data:image/svg+xml;base64,PHN2Zy8+)");
+  // With the placeholder map the Markdown carries no SVG data URL (Marp rejects it).
+  const svgImages = new Map<string, string>();
+  const placed = await renderDiagramFences(
+    md,
+    {
+      krokiUrl: "http://kroki/",
+      output: "img-html-base64",
+      failOnError: true,
+      locale: "en",
+    },
+    fetcher,
+    svgImages,
+  );
+  assertStringIncludes(placed, "![Flow](bso-embedded-svg-0.svg)");
+  assertEquals([...svgImages.values()], ["data:image/svg+xml;base64,PHN2Zy8+"]);
   assertEquals(await renderDiagramFences("# No diagrams"), "# No diagrams");
   const failing = (() =>
     Promise.resolve(
