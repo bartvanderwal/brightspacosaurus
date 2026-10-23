@@ -30,6 +30,19 @@ function appendixIndex(label: string): number {
   );
 }
 
+/**
+ * Whether a heading is back matter (Sources, Bronnen, ...), with or without a
+ * section number in front of it. Back matter is never numbered.
+ */
+export function isBackMatterHeading(text: string): boolean {
+  return EXEMPT_TITLES.test(text.trim().replace(NUMERIC_PREFIX, ""));
+}
+
+/** Whether a heading starts with a section number such as `1.` or `2.3`. */
+export function hasSectionNumber(text: string): boolean {
+  return NUMERIC_PREFIX.test(text.trim());
+}
+
 /** Whether a reader explicitly opts out of required manual heading numbers. */
 export function readerHeadingNumberLintEnabled(markdown: string): boolean {
   const frontmatter = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1];

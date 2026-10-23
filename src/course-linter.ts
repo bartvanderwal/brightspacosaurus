@@ -44,6 +44,8 @@ import { scanSources } from "./source-scanner.ts";
 import type { ResolvedConfig, SlidesConfig } from "./types.ts";
 import {
   checkReaderHeadingNumbers,
+  hasSectionNumber,
+  isBackMatterHeading,
   readerHeadingNumberLintEnabled,
 } from "./reader-headings.ts";
 import {
@@ -307,17 +309,33 @@ function inspectMarkdown(
   // slide: numbered headings and at most nine sections keep that readable.
   function checkGeneratedSlides(): void {
     if (!options.generatedSlides) return;
-    const sections = ((tree as Node).children ?? []).filter((node) =>
+    const all = ((tree as Node).children ?? []).filter((node) =>
       node.type === "heading" && node.depth === 2
     );
+    // Back matter (Sources, Bronnen) is never numbered, and not counted as a section.
+    const backMatter = all.filter((heading) =>
+      isBackMatterHeading(nodeText(heading))
+    );
+    const sections = all.filter((heading) => !backMatter.includes(heading));
     const unnumbered = sections.filter((heading) =>
-      !/^\d+(?:\.\d+)*\.?\s+\S/.test(nodeText(heading).trim())
+      !hasSectionNumber(nodeText(heading))
     );
     if (unnumbered.length > 0) {
       report(
         unnumbered[0],
         "slides-unnumbered-headings",
         `${unnumbered.length} of ${sections.length} section headings ('##') have no number, such as '## 1. Introduction'. This lesson becomes slides, and the contents slide and the slides themselves are easier to follow with numbered sections.`,
+        "warning",
+      );
+    }
+    for (const heading of backMatter) {
+      if (!hasSectionNumber(nodeText(heading))) continue;
+      report(
+        heading,
+        "slides-numbered-back-matter",
+        `'${
+          nodeText(heading).trim()
+        }' is back matter (sources) and must not have a section number; write it as '## Sources'.`,
         "warning",
       );
     }
