@@ -639,6 +639,57 @@ Use your app's actual `baseUrl` for subpath deployments. Start through `bso prev
 
 The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the top right corner, below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
+#### Specification: linked decks (#144, not yet implemented)
+
+**Status.** Specified, not built. This section is the agreed behaviour; the code and tests follow it.
+
+**Purpose.** A lesson can have extra slides that are not in the lesson text. Today such a deck is attached through `slides.lessons.<lesson>.decks` and appended after the generated slides: the lesson page does not link to it, the contents slide does not list it and it cannot be started on its own. A linked deck fixes the three: the author links the deck in the lesson, where it belongs.
+
+**Terms.** *Lesson deck*: the deck generated from a lesson. *Linked deck*: a manual deck (a Markdown file with `slides: true` or `marp: true`, see above) that a lesson links to. *Standalone presentation*: a deck shown on its own.
+
+**Authoring rule.** In the lesson, write an ordinary Markdown link to the deck file, at the place where the extra slides belong:
+
+```markdown
+## 2. Implementation
+
+The loop and the three rules are shown above.
+
+[Extra slides: FizzBuzz in depth](../../slides/slides-fizzbuzz.md)
+```
+
+The link is the only marker. There is no new syntax and no `decks` entry in the configuration (convention over configuration, ADR 021).
+
+**Rules**
+
+| # | Rule |
+| --- | --- |
+| L1 | *Recognition.* An inline or reference-style link in a lesson is a deck link when its target is a local `.md` file whose front matter marks it as a deck, with the same marker rules as for manual decks. Any other link stays an ordinary link, so a link to a plain Markdown page is unchanged. |
+| L2 | *Lesson page.* The link target is rewritten to the standalone presentation, like the other Markdown links are rewritten to HTML pages. In the preview it is the slides page of the deck and opens in the same tab (ADR 022). In the cartridge it is a link to the slides topic of the deck. The link text is not changed; the rendered link carries `data-bso-deck` for styling. |
+| L3 | *Standalone presentation.* The linked deck is rendered as a manual deck is today: own front matter, theme and logo rules, `pptx` rules (`slides.pptx` and `pptx:` in the deck). It exists even when the lesson has no generated deck. |
+| L4 | *Insertion.* In the lesson deck, the slides of the linked deck are inserted after the last slide of the `##` section that contains the link. A link before the first `##` section puts them after the title and contents slides. The front matter of the linked deck is dropped: the lesson deck's header (theme, `headingDivider`, pagination) applies to all slides. |
+| L5 | *One level.* Insertion is one level deep, like includes (#143). A deck link inside an inserted deck stays an ordinary link in the standalone presentation and is not followed. `bso lint` warns (`slides-nested-deck`). |
+| L6 | *Contents slide.* The contents slide has one entry for each linked deck, right after the entry of the section that contains the link. The entry text is the deck's `title` in its front matter, else its first H1. It is not numbered unless the title is. |
+| L7 | *Linked twice.* A deck linked more than once in a lesson is inserted at the first link only; later links are plain links to the standalone presentation. `bso lint` warns (`slides-deck-linked-twice`). |
+| L8 | *Strict.* A link to a deck file that does not exist fails the build with the lesson, the link and the expected path, like a missing include. BSO does not guess a deck from a file name. |
+| L9 | *Existing configuration.* `slides.lessons.<lesson>.decks` keeps working (appended after the generated slides, no link). A deck that is both linked and configured is inserted at the link only, and `bso lint` says which setting is redundant. Whether `decks` is deprecated is a separate decision (ADR). |
+| L10 | *Output.* The standalone presentation of a linked deck is written next to the linking lesson as `<deck-stem>-slides.html`, with its `.pptx` named after the lesson as today. In the cartridge it is a topic right after the lesson's own slides topic. The topic title is `Slides: <deck title>`. |
+
+**Behaviour in the two targets (parity, 8.1).** The preview and the cartridge use the same code for recognition, insertion and the contents slide; only the link target of rule L2 differs, because the preview serves the slides under `/slides/...` and the cartridge links a topic file.
+
+**Lint.** `slides-nested-deck` and `slides-deck-linked-twice` are warnings. Each needs a fixture in `examples/demo-course-antipatterns` and an entry in `expected-rules.json`.
+
+**Acceptance (tests).**
+
+1. Demo lesson 1.1 links `slides-fizzbuzz.md` in its text; the lesson deck has those slides after the section with the link and not at the end.
+2. The contents slide of lesson 1.1 lists the deck by its title, after the section with the link.
+3. The link on the lesson page leads to the standalone presentation, which starts without the lesson deck, in the preview and in the cartridge.
+4. A deck link inside an inserted deck is not followed and gives `slides-nested-deck`; the same deck linked twice is inserted once and gives `slides-deck-linked-twice`.
+5. A missing deck file fails the build with an actionable message.
+6. The cartridge has the standalone topic after the lesson's slides topic, and `.pptx` rules still apply.
+7. A lesson without a generated deck that links a deck still gets the standalone presentation.
+
+**Open points.** The exact file name when two lessons link decks with the same file name; how global directives of a linked deck that differ from the lesson deck are reported (ignored silently is not acceptable under the no-magic principle); and whether the section marker for insertion should also be allowed between two sections.
+
 ## 8. Design Decisions
 
 This chapter summarises the main design decisions and links to the full Architecture Decision Records (ADRs). Section 8.1 explains the most pervasive one: the preview must show the same output as Brightspace.
