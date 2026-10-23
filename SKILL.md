@@ -7,7 +7,7 @@ Use this skill when implementing or changing the `brightspacosaurus` tooling tha
 This skill is for:
 
 - CLI commands under `scripts/brightspacosaurus/`
-- Packaging and validation for Brightspace Common Cartridge output
+- Packaging and validation of Brightspace Common Cartridge output
 - File transforms needed before packaging
 
 This skill is not for:
