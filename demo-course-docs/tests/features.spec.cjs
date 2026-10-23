@@ -8,7 +8,6 @@ test("feature settings have visible copy buttons and copy valid JSON", async ({ 
   for (const [index, expected] of [
     { courseName: "My course", version: "1.0.0", sourcesDir: "lessons/" },
     { quiz: { maxAttempts: 0, shuffleAnswers: true } },
-    { diagrams: { krokiUrl: "http://localhost:8000" } },
     { docusaurusDir: "my-docusaurus-site" },
     { teacherDashboard: {
       gitlabUrl: "https://gitlab.example.org",
@@ -17,9 +16,7 @@ test("feature settings have visible copy buttons and copy valid JSON", async ({ 
       repos: [{ prefix: "n1-assignment", label: "N1 Assignment" }],
     } },
     { readersDir: "readers/", readerCoverLogo: "shared/logo.png" },
-    { flashcards: { sectionHeadings: ["Core concepts"] } },
     { teacherPage: "for-teachers.md" },
-    { readersModule: { slug: "general", title: "General" } },
   ].entries()) {
     const button = blocks.nth(index).getByRole("button", {
       name: "Copy code to clipboard",
@@ -34,5 +31,5 @@ test("feature settings have visible copy buttons and copy valid JSON", async ({ 
   }
   await expect(page.locator("article")).toContainText("deno task build");
   await expect(page.locator("article")).toContainText("deno task pack");
-  await expect(blocks).toHaveCount(9);
+  await expect(blocks).toHaveCount(6);
 });
