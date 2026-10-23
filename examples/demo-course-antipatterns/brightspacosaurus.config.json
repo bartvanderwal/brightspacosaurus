@@ -25,9 +25,6 @@
       },
       "metadata/slides-too-many-sections.md": {
         "generate": true
-      },
-      "metadata/slides-numbered-sources.md": {
-        "generate": true
       }
     }
   }

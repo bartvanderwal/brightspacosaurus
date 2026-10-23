@@ -30,12 +30,16 @@ function appendixIndex(label: string): number {
   );
 }
 
+const SOURCES_TITLES =
+  /^(?:Bronnen|Sources|Literatuurlijst|Referenties|References)(?:\b|$)/i;
+
 /**
- * Whether a heading is back matter (Sources, Bronnen, ...), with or without a
- * section number in front of it. Back matter is never numbered.
+ * Whether a heading is a list of sources (Sources, Bronnen, References, ...),
+ * with or without a number in front of it. Sources are never numbered (APA
+ * puts the reference list after the text, as an unnumbered section).
  */
-export function isBackMatterHeading(text: string): boolean {
-  return EXEMPT_TITLES.test(text.trim().replace(NUMERIC_PREFIX, ""));
+export function isSourcesHeading(text: string): boolean {
+  return SOURCES_TITLES.test(text.trim().replace(NUMERIC_PREFIX, ""));
 }
 
 /** Whether a heading starts with a section number such as `1.` or `2.3`. */

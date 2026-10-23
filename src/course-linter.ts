@@ -45,7 +45,7 @@ import type { ResolvedConfig, SlidesConfig } from "./types.ts";
 import {
   checkReaderHeadingNumbers,
   hasSectionNumber,
-  isBackMatterHeading,
+  isSourcesHeading,
   readerHeadingNumberLintEnabled,
 } from "./reader-headings.ts";
 import {
@@ -312,11 +312,10 @@ function inspectMarkdown(
     const all = ((tree as Node).children ?? []).filter((node) =>
       node.type === "heading" && node.depth === 2
     );
-    // Back matter (Sources, Bronnen) is never numbered, and not counted as a section.
-    const backMatter = all.filter((heading) =>
-      isBackMatterHeading(nodeText(heading))
+    // Sources are never numbered, and not counted as a section.
+    const sections = all.filter((heading) =>
+      !isSourcesHeading(nodeText(heading))
     );
-    const sections = all.filter((heading) => !backMatter.includes(heading));
     const unnumbered = sections.filter((heading) =>
       !hasSectionNumber(nodeText(heading))
     );
@@ -328,22 +327,30 @@ function inspectMarkdown(
         "warning",
       );
     }
-    for (const heading of backMatter) {
-      if (!hasSectionNumber(nodeText(heading))) continue;
-      report(
-        heading,
-        "slides-numbered-back-matter",
-        `'${
-          nodeText(heading).trim()
-        }' is back matter (sources) and must not have a section number; write it as '## Sources'.`,
-        "warning",
-      );
-    }
     if (sections.length > 9) {
       report(
         sections[9],
         "slides-too-many-sections",
         `This lesson becomes slides and has ${sections.length} sections ('##'); more than 9 makes a long contents slide and a long deck. Split the lesson or merge sections.`,
+        "warning",
+      );
+    }
+  }
+
+  // APA: the reference list is an unnumbered section after the text, so a
+  // 'Sources' or 'Bronnen' heading must not carry a number.
+  function checkNumberedSources(): void {
+    const headingNodes: Node[] = [];
+    collectHeadingNodes(tree, headingNodes);
+    for (const heading of headingNodes) {
+      const text = nodeText(heading);
+      if (!isSourcesHeading(text) || !hasSectionNumber(text)) continue;
+      report(
+        heading,
+        "numbered-sources",
+        `'${text.trim()}' is a list of sources and must not have a section number; write it as '## ${
+          text.trim().replace(/^\d+(?:\.\d+)*[.)]?\s+/, "")
+        }'.`,
         "warning",
       );
     }
@@ -453,6 +460,7 @@ function inspectMarkdown(
   walk(tree);
   checkSlideSeparators();
   checkGeneratedSlides();
+  checkNumberedSources();
 
   const filename = basename(sourceFile);
   if (
@@ -466,6 +474,11 @@ function inspectMarkdown(
       text: nodeText(heading),
     }));
     for (const issue of checkReaderHeadingNumbers(readerHeadings)) {
+      // A numbered Sources heading has its own rule (numbered-sources).
+      if (
+        isSourcesHeading(issue.heading.text) &&
+        hasSectionNumber(issue.heading.text)
+      ) continue;
       report(
         headingNodes[readerHeadings.indexOf(issue.heading)],
         "reader-heading-numbering",

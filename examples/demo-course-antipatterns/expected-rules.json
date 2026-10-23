@@ -34,7 +34,7 @@
   "lessons/metadata/slides-empty-separator.md": "slides-empty-separator",
   "lessons/metadata/slides-unnumbered-headings.md": "slides-unnumbered-headings",
   "lessons/metadata/slides-too-many-sections.md": "slides-too-many-sections",
-  "lessons/metadata/slides-numbered-sources.md": "slides-numbered-back-matter",
+  "lessons/metadata/numbered-sources.md": "numbered-sources",
   "lessons/metadata/slides-nested-include.md": "slides-nested-include",
   "lessons/metadata/slides-nested-include-part.md": null,
   "lessons/metadata/slides-nested-include-deeper.md": null,

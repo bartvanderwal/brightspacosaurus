@@ -218,7 +218,14 @@ title: Reader demo
   );
   assertEquals(
     findings.map(({ line }) => line),
-    [4, 5, 6, 7, 9, 10, 11, 12, 13],
+    [4, 5, 6, 9, 10, 11, 12, 13],
+  );
+  // The numbered '4. Bronnen' has its own rule, reported once.
+  assertEquals(
+    lintMarkdown(invalid, "reader-demo.md").filter((issue) =>
+      issue.rule === "numbered-sources"
+    ).map(({ line }) => line),
+    [7],
   );
 
   assertEquals(
