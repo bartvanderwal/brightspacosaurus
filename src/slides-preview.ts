@@ -7,6 +7,7 @@ import {
   relative,
   resolve,
 } from "@std/path";
+import { expandIncludesOnce } from "./includes.ts";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
@@ -676,6 +677,47 @@ function joinChunks(chunks: string[], generated: boolean): string {
 }
 
 /**
+ * Expands the `{@include}` lines of a lesson or deck for its slides, one
+ * level deep (#143). Relative image paths of the included text are rewritten
+ * to be relative to the including file, because images are embedded from there.
+ */
+function expandSlideIncludes(markdown: string, sourcePath: string): string {
+  const warnings: string[] = [];
+  const expanded = expandIncludesOnce(
+    markdown,
+    dirname(sourcePath),
+    {
+      resolve: (fromDir, target) =>
+        resolve(fromDir, decodeURIComponent(target.split(/[?#]/, 1)[0])),
+      dirname,
+      readFile: (path) => {
+        try {
+          return Deno.readTextFileSync(path);
+        } catch {
+          return null;
+        }
+      },
+      warn: (message) => warnings.push(message),
+    },
+    (content, includeDir) =>
+      content.replace(
+        /(!\[[^\]]*\]\()(<?)([^)>\s]+)(>?[^)]*\))/g,
+        (whole, open, angle, url, close) =>
+          /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(url)
+            ? whole
+            : `${open}${angle}${
+              relative(dirname(sourcePath), resolve(includeDir, url))
+                .replaceAll("\\", "/")
+            }${close}`,
+      ),
+  );
+  if (warnings.length) {
+    throw new Error(`Slides: ${warnings.join("; ")} (in ${sourcePath})`);
+  }
+  return expanded;
+}
+
+/**
  * Build self-contained lesson presentations in lexical deck order, retaining notes
  * and slide separators. The first deck's frontmatter defines presentation-wide
  * settings (theme, size, metadata); subsequent deck frontmatter is not a slide.
@@ -850,7 +892,10 @@ export async function renderPreviewSlides(
       const generated = await renderDiagramFences(
         await embedImages(
           generateLessonSlides(
-            (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
+            expandSlideIncludes(
+              (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
+              plan.lesson,
+            ),
           ),
           plan.lesson,
           root,
@@ -870,7 +915,10 @@ export async function renderPreviewSlides(
     for (const [index, source] of plan.decks.entries()) {
       await confined(source, root);
       const embedded = await embedImages(
-        (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
+        expandSlideIncludes(
+          (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
+          source,
+        ),
         source,
         root,
         svgImages,
@@ -939,9 +987,9 @@ export async function renderPreviewSlides(
       {
         const used = new Set<string>();
         for (const source of plan.decks) {
-          const markdown = (await Deno.readTextFile(source)).replace(
-            /\r\n/g,
-            "\n",
+          const markdown = expandSlideIncludes(
+            (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
+            source,
           );
           if (!deckWantsPptx(markdown, config.pptx === true)) continue;
           let name = `${basename(source).replace(/\.md$/i, "")}.pptx`;

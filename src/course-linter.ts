@@ -3,6 +3,7 @@
  *
  * @module
  */
+import { isSlideDeck } from "./includes.ts";
 import {
   findEmptySlideSeparators,
   headingDividerLevels,
@@ -622,7 +623,8 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
         sourceRelative.startsWith("..\\") || isAbsolute(sourceRelative)
       ? undefined
       : config.sourcesDir;
-    const result = inspectMarkdown(await Deno.readTextFile(file), file, {
+    const fileText = await Deno.readTextFile(file);
+    const result = inspectMarkdown(fileText, file, {
       flashcards: config.flashcards,
       lessonFile: lessonFiles.has(file),
       moduleIndex: moduleIndexFiles.has(file),
@@ -706,6 +708,21 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
           `Include file not found or not readable: ${include.target}`,
         );
         continue;
+      }
+      // Slides expand an include one level deep; an include inside it stays a directive (#143).
+      if (
+        isSlideDeck(fileText) &&
+        /^\s*\{@include:/m.test(await Deno.readTextFile(target))
+      ) {
+        diagnostics.push({
+          sourceFile: file,
+          line: include.line,
+          column: include.column,
+          severity: "warning",
+          rule: "slides-nested-include",
+          message:
+            `Slides expand an include one level deep: the {@include} inside ${include.target} is not expanded on the slides. Put that include in this deck, or merge the files.`,
+        });
       }
       await check(target, [...ancestors, file]);
     }

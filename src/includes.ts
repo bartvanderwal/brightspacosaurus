@@ -71,3 +71,54 @@ export function expandIncludes(
     return expandIncludes(content, host.dirname(includePath), host, depth + 1);
   }).join("\n");
 }
+
+/** True for a file that starts with a YAML front matter block marking a slide deck. */
+export function isSlideDeck(markdown: string): boolean {
+  const header = markdown.replace(/^\uFEFF/, "").match(
+    /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/,
+  )?.[1];
+  return header !== undefined &&
+    /^(?:slides|marp)[ \t]*:[ \t]*true\b/m.test(header);
+}
+
+/** Removes a leading YAML front matter block. */
+function withoutFrontMatter(markdown: string): string {
+  return markdown.replace(
+    /^(?:\uFEFF)?---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/,
+    "",
+  );
+}
+
+/**
+ * Expands `{@include}` directives for slides, **one level deep**: the included
+ * file is placed as it is, and an include inside it stays a directive. That
+ * rules out endless embedding between files that refer to each other, without
+ * detecting cycles (#143). A deck's front matter is dropped; the included
+ * text is trimmed, so a `---` slide separator belongs in the including file.
+ * `rewrite` can adapt the included text, for example relative image paths.
+ */
+export function expandIncludesOnce(
+  markdown: string,
+  sourceDir: string,
+  host: IncludeHost,
+  rewrite: (content: string, includeDir: string) => string = (c) => c,
+): string {
+  return markdown.split("\n").map((line) => {
+    const trimmed = line.trim();
+    const match = trimmed.match(INCLUDE_LINE_REGEX);
+    if (!match) return line;
+    const includePath = host.resolve(
+      sourceDir,
+      parseIncludeTarget(match[1], trimmed),
+    );
+    const content = host.readFile(includePath);
+    if (content === null) {
+      host.warn(`resolveIncludes: file not found: ${includePath}`);
+      return line;
+    }
+    return rewrite(
+      withoutFrontMatter(content.replace(/\r\n/g, "\n")).trim(),
+      host.dirname(includePath),
+    );
+  }).join("\n");
+}
