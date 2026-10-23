@@ -263,31 +263,11 @@ This chapter lists the principles that guide design decisions, from configuratio
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
 - **No magic: easy to analyse, no Clippy.** BSO does what the user asked and nothing hidden behind the scenes. It does not silently fix, update, install or rewrite anything the user did not ask for. It detects the problem, says what is wrong, names the command that fixes it, and lets the user decide. Example: `bso preview` warns when the Docusaurus plugin has a different BSO version than the CLI and prints the `npm update` command; it does not update anything itself (#118). A helpful tool that quietly repairs things behind the scenes (the Clippy syndrome) causes new, unexpected problems that the user did not ask for and cannot explain.
 
-  Clarke's third law says that "any sufficiently advanced technology is indistinguishable from magic" (Clarke, 1973). Turn it around: sufficiently analysed magic is indistinguishable from technology. So BSO should be technology that is easy to analyse (KISS), not magic. Magic hides its mechanism, and a hidden mechanism is a leaky abstraction: it works until it fails, and then the user must understand exactly what was hidden (Spolsky, 2002). Perfection is reached "not when there is nothing more to add, but when there is nothing more to take away" (Saint-Exupéry, 1939), as long as taking away does not change the essence of the thing itself. This complements *strict, not forgiving* (`docs/quizzosaurus-syntax.md`, section 10) and the pit of success (section 8.9).
-
-  *Sources.* Quoted from memory and from text supplied by the user; the pages were not fetched, so check the wording and page numbers before publishing.
-
-  Clarke, A. C. (1973). *Profiles of the future: An inquiry into the limits of the possible* (rev. ed.). Harper & Row.
-
-  Saint-Exupéry, A. de. (1939). *Terre des hommes*. Gallimard.
-
-  Spolsky, J. (2002, November 11). *The law of leaky abstractions*. Joel on Software. <https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/>
+  Clarke's third law says that "any sufficiently advanced technology is indistinguishable from magic" (Clarke, 1973). Turn it around: sufficiently analysed magic is indistinguishable from technology. So BSO should be technology that is easy to analyse (KISS), not magic. Magic hides its mechanism, and a hidden mechanism is a leaky abstraction: it works until it fails, and then the user must understand exactly what was hidden: "the only way to deal with the leaks competently is to learn about how the abstractions work and what they are abstracting" (Spolsky, 2002). Perfection is reached "not when there is nothing more to add, but when there is nothing more to remove" (Saint-Exupéry, 1939, chap. 3, as translated in Wikiquote contributors, n.d.), as long as taking away does not change the essence of the thing itself. This complements *strict, not forgiving* (`docs/quizzosaurus-syntax.md`, section 10) and the pit of success (section 8.9).
 
 - **Use the platform: no rebuilt browser features.** BSO uses what the browser already offers and does not rebuild it in the page. The Back button, closing a tab, scroll restoration, links that open in a new tab with a middle click, full screen and text selection all behave as users know them. BSO adds no "Back" or "Close" button of its own, no key handler that imitates a browser action, and no script that takes over navigation. A feature that needs one of these is changed until the browser's own behaviour does the job, for example a link to the slides instead of a script that opens and closes windows (ADR 022). Reason: every rebuilt browser feature works slightly differently per browser and per course page, so the page feels less native, and users who rely on the browser's behaviour (and assistive technology that knows it) are let down. This is the same idea as "do not break the Back button" in web usability, and as using standard controls in UI design: users expect your page to behave like every other page.
 
-  Jakob's law says that users spend most of their time on other sites and therefore prefer yours to work the same way (Laws of UX, n.d.). Nielsen called the Back button "the lifeline of the web user" and breaking it the first of the top ten web design mistakes of 1999 (Nielsen, 1999). Spolsky makes the same point for desktop programs: programmers keep reimplementing common controls, but "the user model is likely to reflect the way that users see other programs behaving" (Spolsky, 2000). The browser rule that a script may close only windows that script opened is in MDN contributors (n.d.), used in ADR 022.
-
-  *Sources.* Nielsen's article, the Laws of UX page, Spolsky's chapter and the MDN page were fetched and read; the quotes above are from those pages.
-
-  Laws of UX. (n.d.). *Jakob's law*. <https://lawsofux.com/jakobs-law/>
-
-  MDN contributors. (n.d.). *Window: close() method*. MDN Web Docs. <https://developer.mozilla.org/en-US/docs/Web/API/Window/close>
-
-  Nielsen, J. (1999). *The top 10 web design mistakes of 1999*. Nielsen Norman Group. <https://www.nngroup.com/articles/the-top-ten-web-design-mistakes-of-1999/>
-
-  Spolsky, J. (2000, April 22). Consistency and other hobgoblins. In *User interface design for programmers* (chap. 5). Joel on Software. <https://www.joelonsoftware.com/2000/04/22/consistency-and-other-hobgoblins/>
-
-  Spolsky, J. (2001, October 24). *User interface design for programmers* [Table of contents]. Joel on Software. <https://www.joelonsoftware.com/2001/10/24/user-interface-design-for-programmers/>
+  Jakob's law says that users spend most of their time on other sites and therefore prefer yours to work the same way (Laws of UX, n.d.). Nielsen called the Back button "the lifeline of the web user" and breaking it the first of the top ten web design mistakes of 1999 (Nielsen, 1999). Spolsky makes the same point for desktop programs in his book on user interface design (Spolsky, 2001): programmers keep reimplementing common controls, but "the user model is likely to reflect the way that users see other programs behaving" (Spolsky, 2000, chap. 5). The browser rule that a script may close only windows that script opened is in MDN contributors (n.d.), used in ADR 022.
 
 ### 5.2 Security principles for runtime integrations
 
@@ -880,4 +860,16 @@ Design and requirements history lives in two Kiro specs:
 
 ## References
 
+Sources in section 5.1 were checked as follows. Read on the web: Laws of UX, MDN, Nielsen (1999), Spolsky (2000, 2001, 2002) and the Wikiquote page. The Clarke and Saint-Exupéry quotations were checked only through Wikipedia and Wikiquote; the books themselves were not read.
+
+- Clarke, A. C. (1973). *Profiles of the future: An inquiry into the limits of the possible* (rev. ed.). Harper & Row. (The third law, quoted in section 5.1, was added to the revised edition; checked via Wikipedia contributors, n.d.)
 - D2L. (n.d.-i). _Improve navigation in multi-page content topics_. Brightspace Community. Retrieved September 13, 2026, from https://community.d2l.com/brightspace/kb/articles/3365-improve-navigation-in-multi-page-content-topics
+- Laws of UX. (n.d.). *Jakob's law*. <https://lawsofux.com/jakobs-law/>
+- MDN contributors. (n.d.). *Window: close() method*. MDN Web Docs. <https://developer.mozilla.org/en-US/docs/Web/API/Window/close>
+- Nielsen, J. (1999). *The top 10 web design mistakes of 1999*. Nielsen Norman Group. <https://www.nngroup.com/articles/the-top-ten-web-design-mistakes-of-1999/>
+- Saint-Exupéry, A. de. (1939). *Terre des hommes* (chap. 3, titled "The Tool" in the English edition). Gallimard. Passage read as quoted at <https://en.wikiquote.org/wiki/Antoine_de_Saint-Exup%C3%A9ry>
+- Spolsky, J. (2000, April 22). Consistency and other hobgoblins. In *User interface design for programmers* (chap. 5). Joel on Software. <https://www.joelonsoftware.com/2000/04/22/consistency-and-other-hobgoblins/>
+- Spolsky, J. (2001, October 24). *User interface design for programmers* [Table of contents]. Joel on Software. <https://www.joelonsoftware.com/2001/10/24/user-interface-design-for-programmers/>
+- Spolsky, J. (2002, November 11). *The law of leaky abstractions*. Joel on Software. <https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/>
+- Wikipedia contributors. (n.d.). *Clarke's three laws*. Wikipedia. <https://en.wikipedia.org/wiki/Clarke%27s_three_laws>
+- Wikiquote contributors. (n.d.). *Antoine de Saint-Exupéry*. Wikiquote. <https://en.wikiquote.org/wiki/Antoine_de_Saint-Exup%C3%A9ry>
