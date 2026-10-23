@@ -16,6 +16,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
+- `deno task lint:antipatterns` lints the deliberately invalid antipattern course with the checkout's own BSO (expected exit 1).
 - `deno task demo` is now `deno task preview`, like `bso preview`; it can write the generated files of the demo Docusaurus app again.
 - The BSO user manual PDF now has a cover page (title, authors, version, last-changed date from Git and the logo), the table of contents on its own page and every chapter on a new page, like the readers. The title block at the top of `docs/user-manual.md` supplies the cover; the PDF language is English.
 
