@@ -273,6 +273,22 @@ This chapter lists the principles that guide design decisions, from configuratio
 
   Spolsky, J. (2002, November 11). *The law of leaky abstractions*. Joel on Software. <https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/>
 
+- **Use the platform: no rebuilt browser features.** BSO uses what the browser already offers and does not rebuild it in the page. The Back button, closing a tab, scroll restoration, links that open in a new tab with a middle click, full screen and text selection all behave as users know them. BSO adds no "Back" or "Close" button of its own, no key handler that imitates a browser action, and no script that takes over navigation. A feature that needs one of these is changed until the browser's own behaviour does the job, for example a link to the slides instead of a script that opens and closes windows (ADR 022). Reason: every rebuilt browser feature works slightly differently per browser and per course page, so the page feels less native, and users who rely on the browser's behaviour (and assistive technology that knows it) are let down. This is the same idea as "do not break the Back button" in web usability, and as using standard controls in UI design: users expect your page to behave like every other page.
+
+  Jakob's law says that users spend most of their time on other sites and therefore prefer yours to work the same way (Laws of UX, n.d.). Nielsen called the Back button "the lifeline of the web user" and breaking it the first of the top ten web design mistakes of 1999 (Nielsen, 1999). Spolsky makes the same point for desktop programs: programmers keep reimplementing common controls, but "the user model is likely to reflect the way that users see other programs behaving" (Spolsky, 2000). The browser rule that a script may close only windows that script opened is in MDN contributors (n.d.), used in ADR 022.
+
+  *Sources.* Nielsen's article, the Laws of UX page, Spolsky's chapter and the MDN page were fetched and read; the quotes above are from those pages.
+
+  Laws of UX. (n.d.). *Jakob's law*. <https://lawsofux.com/jakobs-law/>
+
+  MDN contributors. (n.d.). *Window: close() method*. MDN Web Docs. <https://developer.mozilla.org/en-US/docs/Web/API/Window/close>
+
+  Nielsen, J. (1999). *The top 10 web design mistakes of 1999*. Nielsen Norman Group. <https://www.nngroup.com/articles/the-top-ten-web-design-mistakes-of-1999/>
+
+  Spolsky, J. (2000, April 22). Consistency and other hobgoblins. In *User interface design for programmers* (chap. 5). Joel on Software. <https://www.joelonsoftware.com/2000/04/22/consistency-and-other-hobgoblins/>
+
+  Spolsky, J. (2001, October 24). *User interface design for programmers* [Table of contents]. Joel on Software. <https://www.joelonsoftware.com/2001/10/24/user-interface-design-for-programmers/>
+
 ### 5.2 Security principles for runtime integrations
 
 These apply to the Voortgangsverkenner and to any future page that calls an external API from Brightspace (for example GitHub instead of GitLab).
@@ -641,7 +657,7 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
-The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. There is no slide link, button or tooltip. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. A small button below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
 ## 8. Design Decisions
 
