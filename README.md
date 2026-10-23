@@ -489,7 +489,7 @@ The source of truth remains Git. Brightspace is the distribution channel, not th
 brightspacosaurus/
 ├── deno.json                  # tasks, imports and JSR publish config
 ├── README.md                  # this file
-├── SKILL.md                   # agent instructions for Kiro
+├── skills/                    # installable agent skills for course authors
 ├── src/
 │   ├── types.ts               # TypeScript interfaces
 │   ├── config-loader.ts       # load, validate and merge configuration
