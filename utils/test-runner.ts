@@ -35,7 +35,7 @@ const TASKS: Record<string, string[]> = {
     "--allow-run",
     "--allow-env",
     "--allow-net=127.0.0.1",
-    "--ignore=tests/reader-pdf-converter.test.ts,tests/reader-pdf-converter-unit.test.ts,tests/include-filter.test.ts,tests/details-filter.test.ts",
+    "--ignore=tests/reader-pdf-pages.test.ts,tests/reader-pdf-converter.test.ts,tests/reader-pdf-converter-unit.test.ts,tests/include-filter.test.ts,tests/details-filter.test.ts",
     "tests/",
   ],
   pdf: [
@@ -46,6 +46,7 @@ const TASKS: Record<string, string[]> = {
     "--allow-env",
     "--allow-net=127.0.0.1",
     "tests/reader-pdf-converter.test.ts",
+    "tests/reader-pdf-pages.test.ts",
     "tests/reader-pdf-converter-unit.test.ts",
     "tests/include-filter.test.ts",
     "tests/details-filter.test.ts",
