@@ -8,6 +8,7 @@ import { dirname, join, resolve } from "@std/path";
 import {
   deckWantsPptx,
   exportSlidesToContent,
+  renderDiagramFences,
   renderPreviewSlides,
   type SlidesConfig,
   type SlidesRunner,
@@ -1398,5 +1399,72 @@ Deno.test("slides pptx: course default, deck override, link and export copy (#11
       join(contentDir, "week", "lesson-slides.html"),
     );
     assert(!off.includes(".pptx"));
+  });
+});
+
+Deno.test("renderDiagramFences draws each diagram through Kroki and names the server on failure (#140)", async () => {
+  const calls: string[] = [];
+  const fetcher = ((url: string, init: RequestInit) => {
+    calls.push(`${url} ${init.body}`);
+    return Promise.resolve(new Response("<svg/>"));
+  }) as unknown as typeof fetch;
+  const md = "# Flow\n\n```plantuml\nA -> B\n```\n\ntext\n";
+  const out = await renderDiagramFences(
+    md,
+    {
+      krokiUrl: "http://kroki/",
+      output: "img-html-base64",
+      failOnError: true,
+      locale: "en",
+    },
+    fetcher,
+  );
+  assertEquals(calls, ["http://kroki/plantuml/svg A -> B"]);
+  assertStringIncludes(out, "![Flow](data:image/svg+xml;base64,PHN2Zy8+)");
+  assertEquals(await renderDiagramFences("# No diagrams"), "# No diagrams");
+  const failing = (() =>
+    Promise.resolve(
+      new Response("", { status: 500 }),
+    )) as unknown as typeof fetch;
+  await assertRejects(
+    () =>
+      renderDiagramFences(md, {
+        krokiUrl: "http://kroki",
+        output: "img-html-base64",
+        failOnError: true,
+        locale: "en",
+      }, failing),
+    Error,
+    "http://kroki",
+  );
+});
+
+Deno.test("combined decks with headingDivider get no empty slides, manual separators stay (#141)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## One\n\n- a\n\n## Two\n\n- b\n",
+    );
+    await write(
+      root,
+      "decks/a.md",
+      "---\nslides: true\nheadingDivider: 2\n---\n# Manual\n\ntext\n\n---\n\nmore\n",
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(
+      {
+        lessons: { "week/lesson.md": { generate: true, decks: "decks/a.md" } },
+      },
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    const input = captured[0];
+    const separators = input.split("\n").filter((line) => line === "---");
+    // front matter pair + the author's own '---' between "text" and "more"
+    assertEquals(separators.length, 3);
+    assertStringIncludes(input, "text\n\n---\n\nmore");
   });
 });

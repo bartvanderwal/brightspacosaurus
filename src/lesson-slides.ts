@@ -5,6 +5,7 @@ import remarkParse from "remark-parse";
 interface MarkdownNode {
   type: string;
   depth?: number;
+  lang?: string;
   ordered?: boolean;
   value?: string;
   children?: MarkdownNode[];
@@ -14,6 +15,8 @@ interface MarkdownNode {
   };
 }
 
+/** Fence languages the preview renders to a picture (see `renderDiagramFences`). */
+const DIAGRAM_LANGUAGES = ["plantuml", "mermaid"];
 const MAX_LIST_ITEMS = 6;
 const MAX_SLIDE_LINES = 12;
 
@@ -122,6 +125,12 @@ function sectionBlocks(
       blocks.push(...listBlocks(node, source, coreConcepts));
     } else if (node.type === "table") {
       blocks.push(...tableBlocks(node, source));
+    } else if (
+      node.type === "code" && DIAGRAM_LANGUAGES.includes(node.lang ?? "")
+    ) {
+      // A diagram is a picture: it gets a slide of its own, rendered later.
+      const fence = sourceFor(node, source);
+      if (fence) blocks.push({ markdown: fence, separate: true });
     } else if (node.type === "paragraph") {
       for (const child of node.children ?? []) {
         if (child.type === "image" || child.type === "imageReference") {
@@ -163,7 +172,7 @@ function renderSection(heading: string, blocks: SlideBlock[]): string[] {
   return slides;
 }
 
-/** Derive a preview-only Marp deck from the lesson's H1, H2s, lists and images. */
+/** Derive a preview-only Marp deck from the lesson's H1, H2s, lists, images and diagrams. */
 export function generateLessonSlides(source: string): string {
   const tree = unified().use(remarkParse).use(remarkGfm).parse(
     source,

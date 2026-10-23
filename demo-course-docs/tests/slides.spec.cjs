@@ -4,6 +4,8 @@ const { test, expect } = require("@playwright/test");
 
 async function setup(page) {
   await page.goto("/lessons/week-1/lesson-1-fizzbuzz");
+  // Wait for hydration: React would replace a span inserted before it finished.
+  await page.waitForLoadState("networkidle");
   await page.evaluate(() => {
     window.slideOpens = [];
     window.open = (...args) => window.slideOpens.push(args);
@@ -14,7 +16,7 @@ async function setup(page) {
   });
 }
 
-test("Option+P uses physical KeyP and adds no visible UI", async ({ page }) => {
+test("Option+P uses physical KeyP; a visible button links to the slides", async ({ page }) => {
   await setup(page);
   const prevented = await page.evaluate(() => {
     const event = new KeyboardEvent("keydown", {
@@ -25,6 +27,9 @@ test("Option+P uses physical KeyP and adds no visible UI", async ({ page }) => {
   });
   expect(prevented).toBe(true);
   await expect(page.locator("[data-bso-slides]")).toBeHidden();
+  const button = page.locator("a.bso-slides-button");
+  await expect(button).toBeVisible();
+  await expect(button).toHaveAttribute("href", /\/slides\/lesson\/index\.html$/);
   expect(await page.evaluate(() => window.slideOpens)).toEqual([
     ["http://127.0.0.1:3101/slides/lesson/index.html", "_blank", "noopener,noreferrer"],
   ]);

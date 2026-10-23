@@ -31,6 +31,7 @@
   "lessons/metadata/lesson-frontmatter.md": "lesson-frontmatter",
   "lessons/metadata/metadata-fields-one-line.md": "metadata-fields-one-line",
   "lessons/metadata/reader-heading-numbering.md": "reader-heading-numbering",
+  "lessons/metadata/slides-empty-separator.md": "slides-empty-separator",
   "lessons/quizzes/quiz-length-bias.md": "quiz-length-bias",
   "lessons/quizzes/quiz-reverse-length-bias.md": "quiz-reverse-length-bias",
   "lessons/quizzes/quiz-answer-length-ratio.md": "quiz-answer-length-ratio",

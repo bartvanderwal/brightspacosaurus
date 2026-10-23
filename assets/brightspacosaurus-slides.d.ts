@@ -1,6 +1,6 @@
 /**
- * Side-effect module installing the hidden presentation shortcut in previews:
- * Alt/Option+P opens the lesson's slides in a new tab.
+ * Side-effect module for previews: Alt/Option+P opens the lesson's slides in a
+ * new tab, and a small button below the navbar says that the lesson has slides.
  *
  * @module
  */

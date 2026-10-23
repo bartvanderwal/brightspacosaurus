@@ -113,3 +113,15 @@ Deno.test("generated lesson slides reject a missing H1", () => {
     "require an H1",
   );
 });
+
+Deno.test("generated slides keep plantuml and mermaid fences as a slide of their own (#140)", () => {
+  const result = generateLessonSlides(
+    "# Lesson\n\n## Flow\n\nSome running text.\n\n```plantuml\nA -> B\n```\n\n```js\nconsole.log(1)\n```\n\n```mermaid\ngraph TD; A-->B\n```\n",
+  );
+  assertStringIncludes(result, "```plantuml\nA -> B\n```");
+  assertStringIncludes(result, "```mermaid\ngraph TD; A-->B\n```");
+  assert(!result.includes("console.log"));
+  assert(!result.includes("running text"));
+  const slides = result.split("\n---\n").filter((s) => s.includes("# Flow"));
+  assertEquals(slides.length, 2);
+});

@@ -10,8 +10,13 @@ import {
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
-import type { SlidesConfig } from "./types.ts";
+import type { ResolvedDiagramConfig, SlidesConfig } from "./types.ts";
+import { resolveDiagramsConfig } from "./diagram-config.ts";
 import { generateLessonSlides } from "./lesson-slides.ts";
+import {
+  dropEmptySlideSeparators,
+  headingDividerLevels,
+} from "./slide-separators.ts";
 import { convertDeckToPptx } from "./pptx/mod.ts";
 
 export type { SlidesConfig } from "./types.ts";
@@ -590,6 +595,78 @@ async function prepareTools(
 }
 
 /**
+ * Replaces each `plantuml` / `mermaid` fence of a generated deck by the SVG
+ * that Kroki draws for it, as an embedded image (so Marp, the pptx and the
+ * `.imscc` need nothing else). Fails with the Kroki address when a diagram
+ * cannot be drawn, because a silently empty slide is worse (#140).
+ */
+export async function renderDiagramFences(
+  markdown: string,
+  diagrams: ResolvedDiagramConfig = resolveDiagramsConfig({}),
+  fetcher: typeof fetch = fetch,
+): Promise<string> {
+  const fence = /^```(plantuml|mermaid)[^\n]*\n([\s\S]*?)\n```[ \t]*$/gm;
+  const matches = [...markdown.matchAll(fence)];
+  if (!matches.length) return markdown;
+  let result = "";
+  let last = 0;
+  for (const match of matches) {
+    const index = match.index!;
+    const title = markdown.slice(0, index).match(/^# (.+)$/gm)?.pop()?.slice(2)
+      .trim() ?? `${match[1]} diagram`;
+    const url = `${diagrams.krokiUrl.replace(/\/+$/, "")}/${match[1]}/svg`;
+    let svg: string;
+    try {
+      const response = await fetcher(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: match[2],
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      svg = await response.text();
+    } catch (error) {
+      throw new Error(
+        `Slide "${title}": could not draw the ${
+          match[1]
+        } diagram with Kroki at ${diagrams.krokiUrl} (${
+          error instanceof Error ? error.message : String(error)
+        }). Check \`diagrams.krokiUrl\` and that Kroki is running.`,
+      );
+    }
+    const data = btoa(String.fromCharCode(...new TextEncoder().encode(svg)));
+    result += markdown.slice(last, index) +
+      `![${title.replace(/[\[\]]/g, "")}](data:image/svg+xml;base64,${data})`;
+    last = index + match[0].length;
+  }
+  return result + markdown.slice(last);
+}
+
+/**
+ * Joins the generated deck and the manual decks into one presentation. When
+ * the first chunk's front matter has `headingDivider`, Marp already starts a
+ * slide at those headings, so a `---` in front of one would add an empty slide
+ * (#141): the generated slides then lose such separators, and the join takes
+ * no `---` before a heading. A manual deck's own `---` stay as the author wrote them.
+ */
+function joinChunks(chunks: string[], generated: boolean): string {
+  const levels = headingDividerLevels(frontmatter(chunks[0])?.header ?? "");
+  if (!levels.length) return chunks.join("\n\n---\n\n");
+  const parts = chunks.map((chunk, index) => {
+    if (index > 0 || !generated) return chunk;
+    const deck = frontmatter(chunk);
+    return deck
+      ? deck.header + dropEmptySlideSeparators(deck.body, levels)
+      : chunk;
+  });
+  return parts.reduce((joined, part, index) => {
+    if (index === 0) return part;
+    const first = part.match(/^\s*(#{1,6})\s/);
+    const splits = first !== null && levels.includes(first[1].length);
+    return joined + (splits ? "\n\n" : "\n\n---\n\n") + part;
+  });
+}
+
+/**
  * Build self-contained lesson presentations in lexical deck order, retaining notes
  * and slide separators. The first deck's frontmatter defines presentation-wide
  * settings (theme, size, metadata); subsequent deck frontmatter is not a slide.
@@ -602,6 +679,7 @@ export async function renderPreviewSlides(
   sourcesDir: string,
   staticDir: string,
   runner: SlidesRunner = runNpm,
+  diagrams?: ResolvedDiagramConfig,
 ): Promise<Record<string, string>> {
   if (!config) return {};
   if (
@@ -760,13 +838,16 @@ export async function renderPreviewSlides(
     const chunks: string[] = [];
     const svgImages = new Map<string, string>();
     if (plan.generate) {
-      const generated = await embedImages(
-        generateLessonSlides(
-          (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
+      const generated = await renderDiagramFences(
+        await embedImages(
+          generateLessonSlides(
+            (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
+          ),
+          plan.lesson,
+          root,
+          svgImages,
         ),
-        plan.lesson,
-        root,
-        svgImages,
+        diagrams,
       );
       const generatedDeck = frontmatter(generated)!;
       chunks.push(
@@ -806,7 +887,7 @@ export async function renderPreviewSlides(
     await Deno.mkdir(dirname(destination), { recursive: true });
     const input = join(dirname(destination), ".bso-slides-input.md");
     try {
-      await Deno.writeTextFile(input, chunks.join("\n\n---\n\n"));
+      await Deno.writeTextFile(input, joinChunks(chunks, plan.generate));
       if (!toolsPrepared) {
         const rel = relative(output, tools);
         if (
@@ -959,6 +1040,7 @@ export async function exportSlidesToContent(
   staticDir: string,
   contentDir: string,
   runner: SlidesRunner = runNpm,
+  diagrams?: ResolvedDiagramConfig,
 ): Promise<string[]> {
   if (!config) return [];
   const rendered = await renderPreviewSlides(
@@ -967,6 +1049,7 @@ export async function exportSlidesToContent(
     sourcesDir,
     staticDir,
     runner,
+    diagrams,
   );
   const root = await Deno.realPath(resolve(repoRoot));
   const sources = resolve(root, sourcesDir);

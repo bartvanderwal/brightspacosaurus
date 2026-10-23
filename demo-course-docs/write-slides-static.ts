@@ -46,6 +46,8 @@ for (const course of courses) {
     Deno.cwd(),
     config.sourcesDir,
     own,
+    undefined,
+    config.diagrams,
   );
   if (course.prefix) {
     const served = join(staticDir, course.prefix);

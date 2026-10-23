@@ -4,6 +4,10 @@
  * @module
  */
 import {
+  findEmptySlideSeparators,
+  headingDividerLevels,
+} from "./slide-separators.ts";
+import {
   basename,
   dirname,
   isAbsolute,
@@ -198,7 +202,13 @@ function inspectMarkdown(
       );
     }
   }
-  if (options.lessonFile && frontmatter?.type === "yaml") {
+  // A slide deck marks itself with `slides: true` or `marp: true`; its front
+  // matter holds Marp directives, so it is not a lesson page (#141).
+  const isSlideDeck = frontmatter?.type === "yaml" &&
+    /^(?:slides|marp)[ \t]*:[ \t]*true\b/m.test(
+      String((frontmatter as { value?: string }).value ?? ""),
+    );
+  if (options.lessonFile && frontmatter?.type === "yaml" && !isSlideDeck) {
     const yaml = String((frontmatter as { value?: string }).value ?? "");
     const keys = [...yaml.matchAll(/^([A-Za-z_][\w-]*)\s*:/gm)].map((m) =>
       m[1]
@@ -262,6 +272,32 @@ function inspectMarkdown(
       `Avoid going up three or more folders with '../' in '${path}'; move the file closer or into a shared folder inside sourcesDir, to avoid brittle file paths.`,
       "warning",
     );
+  }
+
+  // A `---` that gives Marp an empty slide (#141). Only decks are checked: a
+  // file that marks itself with `slides: true` or `marp: true`.
+  function checkSlideSeparators(): void {
+    const match = markdown.match(
+      /^(?:\uFEFF)?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/,
+    );
+    if (!match || !/^(?:slides|marp)[ \t]*:[ \t]*true\b/m.test(match[1])) {
+      return;
+    }
+    const levels = headingDividerLevels(match[1]);
+    const offset = match[0].split(/\r?\n/).length - 1;
+    const body = markdown.slice(match[0].length).replace(/\r\n/g, "\n");
+    for (const index of findEmptySlideSeparators(body, levels)) {
+      diagnostics.push({
+        sourceFile,
+        line: offset + index + 1,
+        column: 1,
+        severity: "warning",
+        rule: "slides-empty-separator",
+        message: levels.length
+          ? "This '---' gives an empty slide: it is followed by nothing, by another '---', or by a heading that 'headingDivider' already starts a slide at. Remove it, or put content between it and the next heading."
+          : "This '---' gives an empty slide: it is followed by nothing or by another '---', or it opens the deck. Remove it.",
+      });
+    }
   }
 
   function walk(node: Node, containers: Node[] = []): void {
@@ -366,6 +402,7 @@ function inspectMarkdown(
     for (const child of node.children ?? []) walk(child, ancestors);
   }
   walk(tree);
+  checkSlideSeparators();
 
   const filename = basename(sourceFile);
   if (
@@ -521,7 +558,11 @@ function inspectMarkdown(
   }
 
   diagnostics.sort(compareDiagnostics);
-  return { diagnostics, includes, downloadables: findDownloadableLinks(markdown) };
+  return {
+    diagnostics,
+    includes,
+    downloadables: findDownloadableLinks(markdown),
+  };
 }
 
 /** Check BSO-specific Markdown syntax without file writes or network requests. */

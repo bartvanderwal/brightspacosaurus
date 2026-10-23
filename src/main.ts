@@ -354,6 +354,8 @@ export async function runBuild(
     if (!pandocAvailable()) {
       console.warn(
         "⚠ pandoc not found — reader PDF conversion skipped. Install pandoc: https://pandoc.org/installing.html",
+      undefined,
+      config.diagrams,
       );
     } else {
       console.log(`Converting ${readerFiles.length} reader(s) to PDF...`);
@@ -978,7 +980,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
   );
   if (copiedDownloadableCount > 0) previewStaticDir = staticDir;
   const { renderPreviewSlides } = await import("./slides-preview.ts");
-  const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir);
+  const slides = await renderPreviewSlides(config.slides, repoRoot, config.sourcesDir, staticDir, undefined, config.diagrams);
   if (Object.keys(slides).length) previewStaticDir = staticDir;
   if (config.teacherDashboard) {
     previewStaticDir = staticDir;
