@@ -25,7 +25,7 @@ Keep the Markdown sources stable: when you add a feature, add a page or section 
 From this directory:
 
 ```sh
-deno task demo
+deno task preview
 ```
 
 This reproducibly produces `build/brightspace/demo-course.v0.10.0.imscc`, ready to import into Brightspace. The `.imscc` postfix is the course content version from `brightspacosaurus.config.json`; the BSO version from `deno.json` appears in the version line of every page and on the teacher page.

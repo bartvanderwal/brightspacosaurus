@@ -26,7 +26,7 @@ Before opening a pull request, run:
 deno task check
 deno task lint
 deno task test
-deno task demo
+deno task preview
 ```
 
 `deno task lint` is Deno's TypeScript linter and has nothing to do with course material; BSO's own check is `bso lint`. Run `deno task lint:demo` for the clean course. For the deliberately invalid course, run `bso lint` in `examples/demo-course-antipatterns` (expected exit 1); before a release is published, install the checkout once with `deno install -A -g -f -n bso-local --config deno.json src/main.ts` and use `bso-local lint`. Every new lint rule needs one focused lesson and an entry in `examples/demo-course-antipatterns/expected-rules.json`; the regression test requires exactly one diagnostic per lesson.

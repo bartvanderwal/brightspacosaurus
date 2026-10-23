@@ -12,7 +12,7 @@ From the repository root:
 
 ```sh
 npm ci --prefix demo-course-docs
-deno task demo:preview
+deno task preview
 ```
 
 Or run `bso preview` using an installation with `--allow-run=npm` permission.

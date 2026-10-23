@@ -357,7 +357,7 @@ bso preview
 
 The root configuration selects `examples/demo-course`; its Docusaurus app lives in
 `demo-course-docs`. To preview with the local CLI source, use
-`deno task demo`. You can also run `bso preview` from `examples/demo-course`.
+`deno task preview`. You can also run `bso preview` from `examples/demo-course`.
 
 #### Online demo preview
 
