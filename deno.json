@@ -34,6 +34,7 @@
     "demo": "deno task preview",
     "preview": "deno run --allow-read --allow-write=build,demo-course-docs --allow-env --allow-run=npm --allow-net src/main.ts preview",
     "demo:pack": "cd examples/demo-course && deno run -A ../../src/main.ts build && deno run -A ../../src/main.ts pack",
+    "stop": "deno run --allow-run=lsof,ps utils/stop-preview.ts",
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
     "lint:antipatterns": "cd examples/demo-course-antipatterns && deno run -P ../../src/main.ts lint",
     "lint:docs": "deno run --allow-read --allow-env src/main.ts lint --sources docs",
