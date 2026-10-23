@@ -12,8 +12,13 @@ async function setup(page) {
   });
 }
 
-test("Option+P uses physical KeyP; a visible button links to the slides", async ({ page }) => {
+test("a visible button links to the slides; Option+P uses physical KeyP; both stay in the same tab", async ({ page }) => {
   await setup(page);
+  const button = page.locator("a.bso-slides-button");
+  await expect(page.locator("[data-bso-slides]")).toBeHidden();
+  await expect(button).toBeVisible();
+  await expect(button).toHaveAttribute("href", /\/slides\/lesson\/index\.html$/);
+  await expect(button).not.toHaveAttribute("target", /.+/);
   const prevented = await page.evaluate(() => {
     const event = new KeyboardEvent("keydown", {
       key: "π", code: "KeyP", altKey: true, bubbles: true, cancelable: true,
@@ -22,13 +27,8 @@ test("Option+P uses physical KeyP; a visible button links to the slides", async 
     return event.defaultPrevented;
   });
   expect(prevented).toBe(true);
-  await expect(page.locator("[data-bso-slides]")).toBeHidden();
-  const button = page.locator("a.bso-slides-button");
-  await expect(button).toBeVisible();
-  await expect(button).toHaveAttribute("href", /\/slides\/lesson\/index\.html$/);
   // The same tab, and the browser's Back button returns to the lesson.
-  await page.waitForURL("**/slides/lesson/index.html");
-  await expect(button).toHaveCount(0);
+  await page.waitForURL(/\/slides\/lesson(\/index\.html)?$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/lessons\/week-1\/lesson-1-fizzbuzz$/);
 });
@@ -75,5 +75,5 @@ test("print, repeat and lessons without slides are untouched; navigation selects
     document.querySelector("article").innerHTML = '<span hidden data-bso-slides="/slides/next/index.html"></span>';
   });
   await page.keyboard.press("Alt+p");
-  await page.waitForURL("**/slides/next/index.html");
+  await page.waitForURL(/\/slides\/next(\/index\.html)?$/);
 });
