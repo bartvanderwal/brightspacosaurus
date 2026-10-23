@@ -17,6 +17,8 @@ interface MarkdownNode {
 
 /** Fence languages the preview renders to a picture (see `renderDiagramFences`). */
 const DIAGRAM_LANGUAGES = ["plantuml", "mermaid"];
+/** Lines of code that fit on one slide; longer code continues on the next slide. */
+const MAX_CODE_LINES = 16;
 const MAX_LIST_ITEMS = 6;
 const MAX_SLIDE_LINES = 12;
 
@@ -114,6 +116,33 @@ function tableBlocks(node: MarkdownNode, source: string): SlideBlock[] {
   return blocks;
 }
 
+/** A code block on its own slide; code longer than {@link MAX_CODE_LINES} continues on further slides. */
+function codeBlocks(node: MarkdownNode, source: string): SlideBlock[] {
+  const fence = sourceFor(node, source).split("\n");
+  const opening = fence[0];
+  const marker = opening.match(/^\s*(`{3,}|~{3,})/)?.[1] ?? "```";
+  const closing = fence.at(-1)?.trim().startsWith(marker[0])
+    ? fence.pop()!
+    : marker;
+  const body = fence.slice(1);
+  const blocks: SlideBlock[] = [];
+  for (
+    let index = 0;
+    index < Math.max(body.length, 1);
+    index += MAX_CODE_LINES
+  ) {
+    blocks.push({
+      markdown: [
+        opening,
+        ...body.slice(index, index + MAX_CODE_LINES),
+        closing,
+      ].join("\n"),
+      separate: true,
+    });
+  }
+  return blocks;
+}
+
 function sectionBlocks(
   nodes: MarkdownNode[],
   source: string,
@@ -125,6 +154,10 @@ function sectionBlocks(
       blocks.push(...listBlocks(node, source, coreConcepts));
     } else if (node.type === "table") {
       blocks.push(...tableBlocks(node, source));
+    } else if (
+      node.type === "code" && !DIAGRAM_LANGUAGES.includes(node.lang ?? "")
+    ) {
+      blocks.push(...codeBlocks(node, source));
     } else if (
       node.type === "code" && DIAGRAM_LANGUAGES.includes(node.lang ?? "")
     ) {
@@ -212,7 +245,10 @@ export function generateLessonSlides(
   if (options.contentsTitle && sections.length >= 2) {
     slides.push(
       `# ${options.contentsTitle}\n\n${
-        sections.map(({ heading }) => `- ${heading}`).join("\n")
+        sections.map(({ heading }) =>
+          // `1. Intro` after `- ` would start a nested ordered list (roman numbers)
+          `- ${heading.replace(/^(\d+(?:\.\d+)*)([.)])(?=\s)/, "$1\\$2")}`
+        ).join("\n")
       }`,
     );
   }

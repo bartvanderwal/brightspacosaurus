@@ -114,16 +114,16 @@ Deno.test("generated lesson slides reject a missing H1", () => {
   );
 });
 
-Deno.test("generated slides keep plantuml and mermaid fences as a slide of their own (#140)", () => {
+Deno.test("generated slides keep diagram fences and code as slides of their own, and drop running text (#140)", () => {
   const result = generateLessonSlides(
     "# Lesson\n\n## Flow\n\nSome running text.\n\n```plantuml\nA -> B\n```\n\n```js\nconsole.log(1)\n```\n\n```mermaid\ngraph TD; A-->B\n```\n",
   );
   assertStringIncludes(result, "```plantuml\nA -> B\n```");
   assertStringIncludes(result, "```mermaid\ngraph TD; A-->B\n```");
-  assert(!result.includes("console.log"));
+  assertStringIncludes(result, "```js\nconsole.log(1)\n```");
   assert(!result.includes("running text"));
   const slides = result.split("\n---\n").filter((s) => s.includes("# Flow"));
-  assertEquals(slides.length, 2);
+  assertEquals(slides.length, 3);
 });
 
 Deno.test("a contents slide lists all sections after the title slide, only when asked and with two or more sections", () => {
@@ -132,7 +132,7 @@ Deno.test("a contents slide lists all sections after the title slide, only when 
     contentsTitle: "Contents",
   });
   const slides = withContents.split("\n---\n");
-  assertStringIncludes(slides[2], "# Contents\n\n- 1. One\n- 2. Two");
+  assertStringIncludes(slides[2], "# Contents\n\n- 1\\. One\n- 2\\. Two");
   assertStringIncludes(slides[1], "# Lesson");
   assert(!generateLessonSlides(lesson).includes("# Contents"));
   assert(

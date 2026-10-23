@@ -17,6 +17,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
+- Generated lesson slides show the code of a section (a code block on its own slide, long code continues on further slides) and the contents slide lists numbered sections as plain `1. Introduction` lines, not as a nested list with Roman numerals (#140).
 - `deno task stop [port]` stops the process that listens on the preview port (3000 by default), for example a dev server that outlived its terminal; it names the process before it stops it.
 - `deno task lint:antipatterns` lints the deliberately invalid antipattern course with the checkout's own BSO (expected exit 1).
 - `deno task demo` is now `deno task preview`, like `bso preview`; it can write the generated files of the demo Docusaurus app again.
