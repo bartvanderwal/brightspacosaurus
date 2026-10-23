@@ -89,7 +89,7 @@ Deno.test("demo-course fixture keeps the manual Brightspace regression scenarios
   );
   assertEquals((flashcards.match(/^:::flashcard$/gm) ?? []).length, 8);
   assertStringIncludes(flashcards, "term: Unit test");
-  assertStringIncludes(flashcards, "## Core concepts");
+  assertStringIncludes(flashcards, "## 2. Core concepts");
   assertStringIncludes(flashcards, "- **request:**");
   assertStringIncludes(flashcards, "**unit test**");
   assertStringIncludes(flashcards, "_end-to-end test_");

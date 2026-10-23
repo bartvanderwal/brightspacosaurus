@@ -17,5 +17,15 @@
         "only"
       ]
     }
+  },
+  "slides": {
+    "lessons": {
+      "metadata/slides-unnumbered-headings.md": {
+        "generate": true
+      },
+      "metadata/slides-too-many-sections.md": {
+        "generate": true
+      }
+    }
   }
 }

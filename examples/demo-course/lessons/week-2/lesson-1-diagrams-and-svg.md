@@ -2,7 +2,7 @@
 
 **Manual test:** verify PlantUML, Mermaid, SVG assets, alt text, source disclosure and diagram descriptions.
 
-## PlantUML diagram
+## 1. PlantUML diagram
 
 ```plantuml
 @startuml
@@ -16,7 +16,7 @@ Main ..> FizzBuzzer : uses
 @enduml
 ```
 
-## Mermaid diagram
+## 2. Mermaid diagram
 
 ```mermaid
 flowchart LR
@@ -25,7 +25,7 @@ flowchart LR
   IMSCC --> Brightspace
 ```
 
-## SVG content
+## 3. SVG content
 
 ![Test SVG asset](images/test-swatch.svg)
 

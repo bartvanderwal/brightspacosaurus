@@ -172,8 +172,21 @@ function renderSection(heading: string, blocks: SlideBlock[]): string[] {
   return slides;
 }
 
+/** Options for {@link generateLessonSlides}. */
+export interface LessonSlidesOptions {
+  /**
+   * Title of a contents slide, listing the lesson's sections right after the
+   * title slide. Omitted: no contents slide. Left out for a lesson with fewer
+   * than two sections, where it would list nothing useful.
+   */
+  contentsTitle?: string;
+}
+
 /** Derive a preview-only Marp deck from the lesson's H1, H2s, lists, images and diagrams. */
-export function generateLessonSlides(source: string): string {
+export function generateLessonSlides(
+  source: string,
+  options: LessonSlidesOptions = {},
+): string {
   const tree = unified().use(remarkParse).use(remarkGfm).parse(
     source,
   ) as unknown as {
@@ -196,6 +209,13 @@ export function generateLessonSlides(source: string): string {
     }
   }
   const slides = [`# ${nodeText(title).trim()}`];
+  if (options.contentsTitle && sections.length >= 2) {
+    slides.push(
+      `# ${options.contentsTitle}\n\n${
+        sections.map(({ heading }) => `- ${heading}`).join("\n")
+      }`,
+    );
+  }
   for (const { heading, nodes } of sections) {
     slides.push(
       ...renderSection(

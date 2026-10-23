@@ -32,6 +32,8 @@
   "lessons/metadata/metadata-fields-one-line.md": "metadata-fields-one-line",
   "lessons/metadata/reader-heading-numbering.md": "reader-heading-numbering",
   "lessons/metadata/slides-empty-separator.md": "slides-empty-separator",
+  "lessons/metadata/slides-unnumbered-headings.md": "slides-unnumbered-headings",
+  "lessons/metadata/slides-too-many-sections.md": "slides-too-many-sections",
   "lessons/metadata/slides-nested-include.md": "slides-nested-include",
   "lessons/metadata/slides-nested-include-part.md": null,
   "lessons/metadata/slides-nested-include-deeper.md": null,

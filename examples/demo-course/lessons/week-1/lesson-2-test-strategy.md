@@ -4,7 +4,7 @@
 
 A test strategy chooses appropriate tests for different levels of a system.
 
-## Test pyramid
+## 1. Test pyramid
 
 In theory, a test pyramid suggests a mix of three kinds of tests (Chaves, 2025):
 
@@ -18,19 +18,19 @@ _Figure 1_: The test pyramid, redrawn for this course after Chaves (2025).
 
 Figure 1 shows the shape: the higher a layer, the fewer tests it holds. The reason is cost and speed.
 
-## Why the shape?
+## 2. Why the shape?
 
 - **Unit tests** run in milliseconds and point at one class, so you can afford many.
 - **Integration tests** check that components work together, and need more set-up.
 - **E2E tests** drive the whole system, run slowly and break easily, so you keep them few.
 
-## Test strategy
+## 3. Test strategy
 
 - Write most tests at the lowest level that can show the behaviour.
 - Add an integration test where two components meet.
 - Add an E2E test for a few key user journeys.
 
-## Reader
+## 4. Reader
 
 Read the [Testing Basics reader](../../readers/reader-testing-basics.md).
 

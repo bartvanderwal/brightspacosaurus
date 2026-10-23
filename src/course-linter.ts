@@ -41,7 +41,7 @@ import {
 } from "./quiz-bias.ts";
 import { parseIncludeTarget } from "./markdown-converter.ts";
 import { scanSources } from "./source-scanner.ts";
-import type { ResolvedConfig } from "./types.ts";
+import type { ResolvedConfig, SlidesConfig } from "./types.ts";
 import {
   checkReaderHeadingNumbers,
   readerHeadingNumberLintEnabled,
@@ -96,6 +96,8 @@ export interface LintOptions extends QuizHeadingOptions {
   teacherAnswers?: string;
   /** This is an index page for a first-level course module. */
   moduleIndex?: boolean;
+  /** The lesson is turned into slides (`slides.lessons` or `slides.generateForPrefix`). */
+  generatedSlides?: boolean;
 }
 
 interface Node {
@@ -301,6 +303,34 @@ function inspectMarkdown(
     }
   }
 
+  // A lesson that becomes slides gets one slide per `##` section and a contents
+  // slide: numbered headings and at most nine sections keep that readable.
+  function checkGeneratedSlides(): void {
+    if (!options.generatedSlides) return;
+    const sections = ((tree as Node).children ?? []).filter((node) =>
+      node.type === "heading" && node.depth === 2
+    );
+    const unnumbered = sections.filter((heading) =>
+      !/^\d+(?:\.\d+)*\.?\s+\S/.test(nodeText(heading).trim())
+    );
+    if (unnumbered.length > 0) {
+      report(
+        unnumbered[0],
+        "slides-unnumbered-headings",
+        `${unnumbered.length} of ${sections.length} section headings ('##') have no number, such as '## 1. Introduction'. This lesson becomes slides, and the contents slide and the slides themselves are easier to follow with numbered sections.`,
+        "warning",
+      );
+    }
+    if (sections.length > 9) {
+      report(
+        sections[9],
+        "slides-too-many-sections",
+        `This lesson becomes slides and has ${sections.length} sections ('##'); more than 9 makes a long contents slide and a long deck. Split the lesson or merge sections.`,
+        "warning",
+      );
+    }
+  }
+
   function walk(node: Node, containers: Node[] = []): void {
     if (node.type === "link" || node.type === "image") {
       checkDeepRelativePath(node);
@@ -404,6 +434,7 @@ function inspectMarkdown(
   }
   walk(tree);
   checkSlideSeparators();
+  checkGeneratedSlides();
 
   const filename = basename(sourceFile);
   if (
@@ -566,6 +597,37 @@ function inspectMarkdown(
   };
 }
 
+/**
+ * The lesson files that are turned into slides: those with `generate: true` in
+ * `slides.lessons`, and the files whose name starts with `slides.generateForPrefix`
+ * (unless a mapping says `generate: false` or gives only a deck).
+ */
+export function generatedSlideLessons(
+  slides: SlidesConfig | undefined,
+  sourcesDir: string,
+  lessonFiles: string[],
+): Set<string> {
+  const generated = new Set<string>();
+  if (!slides) return generated;
+  const mapped = new Map<string, boolean>();
+  for (const [lesson, selection] of Object.entries(slides.lessons ?? {})) {
+    const file = resolve(sourcesDir, lesson);
+    const generate = typeof selection === "object" && selection !== null &&
+      (selection as { generate?: boolean }).generate === true;
+    mapped.set(file, generate);
+    if (generate) generated.add(file);
+  }
+  const prefix = slides.generateForPrefix;
+  if (prefix) {
+    for (const file of lessonFiles) {
+      if (basename(file).startsWith(prefix) && !mapped.has(file)) {
+        generated.add(file);
+      }
+    }
+  }
+  return generated;
+}
+
 /** Check BSO-specific Markdown syntax without file writes or network requests. */
 export function lintMarkdown(
   markdown: string,
@@ -612,6 +674,11 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       moduleIndexFiles.add(file);
     }
   }
+  const slideLessons = generatedSlideLessons(
+    config.slides,
+    config.sourcesDir,
+    [...lessonFiles],
+  );
   const visited = new Set<string>();
   const diagnostics: LintDiagnostic[] = [];
   async function check(file: string, ancestors: string[] = []): Promise<void> {
@@ -627,6 +694,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     const result = inspectMarkdown(fileText, file, {
       flashcards: config.flashcards,
       lessonFile: lessonFiles.has(file),
+      generatedSlides: slideLessons.has(file),
       moduleIndex: moduleIndexFiles.has(file),
       quizBias: config.lint?.quizBias,
       locale: config.quiz.locale,

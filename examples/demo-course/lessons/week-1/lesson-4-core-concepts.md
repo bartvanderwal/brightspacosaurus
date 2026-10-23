@@ -57,7 +57,7 @@ A **test strategy** defines which tests cover which risks.
 
 ::::
 
-## Practice checklist
+## 1. Practice checklist
 
 - Reveal every card and check the term and definition.
 - Use Tab and Enter or Space; the interaction must not require a mouse.
@@ -68,7 +68,7 @@ A **test strategy** defines which tests cover which risks.
 This ordinary bullet list becomes a second flashcard set because the demo config
 includes `flashcards.sectionHeadings: ["Core concepts"]`. No directives are needed.
 
-## Core concepts
+## 2. Core concepts
 
 - **request:** a message in which a **client** asks a server for data or an action.
 - **response:** a message in which a server returns the result of a request.
@@ -79,6 +79,6 @@ includes `flashcards.sectionHeadings: ["Core concepts"]`. No directives are need
 - **business rule:** a domain rule that determines which behaviour or outcome is allowed.
 - **system boundary:** a boundary between components or systems across which data and responsibilities pass.
 
-## After the glossary
+## 3. After the glossary
 
 - Check: this list must remain an ordinary bullet list after the section ends.

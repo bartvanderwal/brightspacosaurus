@@ -125,3 +125,19 @@ Deno.test("generated slides keep plantuml and mermaid fences as a slide of their
   const slides = result.split("\n---\n").filter((s) => s.includes("# Flow"));
   assertEquals(slides.length, 2);
 });
+
+Deno.test("a contents slide lists all sections after the title slide, only when asked and with two or more sections", () => {
+  const lesson = "# Lesson\n\n## 1. One\n\n- a\n\n## 2. Two\n\n- b\n";
+  const withContents = generateLessonSlides(lesson, {
+    contentsTitle: "Contents",
+  });
+  const slides = withContents.split("\n---\n");
+  assertStringIncludes(slides[2], "# Contents\n\n- 1. One\n- 2. Two");
+  assertStringIncludes(slides[1], "# Lesson");
+  assert(!generateLessonSlides(lesson).includes("# Contents"));
+  assert(
+    !generateLessonSlides("# Lesson\n\n## Only\n\n- a\n", {
+      contentsTitle: "Contents",
+    }).includes("# Contents"),
+  );
+});
