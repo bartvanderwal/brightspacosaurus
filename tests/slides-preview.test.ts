@@ -15,6 +15,7 @@ import {
   stripBackControls,
   stripPresenterNotes,
   withBackControls,
+  withSlideLayout,
 } from "../src/slides-preview.ts";
 
 async function fixture(run: (root: string) => Promise<void>): Promise<void> {
@@ -52,7 +53,7 @@ function fake(captured: string[], argsCaptured: string[][] = []): SlidesRunner {
     captured.push(await Deno.readTextFile(args[args.indexOf("marp") + 1]));
     await Deno.writeTextFile(
       args[args.indexOf("--output") + 1],
-      '<html><head></head><body><section class="lead">Slide</section><!-- Notes --></body></html>',
+      '<html><head></head><body><section id="1" class="lead">Slide</section><!-- Notes --></body></html>',
     );
   };
 }
@@ -1231,11 +1232,13 @@ Deno.test("slides export: one topic per lesson next to the lesson, titled after 
       '<meta name="bso-title" content="Slides: Lesson 1.1: Fizz &amp;amp; Buzz">',
     );
     // The course logo is placed at the start of the lead slide (#114).
+    assert(
+      /<section[^>]*class="lead"[^>]*><img class="bso-slide-logo"/.test(html),
+    );
     assertStringIncludes(
       html,
-      '<section class="lead"><img class="bso-slide-logo"',
+      '>Slide<span class="bso-footer-logo"></span></section>',
     );
-    assertStringIncludes(html, ">Slide</section>");
     assertStringIncludes(html, 'class="bso-slide-logo"');
     assertStringIncludes(html, 'src="data:image/png;base64,bG9nbw=="');
     assertEquals(await run(), exported);
@@ -1300,7 +1303,7 @@ Deno.test("slides export drops presenter notes unless slides.notes is true (#117
       withNotes,
     );
     const stripped = await read();
-    assertStringIncludes(stripped, "<section>Slide</section>");
+    assertStringIncludes(stripped, "Slide");
     assertEquals(stripped.includes("Teacher only"), false);
 
     await exportSlidesToContent(
@@ -1482,4 +1485,64 @@ Deno.test("back controls give a hint and an Esc handler that steps back, and the
   assertEquals(stripBackControls(withControls), deck);
   assertEquals(stripBackControls(deck), deck);
   assertStringIncludes(withBackControls("<p>a</p>", "x"), "bso-slides-back");
+});
+
+Deno.test("slide layout fixes the title position, adds a footer logo on content slides and leaves lead slides alone (#140)", () => {
+  const html =
+    '<html><head></head><body><section id="1" class="lead">T</section><section id="2">A</section></body></html>';
+  const out = withSlideLayout(html, "data:image/png;base64,AAAA");
+  assertStringIncludes(out, "align-content:start!important");
+  assertStringIncludes(out, "padding-top:52px!important");
+  assertStringIncludes(out, "url(data:image/png;base64,AAAA)");
+  assertStringIncludes(out, "section.lead .bso-footer-logo{display:none}");
+  assertEquals(out.match(/<span class="bso-footer-logo"><\/span>/g)?.length, 2);
+  assertEquals(
+    out.indexOf("<style") < out.indexOf("</head>"),
+    true,
+  );
+});
+
+Deno.test("a deck without a theme gets the layout with the BSO logo, a course theme keeps its own (#140)", async () => {
+  await fixture(async (root) => {
+    await write(root, "decks/slides.md", deck);
+    await renderPreviewSlides(config, root, "lessons", "static", fake([]));
+    const path = join(root, "static/slides/week/lesson/index.html");
+    const html = await Deno.readTextFile(path);
+    assertStringIncludes(html, 'id="bso-slide-layout"');
+    assertStringIncludes(html, "data:image/png;base64,");
+    await write(
+      root,
+      "theme.css",
+      "/* @theme mine */\nsection { color: red; }",
+    );
+    await renderPreviewSlides(
+      { ...config, theme: "theme.css" },
+      root,
+      "lessons",
+      "static",
+      fake([]),
+    );
+    assert(!(await Deno.readTextFile(path)).includes("bso-slide-layout"));
+  });
+});
+
+Deno.test("slide layout counts pages without appendix slides and gives appendix slides only their own number (#140)", () => {
+  const html = "<html><head></head><body>" +
+    '<section id="1" class="lead"><h1>T</h1></section>' +
+    '<section id="2"><h1>One</h1></section>' +
+    '<section id="3"><h1>Appendix A: Extra</h1></section>' +
+    '<section id="4"><h1>More extra</h1></section></body></html>';
+  const out = withSlideLayout(html, "data:image/png;base64,AAAA");
+  assertEquals(out.match(/data-bso-total="2"/g)?.length, 4);
+  assertEquals(out.match(/data-bso-appendix/g)?.length, 2 + 1); // two slides + the CSS selector
+  assertStringIncludes(
+    out,
+    'attr(data-marpit-pagination) " / " attr(data-bso-total)',
+  );
+  const noAppendix = withSlideLayout(
+    '<html><head></head><body><section id="1"><h1>A</h1></section><section id="2"><h1>B</h1></section></body></html>',
+    "x",
+  );
+  assertEquals(noAppendix.match(/data-bso-total="2"/g)?.length, 2);
+  assert(!/<section[^>]*data-bso-appendix/.test(noAppendix));
 });

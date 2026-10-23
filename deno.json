@@ -89,6 +89,7 @@
       "src/",
       "src/mod.ts",
       "assets/brightspacosaurus.css",
+      "assets/brightspacosaurus.png",
       "assets/brightspacosaurus-flashcards.js",
       "assets/brightspacosaurus-flashcards.d.ts",
       "assets/brightspacosaurus-quizzes.d.ts",

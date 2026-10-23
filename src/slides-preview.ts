@@ -13,6 +13,7 @@ import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import type { ResolvedDiagramConfig, SlidesConfig } from "./types.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
+import { loadAssetBytes } from "./assets.ts";
 import { generateLessonSlides } from "./lesson-slides.ts";
 import {
   dropEmptySlideSeparators,
@@ -476,6 +477,66 @@ export function stripBackControls(html: string): string {
   );
 }
 
+/** First line of the title (`h1`) of a slide section, as text. */
+function slideTitle(section: string): string {
+  return (section.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? "")
+    .replace(/<[^>]*>/g, "").trim();
+}
+
+/**
+ * The default layout of a generated or manual deck: the title sits at a fixed
+ * place near the top instead of moving with the amount of content, and a small
+ * logo (the course logo, else the BSO logo) sits bottom right, with the page
+ * number as `3 / 9` next to it. The total leaves out appendix slides (a slide
+ * titled `Bijlage ...` or `Appendix ...` and all slides after it); those show
+ * only their own number. Title slides (`lead`) keep their centred layout.
+ * Applied only when the course has no theme of its own, so a theme keeps its
+ * layout.
+ */
+export function withSlideLayout(html: string, logoUrl: string): string {
+  // Marp scopes its theme CSS with an id selector, so these rules need !important.
+  const style =
+    `<style id="bso-slide-layout">section:not(.lead){align-content:start!important;padding-top:52px!important}section[data-marpit-pagination]::after{right:96px!important;content:attr(data-marpit-pagination) " / " attr(data-bso-total)!important}section[data-bso-appendix]::after{content:attr(data-marpit-pagination)!important}.bso-footer-logo{position:absolute;right:30px;bottom:22px;width:48px;height:44px;background:url(${logoUrl}) no-repeat center/contain}section.lead .bso-footer-logo{display:none}</style>`;
+  // Real slides carry a numeric id; Marp's extra sections for background images do not.
+  const isSlide = (section: string) =>
+    /^<section\b[^>]*\sid="\d+"/i.test(section);
+  const slides = (html.match(/<section\b[\s\S]*?<\/section>/gi) ?? []).filter(
+    isSlide,
+  );
+  const firstAppendix = slides.findIndex((section) =>
+    /^(?:Bijlage|Appendix)\b/i.test(slideTitle(section))
+  );
+  const total = firstAppendix < 0 ? slides.length : firstAppendix;
+  let index = 0;
+  const withLogos = html.replace(
+    /<section\b[\s\S]*?<\/section>/gi,
+    (section) => {
+      if (!isSlide(section)) return section;
+      const appendix = firstAppendix >= 0 && index++ >= firstAppendix;
+      return section.replace(
+        /^<section\b/i,
+        `<section data-bso-total="${total}"${
+          appendix ? " data-bso-appendix" : ""
+        }`,
+      ).replace(
+        /<\/section>$/i,
+        '<span class="bso-footer-logo"></span></section>',
+      );
+    },
+  );
+  return /<\/head>/i.test(withLogos)
+    ? withLogos.replace(/<\/head>/i, `${style}</head>`)
+    : style + withLogos;
+}
+
+/** The BSO logo as a data URL, for decks of a course without a logo of its own. */
+async function defaultSlideLogo(): Promise<string> {
+  const bytes = await loadAssetBytes("brightspacosaurus.png");
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return `data:image/png;base64,${btoa(binary)}`;
+}
+
 const PPTX_STYLE_ID = "bso-pptx-style";
 
 /**
@@ -554,7 +615,7 @@ function addLogo(html: string, logo: string): string {
     const classes = opening.match(/\bclass=(["'])(.*?)\1/i)?.[2].split(/\s+/);
     if (!classes?.includes("lead")) return opening;
     added = true;
-    return `${opening}<img class="bso-slide-logo" src="${logo}" alt="" style="position:absolute;top:1rem;right:1rem;max-width:20%;max-height:15%;object-fit:contain">`;
+    return `${opening}<img class="bso-slide-logo" src="${logo}" alt="" style="position:absolute;top:2.6rem;right:1rem;max-width:20%;max-height:15%;object-fit:contain">`;
   });
 }
 
@@ -1030,7 +1091,10 @@ export async function renderPreviewSlides(
       for (const [placeholder, url] of svgImages) {
         html = html.replaceAll(placeholder, url);
       }
-      if (logo) html = addLogo(html, logo);
+      let slideLogo = logo;
+      if (!config.theme) slideLogo = logo ?? await defaultSlideLogo();
+      if (slideLogo) html = addLogo(html, slideLogo);
+      if (!config.theme) html = withSlideLayout(html, slideLogo!);
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
       const pptxNames: string[] = [];
       {

@@ -241,7 +241,8 @@ export function generateLessonSlides(
       section.nodes.push(node);
     }
   }
-  const slides = [`# ${nodeText(title).trim()}`];
+  // The title slide is a `lead` slide: centred, with the course logo (or the BSO logo).
+  const slides = [`<!-- _class: lead -->\n# ${nodeText(title).trim()}`];
   if (options.contentsTitle && sections.length >= 2) {
     slides.push(
       `# ${options.contentsTitle}\n\n${
