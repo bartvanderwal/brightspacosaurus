@@ -238,13 +238,11 @@ async function embedImages(
     if (!imageCache.has(url)) imageCache.set(url, imageUrl(url, source, root));
     return imageCache.get(url)!;
   }
-  function markdownImageUrl(url: string, alt?: string | null): string {
-    // Marp rejects ordinary SVG data images, but supports SVG backgrounds.
-    // Ordinary SVGs are embedded in the rendered image attributes instead.
-    if (
-      !url.startsWith("data:image/svg+xml;base64,") ||
-      /(?:^|\s)bg(?:\s|$)/.test(alt ?? "")
-    ) return url;
+  function markdownImageUrl(url: string): string {
+    // Marp's Markdown parser rejects every SVG data URL, backgrounds included
+    // (the image then shows as text). SVGs get a placeholder name, which is
+    // replaced by the data URL in the rendered HTML (`src` and CSS `url()`).
+    if (!url.startsWith("data:image/svg+xml;base64,")) return url;
     const existing = [...svgImages].find(([, value]) => value === url)?.[0];
     if (existing) return existing;
     const placeholder = `bso-embedded-svg-${svgImages.size}.svg`;
@@ -354,7 +352,7 @@ async function embedImages(
     if (node.type === "definition") {
       edits.push({ start, end, value: "" });
     } else if (node.type === "image" && node.url) {
-      const url = markdownImageUrl(await embeddedUrl(node.url), node.alt);
+      const url = markdownImageUrl(await embeddedUrl(node.url));
       if (url !== node.url) {
         edits.push({
           start,
@@ -370,7 +368,7 @@ async function embedImages(
       const definition = definitions.get(node.identifier!);
       if (!definition?.url) return;
       const url = node.type === "imageReference"
-        ? markdownImageUrl(await embeddedUrl(definition.url), node.alt)
+        ? markdownImageUrl(await embeddedUrl(definition.url))
         : definition.url;
       const title = definition.title
         ? ` ${JSON.stringify(definition.title)}`
@@ -918,17 +916,10 @@ export async function renderPreviewSlides(
       ];
       if (themePath) marpArgs.push("--theme-set", themePath);
       await runner(marpArgs, root);
-      let html = (await Deno.readTextFile(destination)).replace(
-        /<img\b[^>]*>/gi,
-        (tag) =>
-          tag.replace(
-            /\bsrc=(["'])(.*?)\1/g,
-            (attribute, quote, url) =>
-              svgImages.has(url)
-                ? `src=${quote}${svgImages.get(url)}${quote}`
-                : attribute,
-          ),
-      );
+      let html = await Deno.readTextFile(destination);
+      for (const [placeholder, url] of svgImages) {
+        html = html.replaceAll(placeholder, url);
+      }
       if (logo) html = addLogo(html, logo);
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
       const pptxNames: string[] = [];

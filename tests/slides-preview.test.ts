@@ -417,9 +417,12 @@ Deno.test("slides preview: embeds inline, reference, background and CSS local im
       "static",
       fake(captured),
     );
-    assertEquals(captured[0].match(/data:image\/svg\+xml;base64,/g)?.length, 2);
-    assertEquals(captured[0].match(/bso-embedded-svg-0\.svg/g)?.length, 2);
-    assertStringIncludes(captured[0], "![bg](<data:");
+    // The CSS keeps the data URL; Markdown images get a placeholder that is
+    // replaced in the rendered HTML, because Marp rejects SVG data URLs (also
+    // for backgrounds) and would show the image as text.
+    assertEquals(captured[0].match(/data:image\/svg\+xml;base64,/g)?.length, 1);
+    assertEquals(captured[0].match(/bso-embedded-svg-0\.svg/g)?.length, 3);
+    assertStringIncludes(captured[0], "![bg](<bso-embedded-svg-0.svg>)");
     assertStringIncludes(captured[0], "url(data:");
     assertStringIncludes(captured[0], '"title"');
     assertStringIncludes(captured[0], "![remote](https://example.org/pic.png)");
@@ -628,8 +631,8 @@ Deno.test("slides preview: deck-local image and link references cannot collide a
       "static",
       fake(captured),
     );
-    const redUrl = `data:image/svg+xml;base64,${btoa(red)}`;
-    const blueUrl = "bso-embedded-svg-0.svg";
+    const redUrl = "bso-embedded-svg-0.svg";
+    const blueUrl = "bso-embedded-svg-1.svg";
     assertStringIncludes(captured[0], `![bg](<${redUrl}> "Red title")`);
     assertStringIncludes(captured[0], `![diagram](<${blueUrl}> "Blue title")`);
     assertStringIncludes(captured[0], `[**Source**](<https://red.example>)`);

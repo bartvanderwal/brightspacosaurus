@@ -637,7 +637,7 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
-The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. A small button below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It opens only same-origin URLs with `noopener,noreferrer`. A small button in the bottom right corner (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
 ## 8. Design Decisions
 
@@ -859,8 +859,6 @@ Design and requirements history lives in two Kiro specs:
 ---
 
 ## References
-
-Sources in section 5.1 were checked as follows. Read on the web: Laws of UX, MDN, Nielsen (1999), Spolsky (2000, 2001, 2002) and the Wikiquote page. The Clarke and Saint-Exupéry quotations were checked only through Wikipedia and Wikiquote; the books themselves were not read.
 
 - Clarke, A. C. (1973). *Profiles of the future: An inquiry into the limits of the possible* (rev. ed.). Harper & Row. (The third law, quoted in section 5.1, was added to the revised edition; checked via Wikipedia contributors, n.d.)
 - D2L. (n.d.-i). _Improve navigation in multi-page content topics_. Brightspace Community. Retrieved September 13, 2026, from https://community.d2l.com/brightspace/kb/articles/3365-improve-navigation-in-multi-page-content-topics

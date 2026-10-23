@@ -8,11 +8,12 @@ All notable changes to Brightspacosaurus are documented here.
 
 - `bso lint` warns (`slides-empty-separator`) about a `---` in a slide deck that gives an empty slide, such as one directly before a heading that `headingDivider` already splits on; a `---` with content after it stays valid. A generated deck joined with a manual deck that has `headingDivider` no longer gets empty slides from `---` before such headings (#141).
 - Generated lesson slides keep `plantuml` and `mermaid` diagrams: each gets a slide of its own, drawn as SVG through the configured Kroki server (`diagrams.krokiUrl`); a diagram that cannot be drawn fails the build with the Kroki address (#140).
-- In the preview, a lesson with slides shows a small "Slides · Alt+P" button below the navbar that opens the slides (#140).
+- In the preview, a lesson with slides shows a small "Slides · Alt+P" button in the bottom right corner that opens the slides (#140).
 - Manual slide decks can be exported as an editable `.pptx` (module `src/pptx/`): `slides.pptx` sets the course default (off), a deck overrides it with `pptx: true | false | auto` in its front matter. The file is linked from the slides page and packed into the `.imscc` (#115).
 
 ### Fixed
 
+- `deno task demo` is now `deno task preview`, like `bso preview`; it can write the generated files of the demo Docusaurus app again.
 - The BSO user manual PDF now has a cover page (title, authors, version, last-changed date from Git and the logo), the table of contents on its own page and every chapter on a new page, like the readers. The title block at the top of `docs/user-manual.md` supplies the cover; the PDF language is English.
 
 ## 0.29.0

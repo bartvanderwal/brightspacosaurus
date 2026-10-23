@@ -29,14 +29,14 @@ function presentLessonSlides(event, doc, browser) {
 }
 
 const BUTTON_STYLE = `
-.bso-slides-button{position:fixed;z-index:50;top:calc(var(--ifm-navbar-height,3.75rem) + .6rem);right:1rem;display:inline-flex;align-items:center;gap:.4em;padding:.15rem .6rem;border:1px solid var(--ifm-color-emphasis-300,#c9ced6);border-radius:999px;font-size:.78rem;line-height:1.4;color:var(--ifm-color-emphasis-700,#4b5563);text-decoration:none;background:var(--ifm-background-surface-color,transparent)}
+.bso-slides-button{position:fixed;z-index:50;bottom:1rem;right:1rem;box-shadow:0 1px 4px rgba(0,0,0,.15);display:inline-flex;align-items:center;gap:.4em;padding:.15rem .6rem;border:1px solid var(--ifm-color-emphasis-300,#c9ced6);border-radius:999px;font-size:.78rem;line-height:1.4;color:var(--ifm-color-emphasis-700,#4b5563);text-decoration:none;background:var(--ifm-background-surface-color,transparent)}
 .bso-slides-button:hover{border-color:var(--ifm-color-primary,#0b6bcb);color:var(--ifm-color-primary,#0b6bcb);text-decoration:none}
 .bso-slides-button kbd{font:inherit;font-size:.7rem;padding:0 .3rem;border:1px solid var(--ifm-color-emphasis-300,#c9ced6);border-radius:4px}
 @media print{.bso-slides-button{display:none}}`;
 
 /**
- * Show a small, visible "this lesson has slides" button, fixed below the
- * navbar. It lives on `document.body`, outside the React-managed article, so
+ * Show a small, visible "this lesson has slides" button, fixed in the bottom
+ * right corner, so it never sits behind the navbar. It lives on `document.body`, outside the React-managed article, so
  * hydration is left alone; it is added or removed for the current document,
  * because Docusaurus navigates without reloading the page.
  */
