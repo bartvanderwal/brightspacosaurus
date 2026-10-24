@@ -856,7 +856,9 @@ The image gets the question as its accessible title (`Question 3`, `Question 4, 
 
 `diagrams.failOnError` and `diagrams.krokiUrl` apply as for lessons: with the default `true`, an invalid diagram or an unreachable Kroki endpoint fails the build; with `false` BSO warns and keeps the fenced block. `bso lint` reports diagram authoring errors in quizzes without contacting Kroki.
 
-Use the QuizDown form (a `quiz` block) for diagrams in answer options. Whether Brightspace shows the SVG and the `<details>` blocks inside a quiz question is not yet verified with a real import; check it in a sandbox course before using it in a graded quiz.
+Use the QuizDown form (a `quiz` block) for diagrams in answer options.
+
+The SVG files are listed in the manifest as one hidden web content resource per quiz, because Brightspace imports only files of that kind, and the links in the QTI are relative to the package root, because Brightspace resolves them from the course root. An import into a sandbox course showed the diagrams in the answer options of the demo quiz 2.1 and working `<details>` blocks, in the instructor preview of the quiz. Brightspace shows the two `<details>` blocks one below the other, not as the tabs of the preview. A variant with the SVG embedded as a `data:` URI showed no pictures at all and is not used. Not verified: the student view, and the SVG files in *Manage Files*. Check a graded quiz in a sandbox course after each Brightspace update.
 
 ### 7.3 Teacher and student variants
 

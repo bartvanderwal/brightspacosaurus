@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Fixed
+
+- Quiz diagrams and images showed as a broken picture in Brightspace. The links in the QTI are now relative to the package root and the files are carried by one hidden web content resource per quiz in the manifest. Checked with an import of the demo quiz 2.1 (answer options and the `<details>` blocks, instructor preview); not checked: the student view (#105).
+
 ## 0.32.0
 
 ### Added
