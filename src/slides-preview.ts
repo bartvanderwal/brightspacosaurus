@@ -1297,6 +1297,53 @@ function escapeAttribute(value: string): string {
   ).replace(/>/g, "&gt;");
 }
 
+/** A link in the paragraph of slide links on a lesson page (#146). */
+export interface SlidesLink {
+  kind: "slides" | "pptx";
+  /** A file name next to the lesson. */
+  href: string;
+  /** The link text; empty for the presentation of the lesson itself. */
+  label: string;
+}
+
+const SLIDES_LINK_TEXT = {
+  nl: { slides: "Bekijk als slides", pptx: "Download PowerPoint" },
+  en: { slides: "View as slides", pptx: "Download PowerPoint" },
+} as const;
+
+/**
+ * Adds one paragraph of links to the slides and to the editable pptx files of
+ * a lesson page, after its first `<h1>` (guidebook 7.8, rules B1-B5). Plain
+ * links, no script, so it works in the Brightspace frame. A page that has the
+ * paragraph already is left as it is.
+ */
+export function withSlidesLinks(
+  html: string,
+  links: SlidesLink[],
+  locale: "nl" | "en",
+): string {
+  if (!links.length || html.includes("data-bso-slides-links")) return html;
+  const text = SLIDES_LINK_TEXT[locale];
+  const anchors = links.map((link) =>
+    link.kind === "pptx"
+      ? `<a href="${escapeAttribute(link.href)}" download>${text.pptx} (${
+        escapeAttribute(link.label)
+      })</a>`
+      : `<a href="${escapeAttribute(link.href)}">${
+        link.label ? escapeAttribute(link.label) : text.slides
+      }</a>`
+  );
+  const paragraph = `<p data-bso-slides-links style="margin:.5rem 0 1rem">${
+    anchors.join(" · ")
+  }</p>`;
+  if (/<\/h1>/i.test(html)) {
+    return html.replace(/<\/h1>/i, (heading) => `${heading}${paragraph}`);
+  }
+  return /<body[^>]*>/i.test(html)
+    ? html.replace(/<body[^>]*>/i, (body) => `${body}${paragraph}`)
+    : paragraph + html;
+}
+
 /**
  * Renders the lesson presentations like the preview and copies each one into
  * the build's content folder as `<lesson>-slides.html` (#112), so `pack` lists it
@@ -1333,8 +1380,8 @@ export async function exportSlidesToContent(
     url: string,
     topic: string,
     title: string,
-    pptxPrefix: string,
-  ): Promise<void> => {
+    copyName: (name: string) => string,
+  ): Promise<{ file: string; pptx: { href: string; label: string }[] }> => {
     const rendered = await Deno.readTextFile(
       join(staticRoot, ...url.split("/").map(decodeURIComponent)),
     );
@@ -1346,7 +1393,7 @@ export async function exportSlidesToContent(
     // Each linked .pptx goes along, named after the lesson, so decks never clash.
     let linked = html;
     for (const name of pptxLinkNames(html)) {
-      const copy = `${pptxPrefix}${name}`;
+      const copy = copyName(name);
       const from = join(
         staticRoot,
         ...url.split("/").slice(0, -1).map(decodeURIComponent),
@@ -1371,6 +1418,13 @@ export async function exportSlidesToContent(
     await Deno.mkdir(dirname(destination), { recursive: true });
     await Deno.writeTextFile(destination, withTitle);
     exported.push(`${topic}.html`);
+    return {
+      file: basename(`${topic}.html`),
+      pptx: pptxLinkNames(html).map((name) => ({
+        href: copyName(name),
+        label: name,
+      })),
+    };
   };
   const lessonTitle = async (stem: string): Promise<string> => {
     const lessonHtml = await Deno.readTextFile(join(contentDir, `${stem}.html`))
@@ -1380,14 +1434,30 @@ export async function exportSlidesToContent(
   };
   const stemOf = (lesson: string) =>
     relative(sources, lesson).replaceAll("\\", "/").replace(/\.md$/i, "");
+  // The links that each lesson page gets to its slides and pptx files (#146).
+  const lessonLinks = new Map<string, SlidesLink[]>();
+  const addLinks = (
+    stem: string,
+    topic: { file: string; pptx: { href: string; label: string }[] },
+    label: string,
+  ) => {
+    const links = lessonLinks.get(stem) ?? [];
+    links.push({ kind: "slides", href: topic.file, label });
+    for (const file of topic.pptx) links.push({ kind: "pptx", ...file });
+    lessonLinks.set(stem, links);
+  };
   for (const [lesson, url] of Object.entries(rendered)) {
     if (lesson.startsWith(DECK_KEY_PREFIX)) continue;
     const stem = stemOf(lesson);
-    await exportTopic(
-      url,
-      `${stem}-slides`,
-      `Slides: ${await lessonTitle(stem)}`,
-      `${basename(stem)}-`,
+    addLinks(
+      stem,
+      await exportTopic(
+        url,
+        `${stem}-slides`,
+        `Slides: ${await lessonTitle(stem)}`,
+        (name) => `${basename(stem)}-${name}`,
+      ),
+      "",
     );
   }
   // The standalone presentation of each deck a lesson links to, as a topic
@@ -1403,18 +1473,38 @@ export async function exportSlidesToContent(
       const url = rendered[DECK_KEY_PREFIX + deck.path];
       if (!url || seen.has(deck.path)) continue;
       seen.add(deck.path);
-      await exportTopic(
-        url,
-        join(
-          dirname(stem),
-          deckTopicName(
-            basename(stem),
-            basename(deck.path).replace(/\.md$/i, ""),
-          ),
-        ).replaceAll("\\", "/"),
-        `Slides: ${await lessonTitle(stem)} — ${deck.title}`,
-        `${basename(stem)}-`,
+      addLinks(
+        stem,
+        await exportTopic(
+          url,
+          join(
+            dirname(stem),
+            deckTopicName(
+              basename(stem),
+              basename(deck.path).replace(/\.md$/i, ""),
+            ),
+          ).replaceAll("\\", "/"),
+          `Slides: ${await lessonTitle(stem)} — ${deck.title}`,
+          () =>
+            `${
+              deckTopicName(
+                basename(stem),
+                basename(deck.path).replace(/\.md$/i, ""),
+              )
+            }.pptx`,
+        ),
+        deck.title,
       );
+    }
+  }
+  const locale = (diagrams ?? resolveDiagramsConfig({})).locale === "en"
+    ? "en"
+    : "nl";
+  for (const [stem, links] of lessonLinks) {
+    const path = join(contentDir, `${stem}.html`);
+    const page = await Deno.readTextFile(path).catch(() => undefined);
+    if (page !== undefined) {
+      await Deno.writeTextFile(path, withSlidesLinks(page, links, locale));
     }
   }
   return exported;

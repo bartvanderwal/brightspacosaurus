@@ -2,6 +2,16 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Added
+
+- Brightspace: a lesson page that has slides gets a line of links at the top: the presentation of the lesson, each linked deck and a download link for each editable pptx, as the preview has a Slides button. The pptx of a linked deck is named like its slides topic (#146).
+
+### Fixed
+
+- The guidebook no longer says that the slides shortcut is preview-only by design; the cartridge gets its own links (#146).
+
 ## 0.31.0
 
 ### Added

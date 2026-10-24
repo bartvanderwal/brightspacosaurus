@@ -638,7 +638,21 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
-The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the top right corner, below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
+The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the top right corner, below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut and the button are the preview's way in; the cartridge gives the lesson page its own links to the slides and the pptx (rules B1-B5 under *Slides on the lesson page in the cartridge*). Hidden URLs are not access control.
+
+#### Slides on the lesson page in the cartridge (#146)
+
+In the preview a lesson with slides has a *Slides* button. The lesson page in Brightspace needs the same way in (parity, 8.1): without it the reader has to find the slides topic in the menu, and the editable pptx is hard to find. The slides topic after the lesson stays.
+
+| # | Rule | Test |
+| --- | --- | --- |
+| B1 | A lesson page that has slides gets one short paragraph of links, marked `data-bso-slides-links`: one link to its own presentation, one link to each deck it links to (the deck's title as text), and one download link for each pptx of those presentations. | `withSlidesLinks` and export tests |
+| B2 | It sits right after the first `<h1>`; a page without an `<h1>` gets it at the start of the content. | `withSlidesLinks` test |
+| B3 | The links are relative file names next to the lesson (the slides topics and the pptx files are in the same folder), so they work in the Brightspace frame. No script. | export test |
+| B4 | Idempotent: a page that already has the paragraph gets no second one. | `withSlidesLinks` test |
+| B5 | A lesson without slides, a course without `slides` and a build with `--skip-slides` get no paragraph. The pptx files are in the package and listed in the manifest as dependencies of the page. | export and manifest tests |
+
+The text is Dutch or English, as the course (`diagrams.locale`).
 
 #### Generated slides: what a section gives (#141)
 

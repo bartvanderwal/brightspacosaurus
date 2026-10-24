@@ -17,6 +17,7 @@ import {
   stripPresenterNotes,
   withBackControls,
   withSlideLayout,
+  withSlidesLinks,
 } from "../src/slides-preview.ts";
 
 async function fixture(run: (root: string) => Promise<void>): Promise<void> {
@@ -1714,5 +1715,81 @@ Deno.test("acceptance 7: a lesson that links a deck but has no generated deck st
     assert(deckKey?.endsWith("decks/extra.md"));
     assertEquals(captured.length, 1);
     assertStringIncludes(captured[0], "# Extra slide");
+  });
+});
+
+// Guidebook 7.8, rules B1-B5: slides on the lesson page in the cartridge (#146).
+Deno.test("B1/B2/B4: the links paragraph sits after the first h1, links the slides and the pptx, and is added once (#146)", () => {
+  const links = [
+    { kind: "slides" as const, href: "lesson-slides.html", label: "" },
+    { kind: "slides" as const, href: "lesson-slides-extra.html", label: "Extra deck" },
+    { kind: "pptx" as const, href: "lesson-slides-extra.pptx", label: "extra.pptx" },
+  ];
+  const page = "<html><body><h1>The lesson</h1><p>Text</p><h1>Second</h1></body></html>";
+  const out = withSlidesLinks(page, links, "en");
+  assertEquals(out.match(/data-bso-slides-links/g)?.length, 1);
+  assert(out.indexOf("</h1>") < out.indexOf("data-bso-slides-links"));
+  assert(out.indexOf("data-bso-slides-links") < out.indexOf("<p>Text</p>"));
+  assertStringIncludes(out, '<a href="lesson-slides.html">');
+  assertStringIncludes(out, ">View as slides</a>");
+  assertStringIncludes(out, '<a href="lesson-slides-extra.html">');
+  assertStringIncludes(out, ">Extra deck</a>");
+  assertStringIncludes(out, '<a href="lesson-slides-extra.pptx" download>');
+  assertStringIncludes(out, "Download PowerPoint");
+  assert(!out.includes("<script"));
+  assertEquals(withSlidesLinks(out, links, "en"), out);
+  assertStringIncludes(withSlidesLinks(page, links, "nl"), "Bekijk als slides");
+});
+
+Deno.test("B2: a page without an h1 gets the links at the start of the content (#146)", () => {
+  const out = withSlidesLinks(
+    "<html><body><p>Text</p></body></html>",
+    [{ kind: "slides", href: "x-slides.html", label: "" }],
+    "en",
+  );
+  assert(out.indexOf("data-bso-slides-links") < out.indexOf("<p>Text</p>"));
+  assert(out.indexOf("<body>") < out.indexOf("data-bso-slides-links"));
+});
+
+Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked deck and the pptx, next to the lesson (#146)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. One\n\n- a\n\n[Extra](../../decks/extra.md)\n",
+    );
+    await write(root, "decks/extra.md", "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n");
+    await write(root, "content/week/lesson.html", "<html><body><h1>The lesson</h1><p>Text</p></body></html>");
+    await write(root, "content/week/other.html", "<html><body><h1>No slides</h1></body></html>");
+    await exportSlidesToContent(
+      { lessons: { "week/lesson.md": { generate: true } }, pptx: true },
+      root,
+      "lessons",
+      "static",
+      join(root, "content"),
+      fake([]),
+    );
+    const page = await Deno.readTextFile(join(root, "content/week/lesson.html"));
+    assertStringIncludes(page, '<a href="lesson-slides.html">');
+    assertStringIncludes(page, '<a href="lesson-slides-extra.html">');
+    assertStringIncludes(page, '<a href="lesson-slides-extra.pptx" download>');
+    // every linked file exists next to the lesson
+    for (const name of ["lesson-slides.html", "lesson-slides-extra.html", "lesson-slides-extra.pptx"]) {
+      assertEquals((await Deno.stat(join(root, "content/week", name))).isFile, true);
+    }
+    // a page without slides is untouched
+    assertEquals(
+      await Deno.readTextFile(join(root, "content/week/other.html")),
+      "<html><body><h1>No slides</h1></body></html>",
+    );
+  });
+});
+
+Deno.test("B5: without slides in the course the lesson page is not touched (#146)", async () => {
+  await fixture(async (root) => {
+    const page = "<html><body><h1>The lesson</h1></body></html>";
+    await write(root, "content/week/lesson.html", page);
+    assertEquals(await exportSlidesToContent(undefined, root, "lessons", "static", join(root, "content"), fake([])), []);
+    assertEquals(await Deno.readTextFile(join(root, "content/week/lesson.html")), page);
   });
 });
