@@ -992,9 +992,9 @@ export async function runPack(
     console.log(
       `  ${result.modules} modules, ${result.topics} topics, ${result.files} files`,
     );
-    if (result.skippedQuizzes > 0) {
-      console.warn(
-        `  ⚠ ${result.skippedQuizzes} quizzes are not in the native package (the D2L quiz format is not generated yet); import them from the .imscc.`,
+    if (result.quizzes > 0) {
+      console.log(
+        `  ${result.quizzes} quizzes (experimental: the quiz files are not verified with a real import yet)`,
       );
     }
     await publishIfConfigured(config, [nativePath]);

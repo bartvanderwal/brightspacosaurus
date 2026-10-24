@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Added
+
+- Experimental: the native Brightspace package (`bso pack --format brightspace`) now holds the quizzes: a `quiz_d2l_<n>.xml` per quiz, a link topic in its module and the quiz images, diagrams included, at the root of the package, after the structure of the reference exports. Not yet verified with an import (#149).
+
 ## 0.32.1
 
 ### Fixed

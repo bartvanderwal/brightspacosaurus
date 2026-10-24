@@ -17,11 +17,13 @@ import { basename, dirname, join, relative } from "@std/path";
 import * as posix from "@std/path/posix";
 import type { NavigationModel } from "./manifest-builder.ts";
 
-/** A topic in a module: a page or a reader PDF. */
+/** A topic in a module: a page, a reader PDF or a link to a quiz. */
 export interface NativeTopic {
   title: string;
   /** Path in the package with forward slashes, for example `content/week-1/lesson.html`. */
   href: string;
+  /** Set for a quiz: the resource code that links the topic to `quiz_d2l_<n>.xml`. */
+  quiz?: { number: number; resourceCode: string };
 }
 
 /** A module (a main menu item) with its description and topics. */
@@ -57,6 +59,76 @@ export function escapeXml(value: string): string {
     .replace(/\r?\n/g, "&#10;");
 }
 
+/** The file of quiz `number` in the package. */
+export function quizFileName(number: number): string {
+  return `quiz_d2l_${number}.xml`;
+}
+
+/** The link that puts a quiz in a module; Brightspace fills in `{orgUnitId}`. */
+export function quizLink(resourceCode: string): string {
+  return `/d2l/common/dialogs/quickLink/quickLink.d2l?ou={orgUnitId}&type=quiz&rCode=${resourceCode}`;
+}
+
+/** A course code of 24 hex digits, the same for the same course name. */
+export async function courseResourceCode(courseName: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(courseName),
+  );
+  return [...new Uint8Array(digest)].map((byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("").slice(0, 24);
+}
+
+/** The quiz as the package holds it, and the images it uses. */
+export interface NativeQuiz {
+  xml: string;
+  /** Image paths in the build directory, as written in the quiz. */
+  images: { path: string; name: string }[];
+}
+
+/**
+ * The Common Cartridge QTI of a quiz as a native quiz file. Brightspace's own
+ * quiz files are QTI 1.2 with `d2l_2p0` attributes; the quiz gets its id and
+ * the resource code that the module link points at. The images go to the root
+ * of the package under their bare file name, as in the reference exports, and
+ * the `src` attributes follow. Two different images with one name are an error.
+ */
+export function nativeQuizFromQti(
+  qti: string,
+  quiz: { number: number; resourceCode: string },
+): NativeQuiz {
+  const images: { path: string; name: string }[] = [];
+  const seen = new Map<string, string>();
+  const xml = qti
+    .replace(
+      /<questestinterop\b/,
+      '<questestinterop xmlns:d2l_2p0="http://desire2learn.com/xsd/d2lcp_v2p0"',
+    )
+    .replace(
+      /<assessment\b/,
+      `<assessment d2l_2p0:id="${quiz.number}" d2l_2p0:resource_code="${quiz.resourceCode}"`,
+    )
+    .replace(
+      /(src=(?:&quot;|"))([^"&\s]+\.(?:svg|png|jpe?g|gif|webp))((?:&quot;|"))/gi,
+      (_match, open: string, path: string, close: string) => {
+        const name = basename(path);
+        const known = seen.get(name);
+        if (known !== undefined && known !== path) {
+          throw new Error(
+            `Quiz image name clash in the native package: ${known} and ${path} are both called ${name}.`,
+          );
+        }
+        if (known === undefined) {
+          seen.set(name, path);
+          images.push({ path, name });
+        }
+        return `${open}${name}${close}`;
+      },
+    );
+  return { xml, images };
+}
+
 /**
  * The `d2l_2p0` manifest of a native package. Modules and topics get
  * sequential ids, so the output is deterministic. Topic paths use backslashes,
@@ -65,20 +137,25 @@ export function escapeXml(value: string): string {
 export function buildNativeManifest(input: NativeManifestInput): string {
   const lines: string[] = [];
   const resources: string[] = [];
+  const quizResources: string[] = [];
   let id = 1;
   let identifier = 1000;
   const item = (
     title: string,
-    material: "contentmodule" | "content",
+    material: "contentmodule" | "content" | "contentlink",
     href: string,
     description: string,
     indent: string,
   ): string[] => {
     const key = identifier++;
+    // A link keeps its forward slashes; a file path gets backslashes, as in the exports.
+    const target = material === "contentlink"
+      ? href
+      : href.replaceAll("/", "\\");
     resources.push(
-      `    <resource identifier="RES_CONTENT_${key}" type="webcontent" d2l_2p0:material_type="${material}" d2l_2p0:link_target="" href="${
-        escapeXml(href.replaceAll("/", "\\"))
-      }" title="" />`,
+      `    <resource identifier="RES_CONTENT_${key}" type="webcontent" d2l_2p0:material_type="${material}" d2l_2p0:link_target="${
+        material === "contentlink" ? "_self" : ""
+      }" href="${escapeXml(target)}" title="" />`,
     );
     return [
       `${indent}<item identifier="${key}" identifierref="RES_CONTENT_${key}" d2l_2p0:id="${id++}" description="${
@@ -98,7 +175,24 @@ export function buildNativeManifest(input: NativeManifestInput): string {
       ),
     );
     for (const topic of module.topics) {
-      lines.push(...item(topic.title, "content", topic.href, "", "        "));
+      if (topic.quiz) {
+        lines.push(
+          ...item(
+            topic.title,
+            "contentlink",
+            quizLink(topic.quiz.resourceCode),
+            "",
+            "        ",
+          ),
+        );
+        quizResources.push(
+          `    <resource identifier="res_quiz_${topic.quiz.number}" type="webcontent" d2l_2p0:material_type="d2lquiz" d2l_2p0:link_target="" href="${
+            quizFileName(topic.quiz.number)
+          }" title="${escapeXml(topic.title)}" />`,
+        );
+      } else {
+        lines.push(...item(topic.title, "content", topic.href, "", "        "));
+      }
       lines.push("        </item>");
     }
     lines.push("      </item>");
@@ -126,6 +220,7 @@ export function buildNativeManifest(input: NativeManifestInput): string {
     "  <resources>",
     '    <resource identifier="res_courseimage" type="webcontent" d2l_2p0:material_type="d2lcourseimage" d2l_2p0:link_target="" href="courseimage_d2l.xml" title="" />',
     ...resources,
+    ...quizResources,
     "  </resources>",
     "</manifest>",
     "",
@@ -171,8 +266,8 @@ export interface PackNativeResult {
   modules: number;
   topics: number;
   files: number;
-  /** Quizzes in the build that are not part of the package. */
-  skippedQuizzes: number;
+  /** Quizzes in the package, as `quiz_d2l_<n>.xml` files linked from their module. */
+  quizzes: number;
 }
 
 async function collectFiles(
@@ -194,7 +289,8 @@ async function collectFiles(
  * Packs the build output into a native Brightspace package: a manifest with
  * module descriptions, the lesson pages and reader PDFs as topics, and the
  * course files (`content/`, `readers/`). The lead page of a module becomes the
- * module description, not a topic. Quizzes are left out.
+ * module description, not a topic. Every quiz becomes a `quiz_d2l_<n>.xml` file and a
+ * link topic in its module; the images of the quizzes go to the package root.
  */
 export async function packNative(
   options: PackNativeOptions,
@@ -203,7 +299,9 @@ export async function packNative(
     await Deno.readTextFile(join(options.buildDir, "navigation.json")),
   ) as NavigationModel;
   const modules: NativeModule[] = [];
-  let skippedQuizzes = 0;
+  const resourceCode = await courseResourceCode(options.courseName);
+  const quizFiles: { name: string; xml: string }[] = [];
+  const quizImages = new Map<string, string>();
   for (const module of navigation.modules) {
     const lead = module.items.find((item) =>
       item.docId !== null && item.docId === module.indexId
@@ -218,7 +316,26 @@ export async function packNative(
     for (const item of module.items) {
       if (item === lead) continue;
       if (item.kind === "quiz") {
-        skippedQuizzes++;
+        const number = quizFiles.length + 1;
+        const quiz = nativeQuizFromQti(
+          await Deno.readTextFile(join(options.buildDir, item.href)),
+          { number, resourceCode: `${resourceCode}-${number}` },
+        );
+        for (const image of quiz.images) {
+          const known = quizImages.get(image.name);
+          if (known !== undefined && known !== image.path) {
+            throw new Error(
+              `Quiz image name clash in the native package: ${known} and ${image.path} are both called ${image.name}.`,
+            );
+          }
+          quizImages.set(image.name, image.path);
+        }
+        quizFiles.push({ name: quizFileName(number), xml: quiz.xml });
+        topics.push({
+          title: item.title,
+          href: quizFileName(number),
+          quiz: { number, resourceCode: `${resourceCode}-${number}` },
+        });
         continue;
       }
       topics.push({ title: item.title, href: item.href });
@@ -245,6 +362,10 @@ export async function packNative(
     "courseimage_d2l.xml",
     '﻿<?xml version="1.0" encoding="utf-8"?>\n<course_appearance>\n\t<course_image>\n\t\t<pictureId />\n\t\t<hasCatalogPic>False</hasCatalogPic>\n\t\t<picLocation></picLocation>\n\t</course_image>\n\t<show_course_banner>True</show_course_banner>\n</course_appearance>\n',
   );
+  for (const quiz of quizFiles) add(quiz.name, quiz.xml);
+  for (const [name, path] of [...quizImages].sort()) {
+    add(name, await Deno.readFile(join(options.buildDir, path)));
+  }
   let files = 0;
   for (const folder of ["content", "readers"]) {
     const root = join(options.buildDir, folder);
@@ -265,7 +386,7 @@ export async function packNative(
     modules: modules.length,
     topics: modules.reduce((sum, module) => sum + module.topics.length, 0),
     files,
-    skippedQuizzes,
+    quizzes: quizFiles.length,
   };
 }
 

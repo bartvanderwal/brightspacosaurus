@@ -776,6 +776,19 @@ The link is the only marker. There is no new syntax and no `decks` entry in the 
 
 P6 is checked by running `bso pack` with a `publishDir`; the output names the copied and the removed files.
 
+### 7.10 Quizzes in the native package
+
+`src/native-packer.ts`. The reference exports of Brightspace show how a quiz travels in the native package: one `quiz_d2l_<n>.xml` per quiz, a QTI 1.2 file with `d2l_2p0` attributes; a manifest resource with `d2l_2p0:material_type="d2lquiz"`; a module topic of the type `contentlink` that points at the quiz with a quick link and the `rCode` of the quiz; images as plain files at the **root** of the package, written in the quiz by their bare file name. This is reverse-engineered, not documented by D2L, and not yet verified with an import (ADR 024). The rules, each with a test in `tests/native-packer.test.ts`:
+
+| # | Rule |
+| --- | --- |
+| Q1 | A quiz becomes `quiz_d2l_<n>.xml`, numbered in module order from 1, from the same QTI as the Common Cartridge. |
+| Q2 | The file declares the `d2l_2p0` namespace, and its `assessment` gets `d2l_2p0:id` (the number) and `d2l_2p0:resource_code` (`<course code>-<number>`). The course code is 24 hex digits from the course name, so a rebuild gives the same package. |
+| Q3 | The manifest has a resource of the type `d2lquiz` for the file and, in the module of the quiz, a topic of the type `contentlink` to `/d2l/common/dialogs/quickLink/quickLink.d2l?ou={orgUnitId}&type=quiz&rCode=<resource code>`. Brightspace fills in `{orgUnitId}`. |
+| Q4 | Images of a quiz go to the package root under their bare file name, and every `src` in the quiz follows. Two different images with one name are an error that names both paths. |
+
+**Open points.** Whether Brightspace accepts the QTI of BSO without the other `d2l_2p0` fields of its own quizzes (`itemproc_extension`, `assess_procextension`). Whether `{orgUnitId}` is filled in on import. Question types other than single and multiple choice. Parity with the Common Cartridge (#149).
+
 ## 8. Design Decisions
 
 This chapter summarises the main design decisions and links to the full Architecture Decision Records (ADRs). Section 8.1 explains the most pervasive one: the preview must show the same output as Brightspace.
