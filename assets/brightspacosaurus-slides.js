@@ -89,8 +89,8 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
     (event) => presentLessonSlides(event, document, window),
   );
   const place = () => placeSlidesButton(document);
-  window.addEventListener("scroll", place, { passive: true });
-  window.addEventListener("resize", place);
+  globalThis.addEventListener("scroll", place, { passive: true });
+  globalThis.addEventListener("resize", place);
   let pending = false;
   const update = () => {
     pending = false;
