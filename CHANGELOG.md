@@ -2,7 +2,7 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
-## Unreleased
+## 0.32.0
 
 ### Added
 
@@ -11,7 +11,8 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
-- Quiz in the legacy heading form (`## Question N` with `- A.` options): text, a code block or a diagram under an option, or after the options, was dropped without a message. It is now an error, `quiz-option-content`, in `bso lint` and `bso build`, once per question, with the tip to use QuizDown, where content is indented under the option (#102).
+- QTI: the text after a `<details>` block in a quiz question is no longer dropped. `<summary>` becomes a bold line and the content stays; `bso lint` warns about other HTML blocks in a quiz file (`quiz-unsupported-html`) (#108).
+- Quiz in the legacy heading form (`## Question N` with `- A.` options): text, a code block or a diagram under an option, or after the options, was dropped without a message. It is now an error, `quiz-option-content`, in `bso lint` and `bso build`, once per question, with the tip to use QuizDown, where content is indented under the option. Legacy quizzes that relied on the dropped content now fail the build until they are converted by hand; there is no conversion tool (#102).
 - pptx: a paragraph now keeps its paragraph properties only as its first child, in the slides and in the speaker notes. A misplaced one made PowerPoint ignore the hyperlink after it in a bullet that mixes text, links, bold or code (#148).
 - The guidebook no longer says that the slides shortcut is preview-only by design; the cartridge gets its own links (#146).
 

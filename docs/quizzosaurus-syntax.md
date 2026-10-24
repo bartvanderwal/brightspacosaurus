@@ -150,7 +150,7 @@ Rules to add for #80: assignment without sub-questions; sub-question labels that
 2. QuizDown is added behind that abstraction. Legacy stays and gets no new features.
    - **Rule L1.** In the legacy heading form (`## Question N` with `- A.` options) an option is one line. Text, a fenced block or a diagram after the first option, other than another option or the correct-answer line, is an **error** (`quiz-option-content`, once per question) that names the line and points to QuizDown, where content is indented under the option (section 3). Legacy never drops such content silently.
 3. Clients (owe-1, owe-3 and other course repos) migrate quiz by quiz. A file is detected by its markers, so legacy and QuizDown files can live side by side in one course.
-4. A conversion aid (legacy to QuizDown) is optional; decide after the first migrated course.
+4. There is **no** conversion tool from legacy to QuizDown: the owner decided that clients convert their quizzes by hand. `bso lint` names every file and line that needs it (for example `quiz-option-content`), so the work is bounded.
 
 ## 9. Packaging and naming (decisions to confirm)
 
