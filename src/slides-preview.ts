@@ -7,7 +7,12 @@ import {
   relative,
   resolve,
 } from "@std/path";
-import { expandIncludesOnce, isSlideDeck } from "./includes.ts";
+import {
+  deckMarkerConflict,
+  deckProblem,
+  expandIncludesOnce,
+  isSlideDeck,
+} from "./includes.ts";
 import { type DeckLink, deckTopicName, findDeckLinks } from "./linked-decks.ts";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
@@ -97,27 +102,15 @@ async function collect(
 function frontmatter(
   text: string,
 ): { header: string; body: string } | undefined {
-  const match = text.match(
-    /^(?:\uFEFF)?---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/,
-  );
-  if (!match) return undefined;
-  const lines = match[1].split("\n");
-  const markers = lines.filter((line) => /^(?:marp|slides)[ \t]*:/.test(line));
-  if (
-    markers.length !== 1 ||
-    !/^(?:marp|slides)[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(markers[0])
-  ) return undefined;
-  // Reject prose or malformed top-level YAML rather than interpreting it as a slide deck.
-  if (
-    lines.some((line) =>
-      line.trim() && !/^(?:[ \t]+|#|[A-Za-z_][\w-]*[ \t]*:)/.test(line)
-    )
-  ) return undefined;
+  if (deckProblem(text)) return undefined;
+  const match = text.match(FRONT_MATTER)!;
   return {
     header: match[0].replace(/^slides[ \t]*:.*$/m, "marp: true"),
     body: text.slice(match[0].length),
   };
 }
+
+const FRONT_MATTER = /^(?:\uFEFF)?---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/;
 
 function setTheme(header: string, theme: string): string {
   if (/^theme[ \t]*:/m.test(header)) {
@@ -1064,10 +1057,22 @@ export async function renderPreviewSlides(
       });
       for (const file of files) {
         if (matcher.test(relative(root, file).replaceAll("\\", "/"))) {
-          if (
-            frontmatter((await Deno.readTextFile(file)).replace(/\r\n/g, "\n"))
-          ) decks.push(file);
+          const text = (await Deno.readTextFile(file)).replace(/\r\n/g, "\n");
+          if (deckMarkerConflict(text)) {
+            throw new Error(
+              `Slides preview: ${
+                relative(root, file)
+              } matches "decks" of ${lessonPath} (${pattern}) but its front matter has both 'slides' and 'marp'; use only 'slides: true'.`,
+            );
+          }
+          if (!frontmatter(text)) continue;
+          decks.push(file);
         }
+      }
+      if (!decks.length) {
+        console.warn(
+          `  ⚠ slides: the "decks" pattern ${pattern} of ${lessonPath} matches no file.`,
+        );
       }
     }
     if (!decks.length && !generate) continue;

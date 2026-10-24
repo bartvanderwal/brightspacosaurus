@@ -27,6 +27,7 @@
   "lessons/quizzes/quiz-answer-syntax.md": "quiz-answer-syntax",
   "lessons/quizzes/quiz-option-syntax.md": "quiz-option-syntax",
   "lessons/quizzes/quiz-option-content.md": "quiz-option-content",
+  "decks/slides-deck-invalid.md": "slides-deck-invalid",
   "lessons/metadata/deep-relative-path.md": "deep-relative-path",
   "lessons/metadata/hard-wrapped-lines.md": "hard-wrapped-lines",
   "lessons/metadata/lesson-frontmatter.md": "lesson-frontmatter",

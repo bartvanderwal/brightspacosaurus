@@ -21,7 +21,8 @@
   "slides": {
     "lessons": {
       "metadata/slides-unnumbered-headings.md": {
-        "generate": true
+        "generate": true,
+        "decks": "decks/*.md"
       },
       "metadata/slides-too-many-sections.md": {
         "generate": true

@@ -6,10 +6,12 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- Generated slides: a section that needs more than one slide shows a counter after its heading, `Heading (1/3)` (#141).
 - Experimental: the native Brightspace package (`bso pack --format brightspace`) now holds the quizzes: a `quiz_d2l_<n>.xml` per quiz, a link topic in its module and the quiz images, diagrams included, at the root of the package, after the structure of the reference exports. Not yet verified with an import (#149).
 
 ### Fixed
 
+- Slides: a deck with both `slides: true` and `marp: true` that a `decks` pattern selects was skipped without a message. It is now an error in the preview and the build, and `bso lint` reports it (`slides-deck-invalid`). Lint also checks the decks that `slides.lessons` selects outside `sourcesDir` (for example `slides-empty-separator`), and the build warns when a `decks` pattern matches no file (#141).
 - `reader-heading-numbering`: an unnumbered heading `Bijlagen` (or `Appendices`) above `Bijlage A`, `Bijlage B`, ... is allowed; a number or letter on it is an error (#137).
 
 ## 0.32.1

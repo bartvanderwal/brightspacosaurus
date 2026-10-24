@@ -313,14 +313,23 @@ Deno.test("G3: lists, tables, images, code and diagrams are on the slides; runni
   assert(!all.includes("Running text."));
 });
 
-Deno.test("G6: long lists continue under the same heading", () => {
+Deno.test("G6: long lists continue under the same heading with a counter", () => {
   const items = Array.from({ length: 13 }, (_, i) => `- item ${i + 1}`).join(
     "\n",
   );
   const slides = slidesOf(`# Lesson\n\n## 1. Long\n\n${items}\n`);
-  const own = slides.filter((slide) => headingOf(slide) === "# 1. Long");
-  assertEquals(own.length, 3);
+  const own = slides.filter((slide) =>
+    headingOf(slide)?.startsWith("# 1. Long")
+  );
+  assertEquals(own.map(headingOf), [
+    "# 1. Long (1/3)",
+    "# 1. Long (2/3)",
+    "# 1. Long (3/3)",
+  ]);
   assertStringIncludes(own[2], "- item 13");
+  // A section with one slide has no counter.
+  const single = slidesOf("# Lesson\n\n## 1. Short\n\n- one\n- two\n");
+  assertEquals(single.some((slide) => headingOf(slide) === "# 1. Short"), true);
 });
 
 // Spec *Nested lesson pages*, rules N1-N6.

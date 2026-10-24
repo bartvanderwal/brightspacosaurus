@@ -79,6 +79,52 @@ export function isSlideDeck(markdown: string): boolean {
     /^(?:slides|marp)[ \t]*:[ \t]*true\b/m.test(header);
 }
 
+/**
+ * Why a file is not a slide deck, or undefined when it is one. A file that a
+ * `slides.lessons` setting selects as a deck must not be skipped silently, so
+ * the preview, the build and `bso lint` all report this reason. The rules are
+ * deliberately strict: one unquoted `slides: true` (or `marp: true`) in the
+ * front matter, and nothing that looks like prose or malformed YAML.
+ */
+export function deckProblem(text: string): string | undefined {
+  const match = text.match(
+    /^(?:\uFEFF)?---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/,
+  );
+  if (!match) return "it has no front matter with 'slides: true'";
+  const lines = match[1].split("\n");
+  const markers = lines.filter((line) => /^(?:marp|slides)[ \t]*:/.test(line));
+  if (!markers.length) {
+    return "its front matter has neither 'slides: true' nor 'marp: true'";
+  }
+  if (markers.length > 1) {
+    return "its front matter has more than one of 'slides' and 'marp'; use only 'slides: true'";
+  }
+  if (!/^(?:marp|slides)[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(markers[0])) {
+    return `'${markers[0].trim()}' must be the unquoted value true`;
+  }
+  if (
+    lines.some((line) =>
+      line.trim() && !/^(?:[ \t]+|#|[A-Za-z_][\w-]*[ \t]*:)/.test(line)
+    )
+  ) return "its front matter has prose or malformed top-level YAML";
+  return undefined;
+}
+
+/**
+ * True when the front matter has more than one of `slides` and `marp`. Which of
+ * the two makes the deck is then unclear, so the deck is an error and not
+ * skipped without a word.
+ */
+export function deckMarkerConflict(text: string): boolean {
+  const match = text.match(
+    /^(?:\uFEFF)?---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/,
+  );
+  if (!match) return false;
+  const lines = match[1].split("\n");
+  return lines.some((line) => /^slides[ \t]*:/.test(line)) &&
+    lines.some((line) => /^marp[ \t]*:/.test(line));
+}
+
 /** Removes a leading YAML front matter block. */
 function withoutFrontMatter(markdown: string): string {
   return markdown.replace(

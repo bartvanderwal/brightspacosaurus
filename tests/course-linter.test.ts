@@ -829,7 +829,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "43 errors, 24 warnings",
+        "44 errors, 24 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),
@@ -1165,4 +1165,54 @@ Deno.test("lint does not warn about a prose-only section that links a deck", () 
     1,
   );
   assertEquals(rule("# Lesson\n\n## 1. Empty\n\n## 2. Next\n\n- a\n"), 1);
+});
+
+Deno.test("lint also checks the slide decks that slides.lessons selects outside sourcesDir", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({
+    dir: resolve("build"),
+    prefix: "lint-decks-",
+  });
+  try {
+    await Deno.mkdir(join(root, "lessons"), { recursive: true });
+    await Deno.mkdir(join(root, "decks"), { recursive: true });
+    await Deno.writeTextFile(join(root, "lessons", "lesson.md"), "# Lesson\n");
+    // An empty slide: '---' directly before a heading that headingDivider already starts.
+    await Deno.writeTextFile(
+      join(root, "decks", "deck.md"),
+      "---\nslides: true\nheadingDivider: 2\n---\n\n## One\n\n- a\n\n---\n\n## Two\n\n- b\n",
+    );
+    await Deno.writeTextFile(
+      join(root, "decks", "both.md"),
+      "---\nslides: true\nmarp: true\n---\n\n# Both\n",
+    );
+    await Deno.writeTextFile(
+      join(root, "brightspacosaurus.config.json"),
+      JSON.stringify({
+        courseName: "C",
+        version: "1",
+        sourcesDir: "lessons",
+        slides: { lessons: { "lesson.md": { decks: "decks/*.md" } } },
+      }),
+    );
+    const config = resolveConfig(
+      await loadConfig(join(root, "brightspacosaurus.config.json")),
+      {},
+      root,
+    );
+    const result = await lintCourse(config);
+    const found = result.diagnostics.map((d) =>
+      `${relative(root, d.sourceFile)}:${d.rule}`
+    ).sort();
+    assertEquals(found, [
+      "decks/both.md:slides-deck-invalid",
+      "decks/deck.md:slides-empty-separator",
+    ]);
+    assertEquals(
+      result.directories.some((d) => d.dir === "slide decks of slides.lessons"),
+      true,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });

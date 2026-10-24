@@ -3,7 +3,7 @@
  *
  * @module
  */
-import { isSlideDeck } from "./includes.ts";
+import { deckMarkerConflict, isSlideDeck } from "./includes.ts";
 import { findDeckLinks, findMarkdownLinks } from "./linked-decks.ts";
 import { sectionsWithoutSlideContent } from "./lesson-slides.ts";
 import {
@@ -973,6 +973,51 @@ export function generatedSlideLessons(
   return generated;
 }
 
+/**
+ * The slide decks that `slides.lessons` selects with a `decks` pattern, which
+ * may sit outside `sourcesDir`. Lint checks them like any other Markdown file.
+ */
+export async function selectedDeckFiles(
+  slides: SlidesConfig | undefined,
+  repoRoot: string,
+  skip: string[],
+): Promise<string[]> {
+  const patterns = Object.values(slides?.lessons ?? {}).flatMap((selection) =>
+    typeof selection === "string"
+      ? [selection]
+      : typeof selection === "object" && selection !== null &&
+          typeof (selection as { decks?: unknown }).decks === "string"
+      ? [(selection as { decks: string }).decks]
+      : []
+  );
+  if (!patterns.length) return [];
+  const matchers = patterns.map((pattern) =>
+    globToRegExp(pattern.replaceAll("\\", "/"), {
+      extended: true,
+      globstar: true,
+    })
+  );
+  const found: string[] = [];
+  async function walk(dir: string): Promise<void> {
+    for await (const entry of Deno.readDir(dir)) {
+      const path = join(dir, entry.name);
+      if (
+        entry.isSymlink || skip.includes(path) || entry.name === ".git" ||
+        entry.name === "node_modules"
+      ) continue;
+      if (entry.isDirectory) await walk(path);
+      else if (
+        entry.isFile && /\.md$/i.test(entry.name) &&
+        matchers.some((matcher) =>
+          matcher.test(relative(repoRoot, path).replaceAll("\\", "/"))
+        )
+      ) found.push(path);
+    }
+  }
+  await walk(repoRoot);
+  return found.sort();
+}
+
 /** Check BSO-specific Markdown syntax without file writes or network requests. */
 export function lintMarkdown(
   markdown: string,
@@ -1013,6 +1058,25 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       ]
     ) files.add(file);
   }
+  // The decks of a lesson that is linted are linted too, also when they sit
+  // outside the lint directories. A lint of one chosen folder has none of those lessons.
+  const lintedLessons = Object.fromEntries(
+    Object.entries(config.slides?.lessons ?? {}).filter(([lesson]) =>
+      lessonFiles.has(resolve(config.sourcesDir, lesson))
+    ),
+  );
+  const deckFiles = (await selectedDeckFiles(
+    config.slides ? { ...config.slides, lessons: lintedLessons } : undefined,
+    config.repoRoot,
+    [config.outputDir, ...lintDirs].map((dir) => resolve(dir)),
+  )).filter((file) => !files.has(file));
+  if (deckFiles.length) {
+    directories.push({
+      dir: "slide decks of slides.lessons",
+      files: deckFiles.length,
+    });
+    for (const file of deckFiles) files.add(file);
+  }
   for (const file of lessonFiles) {
     const parts = relative(config.sourcesDir, file).split(/[\\/]/);
     if (parts.length === 2 && parts[1] === "index.md") {
@@ -1037,6 +1101,17 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       ? undefined
       : config.sourcesDir;
     const fileText = await Deno.readTextFile(file);
+    if (deckFiles.includes(file) && deckMarkerConflict(fileText)) {
+      diagnostics.push({
+        sourceFile: file,
+        line: 1,
+        column: 1,
+        severity: "error",
+        rule: "slides-deck-invalid",
+        message:
+          "A `decks` pattern in slides.lessons selects this file, but its front matter has both 'slides' and 'marp'; use only 'slides: true'.",
+      });
+    }
     const result = inspectMarkdown(fileText, file, {
       flashcards: config.flashcards,
       lessonFile: lessonFiles.has(file),

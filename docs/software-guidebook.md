@@ -701,7 +701,7 @@ A lesson that becomes slides is read from top to bottom. The rules below say whi
 | G3 | *A section gives slides only for what is on a slide:* lists, tables, images, code and diagrams. Running text is left out. |
 | G4 | *A section without anything of that is left out.* A `##` section that has only running text gets no slide and no entry in the contents slide, and does not count as a section for the contents slide. A linked deck in such a section is still inserted, and its title is still listed. |
 | G5 | *Sources are not sections.* A `Sources`, `Bronnen` or `References` section has slides by the same rules, but needs no number, does not count towards the nine sections and gets no `slides-section-without-content` warning. |
-| G6 | *Long content continues.* More than 6 list items, 12 table lines or 16 code lines continue on a next slide under the same heading. Tables repeat their header line. |
+| G6 | *Long content continues.* More than 6 list items, 12 table lines or 16 code lines continue on a next slide under the same heading. Tables repeat their header line. A section with more than one slide shows a counter after the heading: `Heading (1/3)`, `Heading (2/3)`, `Heading (3/3)`. |
 | G7 | *No empty slide.* A `---` that Marp would turn into an empty slide is not written (headingDivider, #141). |
 
 `bso lint` warns (`slides-section-without-content`) about a section that G4 leaves out, so the author knows that the section is not on the slides: *add a list, a table, an image, code or a diagram to it, or leave it as running text on purpose.* Sources are exempt.

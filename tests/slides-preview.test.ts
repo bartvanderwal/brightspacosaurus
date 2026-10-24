@@ -345,7 +345,6 @@ Deno.test("slides preview: only top-level true frontmatter selects slide decks",
       "---\nmarp: true\nmarp: false\n---\n# No",
       "---\nmarp: true\nnot yaml\n---\n# No",
       "---\nmarp: true\n# Missing closing delimiter",
-      "---\nmarp: true\nslides: true\n---\n# Duplicate markers",
     ];
     for (let i = 0; i < rejected.length; i++) {
       await write(root, `decks/${i}.md`, rejected[i]);
@@ -1187,13 +1186,8 @@ Deno.test("slides preview: slides: true selects a slide deck and is passed to Ma
   });
 });
 
-Deno.test("slides preview: marp and slides together, or slides: false, do not select a slide deck", async () => {
+Deno.test("slides preview: marp and slides together are an error, slides: false does not select a slide deck", async () => {
   await fixture(async (root) => {
-    await write(
-      root,
-      "decks/both.md",
-      "---\nmarp: true\nslides: true\n---\n# No",
-    );
     await write(root, "decks/off.md", "---\nslides: false\n---\n# No");
     await write(root, "decks/quoted.md", '---\nslides: "true"\n---\n# No');
     assertEquals(
@@ -1201,6 +1195,20 @@ Deno.test("slides preview: marp and slides together, or slides: false, do not se
         throw new Error("must not run");
       }),
       {},
+    );
+    // Two markers leave open which one makes the deck: say so, never skip it silently.
+    await write(
+      root,
+      "decks/both.md",
+      "---\nmarp: true\nslides: true\n---\n# No",
+    );
+    await assertRejects(
+      () =>
+        renderPreviewSlides(config, root, "lessons", "static", () => {
+          throw new Error("must not run");
+        }),
+      Error,
+      "has both 'slides' and 'marp'",
     );
   });
 });

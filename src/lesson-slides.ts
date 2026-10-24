@@ -182,16 +182,16 @@ function sectionBlocks(
 }
 
 function renderSection(heading: string, blocks: SlideBlock[]): string[] {
-  const slides: string[] = [];
+  const bodies: string[] = [];
   let body: string[] = [];
   const flush = () => {
-    if (body.length) slides.push(`# ${heading}\n\n${body.join("\n\n")}`);
+    if (body.length) bodies.push(body.join("\n\n"));
     body = [];
   };
   for (const block of blocks) {
     if (block.separate) {
       flush();
-      slides.push(`# ${heading}\n\n${block.markdown}`);
+      bodies.push(block.markdown);
       continue;
     }
     if (
@@ -202,9 +202,14 @@ function renderSection(heading: string, blocks: SlideBlock[]): string[] {
     }
     body.push(block.markdown);
   }
-  if (body.length || !slides.length) flush();
-  if (!slides.length) slides.push(`# ${heading}`);
-  return slides;
+  if (body.length) flush();
+  if (!bodies.length) return [`# ${heading}`];
+  // A section that continues on more slides says so in the heading, e.g. "(2/3)".
+  return bodies.map((markdown, index) =>
+    `# ${heading}${
+      bodies.length > 1 ? ` (${index + 1}/${bodies.length})` : ""
+    }\n\n${markdown}`
+  );
 }
 
 /** Options for {@link generateLessonSlides}. */
