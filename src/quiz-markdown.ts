@@ -3,7 +3,7 @@
  *
  * The QTI export and the Docusaurus preview both start from the same mdast tree
  * produced here, so inline code, fenced code and other Markdown look the same in
- * both targets (preview/output parity, Software Guidebook 8.1). Runtime-neutral:
+ * both targets (the principle *Preview/output parity* of the Software Guidebook). Runtime-neutral:
  * no Deno or Node APIs.
  *
  * @module

@@ -20,7 +20,7 @@ function host(
   };
 }
 
-Deno.test("expandIncludesOnce places the file as it is and leaves a nested include alone (#143)", () => {
+Deno.test("expandIncludesOnce places the file as it is and leaves a nested include alone", () => {
   const files = {
     "/c/a.md": "---\nslides: true\n---\n# From A\n\n{@include: [B](b.md)}\n",
     "/c/b.md": "# From B\n",
@@ -34,7 +34,7 @@ Deno.test("expandIncludesOnce places the file as it is and leaves a nested inclu
   assertEquals(out, "Intro\n\n# From A\n\n{@include: [B](b.md)}\n\nEnd");
 });
 
-Deno.test("expandIncludesOnce reports a missing file and keeps the line (#143)", () => {
+Deno.test("expandIncludesOnce reports a missing file and keeps the line", () => {
   const warnings: string[] = [];
   const out = expandIncludesOnce(
     "{@include: [X](missing.md)}",
@@ -45,7 +45,7 @@ Deno.test("expandIncludesOnce reports a missing file and keeps the line (#143)",
   assertEquals(warnings.length, 1);
 });
 
-Deno.test("two files that include each other expand once, without a loop (#143)", () => {
+Deno.test("two files that include each other expand once, without a loop", () => {
   const files = {
     "/c/a.md": "A\n{@include: [B](b.md)}",
     "/c/b.md": "B\n{@include: [A](a.md)}",
@@ -63,7 +63,7 @@ Deno.test("isSlideDeck needs slides: true or marp: true in the front matter", ()
   assert(!isSlideDeck("# no front matter"));
 });
 
-Deno.test("generated slides take an include one level deep, with image paths relative to the lesson (#143)", async () => {
+Deno.test("generated slides take an include one level deep, with image paths relative to the lesson", async () => {
   await Deno.mkdir("build", { recursive: true });
   const root = await Deno.makeTempDir({
     dir: resolve("build"),
@@ -132,7 +132,7 @@ Deno.test("generated slides take an include one level deep, with image paths rel
   }
 });
 
-Deno.test("bso lint flags a nested include in a deck only through lintCourse inputs; a plain deck gives none", () => {
+Deno.test("bso lint flags a nested include in a slide deck only through lintCourse inputs; a plain slide deck gives none", () => {
   const deck = "---\nslides: true\n---\n# A\n\n{@include: [B](b.md)}\n";
   assertEquals(
     lintMarkdown(deck, "deck.md").filter((d) =>

@@ -143,8 +143,6 @@ export function convertReaderLinks(markdown: string, htmlDepth = 1): string {
  * resolves relative links against the page's file location. Reader links are
  * converted first and therefore remain PDF links; external links are left
  * untouched.
- *
- * Issues: #7, #8
  */
 export function convertInternalMdLinks(
   markdown: string,
@@ -309,7 +307,7 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
     .use(rehypeBrightspaceDiagramAdapter)
-    // Same Prism token classes as the Docusaurus preview (#28); unknown languages stay plain.
+    // Same Prism token classes as the Docusaurus preview; unknown languages stay plain.
     .use(rehypePrismPlus, { ignoreMissing: true })
     .use(rehypeExternalLinks, {
       target: "_blank",

@@ -251,12 +251,23 @@ export function validateConfig(config: unknown): config is BsoConfig {
       } else if (typeof selection === "object" && selection !== null && !Array.isArray(selection)) {
         const options = selection as Record<string, unknown>;
         for (const key of Object.keys(options)) {
-          if (key !== "generate" && key !== "decks") {
+          if (key !== "generate" && key !== "decks" && key !== "nest") {
             throw new Error(`Unknown configuration field 'slides.lessons.${lesson}.${key}'.`);
           }
         }
         if (options.generate !== undefined && typeof options.generate !== "boolean") {
           throw new Error(`Field 'slides.lessons.${lesson}.generate' must be a boolean.`);
+        }
+        if (options.nest !== undefined) {
+          const globs = Array.isArray(options.nest) ? options.nest : [options.nest];
+          if (!globs.length || globs.some((glob) => typeof glob !== "string" || !glob.trim())) {
+            throw new Error(`Field 'slides.lessons.${lesson}.nest' must be a glob or a list of globs.`);
+          }
+          if (options.generate !== true) {
+            throw new Error(
+              `Field 'slides.lessons.${lesson}.nest' needs 'generate: true': the nested slides go into the generated deck of the lesson.`,
+            );
+          }
         }
         pattern = options.decks;
         if (options.decks !== undefined && (typeof options.decks !== "string" || !options.decks.trim())) {
@@ -781,8 +792,8 @@ export function resolveConfig(
     cliOverrides.output ?? config.outputDir ?? "build/brightspace",
   );
 
-  // publishDir: an explicit step, so a folder of its own inside the repository,
-  // never the temporary build output (#145).
+  // The publication folder is a deliberate step, so it must be a folder of its
+  // own inside the repository and never the temporary build output.
   const publishDir = config.publishDir
     ? resolve(repoRoot, config.publishDir)
     : null;

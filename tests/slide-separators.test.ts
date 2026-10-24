@@ -13,9 +13,9 @@ Deno.test("headingDividerLevels reads a number or a list", () => {
   assertEquals(headingDividerLevels("headingDivider: x"), []);
 });
 
-Deno.test("only a separator that gives an empty slide is found (#141)", () => {
+Deno.test("only a separator that gives an empty slide is found", () => {
   const body = [
-    "---", // 0: opens the deck
+    "---", // 0: opens the slide deck
     "# A",
     "text",
     "---", // 3: splits one section, content follows: fine
@@ -44,7 +44,7 @@ Deno.test("dropEmptySlideSeparators keeps separators that split a section", () =
   assertEquals(dropEmptySlideSeparators("a\n---\nb", [1]), "a\n---\nb");
 });
 
-Deno.test("bso lint warns about empty slide separators in decks only (#141)", () => {
+Deno.test("bso lint warns about empty slide separators in slide decks only", () => {
   const deck =
     "---\nslides: true\nheadingDivider: 2\n---\n\n# T\n\ntext\n\n---\n\n## S\n\nx\n";
   const found = lintMarkdown(deck, "deck.md").filter((d) =>
@@ -60,7 +60,7 @@ Deno.test("bso lint warns about empty slide separators in decks only (#141)", ()
   );
 });
 
-Deno.test("a slide deck's Marp front matter is not a lesson-frontmatter warning (#141)", () => {
+Deno.test("a slide deck's Marp front matter is not a lesson-frontmatter warning", () => {
   const deck = "---\nslides: true\nheadingDivider: 2\n---\n\n# T\n\n## S\n";
   assertEquals(
     lintMarkdown(deck, "deck.md", { lessonFile: true }).filter((d) =>

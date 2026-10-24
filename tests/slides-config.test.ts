@@ -17,7 +17,7 @@ Deno.test("slides configuration is optional and preserves an empty disclaimer", 
   assertEquals(resolveConfig({ ...base, slides }, {}, "/repo").slides, slides);
 });
 
-Deno.test("slides configuration supports generated, manual, and combined lesson decks", () => {
+Deno.test("slides configuration supports generated, manual, and combined lesson slide decks", () => {
   const slides = {
     lessons: {
       "generated.md": { generate: true },
@@ -150,7 +150,7 @@ Deno.test("slide metadata follows source file identity, not page slug, with base
   }]);
 });
 
-Deno.test("slides.notes is an optional boolean (#117)", () => {
+Deno.test("slides.notes is an optional boolean", () => {
   const lessons = { "week/lesson.md": "slides/**/*.md" };
   assertEquals(
     validateConfig({ ...base, slides: { lessons, notes: true } }),
@@ -163,7 +163,7 @@ Deno.test("slides.notes is an optional boolean (#117)", () => {
   assertEquals(validateConfig({ ...base, slides: { lessons } }), true);
 });
 
-Deno.test("slides.pptx must be a boolean and passes through resolving (#115)", () => {
+Deno.test("slides.pptx must be a boolean and passes through resolving", () => {
   const slides = { lessons: { "week/lesson.md": "slides/*.md" }, pptx: true };
   assertEquals(validateConfig({ ...base, slides }), true);
   assertEquals(resolveConfig({ ...base, slides }, {}, "/repo").slides, slides);
@@ -174,7 +174,7 @@ Deno.test("slides.pptx must be a boolean and passes through resolving (#115)", (
   );
 });
 
-Deno.test("remarkPreviewDeckLinks points links to a rendered deck at its presentation and leaves other links (#144)", () => {
+Deno.test("remarkPreviewDeckLinks points links to a rendered slide deck at its presentation and leaves other links", () => {
   const transform = remarkPreviewDeckLinks({
     lessons: {
       "/repo/lessons/week/lesson.md": "slides/week/lesson/index.html",
@@ -201,13 +201,13 @@ Deno.test("remarkPreviewDeckLinks points links to a rendered deck at its present
     "../other.md",
     "https://example.org/slides-a.md",
   ]);
-  // No decks, no change
+  // No slide decks, no change
   const plain = { type: "root", children: [{ type: "link", url: "x.md" }] };
   remarkPreviewDeckLinks({ lessons: {} })(plain, { path: "/repo/a.md" });
   assertEquals((plain.children[0] as { url: string }).url, "x.md");
 });
 
-Deno.test("remarkPreviewDeckLinks turns a deck link without a rendered presentation into plain text, so the build does not break (#144)", () => {
+Deno.test("remarkPreviewDeckLinks turns a slide deck link without a rendered presentation into plain text, so the build does not break", () => {
   const transform = remarkPreviewDeckLinks({
     lessons: {},
     isDeck: (path) => path.endsWith("/slides/deck.md"),
@@ -224,4 +224,38 @@ Deno.test("remarkPreviewDeckLinks turns a deck link without a rendered presentat
   assertEquals(deck.type, "mdxJsxTextElement");
   assertEquals("url" in deck, false);
   assertEquals(page.type, "link");
+});
+
+Deno.test("slides.lessons nest is a glob or a list of globs and needs generate", () => {
+  const slides = (nest: unknown, generate = true) => ({
+    lessons: { "week/overview.md": { generate, nest } },
+  });
+  assertEquals(
+    validateConfig({ ...base, slides: slides("levels/*.md") }),
+    true,
+  );
+  assertEquals(
+    validateConfig({ ...base, slides: slides(["a/*.md", "b/*.md"]) }),
+    true,
+  );
+  assertThrows(
+    () => validateConfig({ ...base, slides: slides(3) }),
+    Error,
+    "nest",
+  );
+  assertThrows(
+    () => validateConfig({ ...base, slides: slides([]) }),
+    Error,
+    "nest",
+  );
+  assertThrows(
+    () => validateConfig({ ...base, slides: slides([""]) }),
+    Error,
+    "nest",
+  );
+  assertThrows(
+    () => validateConfig({ ...base, slides: slides("a/*.md", false) }),
+    Error,
+    "generate: true",
+  );
 });

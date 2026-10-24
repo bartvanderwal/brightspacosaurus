@@ -761,7 +761,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "42 errors, 22 warnings",
+        "42 errors, 24 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),
@@ -1050,8 +1050,8 @@ Deno.test("lint warns about three or more '../' in links, images and includes, n
   assertEquals(rule("[x](https://example.org/a/../../../b)\n").length, 1);
 });
 
-// Guidebook 7.8, rule G4: `slides-section-without-content`.
-Deno.test("lint warns about a section of a lesson that becomes slides when it has only running text (#141)", () => {
+// Spec *Generated slides: what a section gives*, rule G4: `slides-section-without-content`.
+Deno.test("lint warns about a section of a lesson that becomes slides when it has only running text", () => {
   const lesson = [
     "# Lesson",
     "",
@@ -1086,7 +1086,7 @@ Deno.test("lint warns about a section of a lesson that becomes slides when it ha
   );
 });
 
-Deno.test("lint does not warn about a prose-only section that links a deck (#141, #144)", () => {
+Deno.test("lint does not warn about a prose-only section that links a deck", () => {
   const rule = (lesson: string) =>
     lintMarkdown(lesson, "lesson.md", { generatedSlides: true }).filter((d) =>
       d.rule === "slides-section-without-content"

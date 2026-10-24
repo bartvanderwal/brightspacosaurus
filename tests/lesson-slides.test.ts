@@ -114,7 +114,7 @@ Deno.test("generated lesson slides reject a missing H1", () => {
   );
 });
 
-Deno.test("generated slides keep diagram fences and code as slides of their own, and drop running text (#140)", () => {
+Deno.test("generated slides keep diagram fences and code as slides of their own, and drop running text", () => {
   const result = generateLessonSlides(
     "# Lesson\n\n## Flow\n\nSome running text.\n\n```plantuml\nA -> B\n```\n\n```js\nconsole.log(1)\n```\n\n```mermaid\ngraph TD; A-->B\n```\n",
   );
@@ -142,7 +142,7 @@ Deno.test("a contents slide lists all sections after the title slide, only when 
   );
 });
 
-Deno.test("a linked deck is inserted after the section with the link and listed in the contents slide (#144)", () => {
+Deno.test("a linked slide deck is inserted after the section with the link and listed in the contents slide", () => {
   const lesson = [
     "# Lesson",
     "",
@@ -171,7 +171,7 @@ Deno.test("a linked deck is inserted after the section with the link and listed 
   const titles = slides.map((slide) =>
     slide.split("\n").find((line) => line.startsWith("# "))
   );
-  // title, contents, section 1, the deck right after it, section 2 (once only)
+  // title, contents, section 1, the slide deck right after it, section 2 (once only)
   assertEquals(titles.slice(0, 5), [
     "# Lesson",
     "# Contents",
@@ -186,7 +186,7 @@ Deno.test("a linked deck is inserted after the section with the link and listed 
   assertStringIncludes(slides[1], "- 1\\. One\n- Depth\n- 2\\. Two");
 });
 
-Deno.test("a deck linked before the first section follows the contents slide (#144)", () => {
+Deno.test("a slide deck linked before the first section follows the contents slide", () => {
   const lesson =
     "# Lesson\n\n[Intro deck](intro.md)\n\n## 1. One\n\n- a\n\n## 2. Two\n\n- b\n";
   const result = generateLessonSlides(lesson, {
@@ -199,7 +199,7 @@ Deno.test("a deck linked before the first section follows the contents slide (#1
   assertStringIncludes(slides[3], "# 1. One");
 });
 
-// The rules G1-G7 of the Software Guidebook, section 7.8 ("Generated slides").
+// Spec *Generated slides: what a section gives*, rules G1-G7.
 function slidesOf(lesson: string, options = {}): string[] {
   return generateLessonSlides(lesson, { contentsTitle: "Contents", ...options })
     .replace(/^---\n[\s\S]*?\n---\n/, "")
@@ -208,7 +208,7 @@ function slidesOf(lesson: string, options = {}): string[] {
 const headingOf = (slide: string) =>
   slide.split("\n").find((line) => line.startsWith("# "));
 
-Deno.test("G4: a section with only running text gets no slide and no contents entry (#141)", () => {
+Deno.test("G4: a section with only running text gets no slide and no contents entry", () => {
   const lesson = [
     "# Lesson",
     "",
@@ -236,7 +236,7 @@ Deno.test("G4: a section with only running text gets no slide and no contents en
   assert(!slides.join("\n").includes("running text"));
 });
 
-Deno.test("G4: a linked deck in a section without content is still inserted and listed (#141, #144)", () => {
+Deno.test("G4: a linked slide deck in a section without content is still inserted and listed", () => {
   const lesson = [
     "# Lesson",
     "",
@@ -269,7 +269,7 @@ Deno.test("G4: a linked deck in a section without content is still inserted and 
   assertStringIncludes(slides[1], "- 1\\. One\n- The deck\n- 3\\. Three");
 });
 
-Deno.test("G2: no contents slide when fewer than two sections have content (#141)", () => {
+Deno.test("G2: no contents slide when fewer than two sections have content", () => {
   const lesson = "# Lesson\n\n## 1. One\n\n- a\n\n## 2. Only prose\n\nText.\n";
   assertEquals(slidesOf(lesson).map(headingOf), ["# Lesson", "# 1. One"]);
 });
@@ -313,7 +313,7 @@ Deno.test("G3: lists, tables, images, code and diagrams are on the slides; runni
   assert(!all.includes("Running text."));
 });
 
-Deno.test("G6: long lists continue under the same heading (#141)", () => {
+Deno.test("G6: long lists continue under the same heading", () => {
   const items = Array.from({ length: 13 }, (_, i) => `- item ${i + 1}`).join(
     "\n",
   );
@@ -321,4 +321,94 @@ Deno.test("G6: long lists continue under the same heading (#141)", () => {
   const own = slides.filter((slide) => headingOf(slide) === "# 1. Long");
   assertEquals(own.length, 3);
   assertStringIncludes(own[2], "- item 13");
+});
+
+// Spec *Nested lesson pages*, rules N1-N6.
+const levelPage = (title: string, extra = "") =>
+  `# ${title}\n\n## 1. Goal\n\n- fast${extra}\n\n## 2. Scope\n\n- small\n`;
+const pages: Record<string, { id: string; source: string }> = {
+  "levels/unit.md": { id: "unit", source: levelPage("Unit tests") },
+  "levels/integration.md": {
+    id: "integration",
+    source: levelPage("Integration tests", "\n\n[Unit again](unit.md)"),
+  },
+};
+const overview = [
+  "# Overview",
+  "",
+  "## 1. Why",
+  "",
+  "- a",
+  "",
+  "## 2. The levels",
+  "",
+  "- [Unit](levels/unit.md)",
+  "- [Integration](levels/integration.md)",
+  "- [Other](other.md)",
+  "",
+  "## 3. Choose",
+  "",
+  "- c",
+].join("\n");
+
+Deno.test("N1/N3/N5: nested pages come after the section with the link, as a divider with a sub-number and their own sections", () => {
+  const slides = slidesOf(overview, {
+    nestedPage: (url: string) => pages[url],
+  });
+  assertEquals(slides.map(headingOf), [
+    "# Overview",
+    "# Contents",
+    "# 1. Why",
+    "# 2. The levels",
+    "# 2.1 Unit tests",
+    "# 1. Goal",
+    "# 2. Scope",
+    "# 2.2 Integration tests",
+    "# 1. Goal",
+    "# 2. Scope",
+    "# 3. Choose",
+  ]);
+  // an ordinary link stays an ordinary link
+  assertStringIncludes(slides[3], "[Other](other.md)");
+  assert(!slides.join("\n").includes("Unit again\n\n# 2.1"));
+});
+
+Deno.test("N6: the contents slide lists the nested pages with their numbers under their section", () => {
+  const slides = slidesOf(overview, {
+    nestedPage: (url: string) => pages[url],
+  });
+  assertStringIncludes(
+    slides[1],
+    "- 1\\. Why\n- 2\\. The levels\n  - 2.1 Unit tests\n  - 2.2 Integration tests\n- 3\\. Choose",
+  );
+});
+
+Deno.test("N2: a page linked twice is nested once, and the links of a nested page are not followed (N4)", () => {
+  const twice = overview.replace(
+    "- [Other](other.md)",
+    "- [Unit once more](levels/unit.md)",
+  );
+  const slides = slidesOf(twice, { nestedPage: (url: string) => pages[url] });
+  assertEquals(
+    slides.filter((slide) => headingOf(slide) === "# 2.1 Unit tests").length,
+    1,
+  );
+  // the integration page links the unit page: it is not nested a second time
+  assertEquals(
+    slides.filter((slide) => headingOf(slide)?.endsWith("Unit tests")).length,
+    1,
+  );
+});
+
+Deno.test("N5: a section without a number gives no sub-numbers, and a section 2.1 gives 2.1.k", () => {
+  const plain = overview.replace("## 2. The levels", "## The levels");
+  const titles = slidesOf(plain, { nestedPage: (url: string) => pages[url] })
+    .map(headingOf);
+  assert(titles.includes("# Unit tests"));
+  assert(titles.includes("# Integration tests"));
+  const sub = overview.replace("## 2. The levels", "## 2.1 The levels");
+  assert(
+    slidesOf(sub, { nestedPage: (url: string) => pages[url] }).map(headingOf)
+      .includes("# 2.1.1 Unit tests"),
+  );
 });

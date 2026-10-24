@@ -1,5 +1,5 @@
 /**
- * Spike for #21: a native Brightspace package (`.zip` with D2L XML) next to the
+ * Spike: a native Brightspace package (`.zip` with D2L XML) next to the
  * IMS Common Cartridge. The reference exports show what such a package holds:
  * a `description` on each module item (the text and images of a main menu
  * item, which a Common Cartridge import drops), topics as `content` resources

@@ -1,7 +1,7 @@
 /**
  * Reads a BSO slide deck (Marp Markdown: slides separated by `---`) into a
  * small model that the PowerPoint renderer turns into an editable `.pptx`.
- * Only the BSO deck format is supported; HTML comments become speaker notes
+ * Only the BSO slide deck format is supported; HTML comments become speaker notes
  * and Marp directive comments (`<!-- _class: lead -->`) are not notes.
  *
  * @module
@@ -53,7 +53,7 @@ export interface PptxSlide {
   lead: boolean;
 }
 
-/** A parsed deck. */
+/** A parsed slide deck. */
 export interface PptxDeck {
   title: string | null;
   slides: PptxSlide[];
@@ -74,7 +74,7 @@ const DIRECTIVE =
   /^\s*_?(?:class|paginate|header|footer|backgroundColor|backgroundImage|color|style|theme|size|marp|slides|title)\s*:/;
 const COMMENT = /^<!--([\s\S]*?)-->$/;
 
-/** Splits a deck into front matter and slide sources, ignoring `---` in code fences. */
+/** Splits a slide deck into front matter and slide sources, ignoring `---` in code fences. */
 function splitDeck(markdown: string): { front: string; slides: string[] } {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   let front = "";
@@ -227,7 +227,7 @@ function parseSlide(source: string, first: boolean): PptxSlide {
   return slide;
 }
 
-/** Parses a BSO deck (Marp Markdown) into slides. */
+/** Parses a BSO slide deck (Marp Markdown) into slides. */
 export function parseDeck(markdown: string): PptxDeck {
   const { front, slides } = splitDeck(markdown);
   const title =

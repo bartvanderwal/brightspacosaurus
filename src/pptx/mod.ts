@@ -12,7 +12,7 @@ export type { PptxBlock, PptxDeck, PptxSlide } from "./deck-parser.ts";
 export type { PptxRenderOptions, PptxTheme } from "./renderer.ts";
 
 /**
- * Turns the Markdown of a deck into the bytes of a `.pptx`. The same deck and
+ * Turns the Markdown of a slide deck into the bytes of a `.pptx`. The same slide deck and
  * options always give the same bytes.
  */
 export async function convertDeckToPptx(

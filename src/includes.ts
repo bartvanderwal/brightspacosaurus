@@ -25,8 +25,6 @@ export interface IncludeHost {
  * directive. The directive content must be a Markdown link, so the include
  * target stays a clickable, valid Markdown link when authors read the
  * source directly (e.g. in VS Code).
- *
- * Issue: #26
  */
 export function parseIncludeTarget(
   directiveContent: string,
@@ -93,7 +91,7 @@ function withoutFrontMatter(markdown: string): string {
  * Expands `{@include}` directives for slides, **one level deep**: the included
  * file is placed as it is, and an include inside it stays a directive. That
  * rules out endless embedding between files that refer to each other, without
- * detecting cycles (#143). A deck's front matter is dropped; the included
+ * detecting cycles. A slide deck's front matter is dropped; the included
  * text is trimmed, so a `---` slide separator belongs in the including file.
  * `rewrite` can adapt the included text, for example relative image paths.
  */

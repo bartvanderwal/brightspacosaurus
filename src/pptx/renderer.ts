@@ -1,5 +1,5 @@
 /**
- * Turns a parsed BSO deck into an editable PowerPoint file (`.pptx`): real
+ * Turns a parsed BSO slide deck into an editable PowerPoint file (`.pptx`): real
  * text boxes, lists, tables and images, with the speaker notes when asked.
  * The layout is estimated, not rendered; look at the result in PowerPoint.
  *
@@ -27,7 +27,7 @@ export interface PptxTheme {
   mutedColor: string;
 }
 
-/** What the renderer needs besides the deck. */
+/** What the renderer needs besides the slide deck. */
 export interface PptxRenderOptions {
   /** Folder that relative image paths are resolved against. */
   baseDir: string;
@@ -38,7 +38,7 @@ export interface PptxRenderOptions {
   /** Text shown at the top of every slide; empty or missing shows none. */
   disclaimer?: string;
   theme?: Partial<PptxTheme>;
-  /** Date in the file properties, so the same deck gives the same file. */
+  /** Date in the file properties, so the same slide deck gives the same file. */
   date?: string;
 }
 
@@ -397,7 +397,7 @@ async function addSlide(
   }
 }
 
-/** Renders a parsed deck as the bytes of a `.pptx` file. */
+/** Renders a parsed slide deck as the bytes of a `.pptx` file. */
 export async function renderDeck(
   deck: PptxDeck,
   options: PptxRenderOptions,
@@ -445,7 +445,7 @@ export function singleParagraphProperties(xml: string): string {
   });
 }
 
-/** Same deck, same bytes: fixed file dates and a fixed order of the entries. */
+/** Same slide deck, same bytes: fixed file dates and a fixed order of the entries. */
 async function stabilize(bytes: Uint8Array, date: string): Promise<Uint8Array> {
   const source = await JSZip.loadAsync(bytes);
   const fixed = new Date(date);

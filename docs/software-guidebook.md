@@ -509,6 +509,12 @@ Each section names where the code lives and what it does, then lists the rules t
 - **Idempotent commands** — repeated runs on identical input yield identical output. `build` clears its output subdirectories before regenerating.
 - **stderr / stdout discipline** — progress goes to `stdout`; errors and warnings go to `stderr`.
 - **Exit codes** — `0` success; `1` general/config error; `2` source directory not found; `3` path escapes the repo root, or reader PDF conversion failed. Errors carry an optional `exitCode` that `main.ts` honours.
+- **Traceability lives in commits, not in code.** Code, comments, test names and error messages contain no issue numbers. A commit says why it was made (`what, because why; see #issue`), and `git blame` leads from a line to its commit and so to the issue. A comment explains *why* in full sentences, so it stays correct and understandable when the issue is closed, moved or renumbered. Reasons:
+  - Issue numbers are not stable. BSO is on GitHub and the course repositories that use it (OWE-1) are on GitLab, and both count from 1, so one number can mean two issues.
+  - A comment that only points at a number tells the reader to look elsewhere instead of explaining; it is useless without the tracker.
+  - The number stays when the code changes, so it goes stale without anyone noticing.
+
+  A comment may refer to a specification by its heading and rule id (`Spec *Nested lesson pages*, rule N5`), never by a section number, because section numbers change when sections are added. Documentation (the CHANGELOG, this guidebook, the user manual and ADRs) may name issues, because it is read next to the tracker.
 
 ### 7.2 Asset loading (JSR-safe)
 
@@ -639,6 +645,36 @@ require.resolve("@bartvanderwal/brightspacosaurus/slides-client")
 Use your app's actual `baseUrl` for subpath deployments. Start through `bso preview` to generate the HTML; direct `npm start`/`npm run build` without the environment map does not enable slide shortcuts.
 
 The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the top right corner, below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut and the button are the preview's way in; the cartridge gives the lesson page its own links to the slides and the pptx (rules B1-B5 under *Slides on the lesson page in the cartridge*). Hidden URLs are not access control.
+
+#### Nested lesson pages (#147)
+
+An overview page can show the slides of the pages it links to as nested sets, without copying text: the student pages stay the only source. Which links nest is decided by a setting, because a lesson also links to other lessons for plain navigation and not every link is a slide set.
+
+```json
+{
+  "slides": {
+    "lessons": {
+      "week-2/lesson-5-test-levels.md": { "generate": true, "nest": ["levels/level-*.md"] }
+    }
+  }
+}
+```
+
+| # | Rule | Test |
+| --- | --- | --- |
+| N1 | `nest` is a glob or a list of globs, relative to the folder of the lesson. A link in the lesson nests when its target matches. Any other link stays an ordinary link. A file that matches but is not linked is not included. | lesson-slides test |
+| N2 | Inline links to `.md` files outside code count, in the order of the lesson. A page that is linked more than once is nested at the first link only. | lesson-slides test |
+| N3 | The slides of the nested page are the slides that the page gives as a lesson (rules G3-G7), without its own title and contents slide: a divider slide with its H1, then one slide set per section as authored. They sit after the last slide of the section of the overview that contains the link. | lesson-slides test |
+| N4 | *One level.* A nested page's own links, linked decks and `nest` setting are not followed. Its includes are expanded one level as for any lesson (#143). | preview test |
+| N5 | *Sub-numbering.* Under a section numbered `P.` (for example `2. The levels`) the k-th nested page of that section gets the number `P.k` (`2.1`, `2.2`, ...). The divider slide shows `P.k <H1 of the page>`, so titles such as "2.2 Integration tests" stay in the navigation and in search. A section without a number gives no sub-numbers; the section headings of the nested page stay as the author wrote them. | lesson-slides test |
+| N6 | The contents slide lists each nested page as a sub-entry under the entry of its section, with its number. | lesson-slides test |
+| N7 | *Strict.* A link that matches `nest` but whose file does not exist fails the build and names the lesson, the link and the path. | preview test |
+| N8 | The number of nested pages in one section is not limited, but `bso lint` warns (`slides-too-many-nested`) above 9: more than seven plus or minus two items in one place is hard to grasp. | lint test |
+| N9 | `bso lint` warns (`slides-nest-unused`) when a lesson has a `nest` pattern and no link matches it, so a mistyped glob is noticed. | lint test |
+| N10 | The nested pages stay available as their own decks when they are configured as lessons with slides themselves. A change in a nested page shows in the overview deck at the next build: nothing is cached or copied. | preview test |
+| N11 | Generated decks have no pptx (#115), so nested sets have none either. | existing rule |
+
+**Not decided.** How the nested sets appear in a pptx, should generated decks ever get one.
 
 #### Slides on the lesson page in the cartridge (#146)
 

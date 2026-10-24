@@ -815,7 +815,7 @@ Deno.test("Relatieve/interne link krijgt geen target=_blank", async () => {
   }
 });
 
-Deno.test("with deckLinks a link to a slide deck points at the slides topic next to the lesson (#144)", async () => {
+Deno.test("with deckLinks a link to a slide deck points at the slides topic next to the lesson", async () => {
   const tempRoot = await makeTempDir();
   try {
     const sourceDir = join(tempRoot, "src", "week");

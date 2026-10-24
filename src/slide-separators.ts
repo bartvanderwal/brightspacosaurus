@@ -1,7 +1,7 @@
 /**
  * Finds `---` slide separators that make Marp show an empty slide: one that
  * ends the body, starts it, follows another `---`, or sits directly before a
- * heading that `headingDivider` already turns into a new slide (#141).
+ * heading that `headingDivider` already turns into a new slide.
  * A `---` with content between it and the next heading stays valid: it splits
  * one section over two slides.
  *
@@ -9,7 +9,7 @@
  * @module
  */
 
-/** The heading levels a deck's `headingDivider` front matter splits on. */
+/** The heading levels a slide deck's `headingDivider` front matter splits on. */
 export function headingDividerLevels(header: string): number[] {
   const value = header.match(/^headingDivider[ \t]*:[ \t]*(.+?)[ \t]*$/m)?.[1];
   if (!value) return [];

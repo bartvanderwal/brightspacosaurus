@@ -8,7 +8,7 @@ import {
   rewriteLinkTargets,
 } from "../src/linked-decks.ts";
 
-Deno.test("findMarkdownLinks finds inline links to .md files, not images, code, anchors-only or URLs (#144)", () => {
+Deno.test("findMarkdownLinks finds inline links to .md files, not images, code, anchors-only or URLs", () => {
   const markdown = [
     "# Lesson",
     "",
@@ -51,7 +51,7 @@ Deno.test("deckTitle prefers the front matter title, then the first heading, the
   assertEquals(deckBody("---\nslides: true\n---\n# A\n"), "# A\n");
 });
 
-Deno.test("findDeckLinks keeps only links to existing files that are decks, in order (#144)", () => {
+Deno.test("findDeckLinks keeps only links to existing files that are slide decks, in order", () => {
   const files: Record<string, string> = {
     "/s/a.md": "---\nslides: true\ntitle: Deck A\n---\n# A\n\ntext\n",
     "/s/b.md": "# Not a deck\n",
@@ -81,7 +81,7 @@ Deno.test("deckTopicName drops a leading slides- so the name does not repeat its
   assertEquals(deckTopicName("lesson", "depth"), "lesson-slides-depth");
 });
 
-Deno.test("rewriteLinkTargets changes only the chosen targets outside code and keeps anchors (#144)", () => {
+Deno.test("rewriteLinkTargets changes only the chosen targets outside code and keeps anchors", () => {
   const markdown =
     "[a](deck.md#x) and [b](page.md) and `[c](deck.md)` and [d](<deck.md>)\n\n```\n[e](deck.md)\n```\n";
   const result = rewriteLinkTargets(

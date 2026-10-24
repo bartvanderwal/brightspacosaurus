@@ -216,22 +216,41 @@ export interface LessonSlidesOptions {
    */
   contentsTitle?: string;
   /**
-   * Resolves the target of a link in the lesson to a linked deck (#144), or
-   * undefined for an ordinary link. The slides of the deck are inserted after
-   * the last slide of the section that contains the link, and its title is an
-   * entry in the contents slide. A deck that is linked more than once is
-   * inserted at the first link only (`id` identifies a deck).
+   * Looks up the slide deck that a link in the lesson points to. It returns
+   * undefined for an ordinary link. The slides of the slide deck are inserted
+   * after the last slide of the section that contains the link, and its title
+   * becomes an entry in the contents slide. A slide deck that is linked more
+   * than once is inserted at the first link only; the `id` tells slide decks
+   * apart.
    */
   linkedDeck?: (url: string) => LinkedDeckSlides | undefined;
+  /**
+   * Looks up the lesson page that a link points to when the slides of that page
+   * must be nested in this slide deck (the `nest` setting). It returns
+   * undefined for an ordinary link. Nesting goes one level deep: the links of a
+   * nested page are not followed.
+   */
+  nestedPage?: (url: string) => NestedPage | undefined;
 }
 
-/** A deck that a lesson links to, as the generator needs it. */
-export interface LinkedDeckSlides {
-  /** Identifies the deck, so it is inserted once. */
+/** A lesson page whose generated slides are nested in the slide deck of an overview page. */
+export interface NestedPage {
+  /** Identifies the page, so that it is nested only once. */
   id: string;
-  /** Entry in the contents slide. */
+  /**
+   * The Markdown of the page, with its includes expanded and its image paths
+   * written relative to the overview page.
+   */
+  source: string;
+}
+
+/** A slide deck that the lesson links to, in the form the slide generator needs. */
+export interface LinkedDeckSlides {
+  /** Identifies the slide deck, so that it is inserted only once. */
+  id: string;
+  /** The text of the entry for this slide deck in the contents slide. */
   title: string;
-  /** The deck's slides as Markdown, without front matter. */
+  /** The slides of the slide deck as Markdown, without its front matter. */
   markdown: string;
 }
 
@@ -240,38 +259,57 @@ function linkUrls(node: MarkdownNode): string[] {
   return [...own, ...(node.children ?? []).flatMap(linkUrls)];
 }
 
-/** Derive a preview-only Marp deck from the lesson's H1, H2s, lists, images and diagrams. */
-export function generateLessonSlides(
-  source: string,
-  options: LessonSlidesOptions = {},
-): string {
+/** Derive a preview-only Marp slide deck from the lesson's H1, H2s, lists, images and diagrams. */
+interface LessonSection {
+  heading: string;
+  nodes: MarkdownNode[];
+  blocks: SlideBlock[];
+  decks: LinkedDeckSlides[];
+  nested: NestedSet[];
+}
+
+/**
+ * A lesson page whose slides have been generated, ready to be placed in the
+ * slide deck of an overview page (spec *Nested lesson pages*).
+ */
+interface NestedSet {
+  /**
+   * The number of this set, such as `2.1` under a section numbered `2.`. It is
+   * empty when the section has no number.
+   */
+  number: string;
+  title: string;
+  slides: string[];
+}
+
+interface ParsedLesson {
+  tree: { children: MarkdownNode[] };
+  title: MarkdownNode;
+  introNodes: MarkdownNode[];
+  sections: LessonSection[];
+}
+
+function parseLesson(source: string): ParsedLesson {
   const tree = unified().use(remarkParse).use(remarkGfm).parse(
     source,
-  ) as unknown as {
-    children: MarkdownNode[];
-  };
+  ) as unknown as { children: MarkdownNode[] };
   const title = tree.children.find((node) =>
     node.type === "heading" && node.depth === 1
   );
   if (!title) {
     throw new Error("Generated lesson slides require an H1 lesson title.");
   }
-  interface Section {
-    heading: string;
-    nodes: MarkdownNode[];
-    decks: LinkedDeckSlides[];
-    blocks: SlideBlock[];
-  }
-  const sections: Section[] = [];
+  const sections: LessonSection[] = [];
   const introNodes: MarkdownNode[] = [];
-  let section: Section | undefined;
+  let section: LessonSection | undefined;
   for (const node of tree.children) {
     if (node.type === "heading" && node.depth === 2) {
       section = {
         heading: nodeText(node).trim(),
         nodes: [],
-        decks: [],
         blocks: [],
+        decks: [],
+        nested: [],
       };
       sections.push(section);
     } else if (section) {
@@ -280,7 +318,56 @@ export function generateLessonSlides(
       introNodes.push(node);
     }
   }
-  // Decks linked in the lesson, each once, at the first link (#144).
+  for (const each of sections) {
+    each.blocks = sectionBlocks(
+      each.nodes,
+      source,
+      isCoreConcepts(each.heading),
+    );
+  }
+  return { tree, title, introNodes, sections };
+}
+
+/**
+ * The slides of a nested page: first a divider slide with the title of the
+ * page, then the slides of its sections, built by the same rules as for any
+ * lesson.
+ */
+function nestedSet(source: string, number: string): NestedSet {
+  const page = parseLesson(source);
+  const title = nodeText(page.title).trim();
+  return {
+    number,
+    title,
+    slides: [
+      `# ${number ? `${number} ` : ""}${title}`,
+      ...page.sections.flatMap((each) =>
+        each.blocks.length > 0 ? renderSection(each.heading, each.blocks) : []
+      ),
+    ],
+  };
+}
+
+/**
+ * The number at the start of a section heading: `2` for `2. The levels` and
+ * `2.1` for `2.1 Part`. It is empty when the heading has no number.
+ */
+function sectionNumber(heading: string): string {
+  return heading.match(/^(\d+(?:\.\d+)*)[.)]?\s/)?.[1] ?? "";
+}
+
+/**
+ * Builds a Marp slide deck from a lesson: a title slide, an optional contents
+ * slide, and slides for the lists, tables, images, code and diagrams of each
+ * section. Running text is left out.
+ */
+export function generateLessonSlides(
+  source: string,
+  options: LessonSlidesOptions = {},
+): string {
+  const { tree, title, introNodes, sections } = parseLesson(source);
+  // Collect the slide decks that the lesson links to, each only once, at its
+  // first link.
   const seen = new Set<string>();
   const decksIn = (nodes: MarkdownNode[]): LinkedDeckSlides[] => {
     const found: LinkedDeckSlides[] = [];
@@ -292,23 +379,36 @@ export function generateLessonSlides(
     }
     return found;
   };
+  // Collect the pages that the `nest` setting selects, each only once, and
+  // number them under the section that links to them.
+  const seenPages = new Set<string>();
+  const nestedIn = (nodes: MarkdownNode[], heading: string): NestedSet[] => {
+    const found: NestedSet[] = [];
+    const base = sectionNumber(heading);
+    for (const url of nodes.flatMap(linkUrls)) {
+      const page = options.nestedPage?.(url);
+      if (!page || seenPages.has(page.id)) continue;
+      seenPages.add(page.id);
+      found.push(
+        nestedSet(page.source, base ? `${base}.${found.length + 1}` : ""),
+      );
+    }
+    return found;
+  };
   const introDecks = decksIn(introNodes);
   for (const each of sections) {
     each.decks = decksIn(each.nodes);
-    each.blocks = sectionBlocks(
-      each.nodes,
-      source,
-      isCoreConcepts(each.heading),
-    );
+    each.nested = nestedIn(each.nodes, each.heading);
   }
-  // G4: a section without anything for a slide is left out, with its heading.
+  // A section that has nothing to show on a slide gets no slide, and its
+  // heading is left out too (spec rule G4).
   const listed = sections.filter((each) => each.blocks.length > 0);
   // The title slide is a `lead` slide: centred, with the course logo (or the BSO logo).
   const slides = [`<!-- _class: lead -->\n# ${nodeText(title).trim()}`];
   if (options.contentsTitle && listed.length >= 2) {
     // `1. Intro` after `- ` would start a nested ordered list (roman numbers)
-    const entry = (text: string) =>
-      `- ${text.replace(/^(\d+(?:\.\d+)*)([.)])(?=\s)/, "$1\\$2")}`;
+    const entry = (text: string, indent = "") =>
+      `${indent}- ${text.replace(/^(\d+(?:\.\d+)*)([.)])(?=\s)/, "$1\\$2")}`;
     slides.push(
       `# ${options.contentsTitle}\n\n${
         [
@@ -316,16 +416,20 @@ export function generateLessonSlides(
           ...sections.flatMap((each) => [
             ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
             ...each.decks.map((deck) => entry(deck.title)),
+            ...each.nested.map((set) =>
+              entry(`${set.number ? `${set.number} ` : ""}${set.title}`, "  ")
+            ),
           ]),
         ].join("\n")
       }`,
     );
   }
   slides.push(...introDecks.map((deck) => deck.markdown));
-  for (const { heading, blocks, decks } of sections) {
+  for (const { heading, blocks, decks, nested } of sections) {
     slides.push(
       ...(blocks.length > 0 ? renderSection(heading, blocks) : []),
       ...decks.map((deck) => deck.markdown),
+      ...nested.flatMap((set) => set.slides),
     );
   }
   const definitions = tree.children.filter((node) => node.type === "definition")
@@ -344,12 +448,15 @@ export function generateLessonSlides(
   ].join("\n");
 }
 
-/** A `##` section of a lesson that gives no slide (guidebook 7.8, rule G4). */
+/**
+ * A section of a lesson that gets no slide, because it has nothing to show on a
+ * slide (spec *Generated slides: what a section gives*, rule G4).
+ */
 export interface SectionWithoutSlideContent {
   heading: string;
-  /** One-based line of the heading in the source. */
+  /** The line of the heading in the source, counting from 1. */
   line: number;
-  /** The section links to a `.md` file, which may be a deck that is inserted. */
+  /** Whether the section links to a `.md` file, which may be a slide deck whose slides are inserted. */
   linksToMarkdown: boolean;
 }
 

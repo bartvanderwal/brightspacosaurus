@@ -230,7 +230,7 @@ Deno.test("slides preview: a course prefix generates matching lessons with expli
   });
 });
 
-Deno.test("slides preview: generated lesson slides combine with manual decks", async () => {
+Deno.test("slides preview: generated lesson slides combine with manual slide decks", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -332,7 +332,7 @@ Deno.test("slides preview: shared theme and logo are applied to lead slides", as
   });
 });
 
-Deno.test("slides preview: only top-level true frontmatter selects decks", async () => {
+Deno.test("slides preview: only top-level true frontmatter selects slide decks", async () => {
   await fixture(async (root) => {
     const rejected = [
       "# Markdown\nmarp: true",
@@ -769,7 +769,7 @@ Deno.test("slides preview: rejects escaped image paths, invalid URLs and missing
   });
 });
 
-Deno.test("slides preview: symlink decks are skipped, asset and output escapes rejected", async () => {
+Deno.test("slides preview: symlink slide decks are skipped, asset and output escapes rejected", async () => {
   await fixture(async (root) => {
     const outside = dirname(root);
     await Deno.mkdir(join(root, "decks"));
@@ -814,7 +814,7 @@ Deno.test("slides preview: symlink decks are skipped, asset and output escapes r
   });
 });
 
-Deno.test("slides preview: renderer failures name lesson and decks, temporary input is removed", async () => {
+Deno.test("slides preview: renderer failures name lesson and slide decks, temporary input is removed", async () => {
   await fixture(async (root) => {
     await write(root, "decks/slides.md", deck);
     await assertRejects(
@@ -1165,7 +1165,7 @@ Deno.test({
   },
 });
 
-Deno.test("slides preview: slides: true selects a deck and is passed to Marp as marp: true (#112)", async () => {
+Deno.test("slides preview: slides: true selects a slide deck and is passed to Marp as marp: true", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1187,7 +1187,7 @@ Deno.test("slides preview: slides: true selects a deck and is passed to Marp as 
   });
 });
 
-Deno.test("slides preview: marp and slides together, or slides: false, do not select a deck", async () => {
+Deno.test("slides preview: marp and slides together, or slides: false, do not select a slide deck", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1205,7 +1205,7 @@ Deno.test("slides preview: marp and slides together, or slides: false, do not se
   });
 });
 
-Deno.test("slides export: one topic per lesson next to the lesson, titled after it, deterministic (#112)", async () => {
+Deno.test("slides export: one topic per lesson next to the lesson, titled after it, deterministic", async () => {
   await fixture(async (root) => {
     await write(root, "decks/a.md", deck.replace("# Slide", "# A"));
     await write(root, "shared/logo.png", "logo");
@@ -1233,7 +1233,7 @@ Deno.test("slides export: one topic per lesson next to the lesson, titled after 
       html,
       '<meta name="bso-title" content="Slides: Lesson 1.1: Fizz &amp;amp; Buzz">',
     );
-    // The course logo is placed at the start of the lead slide (#114).
+    // The course logo is placed at the start of the lead slide.
     assert(
       /<section[^>]*class="lead"[^>]*><img class="bso-slide-logo"/.test(html),
     );
@@ -1267,7 +1267,7 @@ Deno.test("slides export: no configuration exports nothing", async () => {
   );
 });
 
-Deno.test("stripPresenterNotes removes only the note elements, including nested markup (#117)", () => {
+Deno.test("stripPresenterNotes removes only the note elements, including nested markup", () => {
   const html =
     '<div id="p"><section>Slide</section></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Secret</p><div>inner</div></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><ul><li>Also secret</li></ul></div><script>x</script>';
   assertEquals(
@@ -1278,7 +1278,7 @@ Deno.test("stripPresenterNotes removes only the note elements, including nested 
   assertEquals(stripPresenterNotes(plain), plain);
 });
 
-Deno.test("slides export drops presenter notes unless slides.notes is true (#117)", async () => {
+Deno.test("slides export drops presenter notes unless slides.notes is true", async () => {
   const withNotes: SlidesRunner = async (args) => {
     if (args[0] === "install") {
       await installedTools(args[2]);
@@ -1329,7 +1329,7 @@ Deno.test("slides export drops presenter notes unless slides.notes is true (#117
   });
 });
 
-Deno.test("deckWantsPptx: deck value wins, auto and absent take the course default", () => {
+Deno.test("deckWantsPptx: slide deck value wins, auto and absent take the course default", () => {
   const withValue = (value: string) =>
     `---\nslides: true\npptx: ${value}\n---\n# A\n`;
   assertEquals(deckWantsPptx("---\nslides: true\n---\n# A"), false);
@@ -1341,7 +1341,7 @@ Deno.test("deckWantsPptx: deck value wins, auto and absent take the course defau
   assertEquals(deckWantsPptx("# no front matter", true), true);
 });
 
-Deno.test("slides pptx: course default, deck override, link and export copy (#115)", async () => {
+Deno.test("slides pptx: course default, slide deck override, link and export copy", async () => {
   await fixture(async (root) => {
     await write(root, "decks/a.md", deck.replace("# Slide", "# A"));
     await write(
@@ -1391,7 +1391,7 @@ Deno.test("slides pptx: course default, deck override, link and export copy (#11
   });
 });
 
-Deno.test("renderDiagramFences draws each diagram through Kroki and names the server on failure (#140)", async () => {
+Deno.test("renderDiagramFences draws each diagram through Kroki and names the server on failure", async () => {
   const calls: string[] = [];
   const fetcher = ((url: string, init: RequestInit) => {
     calls.push(`${url} ${init.body}`);
@@ -1443,7 +1443,7 @@ Deno.test("renderDiagramFences draws each diagram through Kroki and names the se
   );
 });
 
-Deno.test("combined decks with headingDivider get no empty slides, manual separators stay (#141)", async () => {
+Deno.test("combined slide decks with headingDivider get no empty slides, manual separators stay", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1473,7 +1473,7 @@ Deno.test("combined decks with headingDivider get no empty slides, manual separa
   });
 });
 
-Deno.test("back controls give a hint and an Esc handler that steps back, and the export removes them (#140)", () => {
+Deno.test("back controls give a hint and an Esc handler that steps back, and the export removes them", () => {
   const deck =
     "<html><head><title>x</title></head><body><section>a</section></body></html>";
   const withControls = withBackControls(deck, "back to the lesson");
@@ -1489,7 +1489,7 @@ Deno.test("back controls give a hint and an Esc handler that steps back, and the
   assertStringIncludes(withBackControls("<p>a</p>", "x"), "bso-slides-back");
 });
 
-Deno.test("slide layout fixes the title position, adds a footer logo on content slides and leaves lead slides alone (#140)", () => {
+Deno.test("slide layout fixes the title position, adds a footer logo on content slides and leaves lead slides alone", () => {
   const html =
     '<html><head></head><body><section id="1" class="lead">T</section><section id="2">A</section></body></html>';
   const out = withSlideLayout(html, "data:image/png;base64,AAAA");
@@ -1504,7 +1504,7 @@ Deno.test("slide layout fixes the title position, adds a footer logo on content 
   );
 });
 
-Deno.test("a deck without a theme gets the layout with the BSO logo, a course theme keeps its own (#140)", async () => {
+Deno.test("a slide deck without a theme gets the layout with the BSO logo, a course theme keeps its own", async () => {
   await fixture(async (root) => {
     await write(root, "decks/slides.md", deck);
     await renderPreviewSlides(config, root, "lessons", "static", fake([]));
@@ -1528,7 +1528,7 @@ Deno.test("a deck without a theme gets the layout with the BSO logo, a course th
   });
 });
 
-Deno.test("slide layout counts pages without appendix slides and gives appendix slides only their own number (#140)", () => {
+Deno.test("slide layout counts pages without appendix slides and gives appendix slides only their own number", () => {
   const html = "<html><head></head><body>" +
     '<section id="1" class="lead"><h1>T</h1></section>' +
     '<section id="2"><h1>One</h1></section>' +
@@ -1549,7 +1549,7 @@ Deno.test("slide layout counts pages without appendix slides and gives appendix 
   assert(!/<section[^>]*data-bso-appendix/.test(noAppendix));
 });
 
-Deno.test("a deck linked in a lesson is inserted in the lesson slides and rendered as its own presentation (#144)", async () => {
+Deno.test("a slide deck linked in a lesson is inserted in the lesson slides and rendered as its own presentation", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1595,7 +1595,7 @@ Deno.test("a deck linked in a lesson is inserted in the lesson slides and render
   });
 });
 
-Deno.test("a linked deck is exported as a topic after the lesson's slides topic (#144)", async () => {
+Deno.test("a linked slide deck is exported as a topic after the lesson's slides topic", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1631,7 +1631,7 @@ Deno.test("a linked deck is exported as a topic after the lesson's slides topic 
   });
 });
 
-Deno.test("a deck that is both linked and configured is inserted at the link only (#144)", async () => {
+Deno.test("a slide deck that is both linked and configured is inserted at the link only", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1658,8 +1658,8 @@ Deno.test("a deck that is both linked and configured is inserted at the link onl
   });
 });
 
-// Guidebook 7.8, rule L8: only an existing file that is marked as a deck counts.
-Deno.test("L8: a link to a missing file or to a plain page is not a deck: nothing is inserted or rendered (#144)", async () => {
+// Spec *Linked slide decks*, rule L8: only an existing file that is marked as a slide deck counts.
+Deno.test("L8: a link to a missing file or to a plain page is not a deck: nothing is inserted or rendered", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1688,8 +1688,8 @@ Deno.test("L8: a link to a missing file or to a plain page is not a deck: nothin
   });
 });
 
-// Guidebook 7.8, acceptance 7: a lesson without a generated deck still gets the standalone presentation.
-Deno.test("acceptance 7: a lesson that links a deck but has no generated deck still gets the deck as a presentation (#144)", async () => {
+// Spec *Linked slide decks*, acceptance 7: a lesson without a generated slide deck still gets the standalone presentation.
+Deno.test("acceptance 7: a lesson that links a slide deck but has no generated slide deck still gets the slide deck as a presentation", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1718,14 +1718,23 @@ Deno.test("acceptance 7: a lesson that links a deck but has no generated deck st
   });
 });
 
-// Guidebook 7.8, rules B1-B5: slides on the lesson page in the cartridge (#146).
-Deno.test("B1/B2/B4: the links paragraph sits after the first h1, links the slides and the pptx, and is added once (#146)", () => {
+// Spec *Slides on the lesson page in the cartridge*, rules B1-B5.
+Deno.test("B1/B2/B4: the links paragraph sits after the first h1, links the slides and the pptx, and is added once", () => {
   const links = [
     { kind: "slides" as const, href: "lesson-slides.html", label: "" },
-    { kind: "slides" as const, href: "lesson-slides-extra.html", label: "Extra deck" },
-    { kind: "pptx" as const, href: "lesson-slides-extra.pptx", label: "extra.pptx" },
+    {
+      kind: "slides" as const,
+      href: "lesson-slides-extra.html",
+      label: "Extra deck",
+    },
+    {
+      kind: "pptx" as const,
+      href: "lesson-slides-extra.pptx",
+      label: "extra.pptx",
+    },
   ];
-  const page = "<html><body><h1>The lesson</h1><p>Text</p><h1>Second</h1></body></html>";
+  const page =
+    "<html><body><h1>The lesson</h1><p>Text</p><h1>Second</h1></body></html>";
   const out = withSlidesLinks(page, links, "en");
   assertEquals(out.match(/data-bso-slides-links/g)?.length, 1);
   assert(out.indexOf("</h1>") < out.indexOf("data-bso-slides-links"));
@@ -1741,7 +1750,7 @@ Deno.test("B1/B2/B4: the links paragraph sits after the first h1, links the slid
   assertStringIncludes(withSlidesLinks(page, links, "nl"), "Bekijk als slides");
 });
 
-Deno.test("B2: a page without an h1 gets the links at the start of the content (#146)", () => {
+Deno.test("B2: a page without an h1 gets the links at the start of the content", () => {
   const out = withSlidesLinks(
     "<html><body><p>Text</p></body></html>",
     [{ kind: "slides", href: "x-slides.html", label: "" }],
@@ -1751,16 +1760,28 @@ Deno.test("B2: a page without an h1 gets the links at the start of the content (
   assert(out.indexOf("<body>") < out.indexOf("data-bso-slides-links"));
 });
 
-Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked deck and the pptx, next to the lesson (#146)", async () => {
+Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked slide deck and the pptx, next to the lesson", async () => {
   await fixture(async (root) => {
     await write(
       root,
       "lessons/week/lesson.md",
       "# Lesson\n\n## 1. One\n\n- a\n\n[Extra](../../decks/extra.md)\n",
     );
-    await write(root, "decks/extra.md", "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n");
-    await write(root, "content/week/lesson.html", "<html><body><h1>The lesson</h1><p>Text</p></body></html>");
-    await write(root, "content/week/other.html", "<html><body><h1>No slides</h1></body></html>");
+    await write(
+      root,
+      "decks/extra.md",
+      "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n",
+    );
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>The lesson</h1><p>Text</p></body></html>",
+    );
+    await write(
+      root,
+      "content/week/other.html",
+      "<html><body><h1>No slides</h1></body></html>",
+    );
     await exportSlidesToContent(
       { lessons: { "week/lesson.md": { generate: true } }, pptx: true },
       root,
@@ -1769,13 +1790,24 @@ Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked deck a
       join(root, "content"),
       fake([]),
     );
-    const page = await Deno.readTextFile(join(root, "content/week/lesson.html"));
+    const page = await Deno.readTextFile(
+      join(root, "content/week/lesson.html"),
+    );
     assertStringIncludes(page, '<a href="lesson-slides.html">');
     assertStringIncludes(page, '<a href="lesson-slides-extra.html">');
     assertStringIncludes(page, '<a href="lesson-slides-extra.pptx" download>');
     // every linked file exists next to the lesson
-    for (const name of ["lesson-slides.html", "lesson-slides-extra.html", "lesson-slides-extra.pptx"]) {
-      assertEquals((await Deno.stat(join(root, "content/week", name))).isFile, true);
+    for (
+      const name of [
+        "lesson-slides.html",
+        "lesson-slides-extra.html",
+        "lesson-slides-extra.pptx",
+      ]
+    ) {
+      assertEquals(
+        (await Deno.stat(join(root, "content/week", name))).isFile,
+        true,
+      );
     }
     // a page without slides is untouched
     assertEquals(
@@ -1785,11 +1817,151 @@ Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked deck a
   });
 });
 
-Deno.test("B5: without slides in the course the lesson page is not touched (#146)", async () => {
+Deno.test("B5: without slides in the course the lesson page is not touched", async () => {
   await fixture(async (root) => {
     const page = "<html><body><h1>The lesson</h1></body></html>";
     await write(root, "content/week/lesson.html", page);
-    assertEquals(await exportSlidesToContent(undefined, root, "lessons", "static", join(root, "content"), fake([])), []);
-    assertEquals(await Deno.readTextFile(join(root, "content/week/lesson.html")), page);
+    assertEquals(
+      await exportSlidesToContent(
+        undefined,
+        root,
+        "lessons",
+        "static",
+        join(root, "content"),
+        fake([]),
+      ),
+      [],
+    );
+    assertEquals(
+      await Deno.readTextFile(join(root, "content/week/lesson.html")),
+      page,
+    );
+  });
+});
+
+// Spec *Nested lesson pages*, rules N1, N3, N4, N7, N10.
+async function overviewFixture(
+  root: string,
+  pages = ["a", "b"],
+): Promise<void> {
+  const links = pages.map((name) => `- [${name}](levels/level-${name}.md)`)
+    .join("\n");
+  await write(
+    root,
+    "lessons/week/overview.md",
+    `# Overview\n\n## 1. Why\n\n- why\n\n## 2. The levels\n\n${links}\n\n- [Elsewhere](other/level-x.md)\n`,
+  );
+  for (const name of pages) {
+    await write(
+      root,
+      `lessons/week/levels/level-${name}.md`,
+      `# Level ${name}\n\n## 1. Goal\n\n- goal ${name}\n\n{@include: [part](../../partials/part.md)}\n`,
+    );
+  }
+  await write(root, "lessons/partials/part.md", "- from the partial\n");
+}
+
+Deno.test("N1/N3/N4: nest gives the generated slides of the matching links, includes expanded one level", async () => {
+  await fixture(async (root) => {
+    await overviewFixture(root);
+    await write(
+      root,
+      "lessons/week/other/level-x.md",
+      "# Level x\n\n## 1. X\n\n- x\n",
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(
+      {
+        lessons: {
+          "week/overview.md": { generate: true, nest: ["levels/level-*.md"] },
+        },
+      },
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    const deck = captured[0];
+    const order = [
+      "# 2. The levels",
+      "# 2.1 Level a",
+      "goal a",
+      "# 2.2 Level b",
+      "goal b",
+    ]
+      .map((text) => deck.indexOf(text));
+    assert(order.every((index) => index >= 0), `all present: ${order}`);
+    assertEquals([...order].sort((x, y) => x - y), order);
+    assertStringIncludes(deck, "- from the partial");
+    assert(
+      !deck.includes("# 2.3 Level x"),
+      "a link that does not match nest stays a link",
+    );
+    assertStringIncludes(deck, "- [Elsewhere](other/level-x.md)");
+  });
+});
+
+Deno.test("N7: a matching link to a missing file fails the build with the lesson, the link and the path", async () => {
+  await fixture(async (root) => {
+    await overviewFixture(root, ["a"]);
+    await write(
+      root,
+      "lessons/week/overview.md",
+      "# Overview\n\n## 1. Why\n\n- why\n\n## 2. Levels\n\n- [Gone](levels/level-gone.md)\n",
+    );
+    await assertRejects(
+      () =>
+        renderPreviewSlides(
+          {
+            lessons: {
+              "week/overview.md": { generate: true, nest: "levels/level-*.md" },
+            },
+          },
+          root,
+          "lessons",
+          "static",
+          fake([]),
+        ),
+      Error,
+      "level-gone.md",
+    );
+  });
+});
+
+Deno.test("N10: a change in a nested page shows at the next build, and the page stays its own slide deck", async () => {
+  await fixture(async (root) => {
+    await overviewFixture(root, ["a"]);
+    const config: SlidesConfig = {
+      lessons: {
+        "week/overview.md": { generate: true, nest: ["levels/level-*.md"] },
+        "week/levels/level-a.md": { generate: true },
+      },
+    };
+    const first: string[] = [];
+    const result = await renderPreviewSlides(
+      config,
+      root,
+      "lessons",
+      "static",
+      fake(first),
+    );
+    assertStringIncludes(first.join("\n"), "goal a");
+    assertEquals(Object.keys(result).length, 2);
+    await write(
+      root,
+      "lessons/week/levels/level-a.md",
+      "# Level a\n\n## 1. Goal\n\n- a changed goal\n",
+    );
+    const second: string[] = [];
+    await renderPreviewSlides(config, root, "lessons", "static", fake(second));
+    assert(
+      second.every((input) =>
+        !input.includes("goal a") || input.includes("a changed goal")
+      ),
+    );
+    assertEquals(
+      second.filter((input) => input.includes("a changed goal")).length,
+      2,
+    );
   });
 });

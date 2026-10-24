@@ -160,7 +160,7 @@ export function parseArgs(
   skipSlides: boolean;
   output: string;
   config: string;
-  /** `pack --format`: `imscc` (default) or `brightspace` (native package, experimental, #21). */
+  /** `pack --format`: `imscc` (default) or `brightspace` (native package, experimental). */
   format: string;
 } | null {
   if (args.length === 0) return null;
@@ -203,7 +203,7 @@ export function parseArgs(
 
 /**
  * URL of the Voortgangsverkenner relative to the teacher page's HTML, or null
- * when `teacherDashboard` is not configured (#37).
+ * when `teacherDashboard` is not configured.
  */
 function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): string | null {
   if (!config.teacherDashboard) return null;
@@ -215,7 +215,7 @@ function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): s
 export interface BuildOptions {
   /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
   skipReaders?: boolean;
-  /** Do not render the configured slides into the content folder (#112). */
+  /** Do not render the configured slides into the content folder. */
   skipSlides?: boolean;
 }
 
@@ -354,7 +354,7 @@ export async function runBuild(
     }
   }
 
-  // Phase 2b: Render the configured Marp slides as one topic per lesson (#112)
+  // Phase 2b: Render the configured Marp slides as one topic per lesson
   if (!readersOnly && config.slides && !skipSlides) {
     const { exportSlidesToContent } = await import("./slides-preview.ts");
     const exported = await exportSlidesToContent(
@@ -567,7 +567,7 @@ export async function runBuild(
         const includeFilterPath = await materializeAsset("include-filter.lua");
         const detailsFilterPath = await materializeAsset("details-filter.lua");
         // The online feature pages are the source for how a feature works; the
-        // manual appends them with their <details> blocks expanded (#111).
+        // manual appends them with their <details> blocks expanded.
         const featuresDir = resolve(bsoDocsDir, "..", "examples", "demo-course", "lessons", "features");
         const featureChapter = buildFeatureChapter(await loadFeaturePages(featuresDir));
         const featureSources: string[] = [];
@@ -906,8 +906,8 @@ async function writeManifestAndNavigation(
 }
 
 /**
- * Copies the packages and pptx files into `publishDir` when it is configured
- * (#145), and says what was copied and removed.
+ * Copies the packages and the pptx files into the publication folder when
+ * `publishDir` is configured, and says what was copied and what was removed.
  */
 async function publishIfConfigured(
   config: ResolvedConfig,
@@ -940,7 +940,7 @@ export async function runPack(
   }
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
-  // Course version, not BSO version: it identifies the imported content (#42).
+  // Course version, not BSO version: it identifies the imported content.
   const outputPath = join(buildDir, `${config.name}.v${config.version}.imscc`);
 
   // Run build first if build/content/ does not exist
@@ -959,7 +959,7 @@ export async function runPack(
   console.log("  ✓ imsmanifest.xml");
 
   if (format === "brightspace") {
-    // Experimental (#21): a native Brightspace package, with module descriptions.
+    // Experimental: a native Brightspace package, with module descriptions.
     console.log("Packaging into a native Brightspace package (experimental)...");
     const nativePath = join(buildDir, nativePackageName(config.name, config.version));
     const result = await packNative({
@@ -974,7 +974,7 @@ export async function runPack(
     );
     if (result.skippedQuizzes > 0) {
       console.warn(
-        `  ⚠ ${result.skippedQuizzes} quizzes are not in the native package (D2L quiz format is not generated yet, #21); import them from the .imscc.`,
+        `  ⚠ ${result.skippedQuizzes} quizzes are not in the native package (the D2L quiz format is not generated yet); import them from the .imscc.`,
       );
     }
     await publishIfConfigured(config, [nativePath]);
@@ -1064,7 +1064,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
     }...`,
   );
 
-  // The app's custom.css imports this file (#95); written before npm starts.
+  // The app's custom.css imports this file; written before npm starts.
   await writePreviewStylesheet(config.docusaurusDir);
   console.log(
     `Wrote ${join(PREVIEW_GENERATED_DIR, PREVIEW_STYLESHEET)} for the preview styles.`,
@@ -1072,7 +1072,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
 
   // Dev/prod parity: the preview serves the same dashboard files as the
   // export, from a static directory next to the build directory, so `pack`
-  // never includes them (#37).
+  // never includes them.
   // Reader PDFs from an earlier `build` are served too, so reader pages can
   // link to the PDF as in Brightspace.
   const staticDir = join(dirname(config.outputDir), "preview-static");

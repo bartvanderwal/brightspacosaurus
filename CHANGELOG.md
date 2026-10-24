@@ -6,6 +6,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- `slides.lessons.<lesson>.nest`: a glob or a list of globs, relative to the folder of the lesson. The links of the lesson that match have the generated slides of their page nested in the slide deck of the lesson, one level deep, after the section with the link and numbered under it (`2.1`, `2.2`, ...). The contents slide lists them as sub-entries. A matching link to a missing page fails the build; `bso lint` warns about a pattern that matches no link (`slides-nest-unused`) and about more than nine nested pages under one section (`slides-too-many-nested`). The demo course has an example with three pages (lesson 2.5).
 - Brightspace: a lesson page that has slides gets a line of links at the top: the presentation of the lesson, each linked deck and a download link for each editable pptx, as the preview has a Slides button. The pptx of a linked deck is named like its slides topic (#146).
 
 ### Fixed
@@ -17,7 +18,7 @@ All notable changes to Brightspacosaurus are documented here.
 ### Added
 
 - `publishDir`: a folder for the files that are published on purpose. `bso pack` copies the current `.imscc` (or native package) to `<publishDir>/brightspace/`, removes older versions of it, and copies the editable pptx files to `<publishDir>/slides/`; `bso lint` warns (`publish-version-mismatch`) about a package of another version. The build output stays the temporary `outputDir` (#145).
-- A section of a lesson that becomes slides, and that has only running text (no list, table, image, code or diagram), now gets no slide and no contents entry instead of a slide with only its heading; `bso lint` warns about it (`slides-section-without-content`). Sources are exempt. The rules are in the Software Guidebook, 7.8 (#141).
+- A section of a lesson that becomes slides, and that has only running text (no list, table, image, code or diagram), now gets no slide and no contents entry instead of a slide with only its heading; `bso lint` warns about it (`slides-section-without-content`). Sources are exempt. The rules are in the Software Guidebook, *Generated slides: what a section gives* (#141).
 - Experimental: `bso pack --format brightspace`, a native Brightspace package (`<name>.v<version>.d2l.zip`) with the lead page of each module as its description (text and images of the main menu item, which a Common Cartridge import drops), the lessons and reader PDFs as topics and the course files. Quizzes are not in it yet (#21).
 - A link in a lesson to a slide deck (an ordinary Markdown link to a file with `slides: true`) starts that deck as its own presentation, inserts its slides in the lesson's slides after the section with the link, and lists its title in the contents slide. In the cartridge the deck is a topic after the lesson's slides topic. `bso lint` warns (`slides-nested-deck`, `slides-deck-linked-twice`) (#144).
 - `deno task publish` is an alias of `deno task release`, which checks the tag and publishes to JSR and npm.

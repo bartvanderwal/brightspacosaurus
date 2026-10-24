@@ -1,8 +1,8 @@
 /**
- * Links from a lesson to a slide deck (#144). A deck link is an ordinary
- * Markdown link to a local `.md` file that is marked as a deck
- * (`slides: true`). Runtime-neutral (no Deno or Node APIs), so the build, the
- * lint and the Docusaurus preview share it.
+ * Links from a lesson to a slide deck. A link to a slide deck is an ordinary
+ * Markdown link to a local `.md` file whose front matter marks it as a slide
+ * slide deck (`slides: true`). This module uses no Deno or Node APIs, so that the
+ * build, the lint and the Docusaurus preview can all use it.
  *
  * @module
  */
@@ -13,28 +13,31 @@ import { isSlideDeck } from "./includes.ts";
 export interface MarkdownLink {
   /** The link text. */
   text: string;
-  /** The target as written, without anchor. */
+  /** The target of the link as written, without the anchor. */
   href: string;
-  /** Offset of the `[` in the source. */
+  /** The position of the opening `[` in the source. */
   index: number;
-  /** One-based line of the link. */
+  /** The line of the link in the source, counting from 1. */
   line: number;
 }
 
-/** A deck that a lesson links to. */
+/** A slide deck that a lesson links to. */
 export interface DeckLink extends MarkdownLink {
-  /** Absolute path of the deck file. */
+  /** The absolute path of the slide deck file. */
   path: string;
-  /** The deck's `title` front matter, else its first H1, else the file name. */
+  /** The `title` in the front matter of the slide deck, else its first H1, else the file name. */
   title: string;
-  /** The deck without its front matter. */
+  /** The slide deck without its front matter. */
   body: string;
 }
 
 const INLINE_MD_LINK =
   /(?<!!)\[([^\]]*)\]\(<?([^)\s>]+?\.md)(?:#[^)\s>]*)?>?(?:\s+"[^"]*")?\)/g;
 
-/** Replaces fenced code and inline code by spaces, keeping offsets and lines. */
+/**
+ * Replaces fenced code and inline code by spaces, so that links inside code are
+ * not found while the positions and line numbers of everything else stay the same.
+ */
 function maskCode(markdown: string): string {
   const blank = (code: string) => code.replace(/[^\n]/g, " ");
   return markdown
@@ -45,7 +48,7 @@ function maskCode(markdown: string): string {
     .replace(/`[^`\n]*`/g, blank);
 }
 
-/** All inline links to `.md` files outside code. External URLs are skipped. */
+/** All inline links to `.md` files outside code. Links to external URLs are skipped. */
 export function findMarkdownLinks(markdown: string): MarkdownLink[] {
   const masked = maskCode(markdown);
   const links: MarkdownLink[] = [];
@@ -62,7 +65,7 @@ export function findMarkdownLinks(markdown: string): MarkdownLink[] {
   return links;
 }
 
-/** The title of a deck: front matter `title`, else the first H1, else `fallback`. */
+/** The title of a slide deck: the `title` in its front matter, else its first H1, else `fallback`. */
 export function deckTitle(markdown: string, fallback: string): string {
   const header = markdown.replace(/^﻿/, "").match(
     /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/,
@@ -74,7 +77,7 @@ export function deckTitle(markdown: string, fallback: string): string {
   return heading ?? fallback;
 }
 
-/** The deck without its leading front matter. */
+/** A slide deck without its front matter at the start. */
 export function deckBody(markdown: string): string {
   return markdown.replace(
     /^(?:﻿)?---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/,
@@ -83,9 +86,9 @@ export function deckBody(markdown: string): string {
 }
 
 /**
- * The links of a lesson that lead to a deck, in document order. `resolve`
- * makes an absolute path of a link target; `readFile` returns the file text, or
- * null when the file does not exist.
+ * The links of a lesson that lead to a slide deck, in the order of the lesson.
+ * The function `resolve` turns the target of a link into an absolute path, and
+ * `readFile` returns the text of that file, or null when the file does not exist.
  */
 export function findDeckLinks(
   markdown: string,
@@ -109,17 +112,18 @@ export function findDeckLinks(
 }
 
 /**
- * The file name (without folder) of the standalone slides topic of a linked
- * deck, next to the lesson: `<lesson>-slides-<deck>.html`. A leading `slides-`
- * of the deck name is dropped, so `slides-fizzbuzz` gives `...-slides-fizzbuzz`.
+ * The file name, without folder, of the topic that shows a linked slide deck on
+ * its own, next to the lesson: `<lesson>-slides-<deck>.html`. A leading `slides-`
+ * in the name of the slide deck is dropped, so `slides-fizzbuzz` gives
+ * `<lesson>-slides-fizzbuzz`.
  */
 export function deckTopicName(lessonStem: string, deckStem: string): string {
   return `${lessonStem}-slides-${deckStem.replace(/^slides-/, "")}`;
 }
 
 /**
- * Replaces the target of every inline `.md` link outside code for which
- * `mapHref` returns a new target. An anchor after the target is kept.
+ * Replaces the target of every inline link to a `.md` file outside code for
+ * which `mapHref` returns a new target. An anchor after the target is kept.
  */
 export function rewriteLinkTargets(
   markdown: string,

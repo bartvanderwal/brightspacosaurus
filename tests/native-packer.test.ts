@@ -16,7 +16,7 @@ Deno.test("escapeXml escapes markup and keeps newlines as character references",
   );
 });
 
-Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles and roots relative paths (#21)", () => {
+Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles and roots relative paths", () => {
   const html =
     '<html><head><style>x{}</style></head><body><div><h1>Week</h1><img src="../images/pic.png" alt="p"><a href="other.html#a">o</a><a href="https://e.org/x.png">e</a></div><script>alert(1)</script></body></html>';
   const description = moduleDescriptionFromHtml(
@@ -31,7 +31,7 @@ Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles a
   assert(description.startsWith("<div><h1>Week</h1>"));
 });
 
-Deno.test("buildNativeManifest has module descriptions, backslash paths and is deterministic (#21)", () => {
+Deno.test("buildNativeManifest has module descriptions, backslash paths and is deterministic", () => {
   const input = {
     courseName: "Course & Co",
     language: "nl-nl",
@@ -67,7 +67,7 @@ Deno.test("buildNativeManifest has module descriptions, backslash paths and is d
   assertEquals(stack, []);
 });
 
-Deno.test("packNative makes the lead page the module description, leaves out quizzes and packs the course files (#21)", async () => {
+Deno.test("packNative makes the lead page the module description, leaves out quizzes and packs the course files", async () => {
   await Deno.mkdir("build", { recursive: true });
   const root = await Deno.makeTempDir({
     dir: resolve("build"),

@@ -7,7 +7,7 @@ import {
   relative,
   resolve,
 } from "@std/path";
-import { expandIncludesOnce } from "./includes.ts";
+import { expandIncludesOnce, isSlideDeck } from "./includes.ts";
 import { type DeckLink, deckTopicName, findDeckLinks } from "./linked-decks.ts";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
@@ -27,7 +27,7 @@ export type { SlidesConfig } from "./types.ts";
 /** Injectable command boundary, so selection and rewriting can be tested offline. */
 export type SlidesRunner = (args: string[], cwd: string) => Promise<void>;
 
-/** Neutral on purpose: no school year or period; a course sets its own text (#113). */
+/** Neutral on purpose: no school year or period; a course sets its own text. */
 const DEFAULT_DISCLAIMER = "Preview";
 
 function within(path: string, root: string): void {
@@ -91,7 +91,7 @@ async function collect(
 /**
  * Deliberately conservative: only an unquoted top-level YAML boolean enables
  * slide-deck recognition. `slides: true` is the semantic spelling; `marp: true`
- * remains supported for existing decks and is normalized for the Marp CLI.
+ * remains supported for existing slide decks and is normalized for the Marp CLI.
  * Nested keys, block scalars, quoted "true", and ordinary Markdown do not.
  */
 function frontmatter(
@@ -107,7 +107,7 @@ function frontmatter(
     markers.length !== 1 ||
     !/^(?:marp|slides)[ \t]*:[ \t]+true[ \t]*(?:#.*)?$/.test(markers[0])
   ) return undefined;
-  // Reject prose or malformed top-level YAML rather than interpreting it as a deck.
+  // Reject prose or malformed top-level YAML rather than interpreting it as a slide deck.
   if (
     lines.some((line) =>
       line.trim() && !/^(?:[ \t]+|#|[A-Za-z_][\w-]*[ \t]*:)/.test(line)
@@ -454,7 +454,7 @@ export function withFavicon(
 const BACK_CONTROLS_ID = "bso-slides-back";
 
 /**
- * Preview only: a small hint in the corner of a deck that says Esc (or
+ * Preview only: a small hint in the corner of a slide deck that says Esc (or
  * Alt/Option+P again) goes back to the lesson, and the key handler that does
  * it, plus an Esc button in Marp's on-screen controller (the HUD that appears on
  * mouse movement). Going back is the browser's own history step (`history.back()`), the same
@@ -530,7 +530,7 @@ export function withSlideLayout(html: string, logoUrl: string): string {
     : style + withLogos;
 }
 
-/** The BSO logo as a data URL, for decks of a course without a logo of its own. */
+/** The BSO logo as a data URL, for slide decks of a course without a logo of its own. */
 async function defaultSlideLogo(): Promise<string> {
   const bytes = await loadAssetBytes("brightspacosaurus.png");
   let binary = "";
@@ -541,7 +541,7 @@ async function defaultSlideLogo(): Promise<string> {
 const PPTX_STYLE_ID = "bso-pptx-style";
 
 /**
- * Whether a deck gets a `.pptx`. The deck's own `pptx: true | false | auto`
+ * Whether a slide deck gets a `.pptx`. The slide deck's own `pptx: true | false | auto`
  * wins; `auto` (or no value) takes the course-wide `slides.pptx` setting.
  */
 export function deckWantsPptx(deck: string, courseDefault = false): boolean {
@@ -698,10 +698,10 @@ async function prepareTools(
 }
 
 /**
- * Replaces each `plantuml` / `mermaid` fence of a generated deck by the SVG
+ * Replaces each `plantuml` / `mermaid` fence of a generated slide deck by the SVG
  * that Kroki draws for it, as an embedded image (so Marp, the pptx and the
  * `.imscc` need nothing else). Fails with the Kroki address when a diagram
- * cannot be drawn, because a silently empty slide is worse (#140).
+ * cannot be drawn, because a silently empty slide is worse.
  */
 export async function renderDiagramFences(
   markdown: string,
@@ -756,11 +756,11 @@ export async function renderDiagramFences(
 }
 
 /**
- * Joins the generated deck and the manual decks into one presentation. When
+ * Joins the generated slide deck and the manual slide decks into one presentation. When
  * the first chunk's front matter has `headingDivider`, Marp already starts a
  * slide at those headings, so a `---` in front of one would add an empty slide
- * (#141): the generated slides then lose such separators, and the join takes
- * no `---` before a heading. A manual deck's own `---` stay as the author wrote them.
+ * : the generated slides then lose such separators, and the join takes
+ * no `---` before a heading. A manual slide deck's own `---` stay as the author wrote them.
  */
 function joinChunks(chunks: string[], generated: boolean): string {
   const levels = headingDividerLevels(frontmatter(chunks[0])?.header ?? "");
@@ -781,8 +781,9 @@ function joinChunks(chunks: string[], generated: boolean): string {
 }
 
 /**
- * Rewrites the relative image paths of Markdown that moves from `fromDir` into
- * a file in `toDir`, so the images are still found when they are embedded.
+ * Rewrites the relative image paths of Markdown that is moved from the folder
+ * `fromDir` into a file in the folder `toDir`, so that the images are still
+ * found when they are embedded.
  */
 function rewriteImagePaths(
   content: string,
@@ -800,10 +801,17 @@ function rewriteImagePaths(
   );
 }
 
-/** Marks a result entry as the standalone presentation of a linked deck (#144). */
+/**
+ * Marks an entry of the result as the separate presentation of a slide deck
+ * that a lesson links to.
+ */
 export const DECK_KEY_PREFIX = "deck:";
 
-/** The decks a lesson links to (#144), read from disk relative to the lesson. */
+/**
+ * The slide decks that a lesson links to. The links are resolved relative to the
+ * lesson file, and a target only counts when the file exists and is marked as a
+ * slide deck.
+ */
 export function readDeckLinks(
   lessonPath: string,
   markdown: string,
@@ -822,7 +830,7 @@ export function readDeckLinks(
   );
 }
 
-/** The decks that each Markdown file under `sources` links to (#144). */
+/** The slide decks that each Markdown file under `sources` links to. */
 async function scanDeckLinks(
   sources: string,
   output: string,
@@ -840,8 +848,56 @@ async function scanDeckLinks(
 }
 
 /**
- * Expands the `{@include}` lines of a lesson or deck for its slides, one
- * level deep (#143). Relative image paths of the included text are rewritten
+ * Decides which links of a lesson are replaced by the slides of the page they
+ * point to. A link is replaced when its target matches one of the glob patterns
+ * of the `nest` setting (the patterns are relative to the folder of the lesson)
+ * and the target is a lesson page and not a slide deck. A matching link to a
+ * file that does not exist makes the build fail. The page is read again at
+ * every build, so a change in the page shows up in the next build.
+ */
+function nestResolver(
+  lesson: string,
+  globs: string[] | undefined,
+): ((url: string) => { id: string; source: string } | undefined) | undefined {
+  if (!globs?.length) return undefined;
+  const matchers = globs.map((glob) =>
+    globToRegExp(glob.replaceAll("\\", "/"), { extended: true, globstar: true })
+  );
+  return (url) => {
+    if (!/\.md(?:#|$)/i.test(url) || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url)) {
+      return undefined;
+    }
+    const path = resolve(
+      dirname(lesson),
+      decodeURIComponent(url.split(/[?#]/, 1)[0]),
+    );
+    const relativePath = relative(dirname(lesson), path).replaceAll("\\", "/");
+    if (!matchers.some((matcher) => matcher.test(relativePath))) {
+      return undefined;
+    }
+    let text: string;
+    try {
+      text = Deno.readTextFileSync(path).replace(/\r\n/g, "\n");
+    } catch {
+      throw new Error(
+        `Slides: ${lesson} links '${url}', which matches nest, but ${path} does not exist.`,
+      );
+    }
+    if (isSlideDeck(text)) return undefined;
+    return {
+      id: path,
+      source: rewriteImagePaths(
+        expandSlideIncludes(text, path),
+        dirname(path),
+        dirname(lesson),
+      ),
+    };
+  };
+}
+
+/**
+ * Expands the `{@include}` lines of a lesson or slide deck for its slides, one
+ * level deep. Relative image paths of the included text are rewritten
  * to be relative to the including file, because images are embedded from there.
  */
 function expandSlideIncludes(markdown: string, sourcePath: string): string {
@@ -872,9 +928,9 @@ function expandSlideIncludes(markdown: string, sourcePath: string): string {
 }
 
 /**
- * Build self-contained lesson presentations in lexical deck order, retaining notes
- * and slide separators. The first deck's frontmatter defines presentation-wide
- * settings (theme, size, metadata); subsequent deck frontmatter is not a slide.
+ * Build self-contained lesson presentations in lexical slide deck order, retaining notes
+ * and slide separators. The first slide deck's frontmatter defines presentation-wide
+ * settings (theme, size, metadata); subsequent slide deck frontmatter is not a slide.
  * Undefined configuration is a strict no-op. Only staticDir/slides is replaced.
  * The pinned CLI is cached in dirname(staticDir)/marp-tools with patched math dependencies.
  */
@@ -941,6 +997,7 @@ export async function renderPreviewSlides(
     url: string;
     decks: string[];
     generate: boolean;
+    nest?: string[];
   }[] = [];
   const themePath = config.theme
     ? isAbsolute(config.theme) ? config.theme : resolve(root, config.theme)
@@ -977,7 +1034,7 @@ export async function renderPreviewSlides(
         !selection || typeof selection !== "object" ||
         Array.isArray(selection) ||
         Object.keys(selection).some((key) =>
-          key !== "generate" && key !== "decks"
+          key !== "generate" && key !== "decks" && key !== "nest"
         ) ||
         (selection.generate !== undefined &&
           typeof selection.generate !== "boolean") ||
@@ -1025,9 +1082,12 @@ export async function renderPreviewSlides(
       throw new Error(`Slides preview: duplicate lesson output: ${url}`);
     }
     urls.add(url);
-    plans.push({ lesson, url, decks, generate });
+    const nest = typeof selection === "object" && selection?.nest !== undefined
+      ? [selection.nest].flat()
+      : undefined;
+    plans.push({ lesson, url, decks, generate, nest });
   }
-  // Decks that lessons link to (#144): each gets a standalone presentation.
+  // Slide decks that lessons link to: each gets a standalone presentation.
   const linkedByLesson = await scanDeckLinks(sources, output, tools);
   const standalone = new Set<string>();
   for (const decks of linkedByLesson.values()) {
@@ -1040,7 +1100,7 @@ export async function renderPreviewSlides(
     ).split("/").map(encodeURIComponent).join("/");
     const url = `slides/decks/${slug}/index.html`;
     if (urls.has(url)) {
-      throw new Error(`Slides preview: duplicate deck output: ${url}`);
+      throw new Error(`Slides preview: duplicate slide deck output: ${url}`);
     }
     urls.add(url);
     plans.push({
@@ -1067,7 +1127,7 @@ export async function renderPreviewSlides(
     const chunks: string[] = [];
     const svgImages = new Map<string, string>();
     const lessonDecks = linkedByLesson.get(plan.lesson) ?? [];
-    // A deck that is linked and configured is inserted at the link only (L9).
+    // A slide deck that is linked and configured is inserted at the link only (L9).
     const configured = plan.generate
       ? plan.decks.filter((deck) =>
         !lessonDecks.some((linked) => linked.path === deck)
@@ -1103,6 +1163,7 @@ export async function renderPreviewSlides(
                   ),
                 };
               },
+              nestedPage: nestResolver(plan.lesson, plan.nest),
             },
           ),
           plan.lesson,
@@ -1262,7 +1323,7 @@ export async function renderPreviewSlides(
 
 /**
  * Removes the presenter notes Marp writes as `<div class="bespoke-marp-note">`
- * elements, balancing nested divs. The rest of the deck stays byte for byte.
+ * elements, balancing nested divs. The rest of the slide deck stays byte for byte.
  */
 export function stripPresenterNotes(html: string): string {
   const open = /<div class="bespoke-marp-note"[^>]*>/g;
@@ -1297,7 +1358,7 @@ function escapeAttribute(value: string): string {
   ).replace(/>/g, "&gt;");
 }
 
-/** A link in the paragraph of slide links on a lesson page (#146). */
+/** A link in the paragraph of slide links on a lesson page. */
 export interface SlidesLink {
   kind: "slides" | "pptx";
   /** A file name next to the lesson. */
@@ -1313,7 +1374,7 @@ const SLIDES_LINK_TEXT = {
 
 /**
  * Adds one paragraph of links to the slides and to the editable pptx files of
- * a lesson page, after its first `<h1>` (guidebook 7.8, rules B1-B5). Plain
+ * a lesson page, after its first `<h1>` (spec *Slides on the lesson page in the cartridge*, rules B1-B5). Plain
  * links, no script, so it works in the Brightspace frame. A page that has the
  * paragraph already is left as it is.
  */
@@ -1346,9 +1407,9 @@ export function withSlidesLinks(
 
 /**
  * Renders the lesson presentations like the preview and copies each one into
- * the build's content folder as `<lesson>-slides.html` (#112), so `pack` lists it
+ * the build's content folder as `<lesson>-slides.html`, so `pack` lists it
  * as a topic right after its lesson. The title (`Slides: <lesson title>`) is
- * written as `bso-title`, because a deck's first `<h1>` is a slide title.
+ * written as `bso-title`, because a slide deck's first `<h1>` is a slide title.
  *
  * Presenter notes are removed unless `slides.notes` is true.
  *
@@ -1385,12 +1446,12 @@ export async function exportSlidesToContent(
     const rendered = await Deno.readTextFile(
       join(staticRoot, ...url.split("/").map(decodeURIComponent)),
     );
-    // The notes are for the teacher; the topic is open to every student (#117).
+    // The notes are for the teacher; the topic is open to every student.
     const html = stripBackControls(
       config.notes === true ? rendered : stripPresenterNotes(rendered),
     );
     const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;
-    // Each linked .pptx goes along, named after the lesson, so decks never clash.
+    // Each linked .pptx goes along, named after the lesson, so slide decks never clash.
     let linked = html;
     for (const name of pptxLinkNames(html)) {
       const copy = copyName(name);
@@ -1434,7 +1495,7 @@ export async function exportSlidesToContent(
   };
   const stemOf = (lesson: string) =>
     relative(sources, lesson).replaceAll("\\", "/").replace(/\.md$/i, "");
-  // The links that each lesson page gets to its slides and pptx files (#146).
+  // The links that each lesson page gets to its slides and pptx files.
   const lessonLinks = new Map<string, SlidesLink[]>();
   const addLinks = (
     stem: string,
@@ -1460,8 +1521,8 @@ export async function exportSlidesToContent(
       "",
     );
   }
-  // The standalone presentation of each deck a lesson links to, as a topic
-  // after the lesson's own slides topic (#144).
+  // The standalone presentation of each slide deck a lesson links to, as a topic
+  // after the lesson's own slides topic.
   const tools = join(dirname(staticRoot), "marp-tools");
   const linkedDecks = await scanDeckLinks(sources, staticRoot, tools);
   for (

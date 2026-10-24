@@ -60,8 +60,8 @@ export interface ConvertOptions {
   teacherDashboardSrc?: string | null;
   /**
    * The course has `slides` configured: a link to a slide deck (a `.md` file
-   * with `slides: true`) points at the standalone slides topic of that deck,
-   * next to the lesson (#144).
+   * with `slides: true`) points at the standalone slides topic of that slide deck,
+   * next to the lesson.
    */
   deckLinks?: boolean;
 }
@@ -151,6 +151,13 @@ export interface SlidesLessonConfig {
   generate?: boolean;
   /** Manual slide glob relative to the repository root. */
   decks?: string;
+  /**
+   * A glob, or a list of globs, relative to the folder of the lesson: the links
+   * of the lesson that match have their generated slides nested in the slide deck of
+   * this lesson, one level deep, numbered under their section. Needs
+   * `generate: true`.
+   */
+  nest?: string | string[];
 }
 
 export interface SlidesConfig {
@@ -167,12 +174,12 @@ export interface SlidesConfig {
   /**
    * Keep the presenter notes (HTML comments) in the slides that go into the
    * `.imscc`. Omitted or false removes them, because every student who opens the
-   * topic could read them; the local preview always keeps them (#117).
+   * topic could read them; the local preview always keeps them.
    */
   notes?: boolean;
   /**
-   * Course-wide default for writing a manual deck as an editable PowerPoint
-   * file (`.pptx`) next to the slides. Off by default. A deck overrides it with
+   * Course-wide default for writing a manual slide deck as an editable PowerPoint
+   * file (`.pptx`) next to the slides. Off by default. A slide deck overrides it with
    * `pptx: true`, `pptx: false` or `pptx: auto` (course value) in its own front
    * matter. Slides generated from a lesson are never converted.
    */
@@ -206,7 +213,7 @@ export interface BsoConfig {
    * Folder for the files that are published on purpose (relative to Repo_Root):
    * the current `.imscc` in `brightspace/` and the editable pptx files in
    * `slides/`. Unlike `outputDir` (temporary build output) it is meant for version
-   * control. `bso pack` fills it (#145). Optional; off by default.
+   * control. `bso pack` fills it. Optional; off by default.
    */
   publishDir?: string;
   /** Pad naar een custom CSS-bestand (relatief aan Repo_Root). Optioneel. */
@@ -295,7 +302,7 @@ export interface ResolvedConfig {
   assetsDir: string | null;
   /** Absoluut pad naar de build-uitvoermap. */
   outputDir: string;
-  /** Absolute path of the publication folder, null when `publishDir` is not set (#145). */
+  /** Absolute path of the publication folder, null when `publishDir` is not set. */
   publishDir?: string | null;
   /** Cursusnaam voor het manifest. */
   courseName: string;

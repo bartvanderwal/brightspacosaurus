@@ -11,7 +11,7 @@ import { publishPackages, staleVersions } from "../src/publisher.ts";
 
 const base = { courseName: "Course", version: "1.0.0", sourcesDir: "lessons" };
 
-Deno.test("staleVersions picks other versions of the same package and nothing else (#145)", () => {
+Deno.test("staleVersions picks other versions of the same package and nothing else", () => {
   const files = [
     "demo.v0.9.0.imscc",
     "demo.v1.0.0.imscc",
@@ -28,7 +28,7 @@ Deno.test("staleVersions picks other versions of the same package and nothing el
   assertEquals(staleVersions(files, "demo", "notes.txt"), []);
 });
 
-Deno.test("publishDir is optional, a folder in the repository and not the build output (#145)", () => {
+Deno.test("publishDir is optional, a folder in the repository and not the build output", () => {
   assertEquals(validateConfig({ ...base, publishDir: "publicaties" }), true);
   assertThrows(
     () => validateConfig({ ...base, publishDir: 3 }),
@@ -70,7 +70,7 @@ async function fixture(run: (root: string) => Promise<void>): Promise<void> {
   }
 }
 
-Deno.test("publishPackages copies the package and the pptx files and removes older versions (#145)", async () => {
+Deno.test("publishPackages copies the package and the pptx files and removes older versions", async () => {
   await fixture(async (root) => {
     const build = join(root, "build");
     const publish = join(root, "publicaties");
@@ -131,7 +131,7 @@ Deno.test("publishPackages copies the package and the pptx files and removes old
   });
 });
 
-Deno.test("bso lint warns about a published package of another version, and about nothing else (#145)", async () => {
+Deno.test("bso lint warns about a published package of another version, and about nothing else", async () => {
   await fixture(async (root) => {
     await Deno.mkdir(join(root, "lessons"), { recursive: true });
     await Deno.writeTextFile(join(root, "lessons", "lesson.md"), "# Lesson\n");

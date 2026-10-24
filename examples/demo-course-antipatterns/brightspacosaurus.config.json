@@ -28,6 +28,18 @@
       },
       "metadata/slides-section-without-content.md": {
         "generate": true
+      },
+      "metadata/slides-too-many-nested.md": {
+        "generate": true,
+        "nest": [
+          "nest-many/page-*.md"
+        ]
+      },
+      "metadata/slides-nest-unused.md": {
+        "generate": true,
+        "nest": [
+          "missing-folder/*.md"
+        ]
       }
     }
   }

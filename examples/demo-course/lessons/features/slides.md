@@ -54,6 +54,8 @@ Slides need no setup for lessons whose file name starts with a prefix you choose
 
 A hand-written deck is a Markdown file with `slides: true` in its front matter. Link it in the lesson with an ordinary Markdown link (`[Extra slides](../../slides/slides-fizzbuzz.md)`): the link starts the deck on its own and its slides are inserted in the lesson's slides at that place. A deck without a lesson can also be attached with `slides.lessons`. Use `{@include: [text](path.md)}` to reuse another file on the slides, one level deep.
 
+An overview lesson can show the slides of the pages it links to as nested sets with the setting `nest` (a glob such as `levels/level-*.md`): lesson 2.5 does this with three pages, numbered `2.1` to `2.3`. Only the links that match nest; the other links stay ordinary links.
+
 `bso lint` warns about lessons that become slides when their headings have no number, when they have more than nine sections, and about a `---` separator that would give an empty slide.
 
 The user manual has the full reference: *Presentations*.

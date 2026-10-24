@@ -1,5 +1,5 @@
 /**
- * The publication folder (#145): the files that are published on purpose, in a
+ * The publication folder: the files that are published on purpose, in a
  * folder that is meant for version control, apart from the temporary build
  * output. `bso pack` copies the current package into `<publishDir>/brightspace/`
  * (removing older versions of that package) and the editable pptx files into

@@ -4,7 +4,7 @@
  * @module
  */
 import { isSlideDeck } from "./includes.ts";
-import { findDeckLinks } from "./linked-decks.ts";
+import { findDeckLinks, findMarkdownLinks } from "./linked-decks.ts";
 import { sectionsWithoutSlideContent } from "./lesson-slides.ts";
 import {
   findEmptySlideSeparators,
@@ -13,6 +13,7 @@ import {
 import {
   basename,
   dirname,
+  globToRegExp,
   isAbsolute,
   join,
   relative,
@@ -195,7 +196,7 @@ function inspectMarkdown(
   }
 
   // BSO reads only `sidebar_position` from a lesson's frontmatter (menu order,
-  // like the Docusaurus sidebar); any other key is ignored by BSO (#106).
+  // like the Docusaurus sidebar); any other key is ignored by BSO.
   const frontmatter = tree.children?.[0];
   if (options.moduleIndex) {
     const title = tree.children?.find((node) =>
@@ -210,7 +211,7 @@ function inspectMarkdown(
     }
   }
   // A slide deck marks itself with `slides: true` or `marp: true`; its front
-  // matter holds Marp directives, so it is not a lesson page (#141).
+  // matter holds Marp directives, so it is not a lesson page.
   const isSlideDeck = frontmatter?.type === "yaml" &&
     /^(?:slides|marp)[ \t]*:[ \t]*true\b/m.test(
       String((frontmatter as { value?: string }).value ?? ""),
@@ -281,7 +282,7 @@ function inspectMarkdown(
     );
   }
 
-  // A `---` that gives Marp an empty slide (#141). Only decks are checked: a
+  // A `---` that gives Marp an empty slide. Only slide decks are checked: a
   // file that marks itself with `slides: true` or `marp: true`.
   function checkSlideSeparators(): void {
     const match = markdown.match(
@@ -302,7 +303,7 @@ function inspectMarkdown(
         rule: "slides-empty-separator",
         message: levels.length
           ? "This '---' gives an empty slide: it is followed by nothing, by another '---', or by a heading that 'headingDivider' already starts a slide at. Remove it, or put content between it and the next heading."
-          : "This '---' gives an empty slide: it is followed by nothing or by another '---', or it opens the deck. Remove it.",
+          : "This '---' gives an empty slide: it is followed by nothing or by another '---', or it opens the slide deck. Remove it.",
       });
     }
   }
@@ -330,7 +331,8 @@ function inspectMarkdown(
       );
     }
     for (const section of sectionsWithoutSlideContent(markdown)) {
-      // A link to a `.md` file may be a deck, whose slides are inserted (#144).
+      // A link to a `.md` file may point to a slide deck whose slides are
+      // inserted, so this section is not reported.
       if (section.linksToMarkdown) continue;
       diagnostics.push({
         sourceFile,
@@ -346,7 +348,7 @@ function inspectMarkdown(
       report(
         sections[9],
         "slides-too-many-sections",
-        `This lesson becomes slides and has ${sections.length} sections ('##'); more than 9 makes a long contents slide and a long deck. Split the lesson or merge sections.`,
+        `This lesson becomes slides and has ${sections.length} sections ('##'); more than 9 makes a long contents slide and a long slide deck. Split the lesson or merge sections.`,
         "warning",
       );
     }
@@ -651,7 +653,7 @@ function readTextOrNull(path: string): string | null {
   }
 }
 
-/** The decks a file links to, read relative to that file (#144). */
+/** The slide decks that a file links to, read relative to that file. */
 function deckLinksOf(file: string, text: string) {
   return findDeckLinks(
     text,
@@ -662,8 +664,9 @@ function deckLinksOf(file: string, text: string) {
 }
 
 /**
- * Slides take a linked deck one level deep and once (#144): a lesson that links
- * a deck which links another deck, or the same deck twice, gets a warning.
+ * Slides insert a linked slide deck one level deep and only once. A lesson
+ * therefore gets a warning when it links a slide deck that itself links another
+ * slide deck, and when it links the same slide deck twice.
  */
 function checkDeckLinks(file: string, text: string): LintDiagnostic[] {
   const found: LintDiagnostic[] = [];
@@ -683,7 +686,7 @@ function checkDeckLinks(file: string, text: string): LintDiagnostic[] {
       warn(
         deck.line,
         "slides-deck-linked-twice",
-        `The deck '${deck.href}' is linked more than once; its slides are inserted at the first link only. Remove this link or the other one.`,
+        `The slide deck '${deck.href}' is linked more than once; its slides are inserted at the first link only. Remove this link or the other one.`,
       );
       continue;
     }
@@ -695,7 +698,7 @@ function checkDeckLinks(file: string, text: string): LintDiagnostic[] {
       warn(
         deck.line,
         "slides-nested-deck",
-        `The deck '${deck.href}' links to another deck. Slides take a linked deck one level deep, so that deck is not inserted; link both decks from the lesson instead.`,
+        `The slide deck '${deck.href}' links to another slide deck. Slides take a linked slide deck one level deep, so that slide deck is not inserted; link both slide decks from the lesson instead.`,
       );
     }
   }
@@ -703,9 +706,10 @@ function checkDeckLinks(file: string, text: string): LintDiagnostic[] {
 }
 
 /**
- * A package in the publication folder whose version differs from the course
- * `version` is stale: it was published for another version (#145). Only the
- * packages of this course (`<name>.v<version>.imscc` or `.d2l.zip`) count.
+ * A package in the publication folder is out of date when its version differs
+ * from the `version` of the course, because it was published for another
+ * version. Only packages of this course (`<name>.v<version>.imscc` or
+ * `.d2l.zip`) count.
  */
 async function checkPublishedVersions(
   config: ResolvedConfig,
@@ -736,9 +740,84 @@ async function checkPublishedVersions(
 }
 
 /**
+ * The glob patterns of the `nest` setting for each lesson that has the setting,
+ * keyed by the absolute path of the lesson.
+ */
+function nestGlobsByLesson(
+  slides: SlidesConfig | undefined,
+  sourcesDir: string,
+): Map<string, string[]> {
+  const found = new Map<string, string[]>();
+  for (const [lesson, selection] of Object.entries(slides?.lessons ?? {})) {
+    if (typeof selection !== "object" || selection === null) continue;
+    const nest = (selection as { nest?: string | string[] }).nest;
+    if (nest !== undefined) {
+      found.set(resolve(sourcesDir, lesson), [nest].flat());
+    }
+  }
+  return found;
+}
+
+/**
+ * Checks the `nest` setting of a lesson. A pattern that matches no link is
+ * probably a typo, and nesting more than nine pages under one section gives a
+ * reader more than they can take in at once.
+ */
+function checkNestedPages(
+  file: string,
+  text: string,
+  globs: string[],
+): LintDiagnostic[] {
+  const matchers = globs.map((glob) =>
+    globToRegExp(glob.replaceAll("\\", "/"), { extended: true, globstar: true })
+  );
+  const links = findMarkdownLinks(text).filter((link) =>
+    matchers.some((matcher) => matcher.test(link.href.replace(/^\.\//, "")))
+  );
+  const found: LintDiagnostic[] = [];
+  const warn = (line: number, rule: string, message: string) =>
+    found.push({
+      sourceFile: file,
+      line,
+      column: 1,
+      severity: "warning",
+      rule,
+      message,
+    });
+  if (!links.length) {
+    warn(
+      1,
+      "slides-nest-unused",
+      `The nest pattern ${
+        globs.map((glob) => `'${glob}'`).join(", ")
+      } matches no link in this lesson, so nothing is nested. Check the pattern; it is relative to the folder of the lesson.`,
+    );
+    return found;
+  }
+  const headings = text.split("\n").flatMap((line, index) =>
+    /^##\s/.test(line) ? [index + 1] : []
+  );
+  const perSection = new Map<number, Set<string>>();
+  for (const link of links) {
+    const section = headings.filter((line) => line < link.line).length;
+    const seen = perSection.get(section) ?? new Set<string>();
+    if (!seen.has(link.href) && seen.size === 9) {
+      warn(
+        link.line,
+        "slides-too-many-nested",
+        "More than 9 pages are nested under this section; more than seven plus or minus two items in one place are hard to take in. Split the section.",
+      );
+    }
+    seen.add(link.href);
+    perSection.set(section, seen);
+  }
+  return found;
+}
+
+/**
  * The lesson files that are turned into slides: those with `generate: true` in
  * `slides.lessons`, and the files whose name starts with `slides.generateForPrefix`
- * (unless a mapping says `generate: false` or gives only a deck).
+ * (unless a mapping says `generate: false` or gives only a slide deck).
  */
 export function generatedSlideLessons(
   slides: SlidesConfig | undefined,
@@ -817,6 +896,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     config.sourcesDir,
     [...lessonFiles],
   );
+  const nestGlobsOf = nestGlobsByLesson(config.slides, config.sourcesDir);
   const visited = new Set<string>();
   const diagnostics: LintDiagnostic[] = [];
   async function check(file: string, ancestors: string[] = []): Promise<void> {
@@ -843,6 +923,10 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     });
     diagnostics.push(...result.diagnostics);
     diagnostics.push(...checkDeckLinks(file, fileText));
+    const nestGlobs = nestGlobsOf.get(file);
+    if (nestGlobs) {
+      diagnostics.push(...checkNestedPages(file, fileText, nestGlobs));
+    }
     for (const link of result.downloadables) {
       if (!downloadRoot) continue;
       const resolved = await resolveDownloadableFile(
@@ -916,7 +1000,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
         );
         continue;
       }
-      // Slides expand an include one level deep; an include inside it stays a directive (#143).
+      // Slides expand an include one level deep; an include inside it stays a directive.
       if (
         isSlideDeck(fileText) &&
         /^\s*\{@include:/m.test(await Deno.readTextFile(target))
@@ -928,7 +1012,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
           severity: "warning",
           rule: "slides-nested-include",
           message:
-            `Slides expand an include one level deep: the {@include} inside ${include.target} is not expanded on the slides. Put that include in this deck, or merge the files.`,
+            `Slides expand an include one level deep: the {@include} inside ${include.target} is not expanded on the slides. Put that include in this slide deck, or merge the files.`,
         });
       }
       await check(target, [...ancestors, file]);

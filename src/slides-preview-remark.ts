@@ -24,7 +24,7 @@ export function remarkPreviewSlides(
   };
 }
 
-/** Prefix of the entries that stand for the standalone presentation of a linked deck (#144). */
+/** Prefix of the entries that stand for the standalone presentation of a linked slide deck. */
 const DECK_KEY_PREFIX = "deck:";
 
 interface LinkNode {
@@ -38,8 +38,8 @@ interface LinkNode {
 /**
  * Points a link to a slide deck (a `.md` file that `bso preview` rendered as a
  * presentation) at that presentation, so the lesson page links to the slides
- * and Docusaurus does not try to resolve the deck as a doc (#144). Pass the
- * same map as `remarkPreviewSlides`; its `deck:<path>` entries are the decks.
+ * and Docusaurus does not try to resolve the slide deck as a doc. Pass the
+ * same map as `remarkPreviewSlides`; its `deck:<path>` entries are the slide decks.
  * Register it in `beforeDefaultRemarkPlugins`.
  */
 export function remarkPreviewDeckLinks(
@@ -49,7 +49,7 @@ export function remarkPreviewDeckLinks(
     /**
      * Whether a file is a slide deck. Only used for a link that has no
      * rendered presentation (a build without `bso preview`): the link becomes
-     * plain text, so the deck is not an unresolved doc link. Defaults to
+     * plain text, so the slide deck is not an unresolved doc link. Defaults to
      * reading the file with Node.
      */
     isDeck?: (path: string) => boolean;
