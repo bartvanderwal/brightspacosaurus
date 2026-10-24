@@ -802,7 +802,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "42 errors, 24 warnings",
+        "43 errors, 24 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),

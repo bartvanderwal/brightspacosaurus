@@ -845,3 +845,73 @@ Deno.test("quiz preview tells the client script the quiz language, so its own te
   assertEquals(locales({ locale: "en" }), "en");
   assertEquals(locales({ locale: "nl" }), "nl");
 });
+
+Deno.test("legacy rule L1: content under an option is an error, once per question, and the build refuses it", async () => {
+  const fenced = `# Quiz
+
+## Question 1
+
+Which diagram?
+
+- A. This diagram:
+  \`\`\`plantuml
+  @startuml
+  A --|> B
+  @enduml
+  \`\`\`
+- B. That diagram
+
+Correct answer: A
+`;
+  const issues = validateQuiz(parseQuizMarkdown(fenced)).filter((issue) =>
+    issue.rule === "quiz-option-content"
+  );
+  assertEquals(issues.length, 1);
+  assertEquals(issues[0].line, 8);
+
+  const text = `# Quiz
+
+## Question 1
+
+Which one?
+
+- A. First
+  more words under the option
+- B. Second
+  and under this one too
+
+Correct answer: A
+
+## Question 2
+
+Which one?
+
+- A. First
+- B. Second
+
+Correct answer: B
+`;
+  const found = validateQuiz(parseQuizMarkdown(text)).filter((issue) =>
+    issue.rule === "quiz-option-content"
+  );
+  assertEquals(found.map((issue) => [issue.question, issue.line]), [[1, 8]]);
+
+  const dir = await Deno.makeTempDir({ dir: "build" });
+  try {
+    const source = join(dir, "quiz-1.md");
+    await Deno.writeTextFile(source, fenced);
+    await assertRejects(
+      () =>
+        convertQuiz({
+          sourcePath: source,
+          sourcesDir: dir,
+          repoRoot: dir,
+          outputDir: join(dir, "out"),
+        }),
+      Error,
+      "Text or code under an option",
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

@@ -158,11 +158,23 @@ export function parseQuizMarkdown(
     ].filter((value): value is string => Boolean(value))),
   ];
   let answerSeen = false;
+  let contentDropped = false;
   let checkboxOptionCount = 0;
   let regularOptionCount = 0;
   let fence: { character: string; length: number } | undefined;
   const issue = (rule: string, line: number, message: string) => {
     quiz.issues!.push({ rule, line, question: question?.number, message });
+  };
+  // Text or code after the first option has no place in this format and would
+  // be dropped, so it is reported once per question instead.
+  const rejectContentAfterOptions = (line: number) => {
+    if (contentDropped) return;
+    contentDropped = true;
+    issue(
+      "quiz-option-content",
+      line,
+      "Text or code under an option or after the options is not supported in this heading form and would be dropped; write the quiz in QuizDown ('- ( ) option' with the content indented under it).",
+    );
   };
   const nextQuestionNumber = () => {
     let number = quiz.questions.length + 1;
@@ -188,6 +200,7 @@ export function parseQuizMarkdown(
     if (assignment) assignment.questions.push(question);
     else quiz.blocks!.push({ type: "question", question });
     answerSeen = false;
+    contentDropped = false;
     checkboxOptionCount = 0;
     regularOptionCount = 0;
     return question;
@@ -199,6 +212,7 @@ export function parseQuizMarkdown(
     if (fenceMatch) {
       if (!fence) {
         fence = { character: fenceMatch[1][0], length: fenceMatch[1].length };
+        if (question?.options.length) rejectContentAfterOptions(index + 1);
         if (question && !question.options.length) {
           question.text += `${question.text ? "\n" : ""}${raw}`;
         } else if (assignment && !question) {
@@ -504,6 +518,8 @@ export function parseQuizMarkdown(
       );
     } else if (!question.options.length && !answerSeen) {
       question.text += `${question.text ? " " : ""}${line}`;
+    } else {
+      rejectContentAfterOptions(index + 1);
     }
   }
   return quiz;
@@ -937,7 +953,9 @@ function parseQuizDown(source: string, markdown: string): ParsedQuiz {
       // Heading form: a number at the start of the name ('29. Interface') is the
       // question number, and the rest is the name. A name that is only a number
       // keeps its text, so the lint can say that a number is no name.
-      const named = titleMode ? text.match(/^(\d+)(?:[.)]\s*|\s*$)(.*)$/) : null;
+      const named = titleMode
+        ? text.match(/^(\d+)(?:[.)]\s*|\s*$)(.*)$/)
+        : null;
       const authorNumber = named ? Number(named[1]) : undefined;
       const name = named && named[2].trim() ? named[2].trim() : text;
       question = {
