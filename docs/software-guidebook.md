@@ -500,6 +500,7 @@ This chapter describes code-level conventions and solutions that are not visible
 - **7.6** Syntax highlighting
 - **7.7** Docusaurus integration of the Voortgangsverkenner
 - **7.8** Marp presentations in the preview and the cartridge
+- **7.9** The publication folder
 
 Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
@@ -612,7 +613,7 @@ The intended authoring rule is **write the lesson once and derive a concise pres
 - Preserve that prose as presenter notes where practical, so a reader who wants the accompanying explanation can access it without crowding the projected view.
 - Warn authors when a section's lists, tables and images are too extensive for a readable slide.
 
-The generated renderer currently keeps lists, tables and images, omits prose, and splits long lists and tables. It does not yet treat quotations as slide content, move generated prose into presenter notes, or lint lesson sections for slide suitability and density. Presenter notes authored as HTML comments in manual decks are shown in the preview; cartridge export removes them by default and `slides.notes: true` retains them. Notes are not protected content, so material that learners may read should be treated as learner-visible.
+The generated renderer keeps lists, tables, images, code and diagrams, omits prose, and splits long lists, tables and code (the rules below). It does not yet treat quotations as slide content, move generated prose into presenter notes, or lint lesson sections for slide suitability and density. Presenter notes authored as HTML comments in manual decks are shown in the preview; cartridge export removes them by default and `slides.notes: true` retains them. Notes are not protected content, so material that learners may read should be treated as learner-visible.
 
 For dense topics, the planned outline convention is an H2 topic with H3 subsections. The H2 gets a section-introduction slide, and each H3 gets its own content slide(s); an H3 with more content can be split across its lists, tables or images. H4 headings remain content within the H3 slide rather than introducing another navigation level. This bounded outline keeps the slide hierarchy legible. It is a design goal, not current renderer behavior: today generated slides use H2 sections and can split long lists or tables, but do not create H3 section-introduction slides. A future slide-aware lint pass should distinguish style advice (an H2 containing only prose) from a density warning (an H2 whose visual content is unlikely to fit), without rewriting the source.
 
@@ -639,9 +640,25 @@ Use your app's actual `baseUrl` for subpath deployments. Start through `bso prev
 
 The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the top right corner, below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut is preview-only; the cartridge has a visible topic instead. Hidden URLs are not access control.
 
-#### Specification: linked decks (#144, not yet implemented)
+#### Generated slides: what a section gives (#141)
 
-**Status.** Specified, not built. This section is the agreed behaviour; the code and tests follow it.
+A lesson that becomes slides is read from top to bottom. The rules below say which slides come out; each is a testable statement, and `tests/lesson-slides.test.ts` follows them.
+
+| # | Rule |
+| --- | --- |
+| G1 | *Title slide.* The H1 gives one `lead` slide. |
+| G2 | *Contents slide.* With two or more sections with content, a slide lists them as plain `1. Introduction` lines, in lesson order, followed by the titles of linked decks (rule L6). |
+| G3 | *A section gives slides only for what is on a slide:* lists, tables, images, code and diagrams. Running text is left out. |
+| G4 | *A section without anything of that is left out.* A `##` section that has only running text gets no slide and no entry in the contents slide, and does not count as a section for the contents slide. A linked deck in such a section is still inserted, and its title is still listed. |
+| G5 | *Sources are not sections.* A `Sources`, `Bronnen` or `References` section has slides by the same rules, but needs no number, does not count towards the nine sections and gets no `slides-section-without-content` warning. |
+| G6 | *Long content continues.* More than 6 list items, 12 table lines or 16 code lines continue on a next slide under the same heading. Tables repeat their header line. |
+| G7 | *No empty slide.* A `---` that Marp would turn into an empty slide is not written (headingDivider, #141). |
+
+`bso lint` warns (`slides-section-without-content`) about a section that G4 leaves out, so the author knows that the section is not on the slides: *add a list, a table, an image, code or a diagram to it, or leave it as running text on purpose.* Sources are exempt.
+
+#### Linked decks (#144)
+
+**Status.** Implemented. The code is in `src/linked-decks.ts` (recognition), `src/lesson-slides.ts` (insertion and contents slide), `src/slides-preview.ts` (standalone presentations and export), `src/slides-preview-remark.ts` (preview link) and `src/markdown-converter.ts` (cartridge link).
 
 **Purpose.** A lesson can have extra slides that are not in the lesson text. Today such a deck is attached through `slides.lessons.<lesson>.decks` and appended after the generated slides: the lesson page does not link to it, the contents slide does not list it and it cannot be started on its own. A linked deck fixes the three: the author links the deck in the lesson, where it belongs.
 
@@ -663,18 +680,18 @@ The link is the only marker. There is no new syntax and no `decks` entry in the 
 
 | # | Rule |
 | --- | --- |
-| L1 | *Recognition.* An inline or reference-style link in a lesson is a deck link when its target is a local `.md` file whose front matter marks it as a deck, with the same marker rules as for manual decks. Any other link stays an ordinary link, so a link to a plain Markdown page is unchanged. |
-| L2 | *Lesson page.* The link target is rewritten to the standalone presentation, like the other Markdown links are rewritten to HTML pages. In the preview it is the slides page of the deck and opens in the same tab (ADR 022). In the cartridge it is a link to the slides topic of the deck. The link text is not changed; the rendered link carries `data-bso-deck` for styling. |
+| L1 | *Recognition.* An inline link in a lesson is a deck link when its target is a local `.md` file whose front matter marks it as a deck, with the same marker rules as for manual decks. Any other link stays an ordinary link, so a link to a plain Markdown page is unchanged. Reference-style links are not recognised yet. |
+| L2 | *Lesson page.* The link target is rewritten to the standalone presentation, like the other Markdown links are rewritten to HTML pages. In the preview it is the slides page of the deck and opens in the same tab (ADR 022). In the cartridge it is a link to the slides topic of the deck, and only when the course has `slides` configured; without it the link is an ordinary link. The link text is not changed. |
 | L3 | *Standalone presentation.* The linked deck is rendered as a manual deck is today: own front matter, theme and logo rules, `pptx` rules (`slides.pptx` and `pptx:` in the deck). It exists even when the lesson has no generated deck. |
 | L4 | *Insertion.* In the lesson deck, the slides of the linked deck are inserted after the last slide of the `##` section that contains the link. A link before the first `##` section puts them after the title and contents slides. The front matter of the linked deck is dropped: the lesson deck's header (theme, `headingDivider`, pagination) applies to all slides. |
 | L5 | *One level.* Insertion is one level deep, like includes (#143). A deck link inside an inserted deck stays an ordinary link in the standalone presentation and is not followed. `bso lint` warns (`slides-nested-deck`). |
 | L6 | *Contents slide.* The contents slide has one entry for each linked deck, right after the entry of the section that contains the link. The entry text is the deck's `title` in its front matter, else its first H1. It is not numbered unless the title is. |
 | L7 | *Linked twice.* A deck linked more than once in a lesson is inserted at the first link only; later links are plain links to the standalone presentation. `bso lint` warns (`slides-deck-linked-twice`). |
-| L8 | *Strict.* A link to a deck file that does not exist fails the build with the lesson, the link and the expected path, like a missing include. BSO does not guess a deck from a file name. |
-| L9 | *Existing configuration.* `slides.lessons.<lesson>.decks` keeps working (appended after the generated slides, no link). A deck that is both linked and configured is inserted at the link only, and `bso lint` says which setting is redundant. Whether `decks` is deprecated is a separate decision (ADR). |
-| L10 | *Output.* The standalone presentation of a linked deck is written next to the linking lesson as `<deck-stem>-slides.html`, with its `.pptx` named after the lesson as today. In the cartridge it is a topic right after the lesson's own slides topic. The topic title is `Slides: <deck title>`. |
+| L8 | *Strict.* Only an existing file that is marked as a deck counts. A link to a missing `.md` file stays an ordinary link and is a broken link like any other; BSO does not guess a deck from a file name. |
+| L9 | *Existing configuration.* `slides.lessons.<lesson>.decks` keeps working (appended after the generated slides, no link). A deck that is both linked and configured is inserted at the link only. Whether `decks` is deprecated, and whether `bso lint` should name the redundant setting, are separate decisions. |
+| L10 | *Output.* The standalone presentation of a linked deck is a topic next to the linking lesson, named `<lesson>-slides-<deck>.html` (a leading `slides-` of the deck name is dropped), with its `.pptx` named the same. In the cartridge it comes right after the lesson's own slides topic. The topic title is `Slides: <lesson title> — <deck title>`, which also puts it in the right place in the menu order. |
 
-**Behaviour in the two targets (parity, 8.1).** The preview and the cartridge use the same code for recognition, insertion and the contents slide; only the link target of rule L2 differs, because the preview serves the slides under `/slides/...` and the cartridge links a topic file.
+**Behaviour in the two targets (parity, 8.1).** The preview and the cartridge use the same code for recognition, insertion and the contents slide; only the link target of rule L2 differs, because the preview serves the slides under `/slides/decks/...` (the plugin `remarkPreviewDeckLinks`, registered in `beforeDefaultRemarkPlugins`) and the cartridge links a topic file.
 
 **Lint.** `slides-nested-deck` and `slides-deck-linked-twice` are warnings. Each needs a fixture in `examples/demo-course-antipatterns` and an entry in `expected-rules.json`.
 
@@ -689,6 +706,25 @@ The link is the only marker. There is no new syntax and no `decks` entry in the 
 7. A lesson without a generated deck that links a deck still gets the standalone presentation.
 
 **Open points.** The exact file name when two lessons link decks with the same file name; how global directives of a linked deck that differ from the lesson deck are reported (ignored silently is not acceptable under the no-magic principle); and whether the section marker for insertion should also be allowed between two sections.
+
+### 7.9 The publication folder
+
+`src/publisher.ts` (#145). The build output (`outputDir`) is temporary; some files are published on purpose and belong in version control. The rules, each with a test in `tests/publisher.test.ts`:
+
+| # | Rule | Test |
+| --- | --- | --- |
+| P1 | `publishDir` is optional. Without it `bso pack` behaves as before. | `resolveConfig` gives `null` |
+| P2 | `publishDir` is a path inside the repository: not the repository itself, and not inside or around `outputDir`. Otherwise the configuration is rejected with the reason. | config validation test |
+| P3 | After packing, `bso pack` copies the package it just built (`.imscc`, or `.d2l.zip` with `--format brightspace`) to `<publishDir>/brightspace/`. | publish test |
+| P4 | It removes other versions of that package from that folder: same name, same extension, another version. Nothing else is removed. | `staleVersions` and publish tests |
+| P5 | It copies the `.pptx` files of `content/` to `<publishDir>/slides/`, keeping the folders below `content/`. | publish test |
+| P6 | It prints every file it copied and every file it removed (no magic, ADR 021). | CLI run, see below |
+| P7 | Idempotent: a second run gives the same files and removes nothing. | publish test |
+| P8 | `bso lint` warns (`publish-version-mismatch`) about a package of this course in `<publishDir>/brightspace/` whose version differs from `version`. | lint test |
+
+**Not built:** separate paths per kind (`publish.brightspace`, `publish.slides`), a separate `bso publish` command, removal of pptx files that no longer exist, and the teacher PDFs. The folder names are fixed by convention (ADR 021) until a course needs another.
+
+P6 is checked by running `bso pack` with a `publishDir`; the output names the copied and the removed files.
 
 ## 8. Design Decisions
 

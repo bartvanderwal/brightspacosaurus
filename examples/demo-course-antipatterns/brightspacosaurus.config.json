@@ -25,6 +25,9 @@
       },
       "metadata/slides-too-many-sections.md": {
         "generate": true
+      },
+      "metadata/slides-section-without-content.md": {
+        "generate": true
       }
     }
   }

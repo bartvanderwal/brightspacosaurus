@@ -24,6 +24,8 @@ public class FizzBuzzer {
 }
 ```
 
+[Extra slides: FizzBuzz, step by step](../../slides/slides-fizzbuzz.md)
+
 ## 3. Command-line application
 
 ```java

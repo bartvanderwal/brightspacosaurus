@@ -814,3 +814,39 @@ Deno.test("Relatieve/interne link krijgt geen target=_blank", async () => {
     await removeDir(tempRoot);
   }
 });
+
+Deno.test("with deckLinks a link to a slide deck points at the slides topic next to the lesson (#144)", async () => {
+  const tempRoot = await makeTempDir();
+  try {
+    const sourceDir = join(tempRoot, "src", "week");
+    await Deno.mkdir(sourceDir, { recursive: true });
+    await Deno.mkdir(join(tempRoot, "decks"), { recursive: true });
+    await Deno.writeTextFile(
+      join(tempRoot, "decks", "slides-extra.md"),
+      "---\nslides: true\n---\n# Extra\n",
+    );
+    await Deno.writeTextFile(join(sourceDir, "other.md"), "# Other\n");
+    const sourcePath = join(sourceDir, "les-1.md");
+    await Deno.writeTextFile(
+      sourcePath,
+      "# Les 1\n\n[Extra slides](../../decks/slides-extra.md#a) and [Other](other.md) and `[c](../../decks/slides-extra.md)`\n",
+    );
+    const run = async (deckLinks: boolean) =>
+      await Deno.readTextFile(
+        (await convertMarkdown({
+          sourcePath,
+          outputDir: join(tempRoot, "build"),
+          repoRoot: tempRoot,
+          baseDir: join(tempRoot, "src"),
+          deckLinks,
+        })).outputPath,
+      );
+    const html = await run(true);
+    assertEquals(html.includes('href="les-1-slides-extra.html#a"'), true);
+    assertEquals(html.includes('href="other.html"'), true);
+    // Without slides in the course a deck link is an ordinary link
+    assertEquals((await run(false)).includes("les-1-slides-extra.html"), false);
+  } finally {
+    await Deno.remove(tempRoot, { recursive: true });
+  }
+});

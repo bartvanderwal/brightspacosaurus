@@ -57,6 +57,8 @@ import {
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
+import { nativePackageName, packNative } from "./native-packer.ts";
+import { publishPackages } from "./publisher.ts";
 import type { ManifestEntry, ResolvedConfig } from "./types.ts";
 import {
   EXAMPLE_CONFIG,
@@ -93,7 +95,7 @@ const USAGE_BODY = `Usage: brightspacosaurus <command> [options]
 
 Commands:
   build     Generate Brightspace HTML, QTI quizzes, PDFs and assets
-  pack      Package the build directory into a .imscc archive
+  pack      Package the build directory into a .imscc archive (--format brightspace: native package)
   preview   Start the Docusaurus dev server (requires docusaurusDir in config)
   lint      Check BSO-specific Markdown, includes, diagrams and quiz answers
 
@@ -105,6 +107,7 @@ Options:
   --skip-readers     Skip all PDF generation with pandoc (readers, instructor and user manual);
                      pre-built PDFs are still copied. Faster local builds and tests
   --skip-slides      Do not render the configured slides into the build (Marp needs npm)
+  --format <name>    pack only: imscc (default) or brightspace (native Brightspace package, experimental)
   --version, -v      Show version number
   --help, -h         Show this help
 `;
@@ -157,6 +160,8 @@ export function parseArgs(
   skipSlides: boolean;
   output: string;
   config: string;
+  /** `pack --format`: `imscc` (default) or `brightspace` (native package, experimental, #21). */
+  format: string;
 } | null {
   if (args.length === 0) return null;
 
@@ -171,6 +176,7 @@ export function parseArgs(
   let skipSlides = false;
   let output = "";
   let config = "";
+  let format = "";
 
   for (let i = 1; i < args.length; i++) {
     if (args[i] === "--sources" && i + 1 < args.length) {
@@ -187,10 +193,12 @@ export function parseArgs(
       output = args[++i];
     } else if (args[i] === "--config" && i + 1 < args.length) {
       config = args[++i];
+    } else if (args[i] === "--format" && i + 1 < args.length) {
+      format = args[++i];
     }
   }
 
-  return { command, sources, readersOnly, skipReaders, skipSlides, output, config };
+  return { command, sources, readersOnly, skipReaders, skipSlides, output, config, format };
 }
 
 /**
@@ -304,6 +312,7 @@ export async function runBuild(
         customCssPath: config.customCss ?? undefined,
         diagrams: config.diagrams,
         flashcards: config.flashcards,
+        deckLinks: config.slides !== undefined,
         teacherPageVersions: mdFile === teacherPage?.path
           ? {
             courseName: config.courseName,
@@ -896,8 +905,39 @@ async function writeManifestAndNavigation(
   );
 }
 
+/**
+ * Copies the packages and pptx files into `publishDir` when it is configured
+ * (#145), and says what was copied and removed.
+ */
+async function publishIfConfigured(
+  config: ResolvedConfig,
+  packages: string[],
+): Promise<void> {
+  if (!config.publishDir) return;
+  const result = await publishPackages({
+    buildDir: config.outputDir,
+    publishDir: config.publishDir,
+    name: config.name,
+    packages,
+  });
+  const folder = relative(config.repoRoot, config.publishDir);
+  console.log(`Publishing to ${folder}/ ...`);
+  for (const file of result.copied) console.log(`  ✓ ${folder}/${file}`);
+  for (const file of result.removed) console.log(`  ✗ removed older ${folder}/${file}`);
+}
+
 /** Runs the `pack` command using an already resolved configuration. */
-export async function runPack(config: ResolvedConfig): Promise<void> {
+export async function runPack(
+  config: ResolvedConfig,
+  format = "imscc",
+): Promise<void> {
+  if (format !== "imscc" && format !== "brightspace") {
+    const err = new Error(
+      `Unknown pack format '${format}'. Use 'imscc' (default) or 'brightspace' (native package, experimental).`,
+    );
+    (err as Error & { exitCode: number }).exitCode = 2;
+    throw err;
+  }
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
   // Course version, not BSO version: it identifies the imported content (#42).
@@ -918,10 +958,35 @@ export async function runPack(config: ResolvedConfig): Promise<void> {
   await writeManifestAndNavigation(config);
   console.log("  ✓ imsmanifest.xml");
 
+  if (format === "brightspace") {
+    // Experimental (#21): a native Brightspace package, with module descriptions.
+    console.log("Packaging into a native Brightspace package (experimental)...");
+    const nativePath = join(buildDir, nativePackageName(config.name, config.version));
+    const result = await packNative({
+      buildDir,
+      outputPath: nativePath,
+      courseName: config.courseName,
+      language: config.diagrams.locale === "en" ? "en-us" : "nl-nl",
+    });
+    console.log(`  ✓ ${relative(repoRoot, nativePath)}`);
+    console.log(
+      `  ${result.modules} modules, ${result.topics} topics, ${result.files} files`,
+    );
+    if (result.skippedQuizzes > 0) {
+      console.warn(
+        `  ⚠ ${result.skippedQuizzes} quizzes are not in the native package (D2L quiz format is not generated yet, #21); import them from the .imscc.`,
+      );
+    }
+    await publishIfConfigured(config, [nativePath]);
+    console.log("Pack complete.");
+    return;
+  }
+
   // Pack
   console.log("Packaging into .imscc...");
   await pack({ sourceDir: buildDir, outputPath });
   console.log(`  ✓ ${relative(repoRoot, outputPath)}`);
+  await publishIfConfigured(config, [outputPath]);
   console.log("Pack complete.");
 }
 
@@ -1252,7 +1317,7 @@ async function main(): Promise<void> {
         skipSlides: parsed.skipSlides,
       });
     } else if (parsed.command === "pack") {
-      await runPack(resolvedConfig);
+      await runPack(resolvedConfig, parsed.format || "imscc");
     } else if (parsed.command === "preview") {
       await runPreview(resolvedConfig);
     } else if (parsed.command === "lint") {

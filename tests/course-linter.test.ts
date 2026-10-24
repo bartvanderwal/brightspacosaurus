@@ -761,7 +761,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "42 errors, 19 warnings",
+        "42 errors, 22 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),
@@ -1048,4 +1048,53 @@ Deno.test("lint warns about three or more '../' in links, images and includes, n
     0,
   );
   assertEquals(rule("[x](https://example.org/a/../../../b)\n").length, 1);
+});
+
+// Guidebook 7.8, rule G4: `slides-section-without-content`.
+Deno.test("lint warns about a section of a lesson that becomes slides when it has only running text (#141)", () => {
+  const lesson = [
+    "# Lesson",
+    "",
+    "## 1. With a list",
+    "",
+    "- a",
+    "",
+    "## 2. Only prose",
+    "",
+    "Running text.",
+    "",
+    "## 3. With code",
+    "",
+    "```js",
+    "x()",
+    "```",
+    "",
+    "## Sources",
+    "",
+    "Smith, J. (2020). A book.",
+  ].join("\n");
+  const found = lintMarkdown(lesson, "lesson.md", { generatedSlides: true })
+    .filter((d) => d.rule === "slides-section-without-content");
+  assertEquals(found.map((d) => [d.line, d.severity]), [[7, "warning"]]);
+  assertStringIncludes(found[0].message, "2. Only prose");
+  // Not a lesson that becomes slides: no warning
+  assertEquals(
+    lintMarkdown(lesson, "lesson.md").filter((d) =>
+      d.rule === "slides-section-without-content"
+    ),
+    [],
+  );
+});
+
+Deno.test("lint does not warn about a prose-only section that links a deck (#141, #144)", () => {
+  const rule = (lesson: string) =>
+    lintMarkdown(lesson, "lesson.md", { generatedSlides: true }).filter((d) =>
+      d.rule === "slides-section-without-content"
+    ).length;
+  assertEquals(rule("# Lesson\n\n## 1. Deck\n\nSee [the deck](deck.md).\n"), 0);
+  assertEquals(
+    rule("# Lesson\n\n## 1. Page\n\nSee [a site](https://example.org).\n"),
+    1,
+  );
+  assertEquals(rule("# Lesson\n\n## 1. Empty\n\n## 2. Next\n\n- a\n"), 1);
 });

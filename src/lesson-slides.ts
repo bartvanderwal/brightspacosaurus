@@ -1,6 +1,7 @@
 import { unified } from "unified";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
+import { isSourcesHeading } from "./reader-headings.ts";
 
 interface MarkdownNode {
   type: string;
@@ -8,10 +9,11 @@ interface MarkdownNode {
   lang?: string;
   ordered?: boolean;
   value?: string;
+  url?: string;
   children?: MarkdownNode[];
   position?: {
-    start: { offset?: number };
-    end: { offset?: number };
+    start: { offset?: number; line?: number };
+    end: { offset?: number; line?: number };
   };
 }
 
@@ -213,6 +215,29 @@ export interface LessonSlidesOptions {
    * than two sections, where it would list nothing useful.
    */
   contentsTitle?: string;
+  /**
+   * Resolves the target of a link in the lesson to a linked deck (#144), or
+   * undefined for an ordinary link. The slides of the deck are inserted after
+   * the last slide of the section that contains the link, and its title is an
+   * entry in the contents slide. A deck that is linked more than once is
+   * inserted at the first link only (`id` identifies a deck).
+   */
+  linkedDeck?: (url: string) => LinkedDeckSlides | undefined;
+}
+
+/** A deck that a lesson links to, as the generator needs it. */
+export interface LinkedDeckSlides {
+  /** Identifies the deck, so it is inserted once. */
+  id: string;
+  /** Entry in the contents slide. */
+  title: string;
+  /** The deck's slides as Markdown, without front matter. */
+  markdown: string;
+}
+
+function linkUrls(node: MarkdownNode): string[] {
+  const own = node.type === "link" && node.url ? [node.url] : [];
+  return [...own, ...(node.children ?? []).flatMap(linkUrls)];
 }
 
 /** Derive a preview-only Marp deck from the lesson's H1, H2s, lists, images and diagrams. */
@@ -231,34 +256,76 @@ export function generateLessonSlides(
   if (!title) {
     throw new Error("Generated lesson slides require an H1 lesson title.");
   }
-  const sections: { heading: string; nodes: MarkdownNode[] }[] = [];
-  let section: { heading: string; nodes: MarkdownNode[] } | undefined;
+  interface Section {
+    heading: string;
+    nodes: MarkdownNode[];
+    decks: LinkedDeckSlides[];
+    blocks: SlideBlock[];
+  }
+  const sections: Section[] = [];
+  const introNodes: MarkdownNode[] = [];
+  let section: Section | undefined;
   for (const node of tree.children) {
     if (node.type === "heading" && node.depth === 2) {
-      section = { heading: nodeText(node).trim(), nodes: [] };
+      section = {
+        heading: nodeText(node).trim(),
+        nodes: [],
+        decks: [],
+        blocks: [],
+      };
       sections.push(section);
     } else if (section) {
       section.nodes.push(node);
+    } else if (node !== title) {
+      introNodes.push(node);
     }
   }
+  // Decks linked in the lesson, each once, at the first link (#144).
+  const seen = new Set<string>();
+  const decksIn = (nodes: MarkdownNode[]): LinkedDeckSlides[] => {
+    const found: LinkedDeckSlides[] = [];
+    for (const url of nodes.flatMap(linkUrls)) {
+      const deck = options.linkedDeck?.(url);
+      if (!deck || seen.has(deck.id)) continue;
+      seen.add(deck.id);
+      found.push(deck);
+    }
+    return found;
+  };
+  const introDecks = decksIn(introNodes);
+  for (const each of sections) {
+    each.decks = decksIn(each.nodes);
+    each.blocks = sectionBlocks(
+      each.nodes,
+      source,
+      isCoreConcepts(each.heading),
+    );
+  }
+  // G4: a section without anything for a slide is left out, with its heading.
+  const listed = sections.filter((each) => each.blocks.length > 0);
   // The title slide is a `lead` slide: centred, with the course logo (or the BSO logo).
   const slides = [`<!-- _class: lead -->\n# ${nodeText(title).trim()}`];
-  if (options.contentsTitle && sections.length >= 2) {
+  if (options.contentsTitle && listed.length >= 2) {
+    // `1. Intro` after `- ` would start a nested ordered list (roman numbers)
+    const entry = (text: string) =>
+      `- ${text.replace(/^(\d+(?:\.\d+)*)([.)])(?=\s)/, "$1\\$2")}`;
     slides.push(
       `# ${options.contentsTitle}\n\n${
-        sections.map(({ heading }) =>
-          // `1. Intro` after `- ` would start a nested ordered list (roman numbers)
-          `- ${heading.replace(/^(\d+(?:\.\d+)*)([.)])(?=\s)/, "$1\\$2")}`
-        ).join("\n")
+        [
+          ...introDecks.map((deck) => entry(deck.title)),
+          ...sections.flatMap((each) => [
+            ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
+            ...each.decks.map((deck) => entry(deck.title)),
+          ]),
+        ].join("\n")
       }`,
     );
   }
-  for (const { heading, nodes } of sections) {
+  slides.push(...introDecks.map((deck) => deck.markdown));
+  for (const { heading, blocks, decks } of sections) {
     slides.push(
-      ...renderSection(
-        heading,
-        sectionBlocks(nodes, source, isCoreConcepts(heading)),
-      ),
+      ...(blocks.length > 0 ? renderSection(heading, blocks) : []),
+      ...decks.map((deck) => deck.markdown),
     );
   }
   const definitions = tree.children.filter((node) => node.type === "definition")
@@ -275,4 +342,53 @@ export function generateLessonSlides(
     ...(definitions.length ? ["", definitions.join("\n\n")] : []),
     "",
   ].join("\n");
+}
+
+/** A `##` section of a lesson that gives no slide (guidebook 7.8, rule G4). */
+export interface SectionWithoutSlideContent {
+  heading: string;
+  /** One-based line of the heading in the source. */
+  line: number;
+  /** The section links to a `.md` file, which may be a deck that is inserted. */
+  linksToMarkdown: boolean;
+}
+
+/**
+ * The `##` sections that have no list, table, image, code or diagram, so the
+ * generated slides leave them out. Sources are not reported.
+ */
+export function sectionsWithoutSlideContent(
+  source: string,
+): SectionWithoutSlideContent[] {
+  const tree = unified().use(remarkParse).use(remarkGfm).parse(
+    source,
+  ) as unknown as { children: MarkdownNode[] };
+  const found: SectionWithoutSlideContent[] = [];
+  let current: { node: MarkdownNode; nodes: MarkdownNode[] } | undefined;
+  const finish = () => {
+    if (!current) return;
+    const heading = nodeText(current.node).trim();
+    if (
+      !isSourcesHeading(heading) &&
+      sectionBlocks(current.nodes, source, isCoreConcepts(heading)).length === 0
+    ) {
+      found.push({
+        heading,
+        line: current.node.position?.start.line ?? 1,
+        linksToMarkdown: current.nodes.flatMap(linkUrls).some((url) =>
+          /\.md(?:#|$)/i.test(url)
+        ),
+      });
+    }
+  };
+  for (const node of tree.children) {
+    if (node.type === "heading" && node.depth === 2) {
+      finish();
+      current = { node, nodes: [] };
+    } else if (current) {
+      current.nodes.push(node);
+    }
+  }
+  finish();
+  return found;
 }

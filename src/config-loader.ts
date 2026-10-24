@@ -12,7 +12,7 @@ import { resolveQuizOptions } from "./quiz-config.ts";
 import { resolveTeacherPage } from "./teacher-page.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
 export { resolveDiagramsConfig };
-import { dirname, join, resolve } from "@std/path";
+import { dirname, isAbsolute, join, relative, resolve } from "@std/path";
 import type {
   BsoConfig,
   CliOverrides,
@@ -155,6 +155,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "readerCoverLogo",
     "assetsDir",
     "outputDir",
+    "publishDir",
     "customCss",
     "name",
     "docusaurusDir",
@@ -194,6 +195,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "readerCoverLogo",
     "assetsDir",
     "outputDir",
+    "publishDir",
     "customCss",
     "name",
     "docusaurusDir",
@@ -779,6 +781,28 @@ export function resolveConfig(
     cliOverrides.output ?? config.outputDir ?? "build/brightspace",
   );
 
+  // publishDir: an explicit step, so a folder of its own inside the repository,
+  // never the temporary build output (#145).
+  const publishDir = config.publishDir
+    ? resolve(repoRoot, config.publishDir)
+    : null;
+  if (publishDir) {
+    const inside = (child: string, parent: string) => {
+      const path = relative(parent, child);
+      return path === "" || (!path.startsWith("..") && !isAbsolute(path));
+    };
+    if (!inside(publishDir, repoRoot) || publishDir === repoRoot) {
+      throw new Error(
+        "Field 'publishDir' must be a folder inside the repository, for example \"publicaties\".",
+      );
+    }
+    if (inside(publishDir, outputDir) || inside(outputDir, publishDir)) {
+      throw new Error(
+        "Field 'publishDir' must be a different folder than 'outputDir': the build output is temporary, the publication folder is for the files you publish on purpose.",
+      );
+    }
+  }
+
   // readersDir: from config only, null if not provided
   const readersDir = config.readersDir
     ? resolve(repoRoot, config.readersDir)
@@ -845,6 +869,7 @@ export function resolveConfig(
     readerCoverLogo,
     assetsDir,
     outputDir,
+    publishDir,
     courseName: config.courseName,
     version: config.version,
     customCss,
@@ -900,6 +925,7 @@ export function resolveFromCliOnly(
     readerCoverLogo: null,
     assetsDir: null,
     outputDir,
+    publishDir: null,
     courseName: "Course",
     version: "0.0.0",
     customCss: null,

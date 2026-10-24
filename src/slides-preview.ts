@@ -8,6 +8,7 @@ import {
   resolve,
 } from "@std/path";
 import { expandIncludesOnce } from "./includes.ts";
+import { type DeckLink, deckTopicName, findDeckLinks } from "./linked-decks.ts";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
@@ -780,6 +781,65 @@ function joinChunks(chunks: string[], generated: boolean): string {
 }
 
 /**
+ * Rewrites the relative image paths of Markdown that moves from `fromDir` into
+ * a file in `toDir`, so the images are still found when they are embedded.
+ */
+function rewriteImagePaths(
+  content: string,
+  fromDir: string,
+  toDir: string,
+): string {
+  return content.replace(
+    /(!\[[^\]]*\]\()(<?)([^)>\s]+)(>?[^)]*\))/g,
+    (whole, open, angle, url, close) =>
+      /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(url)
+        ? whole
+        : `${open}${angle}${
+          relative(toDir, resolve(fromDir, url)).replaceAll("\\", "/")
+        }${close}`,
+  );
+}
+
+/** Marks a result entry as the standalone presentation of a linked deck (#144). */
+export const DECK_KEY_PREFIX = "deck:";
+
+/** The decks a lesson links to (#144), read from disk relative to the lesson. */
+export function readDeckLinks(
+  lessonPath: string,
+  markdown: string,
+): DeckLink[] {
+  return findDeckLinks(
+    markdown,
+    (href) => resolve(dirname(lessonPath), decodeURIComponent(href)),
+    (path) => {
+      try {
+        return Deno.readTextFileSync(path);
+      } catch {
+        return null;
+      }
+    },
+    (path) => basename(path).replace(/\.md$/i, ""),
+  );
+}
+
+/** The decks that each Markdown file under `sources` links to (#144). */
+async function scanDeckLinks(
+  sources: string,
+  output: string,
+  tools: string,
+): Promise<Map<string, DeckLink[]>> {
+  const linked = new Map<string, DeckLink[]>();
+  for (const file of await collect(sources, output, tools)) {
+    const decks = readDeckLinks(
+      file,
+      (await Deno.readTextFile(file)).replace(/\r\n/g, "\n"),
+    );
+    if (decks.length) linked.set(file, decks);
+  }
+  return linked;
+}
+
+/**
  * Expands the `{@include}` lines of a lesson or deck for its slides, one
  * level deep (#143). Relative image paths of the included text are rewritten
  * to be relative to the including file, because images are embedded from there.
@@ -803,16 +863,7 @@ function expandSlideIncludes(markdown: string, sourcePath: string): string {
       warn: (message) => warnings.push(message),
     },
     (content, includeDir) =>
-      content.replace(
-        /(!\[[^\]]*\]\()(<?)([^)>\s]+)(>?[^)]*\))/g,
-        (whole, open, angle, url, close) =>
-          /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(url)
-            ? whole
-            : `${open}${angle}${
-              relative(dirname(sourcePath), resolve(includeDir, url))
-                .replaceAll("\\", "/")
-            }${close}`,
-      ),
+      rewriteImagePaths(content, includeDir, dirname(sourcePath)),
   );
   if (warnings.length) {
     throw new Error(`Slides: ${warnings.join("; ")} (in ${sourcePath})`);
@@ -976,6 +1027,29 @@ export async function renderPreviewSlides(
     urls.add(url);
     plans.push({ lesson, url, decks, generate });
   }
+  // Decks that lessons link to (#144): each gets a standalone presentation.
+  const linkedByLesson = await scanDeckLinks(sources, output, tools);
+  const standalone = new Set<string>();
+  for (const decks of linkedByLesson.values()) {
+    for (const deck of decks) standalone.add(deck.path);
+  }
+  for (const deckPath of [...standalone].sort()) {
+    const slug = relative(root, deckPath).replaceAll("\\", "/").replace(
+      /\.md$/i,
+      "",
+    ).split("/").map(encodeURIComponent).join("/");
+    const url = `slides/decks/${slug}/index.html`;
+    if (urls.has(url)) {
+      throw new Error(`Slides preview: duplicate deck output: ${url}`);
+    }
+    urls.add(url);
+    plans.push({
+      lesson: DECK_KEY_PREFIX + deckPath,
+      url,
+      decks: [deckPath],
+      generate: false,
+    });
+  }
   try {
     const stat = await Deno.lstat(slides);
     if (stat.isSymlink) {
@@ -992,6 +1066,13 @@ export async function renderPreviewSlides(
   for (const plan of plans) {
     const chunks: string[] = [];
     const svgImages = new Map<string, string>();
+    const lessonDecks = linkedByLesson.get(plan.lesson) ?? [];
+    // A deck that is linked and configured is inserted at the link only (L9).
+    const configured = plan.generate
+      ? plan.decks.filter((deck) =>
+        !lessonDecks.some((linked) => linked.path === deck)
+      )
+      : plan.decks;
     if (plan.generate) {
       const generated = await renderDiagramFences(
         await embedImages(
@@ -1005,6 +1086,23 @@ export async function renderPreviewSlides(
                 (diagrams ?? resolveDiagramsConfig({})).locale === "en"
                   ? "Contents"
                   : "Inhoudsopgave",
+              linkedDeck: (url) => {
+                const path = resolve(
+                  dirname(plan.lesson),
+                  decodeURIComponent(url.split(/[?#]/, 1)[0]),
+                );
+                const deck = lessonDecks.find((each) => each.path === path);
+                if (!deck) return undefined;
+                return {
+                  id: path,
+                  title: deck.title,
+                  markdown: rewriteImagePaths(
+                    expandSlideIncludes(deck.body, deck.path),
+                    dirname(deck.path),
+                    dirname(plan.lesson),
+                  ),
+                };
+              },
             },
           ),
           plan.lesson,
@@ -1022,7 +1120,7 @@ export async function renderPreviewSlides(
           : generated,
       );
     }
-    for (const [index, source] of plan.decks.entries()) {
+    for (const [index, source] of configured.entries()) {
       await confined(source, root);
       const embedded = await embedImages(
         expandSlideIncludes(
@@ -1099,7 +1197,7 @@ export async function renderPreviewSlides(
       const pptxNames: string[] = [];
       {
         const used = new Set<string>();
-        for (const source of plan.decks) {
+        for (const source of configured) {
           const markdown = expandSlideIncludes(
             (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
             source,
@@ -1231,15 +1329,12 @@ export async function exportSlidesToContent(
   const sources = resolve(root, sourcesDir);
   const staticRoot = resolve(root, staticDir);
   const exported: string[] = [];
-  for (const [lesson, url] of Object.entries(rendered)) {
-    const stem = relative(sources, lesson).replaceAll("\\", "/").replace(
-      /\.md$/i,
-      "",
-    );
-    const lessonHtml = await Deno.readTextFile(join(contentDir, `${stem}.html`))
-      .catch(() => "");
-    const h1 = lessonHtml.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1].trim();
-    const title = `Slides: ${h1 ?? stem.split("/").pop()}`;
+  const exportTopic = async (
+    url: string,
+    topic: string,
+    title: string,
+    pptxPrefix: string,
+  ): Promise<void> => {
     const rendered = await Deno.readTextFile(
       join(staticRoot, ...url.split("/").map(decodeURIComponent)),
     );
@@ -1251,13 +1346,13 @@ export async function exportSlidesToContent(
     // Each linked .pptx goes along, named after the lesson, so decks never clash.
     let linked = html;
     for (const name of pptxLinkNames(html)) {
-      const copy = `${basename(stem)}-${name}`;
+      const copy = `${pptxPrefix}${name}`;
       const from = join(
         staticRoot,
         ...url.split("/").slice(0, -1).map(decodeURIComponent),
         name,
       );
-      const target = join(contentDir, dirname(stem), copy);
+      const target = join(contentDir, dirname(topic), copy);
       await Deno.mkdir(dirname(target), { recursive: true });
       await Deno.copyFile(from, target);
       linked = linked.replaceAll(
@@ -1272,11 +1367,55 @@ export async function exportSlidesToContent(
     const withTitle = /<head[^>]*>/i.test(linked)
       ? linked.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)
       : `${meta}${linked}`;
-    const relativeHref = `${stem}-slides.html`;
-    const destination = join(contentDir, relativeHref);
+    const destination = join(contentDir, `${topic}.html`);
     await Deno.mkdir(dirname(destination), { recursive: true });
     await Deno.writeTextFile(destination, withTitle);
-    exported.push(relativeHref);
+    exported.push(`${topic}.html`);
+  };
+  const lessonTitle = async (stem: string): Promise<string> => {
+    const lessonHtml = await Deno.readTextFile(join(contentDir, `${stem}.html`))
+      .catch(() => "");
+    const h1 = lessonHtml.match(/<h1[^>]*>([^<]+)<\/h1>/i)?.[1].trim();
+    return h1 ?? stem.split("/").pop()!;
+  };
+  const stemOf = (lesson: string) =>
+    relative(sources, lesson).replaceAll("\\", "/").replace(/\.md$/i, "");
+  for (const [lesson, url] of Object.entries(rendered)) {
+    if (lesson.startsWith(DECK_KEY_PREFIX)) continue;
+    const stem = stemOf(lesson);
+    await exportTopic(
+      url,
+      `${stem}-slides`,
+      `Slides: ${await lessonTitle(stem)}`,
+      `${basename(stem)}-`,
+    );
+  }
+  // The standalone presentation of each deck a lesson links to, as a topic
+  // after the lesson's own slides topic (#144).
+  const tools = join(dirname(staticRoot), "marp-tools");
+  const linkedDecks = await scanDeckLinks(sources, staticRoot, tools);
+  for (
+    const [lesson, decks] of [...linkedDecks].sort(([a], [b]) => a < b ? -1 : 1)
+  ) {
+    const stem = stemOf(lesson);
+    const seen = new Set<string>();
+    for (const deck of decks) {
+      const url = rendered[DECK_KEY_PREFIX + deck.path];
+      if (!url || seen.has(deck.path)) continue;
+      seen.add(deck.path);
+      await exportTopic(
+        url,
+        join(
+          dirname(stem),
+          deckTopicName(
+            basename(stem),
+            basename(deck.path).replace(/\.md$/i, ""),
+          ),
+        ).replaceAll("\\", "/"),
+        `Slides: ${await lessonTitle(stem)} — ${deck.title}`,
+        `${basename(stem)}-`,
+      );
+    }
   }
   return exported;
 }

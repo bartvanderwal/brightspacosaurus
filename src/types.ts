@@ -58,6 +58,12 @@ export interface ConvertOptions {
    * `{@bso-teacher-dashboard}`, or null when `teacherDashboard` is not configured.
    */
   teacherDashboardSrc?: string | null;
+  /**
+   * The course has `slides` configured: a link to a slide deck (a `.md` file
+   * with `slides: true`) points at the standalone slides topic of that deck,
+   * next to the lesson (#144).
+   */
+  deckLinks?: boolean;
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */
@@ -196,6 +202,13 @@ export interface BsoConfig {
   assetsDir?: string;
   /** Build-uitvoermap (relatief aan Repo_Root). Standaard: "build/brightspace". */
   outputDir?: string;
+  /**
+   * Folder for the files that are published on purpose (relative to Repo_Root):
+   * the current `.imscc` in `brightspace/` and the editable pptx files in
+   * `slides/`. Unlike `outputDir` (temporary build output) it is meant for version
+   * control. `bso pack` fills it (#145). Optional; off by default.
+   */
+  publishDir?: string;
   /** Pad naar een custom CSS-bestand (relatief aan Repo_Root). Optioneel. */
   customCss?: string;
   /** Projectnaam voor het .imscc-bestand (standaard: afgeleid van courseName). */
@@ -282,6 +295,8 @@ export interface ResolvedConfig {
   assetsDir: string | null;
   /** Absoluut pad naar de build-uitvoermap. */
   outputDir: string;
+  /** Absolute path of the publication folder, null when `publishDir` is not set (#145). */
+  publishDir?: string | null;
   /** Cursusnaam voor het manifest. */
   courseName: string;
   /** Versienummer. */

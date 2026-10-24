@@ -17,7 +17,7 @@ const {
 const { remarkQuizPreview } = require("../src/quiz-preview.ts");
 const { resolveQuizOptions } = require("../src/quiz-config.ts");
 const { resolveDiagramsConfig } = require("../src/diagram-config.ts");
-const { remarkPreviewSlides } = require("../src/slides-preview-remark.ts");
+const { remarkPreviewSlides, remarkPreviewDeckLinks } = require("../src/slides-preview-remark.ts");
 const course = require("../brightspacosaurus.config.json");
 const quizOptions = resolveQuizOptions(
   process.env.BSO_PREVIEW_QUIZ_CONFIG
@@ -244,7 +244,10 @@ function courseDocsOptions(coursePath, routeBasePath) {
         // The teacher page first in its module, as in the Brightspace menu.
         args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
       )),
-    beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions]],
+    beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions], [remarkPreviewDeckLinks, {
+      lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
+      baseUrl,
+    }]],
     remarkPlugins: [[remarkPreviewSlides, {
       lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
       baseUrl,

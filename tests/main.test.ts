@@ -76,6 +76,7 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
       skipSlides: false,
       output: "out",
       config: "bso.json",
+      format: "",
     },
   );
   assertEquals(parseArgs(["pack", "--name", "legacy-name"]), {
@@ -86,9 +87,11 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
     skipSlides: false,
     output: "legacy-name",
     config: "",
+    format: "",
   });
   assertEquals(parseArgs(["build", "--skip-readers"])?.skipReaders, true);
   assertEquals(parseArgs(["build", "--skip-slides"])?.skipSlides, true);
+  assertEquals(parseArgs(["pack", "--format", "brightspace"])?.format, "brightspace");
   assertEquals(parseArgs(["prepare", "--skip-readers"]), null);
   assertStringIncludes(
     buildUsage("0.9.0"),

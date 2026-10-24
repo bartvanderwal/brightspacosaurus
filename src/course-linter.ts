@@ -4,6 +4,8 @@
  * @module
  */
 import { isSlideDeck } from "./includes.ts";
+import { findDeckLinks } from "./linked-decks.ts";
+import { sectionsWithoutSlideContent } from "./lesson-slides.ts";
 import {
   findEmptySlideSeparators,
   headingDividerLevels,
@@ -327,6 +329,19 @@ function inspectMarkdown(
         "warning",
       );
     }
+    for (const section of sectionsWithoutSlideContent(markdown)) {
+      // A link to a `.md` file may be a deck, whose slides are inserted (#144).
+      if (section.linksToMarkdown) continue;
+      diagnostics.push({
+        sourceFile,
+        line: section.line,
+        column: 1,
+        severity: "warning",
+        rule: "slides-section-without-content",
+        message:
+          `The section '${section.heading}' has no list, table, image, code or diagram, so it gets no slide and is not in the contents slide. Add one, or leave it as running text on purpose.`,
+      });
+    }
     if (sections.length > 9) {
       report(
         sections[9],
@@ -628,6 +643,98 @@ function inspectMarkdown(
   };
 }
 
+function readTextOrNull(path: string): string | null {
+  try {
+    return Deno.readTextFileSync(path);
+  } catch {
+    return null;
+  }
+}
+
+/** The decks a file links to, read relative to that file (#144). */
+function deckLinksOf(file: string, text: string) {
+  return findDeckLinks(
+    text,
+    (href) => resolve(dirname(file), decodeURIComponent(href)),
+    readTextOrNull,
+    (path) => basename(path, ".md"),
+  );
+}
+
+/**
+ * Slides take a linked deck one level deep and once (#144): a lesson that links
+ * a deck which links another deck, or the same deck twice, gets a warning.
+ */
+function checkDeckLinks(file: string, text: string): LintDiagnostic[] {
+  const found: LintDiagnostic[] = [];
+  const decks = deckLinksOf(file, text);
+  const seen = new Set<string>();
+  const warn = (line: number, rule: string, message: string) =>
+    found.push({
+      sourceFile: file,
+      line,
+      column: 1,
+      severity: "warning",
+      rule,
+      message,
+    });
+  for (const deck of decks) {
+    if (seen.has(deck.path)) {
+      warn(
+        deck.line,
+        "slides-deck-linked-twice",
+        `The deck '${deck.href}' is linked more than once; its slides are inserted at the first link only. Remove this link or the other one.`,
+      );
+      continue;
+    }
+    seen.add(deck.path);
+    if (
+      !isSlideDeck(text) &&
+      deckLinksOf(deck.path, readTextOrNull(deck.path) ?? "").length > 0
+    ) {
+      warn(
+        deck.line,
+        "slides-nested-deck",
+        `The deck '${deck.href}' links to another deck. Slides take a linked deck one level deep, so that deck is not inserted; link both decks from the lesson instead.`,
+      );
+    }
+  }
+  return found;
+}
+
+/**
+ * A package in the publication folder whose version differs from the course
+ * `version` is stale: it was published for another version (#145). Only the
+ * packages of this course (`<name>.v<version>.imscc` or `.d2l.zip`) count.
+ */
+async function checkPublishedVersions(
+  config: ResolvedConfig,
+): Promise<LintDiagnostic[]> {
+  if (!config.publishDir) return [];
+  const folder = join(config.publishDir, "brightspace");
+  const found: LintDiagnostic[] = [];
+  const escaped = config.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^${escaped}\\.v(.+?)(?:\\.imscc|\\.d2l\\.zip)$`);
+  try {
+    for await (const entry of Deno.readDir(folder)) {
+      const version = entry.isFile ? entry.name.match(pattern)?.[1] : undefined;
+      if (version === undefined || version === config.version) continue;
+      found.push({
+        sourceFile: join(folder, entry.name),
+        line: 1,
+        column: 1,
+        severity: "warning",
+        rule: "publish-version-mismatch",
+        message:
+          `The publication folder has '${entry.name}', but the course version is ${config.version}. Run 'bso pack' to publish the current version; it removes the older one.`,
+      });
+    }
+  } catch {
+    // No publication folder yet: nothing is stale.
+  }
+  return found.sort((a, b) => a.sourceFile < b.sourceFile ? -1 : 1);
+}
+
 /**
  * The lesson files that are turned into slides: those with `generate: true` in
  * `slides.lessons`, and the files whose name starts with `slides.generateForPrefix`
@@ -735,6 +842,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       teacherAnswers: await readTeacherAnswers(file),
     });
     diagnostics.push(...result.diagnostics);
+    diagnostics.push(...checkDeckLinks(file, fileText));
     for (const link of result.downloadables) {
       if (!downloadRoot) continue;
       const resolved = await resolveDownloadableFile(
@@ -856,6 +964,7 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       await findCategoryMetadata(dir);
     }
   }
+  diagnostics.push(...await checkPublishedVersions(config));
   diagnostics.sort(compareDiagnostics);
   return {
     filesChecked: visited.size,

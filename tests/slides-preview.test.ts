@@ -6,6 +6,7 @@ import {
 } from "@std/assert";
 import { dirname, join, resolve } from "@std/path";
 import {
+  DECK_KEY_PREFIX,
   deckWantsPptx,
   exportSlidesToContent,
   renderDiagramFences,
@@ -1545,4 +1546,173 @@ Deno.test("slide layout counts pages without appendix slides and gives appendix 
   );
   assertEquals(noAppendix.match(/data-bso-total="2"/g)?.length, 2);
   assert(!/<section[^>]*data-bso-appendix/.test(noAppendix));
+});
+
+Deno.test("a deck linked in a lesson is inserted in the lesson slides and rendered as its own presentation (#144)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. One\n\n- a\n\n[Extra](../../decks/extra.md)\n\n## 2. Two\n\n- b\n",
+    );
+    await write(
+      root,
+      "decks/extra.md",
+      "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n\nText.\n",
+    );
+    const captured: string[] = [];
+    const result = await renderPreviewSlides(
+      { lessons: { "week/lesson.md": { generate: true } } },
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    const lessonKey = Object.keys(result).find((key) =>
+      key.endsWith("lesson.md")
+    )!;
+    const deckKey = Object.keys(result).find((key) =>
+      key.startsWith(DECK_KEY_PREFIX)
+    )!;
+    assert(deckKey.endsWith("decks/extra.md"));
+    assertEquals(result[deckKey], "slides/decks/decks/extra/index.html");
+    const lessonDeck = captured.find((input) => input.includes("# 1. One"))!;
+    const order = ["# 1. One", "# Extra slide", "# 2. Two"].map((heading) =>
+      lessonDeck.indexOf(heading)
+    );
+    assert(
+      order[0] < order[1] && order[1] < order[2],
+      "inserted after section 1",
+    );
+    assertStringIncludes(lessonDeck, "- Extra deck");
+    assert(
+      captured.some((input) =>
+        !input.includes("# 1. One") && input.includes("# Extra slide")
+      ),
+    );
+    assert(lessonKey.length > 0);
+  });
+});
+
+Deno.test("a linked deck is exported as a topic after the lesson's slides topic (#144)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. One\n\n- a\n\n[Extra](../../decks/extra.md)\n",
+    );
+    await write(
+      root,
+      "decks/extra.md",
+      "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n",
+    );
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>The lesson</h1></body></html>",
+    );
+    const exported = await exportSlidesToContent(
+      { lessons: { "week/lesson.md": { generate: true } } },
+      root,
+      "lessons",
+      "static",
+      join(root, "content"),
+      fake([]),
+    );
+    assertEquals(exported, [
+      "week/lesson-slides.html",
+      "week/lesson-slides-extra.html",
+    ]);
+    const topic = await Deno.readTextFile(
+      join(root, "content/week/lesson-slides-extra.html"),
+    );
+    assertStringIncludes(topic, "Slides: The lesson — Extra deck");
+  });
+});
+
+Deno.test("a deck that is both linked and configured is inserted at the link only (#144)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. One\n\n- a\n\n[Extra](../../decks/extra.md)\n\n## 2. Two\n\n- b\n",
+    );
+    await write(
+      root,
+      "decks/extra.md",
+      "---\nslides: true\n---\n\n# Extra slide\n",
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(
+      {
+        lessons: { "week/lesson.md": { generate: true, decks: "decks/*.md" } },
+      },
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    const lessonDeck = captured.find((input) => input.includes("# 1. One"))!;
+    assertEquals(lessonDeck.match(/# Extra slide/g)?.length, 1);
+  });
+});
+
+// Guidebook 7.8, rule L8: only an existing file that is marked as a deck counts.
+Deno.test("L8: a link to a missing file or to a plain page is not a deck: nothing is inserted or rendered (#144)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. One\n\n- a\n\n[Missing](../../decks/missing.md)\n\n[Plain](plain.md)\n",
+    );
+    await write(
+      root,
+      "lessons/week/plain.md",
+      "# Plain page\n\nNo front matter.\n",
+    );
+    const captured: string[] = [];
+    const result = await renderPreviewSlides(
+      { lessons: { "week/lesson.md": { generate: true } } },
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    assertEquals(
+      Object.keys(result).some((key) => key.startsWith(DECK_KEY_PREFIX)),
+      false,
+    );
+    assertEquals(captured.length, 1);
+    assert(!captured[0].includes("Plain page"));
+  });
+});
+
+// Guidebook 7.8, acceptance 7: a lesson without a generated deck still gets the standalone presentation.
+Deno.test("acceptance 7: a lesson that links a deck but has no generated deck still gets the deck as a presentation (#144)", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\nSee [the deck](../../decks/extra.md).\n",
+    );
+    await write(
+      root,
+      "decks/extra.md",
+      "---\nslides: true\n---\n\n# Extra slide\n",
+    );
+    const captured: string[] = [];
+    const result = await renderPreviewSlides(
+      { generateForPrefix: "nothing-" },
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    const deckKey = Object.keys(result).find((key) =>
+      key.startsWith(DECK_KEY_PREFIX)
+    );
+    assert(deckKey?.endsWith("decks/extra.md"));
+    assertEquals(captured.length, 1);
+    assertStringIncludes(captured[0], "# Extra slide");
+  });
 });

@@ -8,6 +8,8 @@
  */
 
 import type { ConvertOptions, ConvertResult } from "./types.ts";
+import { isSlideDeck } from "./includes.ts";
+import { deckTopicName, rewriteLinkTargets } from "./linked-decks.ts";
 import { loadAssetText } from "./assets.ts";
 import {
   findDownloadableLinks,
@@ -394,8 +396,20 @@ export async function convertMarkdown(
     relative(baseDir, sourceDir).split(/[\\/]/).filter((part) =>
       part && part !== "."
     ).length;
+  const sourceStem = basename(sourcePath, extname(sourcePath));
+  const withDeckLinks = options.deckLinks
+    ? rewriteLinkTargets(cleanedMarkdown, (href) => {
+      try {
+        const path = resolve(sourceDir, decodeURIComponent(href));
+        if (!isSlideDeck(Deno.readTextFileSync(path))) return undefined;
+        return `${deckTopicName(sourceStem, basename(path, ".md"))}.html`;
+      } catch {
+        return undefined;
+      }
+    })
+    : cleanedMarkdown;
   const convertedMarkdown = convertInternalMdLinks(
-    convertReaderLinks(cleanedMarkdown, htmlDepth),
+    convertReaderLinks(withDeckLinks, htmlDepth),
     sourcePath,
   );
   const relativeImages = findRelativeImages(convertedMarkdown);

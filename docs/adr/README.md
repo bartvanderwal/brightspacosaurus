@@ -19,3 +19,4 @@ The numbering is historical rather than contiguous. Brightspacosaurus was extrac
 | [021](adr021-convention-over-configuration-and-good-defaults.md) | Convention over configuration and good defaults |
 | [022](adr022-opening-lesson-slides-in-the-same-page.md) | Opening a lesson's slides in the same tab |
 | [023](adr023-separate-content-from-processing.md) | Separate content from processing (proposed) |
+| [024](adr024-native-brightspace-package-next-to-common-cartridge.md) | A native Brightspace package next to the Common Cartridge (proposed) |
