@@ -2,7 +2,7 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
-## Unreleased
+## 0.32.1
 
 ### Fixed
 
