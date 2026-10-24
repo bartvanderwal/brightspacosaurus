@@ -664,6 +664,8 @@ Brightspace lesson pages should not depend on custom JavaScript for core accessi
 
 `diagrams.failOnError` controls the build policy. With the default `true`, invalid diagram metadata, invalid source, or an unreachable Kroki endpoint fails the build. With `false`, BSO logs a warning, keeps the original fenced code block in the generated page, and continues.
 
+Readers follow the same two settings. The diagrams in a reader PDF are rendered by the pandoc filter `assets/diagram-filter.lua` through `diagrams.krokiUrl`; a `KROKI_URL` environment variable set by hand still wins. A diagram that Kroki cannot render stops the PDF with the diagram type and the category (`kroki-unreachable` or `invalid-source`); with `failOnError: false` the source block stays in the PDF and the build prints a warning with the same category, so you see it before you open the PDF.
+
 ![Docusaurus preview of a PlantUML diagram with Source and In natural language tabs](images/docusaurus-diagram-a11y-tabs.png)
 
 *Figure 7*: Diagram in the Docusaurus preview with source and natural-language description tabs.

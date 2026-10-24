@@ -394,6 +394,8 @@ export async function runBuild(
             coverLogoPath: config.readerCoverLogo ?? undefined,
             locale: config.diagrams.locale,
             chapterNewPage: config.readerChapterNewPage ?? true,
+            krokiUrl: config.diagrams.krokiUrl,
+            failOnError: config.diagrams.failOnError,
           });
           console.log(`  ✓ readers/${result.filename}`);
           succeeded++;

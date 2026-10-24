@@ -7,8 +7,24 @@
 
 local supported = { plantuml = true, mermaid = true, puml = true }
 
--- Kroki base URL (publieke instantie)
-local KROKI_URL = os.getenv("KROKI_URL") or "https://kroki.io"
+-- Kroki base URL: BSO sets BSO_KROKI_URL from diagrams.krokiUrl; KROKI_URL set by hand wins.
+local KROKI_URL = os.getenv("KROKI_URL") or os.getenv("BSO_KROKI_URL") or
+  "https://kroki.io"
+
+-- BSO sets BSO_DIAGRAMS_FAIL_ON_ERROR to "0" for diagrams.failOnError: false.
+-- The default is to stop, as for the diagrams on lesson pages.
+local FAIL_ON_ERROR = os.getenv("BSO_DIAGRAMS_FAIL_ON_ERROR") ~= "0"
+
+--- Report a diagram that could not be rendered: stop the conversion, or warn.
+--- Categories as for lessons: kroki-unreachable and invalid-source.
+local function report(category, diagram_type)
+  local message = "diagram-filter: " .. diagram_type .. " diagram not rendered (" ..
+    category .. ")"
+  if FAIL_ON_ERROR then
+    error(message .. "; set diagrams.failOnError to false to keep the source block")
+  end
+  io.stderr:write(message .. "; the source block stays in the reader\n")
+end
 
 --- Encode diagram-tekst als URL-safe base64 via deflate.
 --- Kroki accepteert GET met gecomprimeerde base64 of POST met platte tekst.
@@ -29,26 +45,30 @@ local function render_via_kroki(diagram_type, diagram_text, output_format)
   f:write(diagram_text)
   f:close()
 
-  -- Roep Kroki aan via curl POST
+  -- Roep Kroki aan via curl POST en lees de HTTP-statuscode
   local outfile = os.tmpname() .. "." .. output_format
   local cmd = string.format(
-    'curl -s -X POST -H "Content-Type: text/plain" --data-binary @%s -o %s "%s/%s/%s"',
+    'curl -s -X POST -H "Content-Type: text/plain" --data-binary @%s -o %s -w "%%{http_code}" "%s/%s/%s"',
     tmpfile, outfile, KROKI_URL, kroki_type, output_format
   )
 
-  local ok = os.execute(cmd)
+  local pipe = io.popen(cmd)
+  local status = pipe and pipe:read("*a") or ""
+  if pipe then pipe:close() end
   os.remove(tmpfile)
 
-  if not ok then
-    io.stderr:write("diagram-filter: Kroki-aanroep mislukt voor " .. kroki_type .. "\n")
-    return nil
+  local code = tonumber(status) or 0
+  if code ~= 200 then
+    os.remove(outfile)
+    -- 4xx: Kroki rejects the source; no answer or 5xx: Kroki cannot be reached or failed
+    if code >= 400 and code < 500 then return nil, "invalid-source" end
+    return nil, "kroki-unreachable"
   end
 
   -- Lees resultaat
   local result_file = io.open(outfile, "rb")
   if not result_file then
-    io.stderr:write("diagram-filter: kan resultaat niet lezen\n")
-    return nil
+    return nil, "kroki-unreachable"
   end
   local data = result_file:read("*a")
   result_file:close()
@@ -56,8 +76,7 @@ local function render_via_kroki(diagram_type, diagram_text, output_format)
 
   -- Valideer PNG-header (bytes 1-4: \x89PNG) om corrupte/lege response te detecteren
   if output_format == "png" and (not data or #data < 8 or data:sub(1, 4) ~= "\137PNG") then
-    io.stderr:write("diagram-filter: Kroki gaf geen geldige PNG terug (geen netwerk of fout?)\n")
-    return nil
+    return nil, "invalid-source"
   end
 
   return data, outfile
@@ -76,10 +95,10 @@ function CodeBlock(block)
   end
 
   -- Render als PNG (voor PDF-compatibiliteit)
-  local img_data, _ = render_via_kroki(lang, diagram_text, "png")
+  local img_data, category = render_via_kroki(lang, diagram_text, "png")
   if not img_data then
-    -- Fallback: toon als codeblok
-    io.stderr:write("diagram-filter: fallback naar codeblok voor " .. lang .. "\n")
+    -- Stop (default) or fall back to the code block, but never silently
+    report(category or "kroki-unreachable", lang)
     return nil
   end
 

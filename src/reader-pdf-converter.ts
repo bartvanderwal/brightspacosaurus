@@ -110,11 +110,16 @@ export function deriveReaderPdfMetadata(
     extractFrontmatterValue(content, "bijgewerkt");
   const version = extractFrontmatterValue(content, "version") ??
     extractFrontmatterValue(content, "versie") ??
-    (options.courseVersion ? `${labels.version} ${options.courseVersion}` : null);
+    (options.courseVersion
+      ? `${labels.version} ${options.courseVersion}`
+      : null);
 
   const coverLines: string[] = [];
   if (original && updated && original !== updated) {
-    coverLines.push(`${labels.original}: ${original}`, `${labels.updated}: ${updated}`);
+    coverLines.push(
+      `${labels.original}: ${original}`,
+      `${labels.updated}: ${updated}`,
+    );
   } else if (original) {
     coverLines.push(`${labels.date}: ${original}`);
   } else if (updated) {
@@ -145,7 +150,9 @@ function escapeLatex(text: string): string {
 /** LaTeX header that defines `\bsocoverdates` with one cover line per row. */
 export function coverDatesHeader(lines: string[]): string | null {
   if (lines.length === 0) return null;
-  return `\\newcommand{\\bsocoverdates}{${lines.map(escapeLatex).join("\\\\ ")}}\n`;
+  return `\\newcommand{\\bsocoverdates}{${
+    lines.map(escapeLatex).join("\\\\ ")
+  }}\n`;
 }
 
 /** Characters LaTeX can take literally in an \includegraphics path. */
@@ -305,6 +312,28 @@ export function pandocAvailable(): boolean {
 }
 
 /**
+ * Environment for the diagram filter: the Kroki endpoint and whether a diagram
+ * that cannot be rendered stops the conversion. The filter prefers a `KROKI_URL`
+ * set by hand over `BSO_KROKI_URL`.
+ */
+export function readerDiagramEnv(
+  options: { krokiUrl?: string; failOnError?: boolean },
+): Record<string, string> {
+  const env: Record<string, string> = {
+    BSO_DIAGRAMS_FAIL_ON_ERROR: options.failOnError === false ? "0" : "1",
+  };
+  if (options.krokiUrl) env.BSO_KROKI_URL = options.krokiUrl;
+  return env;
+}
+
+/** The warnings of the diagram filter in the stderr of pandoc. */
+export function diagramFilterWarnings(stderr: string): string[] {
+  return stderr.split(/\r?\n/).filter((line) =>
+    line.startsWith("diagram-filter:")
+  );
+}
+
+/**
  * Converts a reader Markdown file to PDF via pandoc.
  *
  * Pandoc is invoked as an external binary via `Deno.Command` with options
@@ -388,6 +417,7 @@ export async function convertReaderToPdf(
       metadata,
       coverHeaderPath,
     }),
+    env: readerDiagramEnv(options),
     stdout: "piped",
     stderr: "piped",
   });
@@ -408,6 +438,16 @@ export async function convertReaderToPdf(
     throw new Error(
       `Pandoc conversion failed for ${sourcePath}: ${stderr}`,
     );
+  }
+
+  // A diagram that stayed a code block (diagrams.failOnError: false) must show
+  // in the build output, not only in the PDF.
+  for (
+    const warning of diagramFilterWarnings(
+      new TextDecoder().decode(process.stderr),
+    )
+  ) {
+    console.warn(`  ⚠ ${basename(sourcePath)}: ${warning}`);
   }
 
   return {

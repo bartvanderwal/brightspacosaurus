@@ -6,6 +6,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
+- Readers: diagrams now follow `diagrams.krokiUrl` and `diagrams.failOnError`. A diagram that Kroki cannot render used to fall back to a code block without a message in the build output. It now stops the PDF with the diagram type and the category (`kroki-unreachable`, `invalid-source`), or with `failOnError: false` keeps the source block and prints a warning (#116).
 - Quiz diagrams and images showed as a broken picture in Brightspace. The links in the QTI are now relative to the package root and the files are carried by one hidden web content resource per quiz in the manifest. Checked with an import of the demo quiz 2.1 (answer options and the `<details>` blocks, instructor preview); not checked: the student view (#105).
 
 ## 0.32.0

@@ -7,7 +7,12 @@
 
 import { assertEquals, assertRejects } from "@std/assert";
 import { join } from "@std/path";
-import { convertReaderToPdf, pandocAvailable } from "../src/reader-pdf-converter.ts";
+import {
+  convertReaderToPdf,
+  diagramFilterWarnings,
+  pandocAvailable,
+  readerDiagramEnv,
+} from "../src/reader-pdf-converter.ts";
 
 async function makeTempDir(): Promise<string> {
   return await Deno.makeTempDir({ prefix: "reader_pdf_test_" });
@@ -30,7 +35,11 @@ Deno.test({
   permissions: { run: true },
   fn() {
     const result = pandocAvailable();
-    assertEquals(typeof result, "boolean", "pandocAvailable() moet een boolean retourneren");
+    assertEquals(
+      typeof result,
+      "boolean",
+      "pandocAvailable() moet een boolean retourneren",
+    );
   },
 });
 
@@ -40,7 +49,8 @@ Deno.test({
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "convertReaderToPdf: happy path — simpele Markdown wordt omgezet naar PDF",
+  name:
+    "convertReaderToPdf: happy path — simpele Markdown wordt omgezet naar PDF",
   ignore: !pandocAvailable(),
   permissions: { run: true, read: true, write: true },
   async fn() {
@@ -62,8 +72,16 @@ Deno.test({
       });
 
       // Controleer resultaat
-      assertEquals(result.filename, "reader-test.pdf", "Bestandsnaam moet .md → .pdf zijn");
-      assertEquals(result.outputPath, join(outputDir, "reader-test.pdf"), "Uitvoerpad moet correct zijn");
+      assertEquals(
+        result.filename,
+        "reader-test.pdf",
+        "Bestandsnaam moet .md → .pdf zijn",
+      );
+      assertEquals(
+        result.outputPath,
+        join(outputDir, "reader-test.pdf"),
+        "Uitvoerpad moet correct zijn",
+      );
 
       // Controleer dat het PDF-bestand daadwerkelijk bestaat
       const stat = await Deno.stat(result.outputPath);
@@ -81,13 +99,18 @@ Deno.test({
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "convertReaderToPdf: fout bij niet-bestaand bronbestand — error bevat bestandspad",
+  name:
+    "convertReaderToPdf: fout bij niet-bestaand bronbestand — error bevat bestandspad",
   ignore: !pandocAvailable(),
   permissions: { run: true, read: true, write: true },
   async fn() {
     const tempRoot = await makeTempDir();
     const outputDir = join(tempRoot, "output");
-    const nonExistentPath = join(tempRoot, "niet-bestaand", "reader-missing.md");
+    const nonExistentPath = join(
+      tempRoot,
+      "niet-bestaand",
+      "reader-missing.md",
+    );
 
     try {
       await assertRejects(
@@ -113,7 +136,8 @@ Deno.test({
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "convertReaderToPdf: geen gedeeltelijk PDF-bestand achtergelaten bij fout",
+  name:
+    "convertReaderToPdf: geen gedeeltelijk PDF-bestand achtergelaten bij fout",
   ignore: !pandocAvailable(),
   permissions: { run: true, read: true, write: true },
   async fn() {
@@ -160,6 +184,88 @@ Deno.test({
         );
       }
     } finally {
+      await removeDir(tempRoot);
+    }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Diagrams in readers follow diagrams.krokiUrl and diagrams.failOnError
+// ---------------------------------------------------------------------------
+
+Deno.test("readerDiagramEnv passes the Kroki endpoint and the failure policy to the filter", () => {
+  assertEquals(readerDiagramEnv({}), { BSO_DIAGRAMS_FAIL_ON_ERROR: "1" });
+  assertEquals(
+    readerDiagramEnv({ failOnError: false, krokiUrl: "http://k:8000" }),
+    {
+      BSO_DIAGRAMS_FAIL_ON_ERROR: "0",
+      BSO_KROKI_URL: "http://k:8000",
+    },
+  );
+});
+
+Deno.test("diagramFilterWarnings keeps only the lines of the diagram filter", () => {
+  assertEquals(
+    diagramFilterWarnings(
+      "[WARNING] x\ndiagram-filter: mermaid diagram not rendered (invalid-source)\n",
+    ),
+    ["diagram-filter: mermaid diagram not rendered (invalid-source)"],
+  );
+});
+
+const readerWithDiagram = "# Reader\n\n```mermaid\ngraph TD; A-->B\n```\n";
+
+Deno.test({
+  name:
+    "a reader with a diagram and an unreachable Kroki fails by default and names the category",
+  ignore: !pandocAvailable(),
+  permissions: { run: true, read: true, write: true },
+  async fn() {
+    const tempRoot = await makeTempDir();
+    try {
+      const sourcePath = join(tempRoot, "reader-diagram.md");
+      await Deno.writeTextFile(sourcePath, readerWithDiagram);
+      await assertRejects(
+        () =>
+          convertReaderToPdf({
+            sourcePath,
+            outputDir: join(tempRoot, "out"),
+            repoRoot: tempRoot,
+            krokiUrl: "http://127.0.0.1:1",
+          }),
+        Error,
+        "kroki-unreachable",
+      );
+    } finally {
+      await removeDir(tempRoot);
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "with failOnError false a reader keeps the source block and the build says so",
+  ignore: !pandocAvailable(),
+  permissions: { run: true, read: true, write: true },
+  async fn() {
+    const tempRoot = await makeTempDir();
+    const warnings: string[] = [];
+    const original = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+    try {
+      const sourcePath = join(tempRoot, "reader-diagram.md");
+      await Deno.writeTextFile(sourcePath, readerWithDiagram);
+      const result = await convertReaderToPdf({
+        sourcePath,
+        outputDir: join(tempRoot, "out"),
+        repoRoot: tempRoot,
+        krokiUrl: "http://127.0.0.1:1",
+        failOnError: false,
+      });
+      assertEquals((await Deno.stat(result.outputPath)).size > 0, true);
+      assertEquals(warnings.some((w) => w.includes("kroki-unreachable")), true);
+    } finally {
+      console.warn = original;
       await removeDir(tempRoot);
     }
   },

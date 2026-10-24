@@ -154,7 +154,7 @@ Scans the configured source directory and writes conversion output into the buil
 - Instructor manual → composed PDF (`docenten/`), if configured
 - Referenced images copied into the build directory
 
-During lesson conversion, PlantUML and Mermaid fenced blocks are rendered by `remark-kroki-a11y` through a Kroki-compatible HTTP endpoint. The optional `diagrams` config controls the endpoint (`krokiUrl`, default `https://kroki.io`), output mode (`img-html-base64` by default), and error policy (`failOnError`, default `true`). In strict mode the build fails on invalid diagram metadata, invalid source, or unreachable Kroki. In fallback mode BSO warns, keeps the original fenced block, and continues.
+During lesson conversion, PlantUML and Mermaid fenced blocks are rendered by `remark-kroki-a11y` through a Kroki-compatible HTTP endpoint. The optional `diagrams` config controls the endpoint (`krokiUrl`, default `https://kroki.io`), output mode (`img-html-base64` by default), and error policy (`failOnError`, default `true`). In strict mode the build fails on invalid diagram metadata, invalid source, or unreachable Kroki. In fallback mode BSO warns, keeps the original fenced block, and continues. Readers use the same two settings: `convertReaderToPdf` passes `diagrams.krokiUrl` (`BSO_KROKI_URL`; a `KROKI_URL` set by hand wins) and `diagrams.failOnError` (`BSO_DIAGRAMS_FAIL_ON_ERROR`) to the pandoc filter `assets/diagram-filter.lua`, which stops with `kroki-unreachable` (no answer or a 5xx) or `invalid-source` (a 4xx) or, in fallback mode, writes a `diagram-filter:` line that the converter prints as a warning.
 
 ### 2.2 `pack` — build directory to `.imscc`
 

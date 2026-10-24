@@ -134,6 +134,10 @@ export interface ReaderConvertOptions {
   /** Start every chapter on a new page (`readerChapterNewPage`), default true. */
   chapterNewPage?: boolean;
   locale?: "nl" | "en";
+  /** Kroki endpoint for diagrams (`diagrams.krokiUrl`); the `KROKI_URL` variable overrides it. */
+  krokiUrl?: string;
+  /** Stop on a diagram that cannot be rendered (`diagrams.failOnError`), default true. */
+  failOnError?: boolean;
 }
 
 /** Resultaat van de reader-Markdown-naar-PDF-conversie. */
