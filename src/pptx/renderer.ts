@@ -425,23 +425,19 @@ export async function renderDeck(
 }
 
 /**
- * pptxgenjs writes a second `<a:pPr>` after every further part of a paragraph
- * (for example a word in code inside a list item). A paragraph may have one,
- * and it must come first, so only the first is kept.
+ * pptxgenjs writes an `<a:pPr>` after every further part of a paragraph (for
+ * example a link or a word in code inside a list item). OOXML allows one, and
+ * only as the first child of the paragraph; PowerPoint ignores the rest of the
+ * paragraph after a misplaced one, so a hyperlink there stops working. Every
+ * `<a:pPr>` that is not the first child is dropped.
  */
 export function singleParagraphProperties(xml: string): string {
-  return xml.replace(/<a:p>[\s\S]*?<\/a:p>/g, (paragraph) => {
-    let seen = false;
-    return paragraph.replace(
-      /<a:pPr\b[^>]*?(?:\/>|>[\s\S]*?<\/a:pPr>)/g,
-      (properties) => {
-        if (!seen) {
-          seen = true;
-          return properties;
-        }
-        return "";
-      },
-    );
+  const properties = /<a:pPr\b[^>]*?(?:\/>|>[\s\S]*?<\/a:pPr>)/g;
+  return xml.replace(/(<a:p>)([\s\S]*?)(<\/a:p>)/g, (_, open, body, close) => {
+    const first = /^<a:pPr\b[^>]*?(?:\/>|>[\s\S]*?<\/a:pPr>)/.exec(body)?.[0] ??
+      "";
+    return open + first + body.slice(first.length).replace(properties, "") +
+      close;
   });
 }
 
@@ -457,7 +453,7 @@ async function stabilize(bytes: Uint8Array, date: string): Promise<Uint8Array> {
       continue;
     }
     let content: Uint8Array | string = await entry.async("uint8array");
-    if (/^ppt\/slides\/slide\d+\.xml$/.test(name)) {
+    if (/^ppt\/(?:slides\/slide|notesSlides\/notesSlide)\d+\.xml$/.test(name)) {
       content = singleParagraphProperties(await entry.async("string"));
     } else if (name === "docProps/core.xml") {
       content = (await entry.async("string")).replace(

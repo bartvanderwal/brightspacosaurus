@@ -11,6 +11,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
+- pptx: a paragraph now keeps its paragraph properties only as its first child, in the slides and in the speaker notes. A misplaced one made PowerPoint ignore the hyperlink after it in a bullet that mixes text, links, bold or code (#148).
 - The guidebook no longer says that the slides shortcut is preview-only by design; the cartridge gets its own links (#146).
 
 ## 0.31.0

@@ -169,6 +169,61 @@ Deno.test("a paragraph keeps only its first paragraph properties", () => {
   );
 });
 
+Deno.test("a paragraph property after a part of the paragraph is dropped, a leading one stays", () => {
+  assertEquals(
+    singleParagraphProperties(
+      '<a:p><a:r><a:t>a</a:t></a:r><a:pPr indent="0"><a:buNone/></a:pPr><a:r><a:t>b</a:t></a:r></a:p>',
+    ),
+    "<a:p><a:r><a:t>a</a:t></a:r><a:r><a:t>b</a:t></a:r></a:p>",
+  );
+  assertEquals(
+    singleParagraphProperties(
+      '<a:p><a:pPr marL="1"/><a:r><a:t>a</a:t></a:r><a:br/><a:pPr marL="0"/><a:r><a:t>b</a:t></a:r></a:p>',
+    ),
+    '<a:p><a:pPr marL="1"/><a:r><a:t>a</a:t></a:r><a:br/><a:r><a:t>b</a:t></a:r></a:p>',
+  );
+});
+
+Deno.test("a bullet with a link in the middle and a note keep valid paragraphs", async () => {
+  const markdown = `---
+slides: true
+title: Links
+---
+
+# Slide
+
+- A reason, no [argument from authority](https://example.org/a): ask on with [five whys](https://example.org/b)
+- Some **bold** and \`code\` inside
+
+<!-- A note with *emphasis* and a [link](https://example.org/c). -->
+`;
+  const zip = await entries(
+    await convertDeckToPptx(markdown, { baseDir: images }),
+  );
+  const parts = Object.keys(zip.files).filter((name) =>
+    /^ppt\/(slides|notesSlides)\/[^/]+\.xml$/.test(name)
+  );
+  assertEquals(parts.length >= 2, true);
+  for (const name of parts) {
+    const xml = await zip.file(name)!.async("string");
+    for (const [, body] of xml.matchAll(/<a:p>([\s\S]*?)<\/a:p>/g)) {
+      assertEquals(
+        (body.match(/<a:pPr\b/g) ?? []).length <= 1,
+        true,
+        `${name}: more than one pPr in a paragraph`,
+      );
+      assertEquals(
+        /<a:pPr\b/.test(body) && !body.startsWith("<a:pPr"),
+        false,
+        `${name}: pPr is not the first child`,
+      );
+    }
+  }
+  const slide = await zip.file("ppt/slides/slide1.xml")!.async("string");
+  assertEquals((slide.match(/<a:hlinkClick\b/g) ?? []).length, 2);
+  assertStringIncludes(slide, "five whys");
+});
+
 Deno.test("the demo decks convert", async () => {
   for (const name of ["slides-fizzbuzz", "slides-test-strategy"]) {
     const markdown = await Deno.readTextFile(`${images}/${name}.md`);
