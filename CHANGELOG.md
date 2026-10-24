@@ -8,6 +8,10 @@ All notable changes to Brightspacosaurus are documented here.
 
 - Experimental: the native Brightspace package (`bso pack --format brightspace`) now holds the quizzes: a `quiz_d2l_<n>.xml` per quiz, a link topic in its module and the quiz images, diagrams included, at the root of the package, after the structure of the reference exports. Not yet verified with an import (#149).
 
+### Fixed
+
+- `reader-heading-numbering`: an unnumbered heading `Bijlagen` (or `Appendices`) above `Bijlage A`, `Bijlage B`, ... is allowed; a number or letter on it is an error (#137).
+
 ## 0.32.1
 
 ### Fixed

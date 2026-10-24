@@ -228,6 +228,33 @@ title: Reader demo
     [7],
   );
 
+  // An overarching 'Bijlagen' heading has no number; the appendices under it keep their letters.
+  assertEquals(
+    lintMarkdown(
+      "# Reader\n## 1. Intro\n## Bronnen\n## Bijlagen\n### Bijlage A: Eerste\n### Bijlage B: Tweede\n",
+      "reader-demo.md",
+    ),
+    [],
+  );
+  assertEquals(
+    lintMarkdown(
+      "# Reader\n## 1. Intro\n## Appendices\n### Appendix A: First\n",
+      "reader-demo.md",
+    ),
+    [],
+  );
+  const numberedAppendices = lintMarkdown(
+    "# Reader\n## 1. Intro\n## 8. Bijlagen\n## A. Bijlagen\n### Bijlage A: Eerste\n### Bijlage C: Derde\n",
+    "reader-demo.md",
+  ).filter((issue) => issue.rule === "reader-heading-numbering");
+  assertEquals(numberedAppendices.map(({ line }) => line), [3, 4, 6]);
+  assertEquals(
+    numberedAppendices[0].message.includes(
+      "Back-matter headings must not have",
+    ),
+    true,
+  );
+
   assertEquals(
     lintMarkdown("## 1. One\n## 3. Three\n", "lesson.md"),
     [],
