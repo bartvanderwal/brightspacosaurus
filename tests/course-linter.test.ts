@@ -269,6 +269,47 @@ Deno.test("lint shares quiz validation and formats source locations for editors"
   assertEquals(lintMarkdown(source.replace("Z", "a"), "quiz-test.md"), []);
 });
 
+Deno.test("quiz lint warns about unsupported HTML blocks but allows details", () => {
+  const source = `# Quiz
+
+## Question 1
+Prompt.
+
+<details>
+<summary>Source</summary>
+Body.
+</details>
+
+<aside>
+Unsupported note.
+</aside>
+
+\`\`\`html
+<aside>Example only</aside>
+\`\`\`
+
+- A. Yes
+- B. No
+Correct answer: **A**
+`;
+  const issues = lintMarkdown(source, "quiz-html.md").filter((issue) =>
+    issue.rule === "quiz-unsupported-html"
+  );
+
+  assertEquals(
+    issues.map(({ line, severity, message }) => [
+      line,
+      severity,
+      message,
+    ]),
+    [[
+      11,
+      "warning",
+      "The <aside> block is not supported in QTI quiz text; use Markdown instead.",
+    ]],
+  );
+});
+
 Deno.test("lint reports assignment structure and standalone deelvragen", () => {
   const empty = lintMarkdown(
     "# Quiz\n\n## Opdracht 27\n\nGedeelde context",

@@ -49,6 +49,34 @@ const quizHtmlProcessor = unified()
   .use(rehypeQuizHighlight)
   .use(rehypeStringify, { allowDangerousHtml: true });
 
+function normalizeQuizDetails(markdown: string): string {
+  let fence: { character: string; length: number } | undefined;
+  return markdown.split(/\r?\n/).map((line) => {
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fence) {
+      if (
+        fenceMatch?.[1][0] === fence.character &&
+        fenceMatch[1].length >= fence.length &&
+        !line.trim().slice(fenceMatch[0].trimStart().length).trim()
+      ) {
+        fence = undefined;
+      }
+      return line;
+    }
+    if (fenceMatch) {
+      fence = {
+        character: fenceMatch[1][0],
+        length: fenceMatch[1].length,
+      };
+      return line;
+    }
+    return line
+      .replace(/<summary\b[^>]*>(.*?)<\/summary>/gi, "**$1**")
+      .replace(/<\/?summary\b[^>]*>/gi, "")
+      .replace(/<\/?details\b[^>]*>/gi, "");
+  }).join("\n");
+}
+
 /** Options for converting a quiz Markdown file. */
 export interface QuizConvertOptions extends QuizHeadingOptions {
   /** Absolute path to the quiz Markdown source file. */
@@ -109,7 +137,7 @@ function renderQuizMarkdown(
   resolveImage?: (url: string) => string,
   resolveDiagram?: DiagramResolver,
 ): string {
-  const parsed = parseQuizText(markdown);
+  const parsed = parseQuizText(normalizeQuizDetails(markdown));
   if (resolveDiagram) {
     let ordinal = 0;
     const replaceDiagrams = (node: typeof parsed) => {
