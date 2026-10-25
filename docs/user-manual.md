@@ -144,7 +144,7 @@ The most important fields:
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
 | `outputDir`            | no       | Build output directory (default `build/brightspace`)                                         |
-| `publishDir`           | no       | Folder for the files you publish on purpose (the current `.imscc`, pptx files); `bso pack` fills it. For version control, unlike `outputDir`; see 6.2 |
+| `publishDir`           | no       | Folder for the files you publish on purpose (the current `.imscc`, pptx files); `bso pack` fills it. For version control, unlike `outputDir`; see 6.2. No default: without it BSO writes nothing outside `outputDir`. We recommend `publicaties` |
 | `slides.lessons`       | no       | Mapping from lesson Markdown paths (relative to `sourcesDir`) to slide globs (relative to repository root); matching decks go into the preview and `.imscc` |
 | `slides.generateForPrefix` | no    | Generate slides for source Markdown filenames beginning with this case-sensitive prefix; explicit `slides.lessons` entries override it |
 | `slides.notes`         | no       | `true` keeps presenter notes in `.imscc` slides; default `false` removes them (the preview always shows them) |
@@ -714,7 +714,7 @@ The format is reverse-engineered from exports, not documented by D2L, so treat t
 
 `bso pack` then also copies the package it built into `publicaties/brightspace/`, removes older versions of that package from that folder, and copies the pptx files into `publicaties/slides/` (with the folder structure of the lessons). It prints what it copied and removed. Only `<name>.v<version>.imscc` (or `.d2l.zip`) files of this course with another version are removed; nothing else in the folder is touched. `bso lint` warns (`publish-version-mismatch`) when the folder holds a package of another version than the course `version`.
 
-`publishDir` must be a folder inside the repository, not the repository itself, and not inside or around `outputDir`. Publishing is a deliberate step, so it is a different folder than the build output.
+`publishDir` has no default on purpose: BSO writes into your repository and removes older versions of the package there, so you ask for it by naming the folder. The recommended name is `publicaties` (or `publications` in an English course), so every course has the same one. `publishDir` must be a folder inside the repository, not the repository itself, and not inside or around `outputDir`. Publishing is a deliberate step, so it is a different folder than the build output.
 
 ---
 

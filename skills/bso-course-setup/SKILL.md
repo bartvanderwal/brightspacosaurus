@@ -27,7 +27,7 @@ Use this workflow when an author is starting a BSO client project or bringing ex
    }
    ```
 
-   Add `readersDir`, `assetsDir`, `docusaurusDir` or other fields only if the inventory requires them. Use `quiz-` for quiz filenames. Reader Markdown belongs in the configured `readersDir`.
+   Add `readersDir`, `assetsDir`, `docusaurusDir` or other fields only if the inventory requires them. When the author wants to keep the imported package or the pptx files in Git, suggest `"publishDir": "publicaties"` (no default: BSO writes there only when asked). Use `quiz-` for quiz filenames. Reader Markdown belongs in the configured `readersDir`.
 4. Check the runtime and configured project before invoking commands: `deno --version`, `bso --version`, and confirm the config is in the course root. If `bso` is missing or outdated, explain the installed-versus-required versions and ask before changing it.
 5. Run `bso lint` first and resolve errors against the source. Then run `bso build` and `bso pack`. If PDFs are not part of this setup or pandoc is unavailable, `bso build --skip-readers` skips PDF generation; explain that the reader output was not validated.
 6. Report the generated `.imscc` path and any skipped validation. Do not import into Brightspace without explicit authorization.
