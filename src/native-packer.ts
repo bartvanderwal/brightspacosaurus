@@ -146,6 +146,7 @@ export function buildNativeManifest(input: NativeManifestInput): string {
     href: string,
     description: string,
     indent: string,
+    resourceCode?: string,
   ): string[] => {
     const key = identifier++;
     // A link keeps its forward slashes; a file path gets backslashes, as in the exports.
@@ -158,7 +159,9 @@ export function buildNativeManifest(input: NativeManifestInput): string {
       }" href="${escapeXml(target)}" title="" />`,
     );
     return [
-      `${indent}<item identifier="${key}" identifierref="RES_CONTENT_${key}" d2l_2p0:id="${id++}" description="${
+      `${indent}<item identifier="${key}" identifierref="RES_CONTENT_${key}" d2l_2p0:id="${id++}"${
+        resourceCode ? ` d2l_2p0:resource_code="${resourceCode}"` : ""
+      } description="${
         escapeXml(description)
       }" completion_type="2" d2l_2p0:ai_human_origin="0">`,
       `${indent}  <title>${escapeXml(title)}</title>`,
@@ -183,6 +186,10 @@ export function buildNativeManifest(input: NativeManifestInput): string {
             quizLink(topic.quiz.resourceCode),
             "",
             "        ",
+            // The item of a quiz link has a resource code of its own, as in the reference exports.
+            `${topic.quiz.resourceCode.replace(/-\d+$/, "")}-${
+              100 + topic.quiz.number
+            }`,
           ),
         );
         quizResources.push(
