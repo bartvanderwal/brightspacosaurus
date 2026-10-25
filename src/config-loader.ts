@@ -255,12 +255,20 @@ export function validateConfig(config: unknown): config is BsoConfig {
       } else if (typeof selection === "object" && selection !== null && !Array.isArray(selection)) {
         const options = selection as Record<string, unknown>;
         for (const key of Object.keys(options)) {
-          if (key !== "generate" && key !== "decks" && key !== "nest") {
+          if (key !== "generate" && key !== "decks" && key !== "nest" && key !== "pptx") {
             throw new Error(`Unknown configuration field 'slides.lessons.${lesson}.${key}'.`);
           }
         }
         if (options.generate !== undefined && typeof options.generate !== "boolean") {
           throw new Error(`Field 'slides.lessons.${lesson}.generate' must be a boolean.`);
+        }
+        if (options.pptx !== undefined) {
+          if (typeof options.pptx !== "boolean") {
+            throw new Error(`Field 'slides.lessons.${lesson}.pptx' must be a boolean.`);
+          }
+          if (options.generate !== true) {
+            throw new Error(`Field 'slides.lessons.${lesson}.pptx' needs 'generate: true': it sets the pptx of the generated deck of the lesson.`);
+          }
         }
         if (options.nest !== undefined) {
           const globs = Array.isArray(options.nest) ? options.nest : [options.nest];

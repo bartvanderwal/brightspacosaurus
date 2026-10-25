@@ -170,6 +170,12 @@ export interface SlidesLessonConfig {
    * `generate: true`.
    */
   nest?: string | string[];
+  /**
+   * Also write the generated deck of this lesson, nested pages included, as an
+   * editable `.pptx`. Overrides the course-wide `slides.pptx` for this lesson.
+   * Needs `generate: true`.
+   */
+  pptx?: boolean;
 }
 
 export interface SlidesConfig {

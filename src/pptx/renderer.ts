@@ -76,14 +76,45 @@ const MIME: Record<string, string> = {
   svg: "image/svg+xml",
 };
 
+/** The size of an SVG from its `viewBox`, else its `width` and `height`; 800 by 600 when it says neither. */
+function svgSize(svg: string): { width: number; height: number } {
+  const tag = svg.match(/<svg\b[^>]*>/i)?.[0] ?? "";
+  const box = tag.match(
+    /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i,
+  );
+  if (box && Number(box[1]) > 0 && Number(box[2]) > 0) {
+    return { width: Number(box[1]), height: Number(box[2]) };
+  }
+  const width = Number(tag.match(/\swidth\s*=\s*["']([\d.]+)/i)?.[1]);
+  const height = Number(tag.match(/\sheight\s*=\s*["']([\d.]+)/i)?.[1]);
+  return width > 0 && height > 0
+    ? { width, height }
+    : { width: 800, height: 600 };
+}
+
 async function loadImage(
   src: string,
   baseDir: string,
   slide: number,
 ): Promise<Loaded> {
+  // An image that BSO embedded itself (a generated deck): `data:image/...;base64,...`.
+  const dataUrl = src.match(
+    /^data:(image\/(?:png|jpeg|gif|svg\+xml));base64,([A-Za-z0-9+/=]+)$/,
+  );
+  if (dataUrl) {
+    const bytes = Uint8Array.from(atob(dataUrl[2]), (c) => c.charCodeAt(0));
+    const size = dataUrl[1] === "image/svg+xml"
+      ? svgSize(new TextDecoder().decode(bytes))
+      : imageSize(bytes);
+    return {
+      data: `${dataUrl[1]};base64,${dataUrl[2]}`,
+      width: size.width ?? 800,
+      height: size.height ?? 600,
+    };
+  }
   if (/^[a-z][a-z\d+.-]*:/i.test(src)) {
     throw new Error(
-      `Slide ${slide}: only local images can go into a .pptx, not '${src}'.`,
+      `Slide ${slide}: only local images can go into a .pptx, not '${src.slice(0, 80)}'.`,
     );
   }
   const file = isAbsolute(src)
@@ -103,7 +134,7 @@ async function loadImage(
     );
   }
   const size = extension === "svg"
-    ? { width: 800, height: 600 }
+    ? svgSize(new TextDecoder().decode(bytes))
     : imageSize(bytes);
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) {

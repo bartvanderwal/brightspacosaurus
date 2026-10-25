@@ -991,6 +991,8 @@ export async function renderPreviewSlides(
     decks: string[];
     generate: boolean;
     nest?: string[];
+    /** The lesson option `pptx`: undefined means the course-wide setting. */
+    pptx?: boolean;
   }[] = [];
   const themePath = config.theme
     ? isAbsolute(config.theme) ? config.theme : resolve(root, config.theme)
@@ -1027,7 +1029,8 @@ export async function renderPreviewSlides(
         !selection || typeof selection !== "object" ||
         Array.isArray(selection) ||
         Object.keys(selection).some((key) =>
-          key !== "generate" && key !== "decks" && key !== "nest"
+          key !== "generate" && key !== "decks" && key !== "nest" &&
+          key !== "pptx"
         ) ||
         (selection.generate !== undefined &&
           typeof selection.generate !== "boolean") ||
@@ -1090,7 +1093,10 @@ export async function renderPreviewSlides(
     const nest = typeof selection === "object" && selection?.nest !== undefined
       ? [selection.nest].flat()
       : undefined;
-    plans.push({ lesson, url, decks, generate, nest });
+    const pptx = typeof selection === "object" && selection?.pptx !== undefined
+      ? selection.pptx === true
+      : undefined;
+    plans.push({ lesson, url, decks, generate, nest, pptx });
   }
   // Slide decks that lessons link to: each gets a standalone presentation.
   const linkedByLesson = await scanDeckLinks(sources, output, tools);
@@ -1132,6 +1138,8 @@ export async function renderPreviewSlides(
     const chunks: string[] = [];
     const svgImages = new Map<string, string>();
     const lessonDecks = linkedByLesson.get(plan.lesson) ?? [];
+    // The generated deck as a self-contained Markdown text, for its pptx.
+    let generatedForPptx: string | undefined;
     // A slide deck that is linked and configured is inserted at the link only (L9).
     const configured = plan.generate
       ? plan.decks.filter((deck) =>
@@ -1179,6 +1187,7 @@ export async function renderPreviewSlides(
         undefined,
         svgImages,
       );
+      generatedForPptx = generated;
       const generatedDeck = frontmatter(generated)!;
       chunks.push(
         themeName
@@ -1263,6 +1272,33 @@ export async function renderPreviewSlides(
       const pptxNames: string[] = [];
       {
         const used = new Set<string>();
+        // The generated deck of a lesson, nested pages included. It is written
+        // when the lesson says `pptx: true`, or the course does and the lesson does not say no.
+        if (
+          generatedForPptx !== undefined && (plan.pptx ?? config.pptx === true)
+        ) {
+          let markdown = generatedForPptx;
+          // Diagrams and some images carry a placeholder name for Marp; the pptx takes the data URL itself.
+          for (const [placeholder, url] of svgImages) {
+            markdown = markdown.replaceAll(placeholder, url);
+          }
+          const bytes = await convertDeckToPptx(markdown, {
+            baseDir: dirname(plan.lesson),
+            notes: config.notes === true,
+            logo: config.logo
+              ? (isAbsolute(config.logo)
+                ? config.logo
+                : resolve(root, config.logo))
+              : undefined,
+            disclaimer,
+          });
+          await Deno.writeFile(
+            join(dirname(destination), "slides.pptx"),
+            bytes,
+          );
+          pptxNames.push("slides.pptx");
+          used.add("slides.pptx");
+        }
         for (const source of configured) {
           const markdown = expandSlideIncludes(
             (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),

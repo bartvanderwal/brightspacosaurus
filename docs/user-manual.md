@@ -150,6 +150,7 @@ The most important fields:
 | `slides.notes`         | no       | `true` keeps presenter notes in `.imscc` slides; default `false` removes them (the preview always shows them) |
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
 | `slides.pptx`          | no       | `true` also writes every manual deck as an editable PowerPoint file; default `false`. A deck overrides it with `pptx: true`, `pptx: false` or `pptx: auto` in its front matter |
+| `slides.lessons.<lesson>.pptx` | no | `true` also writes the generated deck of that lesson, nested pages included, as an editable PowerPoint file; `false` leaves it out when `slides.pptx` is `true`. Needs `generate: true` |
 | `slides.theme`         | no       | Marp theme CSS file, relative to the repository root; overrides deck-level theme selection in preview and the `.imscc` |
 | `slides.logo`          | no       | Logo on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |

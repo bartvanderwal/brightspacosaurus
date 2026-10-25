@@ -5,6 +5,7 @@ import {
   assertStringIncludes,
 } from "@std/assert";
 import { dirname, join, resolve } from "@std/path";
+import JSZip from "jszip";
 import {
   DECK_KEY_PREFIX,
   deckWantsPptx,
@@ -270,6 +271,74 @@ Deno.test("slides preview: generated lesson slides combine with manual slide dec
     assertStringIncludes(captured[0], "theme: gaia");
     assertStringIncludes(captured[0], "data:image/png;base64,cG5nIGJ5dGVz");
     assertEquals(captured[0].match(/marp: true/g)?.length, 1);
+  });
+});
+
+// Spec *Generated deck pptx*, rules X1-X3.
+Deno.test("slides preview: a generated deck gets a pptx, nested pages and images included, when the lesson or the course asks for it", async () => {
+  const png = Uint8Array.from(
+    atob(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    ),
+    (c) => c.charCodeAt(0),
+  );
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson title\n\n## 1. Goals\n\n- Goal one\n- Goal two\n\n[Page](levels/unit.md)\n\n## 2. Picture\n\n![Schema](schema.png)\n",
+    );
+    await write(root, "lessons/week/levels/unit.md", "# Unit tests\n\n## 1. Fast\n\n- Runs in milliseconds\n");
+    await Deno.writeFile(join(root, "lessons/week/schema.png"), png);
+    const output = join(root, "static", "slides", "week", "lesson");
+    const run = async (
+      selection: Record<string, unknown>,
+      course: Record<string, unknown> = {},
+    ) => {
+      await Deno.remove(join(root, "static"), { recursive: true }).catch(() =>
+        undefined
+      );
+      await renderPreviewSlides(
+        { lessons: { "week/lesson.md": selection }, ...course } as SlidesConfig,
+        root,
+        "lessons",
+        "static",
+        fake([]),
+      );
+    };
+    const exists = (path: string) =>
+      Deno.stat(path).then(() => true, () => false);
+
+    // X1: nothing without a request.
+    await run({ generate: true, nest: "levels/*.md" });
+    assertEquals(await exists(join(output, "slides.pptx")), false);
+
+    // X1: the lesson asks for it.
+    await run({ generate: true, nest: "levels/*.md", pptx: true });
+    const zip = await JSZip.loadAsync(
+      await Deno.readFile(join(output, "slides.pptx")),
+    );
+    const text = (await Promise.all(
+      Object.keys(zip.files).filter((name) =>
+        /^ppt\/slides\/slide\d+\.xml$/.test(name)
+      ).map((name) => zip.file(name)!.async("string")),
+    )).join("\n");
+    // X2: the slides of the lesson, the nested page and the image.
+    assertStringIncludes(text, "Goal one");
+    assertStringIncludes(text, "Unit tests");
+    assertStringIncludes(text, "Runs in milliseconds");
+    assertEquals(
+      Object.keys(zip.files).some((name) => name.startsWith("ppt/media/")),
+      true,
+    );
+
+    // X1: the course asks for it, and the lesson can say no.
+    await run({ generate: true, nest: "levels/*.md" }, { pptx: true });
+    assertEquals(await exists(join(output, "slides.pptx")), true);
+    await run({ generate: true, nest: "levels/*.md", pptx: false }, {
+      pptx: true,
+    });
+    assertEquals(await exists(join(output, "slides.pptx")), false);
   });
 });
 

@@ -13,6 +13,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- A generated slide deck, with the pages it nests (`nest`), can be written as an editable `.pptx`: set `pptx: true` on the lesson in `slides.lessons`, or `slides.pptx: true` for the course and `pptx: false` on a lesson to leave one out. The slides and the lesson page link to it. Diagrams and images go into the file (#115, #147).
 - `bso lint` warns about whitespace in folder and file names (`path-whitespace`): a space at the start or end, two spaces in a row, a tab or no-break space, and a single space (it shows as `%20` in URLs and in the preview). Each name is reported once.
 - Generated slides: a section that needs more than one slide shows a counter after its heading, `Heading (1/3)` (#141).
 - Experimental: the native Brightspace package (`bso pack --format brightspace`) now holds the quizzes: a `quiz_d2l_<n>.xml` per quiz, a link topic in its module and the quiz images, diagrams included, at the root of the package, after the structure of the reference exports. Not yet verified with an import (#149).

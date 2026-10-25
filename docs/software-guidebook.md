@@ -757,6 +757,17 @@ The link is the only marker. There is no new syntax and no `decks` entry in the 
 
 **Open points.** The exact file name when two lessons link decks with the same file name; how global directives of a linked deck that differ from the lesson deck are reported (ignored silently is not acceptable under the no-magic principle); and whether the section marker for insertion should also be allowed between two sections.
 
+#### Generated deck pptx
+
+A generated deck, with the pages it nests, can be written as an editable `.pptx` too. The rules, each with a test in `tests/slides-preview.test.ts` and `tests/pptx.test.ts` (written after the code):
+
+| # | Rule |
+| --- | --- |
+| X1 | A generated deck gets a pptx when the lesson option `pptx: true` says so, or when the course setting `slides.pptx` is `true` and the lesson does not say `pptx: false`. Without either, none. The option needs `generate: true`. |
+| X2 | The pptx holds the same slides as the HTML deck: the title slide, the contents slide, the sections, the nested pages with their sub-numbers, and the images and diagrams. |
+| X3 | The file is `slides.pptx` next to the deck, and a lesson page and the slides page link to it like to the pptx of a manual deck; in the package it is named `<lesson>-slides.pptx`, next to the slides topic. |
+| X4 | The generated deck carries its images as `data:` URLs (a diagram is an SVG that Kroki drew); the pptx writer accepts `data:image/png`, `jpeg`, `gif` and `svg+xml` and takes the proportions of an SVG from its `viewBox`. |
+
 ### 7.9 The publication folder
 
 `src/publisher.ts` (#145). The build output (`outputDir`) is temporary; some files are published on purpose and belong in version control. The rules, each with a test in `tests/publisher.test.ts`:

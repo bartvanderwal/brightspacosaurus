@@ -236,3 +236,19 @@ Deno.test("the demo decks convert", async () => {
     );
   }
 });
+
+// Spec *Generated deck pptx*, rule X4: a generated deck carries its images as data URLs.
+Deno.test("X4: a data URL image goes into the pptx", async () => {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="200" height="100" fill="red"/></svg>';
+  const url = `data:image/svg+xml;base64,${btoa(svg)}`;
+  const zip = await entries(
+    await convertDeckToPptx(`# Diagram\n\n![A diagram](${url})\n`, {
+      baseDir: images,
+    }),
+  );
+  assertEquals(
+    Object.keys(zip.files).some((name) => name.startsWith("ppt/media/")),
+    true,
+  );
+});
