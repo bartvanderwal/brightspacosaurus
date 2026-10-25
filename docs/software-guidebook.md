@@ -607,6 +607,8 @@ The stylesheet cannot be a package export: Deno rejects CSS entries in the modul
 
 `slides.generateForPrefix` selects every Markdown filename in `sourcesDir` beginning with the configured case-sensitive prefix. Explicit entries in `slides.lessons` take precedence, including `{ "generate": false }` opt-outs. Manual deck frontmatter uses `slides: true` as the semantic marker; the legacy `marp: true` marker remains accepted, and BSO normalizes either to the Marp CLI header.
 
+The words used for slides (lesson, generated deck, manual deck, include, linked deck, nested page, appendix) are defined once, in the [user manual](user-manual.md#slides-in-the-preview-and-in-brightspace). This section holds the rules and the implementation: generated decks in `src/lesson-slides.ts`, the decks and the pptx in `src/slides-preview.ts` and `src/pptx/`, the lint rules in `src/course-linter.ts`.
+
 #### Authoring model: one source, two views
 
 Slides are an optional view of the lesson, not a second document to maintain. With no `slides` configuration, BSO generates and exports no decks; ordinary Markdown remains ordinary Markdown. No explicit `false` flag is needed to keep a lesson in reading mode. Courses opt in through `slides.generateForPrefix` or `slides.lessons`. For an authored deck, `slides: true` is BSO's semantic marker and `marp: true` remains supported for compatibility with Marp and its editor integrations. The marker identifies a deck; it does not mean every lesson must be presented as slides.
