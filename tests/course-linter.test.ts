@@ -1242,7 +1242,8 @@ Deno.test("numbered-sources: only a heading that is the whole list of sources, n
       .filter((issue) => issue.rule === "numbered-sources").length;
   assertEquals(rules("## 2. Referenties"), 1);
   assertEquals(rules("## 2. Bronnen"), 1);
-  assertEquals(rules("## 2. References:"), 1);
+  // Punctuation at the end of a heading is markdownlint's MD026, not a list of sources.
+  assertEquals(rules("## 2. References:"), 0);
   assertEquals(rules("## 2. Referenties naar online community-bronnen"), 0);
   assertEquals(rules("## 2. Sources of error"), 0);
   assertEquals(rules("## Referenties"), 0);

@@ -18,7 +18,7 @@ All notable changes to Brightspacosaurus are documented here.
 ### Fixed
 
 - The hidden resource that carries the images of a quiz no longer appears as a menu item in `navigation.json`, the Docusaurus sidebar and the native package.
-- `numbered-sources` only reports a heading that is the whole list of sources (`Bronnen`, `Referenties`, ...), not one that starts with the word (#153).
+- `numbered-sources` only reports a heading that is the whole list of sources (`Bronnen`, `Referenties`, ...) without punctuation, not one that starts with the word (#153).
 - Slides: a deck with both `slides: true` and `marp: true` that a `decks` pattern selects was skipped without a message. It is now an error in the preview and the build, and `bso lint` reports it (`slides-deck-invalid`). Lint also checks the decks that `slides.lessons` selects outside `sourcesDir` (for example `slides-empty-separator`), and the build warns when a `decks` pattern matches no file (#141).
 - `reader-heading-numbering`: an unnumbered heading `Bijlagen` (or `Appendices`) above `Bijlage A`, `Bijlage B`, ... is allowed; a number or letter on it is an error (#137).
 

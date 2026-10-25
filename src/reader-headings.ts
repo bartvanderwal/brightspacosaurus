@@ -33,7 +33,7 @@ function appendixIndex(label: string): number {
 // The whole heading, not a heading that merely starts with the word:
 // '7.4 Referenties naar online bronnen' is a section about references, not the reference list.
 const SOURCES_TITLES =
-  /^(?:Bronnen|Sources|Literatuurlijst|Referenties|References)\s*[:.]?$/i;
+  /^(?:Bronnen|Sources|Literatuurlijst|Referenties|References)$/i;
 
 /**
  * Whether a heading is a list of sources (Sources, Bronnen, References, ...),
