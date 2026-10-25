@@ -259,3 +259,22 @@ Deno.test("slides.lessons nest is a glob or a list of globs and needs generate",
     "generate: true",
   );
 });
+
+Deno.test("slides.lessons nest needs generate or decks, and works with a manual deck", () => {
+  const base = { courseName: "C", version: "1", sourcesDir: "lessons" };
+  validateConfig({
+    ...base,
+    slides: {
+      lessons: { "a.md": { decks: "decks/*.md", nest: "levels/*.md" } },
+    },
+  });
+  assertThrows(
+    () =>
+      validateConfig({
+        ...base,
+        slides: { lessons: { "a.md": { nest: "levels/*.md" } } },
+      }),
+    Error,
+    "needs 'generate: true' or 'decks'",
+  );
+});

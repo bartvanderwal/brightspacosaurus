@@ -25,7 +25,10 @@ import remarkFrontmatter from "remark-frontmatter";
 import type { ResolvedDiagramConfig, SlidesConfig } from "./types.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
 import { loadAssetBytes } from "./assets.ts";
-import { generateLessonSlides } from "./lesson-slides.ts";
+import {
+  generateLessonSlides,
+  generateNestedAppendix,
+} from "./lesson-slides.ts";
 import {
   dropEmptySlideSeparators,
   headingDividerLevels,
@@ -1247,6 +1250,30 @@ export async function renderPreviewSlides(
         );
       }
     }
+    // A manual deck with `nest`: the pages that the lesson links to follow it as appendix slides (N13).
+    let appendixForPptx: string | undefined;
+    if (!plan.generate && plan.nest?.length && configured.length) {
+      const lessonText = expandSlideIncludes(
+        (await Deno.readTextFile(plan.lesson)).replace(/\r\n/g, "\n"),
+        plan.lesson,
+      );
+      const appendix = generateNestedAppendix(lessonText, {
+        locale: (diagrams ?? resolveDiagramsConfig({})).locale === "en"
+          ? "en"
+          : "nl",
+        nestedPage: nestResolver(plan.lesson, plan.nest),
+      });
+      if (appendix) {
+        const processed = await renderDiagramFences(
+          await embedImages(appendix, plan.lesson, root, svgImages),
+          diagrams,
+          undefined,
+          svgImages,
+        );
+        chunks.push(processed);
+        appendixForPptx = processed;
+      }
+    }
     const destination = join(
       output,
       ...plan.url.split("/").map(decodeURIComponent),
@@ -1330,12 +1357,21 @@ export async function renderPreviewSlides(
             source,
           );
           if (!deckWantsPptx(markdown, config.pptx === true)) continue;
+          // The appendix slides of the lesson follow the last manual deck.
+          let deckMarkdown = markdown;
+          if (appendixForPptx && source === configured[configured.length - 1]) {
+            let appendix = appendixForPptx;
+            for (const [placeholder, url] of svgImages) {
+              appendix = appendix.replaceAll(placeholder, url);
+            }
+            deckMarkdown = `${markdown.trimEnd()}\n\n---\n\n${appendix}\n`;
+          }
           let name = `${basename(source).replace(/\.md$/i, "")}.pptx`;
           for (let n = 2; used.has(name); n++) {
             name = `${basename(source).replace(/\.md$/i, "")}-${n}.pptx`;
           }
           used.add(name);
-          const bytes = await convertDeckToPptx(markdown, {
+          const bytes = await convertDeckToPptx(deckMarkdown, {
             baseDir: dirname(source),
             notes: config.notes === true,
             logo: config.logo

@@ -288,7 +288,11 @@ Deno.test("slides preview: a generated deck gets a pptx, nested pages and images
       "lessons/week/lesson.md",
       "# Lesson title\n\n## 1. Goals\n\n- Goal one\n- Goal two\n\n[Page](levels/unit.md)\n\n## 2. Picture\n\n![Schema](schema.png)\n",
     );
-    await write(root, "lessons/week/levels/unit.md", "# Unit tests\n\n## 1. Fast\n\n- Runs in milliseconds\n");
+    await write(
+      root,
+      "lessons/week/levels/unit.md",
+      "# Unit tests\n\n## 1. Fast\n\n- Runs in milliseconds\n",
+    );
     await Deno.writeFile(join(root, "lessons/week/schema.png"), png);
     const output = join(root, "static", "slides", "week", "lesson");
     const run = async (
@@ -339,6 +343,68 @@ Deno.test("slides preview: a generated deck gets a pptx, nested pages and images
       pptx: true,
     });
     assertEquals(await exists(join(output, "slides.pptx")), false);
+  });
+});
+
+// Spec *Nested lesson pages*, rule N13.
+Deno.test("slides preview: a manual deck with nest gets the linked lesson pages after it as appendix slides, in the pptx too", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson 8.4\n\n## Bijlagen\n\n### Bijlage A\n\n- [Form](levels/form.md)\n\n### Bijlage B\n\n- [Unit](levels/unit.md)\n",
+    );
+    await write(
+      root,
+      "lessons/week/levels/form.md",
+      "# Form\n\n## 1. Fields\n\n- name\n",
+    );
+    await write(
+      root,
+      "lessons/week/levels/unit.md",
+      "# Unit tests\n\n## 1. Fast\n\n- Runs in milliseconds\n",
+    );
+    await write(
+      root,
+      "decks/manual.md",
+      "---\nmarp: true\ntheme: default\nheadingDivider: 2\n---\n\n## Slide 1 - Start\n\n- the manual deck\n\n## Slide 2 - Next\n\n- more\n",
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(
+      {
+        pptx: true,
+        lessons: {
+          "week/lesson.md": { decks: "decks/*.md", nest: "levels/*.md" },
+        },
+      } as SlidesConfig,
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    const input = captured[0];
+    // The manual slides first, then the pages in link order as appendix slides.
+    assertEquals(
+      input.indexOf("Slide 2 - Next") < input.indexOf("# Form") &&
+        input.indexOf("# Form") < input.indexOf("# Unit tests"),
+      true,
+    );
+    assertStringIncludes(input, '<!-- _footer: "Bijlage 1/4" -->');
+    assertStringIncludes(input, '<!-- _footer: "Bijlage 4/4" -->');
+    assertStringIncludes(input, "<style>section.appendix footer");
+    const zip = await JSZip.loadAsync(
+      await Deno.readFile(
+        join(root, "static", "slides", "week", "lesson", "manual.pptx"),
+      ),
+    );
+    const text = (await Promise.all(
+      Object.keys(zip.files).filter((name) =>
+        /^ppt\/slides\/slide\d+\.xml$/.test(name)
+      ).map((name) => zip.file(name)!.async("string")),
+    )).join("\n");
+    assertStringIncludes(text, "the manual deck");
+    assertStringIncludes(text, "Runs in milliseconds");
+    assertStringIncludes(text, "Bijlage 4/4");
   });
 });
 

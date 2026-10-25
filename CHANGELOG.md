@@ -13,6 +13,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- `slides.lessons.<lesson>.nest` now also works for a lesson with a manual deck (`decks`, without `generate`): the lesson pages that the lesson links to follow the manual slides, in link order, as appendix slides (`Bijlage 1/9`), in the HTML and in the pptx of the deck (#156).
 - Generated slides: appendices. A section `Bijlagen`, `Appendices`, `Bijlage ...` or `Appendix ...` and everything after it are numbered apart, in the HTML and in the pptx: `Bijlage 5/127` on an appendix slide, `3/12` on the others, and one line in the contents slide (`Bijlagen (B1 t/m B127)`). New lint rule `slides-appendix-not-last` (#156).
 - `bso lint` warns about a file in the course folders whose type does not belong there (`unexpected-file`), such as an `.xml` or `.imscc` file that may be an old QTI export. `lint.allowedFileTypes` allows more types.
 - A generated slide deck, with the pages it nests (`nest`), can be written as an editable `.pptx`: set `pptx: true` on the lesson in `slides.lessons`, or `slides.pptx: true` for the course and `pptx: false` on a lesson to leave one out. The slides and the lesson page link to it. Diagrams and images go into the file (#115, #147).

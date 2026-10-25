@@ -514,6 +514,9 @@ export function isAppendixHeading(heading: string): boolean {
   );
 }
 
+const APPENDIX_STYLE =
+  "<style>section.appendix footer{left:auto;right:0;padding:inherit}</style>";
+
 const APPENDIX_WORDS = {
   nl: { one: "Bijlage", many: "Bijlagen", range: "t/m", letter: "B" },
   en: { one: "Appendix", many: "Appendices", range: "to", letter: "A" },
@@ -560,6 +563,54 @@ function markAppendix(
 }
 
 /**
+ * Collects the pages that the `nest` setting selects, each only once, and
+ * numbers them under the section that links to them.
+ */
+function nestedCollector(
+  nestedPage: LessonSlidesOptions["nestedPage"],
+): (nodes: MarkdownNode[], heading: string) => NestedSet[] {
+  const seenPages = new Set<string>();
+  return (nodes, heading) => {
+    const found: NestedSet[] = [];
+    const base = sectionNumber(heading);
+    for (const url of nodes.flatMap(linkUrls)) {
+      const page = nestedPage?.(url);
+      if (!page || seenPages.has(page.id)) continue;
+      seenPages.add(page.id);
+      found.push(
+        nestedSet(
+          page.id,
+          page.source,
+          base ? `${base}.${found.length + 1}` : "",
+        ),
+      );
+    }
+    return found;
+  };
+}
+
+/**
+ * The slides of the pages that a lesson links to and that `nest` selects, as
+ * appendix slides to put after the slides of a manual deck (spec rule N13), in
+ * the order of the links. Empty when the lesson links to no such page.
+ */
+export function generateNestedAppendix(
+  source: string,
+  options: Pick<LessonSlidesOptions, "nestedPage" | "locale">,
+): string {
+  const { sections } = parseLesson(source);
+  const nestedIn = nestedCollector(options.nestedPage);
+  const slides = sections.flatMap((each) =>
+    nestedIn(each.nodes, each.heading).flatMap((set) => set.slides)
+  );
+  if (!slides.length) return "";
+  const words = APPENDIX_WORDS[options.locale ?? "nl"];
+  return `${APPENDIX_STYLE}\n\n${
+    markAppendix(slides, 0, words).join("\n\n---\n\n")
+  }`;
+}
+
+/**
  * Builds a Marp slide deck from a lesson: a title slide, an optional contents
  * slide, and slides for the lists, tables, images, code and diagrams of each
  * section. Running text is left out.
@@ -582,26 +633,7 @@ export function generateLessonSlides(
     }
     return found;
   };
-  // Collect the pages that the `nest` setting selects, each only once, and
-  // number them under the section that links to them.
-  const seenPages = new Set<string>();
-  const nestedIn = (nodes: MarkdownNode[], heading: string): NestedSet[] => {
-    const found: NestedSet[] = [];
-    const base = sectionNumber(heading);
-    for (const url of nodes.flatMap(linkUrls)) {
-      const page = options.nestedPage?.(url);
-      if (!page || seenPages.has(page.id)) continue;
-      seenPages.add(page.id);
-      found.push(
-        nestedSet(
-          page.id,
-          page.source,
-          base ? `${base}.${found.length + 1}` : "",
-        ),
-      );
-    }
-    return found;
-  };
+  const nestedIn = nestedCollector(options.nestedPage);
   const introDecks = decksIn(introNodes);
   for (const each of sections) {
     each.decks = decksIn(each.nodes);

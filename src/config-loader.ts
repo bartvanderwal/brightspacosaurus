@@ -275,9 +275,9 @@ export function validateConfig(config: unknown): config is BsoConfig {
           if (!globs.length || globs.some((glob) => typeof glob !== "string" || !glob.trim())) {
             throw new Error(`Field 'slides.lessons.${lesson}.nest' must be a glob or a list of globs.`);
           }
-          if (options.generate !== true) {
+          if (options.generate !== true && options.decks === undefined) {
             throw new Error(
-              `Field 'slides.lessons.${lesson}.nest' needs 'generate: true': the nested slides go into the generated deck of the lesson.`,
+              `Field 'slides.lessons.${lesson}.nest' needs 'generate: true' or 'decks': the nested slides go into the generated deck of the lesson, or after its manual deck.`,
             );
           }
         }
