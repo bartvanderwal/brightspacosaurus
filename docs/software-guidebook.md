@@ -793,19 +793,23 @@ P6 is checked by running `bso pack` with a `publishDir`; the output names the co
 
 Design decided on 25 October 2026 (#151); **not built yet**. BSO now derives the order of the pages in a module from numbers in the title or the file name (`extractNavigationCode` in `src/manifest-builder.ts`) and, after that, from the alphabetical order of the file name, and only lessons can take a `sidebar_position`. That is a leaky abstraction: the order hides in names, and a name does not say that it is an order. The order of a module now comes from three layers, the most specific wins, and none is required. The preview and Brightspace use the same navigation model, so the order is the same in both.
 
+BSO **duplicates** the conventions of Docusaurus (`sidebar_position`, `draft`, the order) and does not inherit them: BSO defines them itself, in its own configuration and files, and generates the Docusaurus configuration from them one to one (`docusaurus-sidebars.json`, front matter in the preview). The direction is Docusaurus as an embedded library that BSO drives (#124), not a project that BSO must follow.
+
 | # | Rule |
 | --- | --- |
-| O1 | **Layer C, the list.** The lead page of a module (`index`, `weekintro`, `weekindex`, `intro`, `overview`) may hold an ordered list of links to files of that module, in a section with a fixed name. The listed files are the menu items, in list order; lessons, quizzes and slide decks may be mixed. |
-| O2 | **Layer B, `sidebar_position`.** A file of any kind (lesson, QuizDown quiz, slide deck) may set `sidebar_position` in its front matter. Lessons, quizzes and decks share one system. Files not in the list are ordered by it, ascending, after the listed files. |
-| O3 | **Layer A, natural order.** Files that are neither listed nor positioned follow in natural order of the file name (`les-2` before `les-10`). BSO reads no number from a title or a file name beyond what the natural order of the name does. |
-| O4 | **Fixed places.** The teacher page (`teacherPage`) comes first in its module and the lead page after it, as now. |
-| O5 | **More than one layer for a file.** A listed file with a `sidebar_position` too is reported by `bso lint` (a duplicate statement); the list wins. |
-| O6 | **Duplicate and partial positions.** `bso lint` reports two files in one folder with the same `sidebar_position` and a folder where only some files have one. |
-| O7 | **The list is checked.** A listed file that does not exist, or a file listed twice, is an error with the line. A module that has a list and files outside it gets a warning that names them. |
-| O8 | **A listed quiz or deck is its own menu item** at that place. A quiz needs no lesson number in its name. A quiz or deck listed in more than one module is an error. |
-| O9 | **Breaking, with a clear error.** A course whose order only follows from the old derivation gets an error that names the file and the three ways out (rename, `sidebar_position`, the list). The error is given only when the old derivation and the natural order differ. BSO never reorders silently. |
+| O1 | **Layer C, the overview.** The lead page of a module (`index`, `weekintro`, `weekindex`, `intro`, `overview`) may hold an ordered list of links to files of that module in a section named *Overview*. The listed files are the menu items, in list order; lessons, quizzes and slide decks may be mixed. |
+| O2 | **The section name is configurable.** The default heading is `Overview` (`Overzicht` is recognised too); `menu.overviewHeadings` lists the headings to recognise, as `flashcards.sectionHeadings` does for *Core concepts*, for example `["Weekoverzicht"]`. |
+| O3 | **Layer B, `sidebar_position`.** A file of any kind (lesson, QuizDown quiz, slide deck) may set `sidebar_position` in its front matter. Lessons, quizzes and decks share one system. Files not in the list are ordered by it, ascending, after the listed files. |
+| O4 | **Layer A, natural order.** Files that are neither listed nor positioned follow in natural order of the file name (`les-2` before `les-10`). BSO reads no number from a title or a file name beyond what the natural order of the name does. |
+| O5 | **Fixed places.** The teacher page (`teacherPage`) comes first in its module and the lead page after it, as now. |
+| O6 | **A module with an overview publishes only what the overview lists.** A file that exists but is not listed is not in the menu and not in the package; it is not published (yet). A module without an overview keeps all its files (layers B and A). |
+| O7 | **`draft: true`.** A file may say in its front matter that it is not ready: BSO leaves it out of the menu and the package, with the same effect as not listing it. The generated Docusaurus front matter gets the same `draft`. |
+| O8 | **Lint on the two ways to leave a file out.** `bso lint` warns about a file that is not listed in a module that has an overview and is not marked `draft: true` (forgotten or left out on purpose? mark it), and about a file that is listed and has `draft: true` (contradictory). |
+| O9 | **Lint on the other layers.** A listed file with a `sidebar_position` too is reported (a duplicate statement; the list wins). Two files in one folder with the same `sidebar_position`, and a folder where only some files have one, are reported. A listed file that does not exist, or one listed twice, is an error with the line. |
+| O10 | **A listed quiz or deck is its own menu item** at that place. A quiz needs no lesson number in its name. A quiz or deck listed in more than one module is an error. |
+| O11 | **Breaking, with a clear error.** A course whose order only follows from the old derivation gets an error that names the file and the three ways out (rename, `sidebar_position`, the overview). The error is given only when the old derivation and the natural order differ. BSO never reorders silently. |
 
-**Open points.** The fixed name of the section with the list, and whether it stays visible to students as the module's contents list. Whether a quiz takes its `sidebar_position` from a front matter block above a `quiz` block. How O9 compares the two orders. The SKILLS (`bso-course-setup`, `bso-content-authoring`) recommend layer C with an example.
+**Open points.** Whether a quiz takes `sidebar_position` and `draft` from a front matter block above a `quiz` block. How O11 compares the two orders. The key for "not ready" is `draft`, the Docusaurus name with BSO's own definition; Docusaurus has no `unpublished`. The SKILLS (`bso-course-setup`, `bso-content-authoring`) recommend layer C with an example.
 
 ## 8. Design Decisions
 
