@@ -5,7 +5,7 @@
  */
 import { deckMarkerConflict, isSlideDeck } from "./includes.ts";
 import { findDeckLinks, findMarkdownLinks } from "./linked-decks.ts";
-import { planMenu } from "./menu-plan.ts";
+import { isLeadPageName, planMenu } from "./menu-plan.ts";
 import { sectionsWithoutSlideContent } from "./lesson-slides.ts";
 import {
   findEmptySlideSeparators,
@@ -1273,6 +1273,32 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       rule: issue.rule,
       message: issue.message,
     });
+  }
+  // A link to a file that is left out of the menu is a dead link in the package.
+  for (const file of [...menuFiles].sort()) {
+    if (menu.excluded.has(file)) continue;
+    for (const link of findMarkdownLinks(await Deno.readTextFile(file))) {
+      let path = link.href.split(/[?#]/, 1)[0];
+      try {
+        path = decodeURIComponent(path);
+      } catch {
+        // keep the raw path
+      }
+      if (!/\.md$/i.test(path)) continue;
+      const target = resolve(dirname(file), path);
+      if (!menu.excluded.has(target)) continue;
+      // The overview of a lead page is reported by its own rules.
+      if (isLeadPageName(basename(file)) && menu.listed.has(target)) continue;
+      diagnostics.push({
+        sourceFile: file,
+        line: link.line,
+        column: 1,
+        severity: "warning",
+        rule: "menu-link-excluded",
+        message:
+          `The link to '${link.href}' points at a file that is left out of the menu and the package (a draft, or not in the overview of its module), so it is a dead link for students.`,
+      });
+    }
   }
   // Folder and file names under the repository: each offending name once.
   const reportedNames = new Set<string>();

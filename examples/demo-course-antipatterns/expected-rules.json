@@ -100,5 +100,8 @@
   "lessons/menu-position-duplicate/index.md": null,
   "lessons/menu-position-duplicate/a.md": null,
   "lessons/menu-position-partial/index.md": null,
-  "lessons/menu-position-partial/a.md": null
+  "lessons/menu-position-partial/a.md": null,
+  "lessons/menu-link-excluded/page.md": "menu-link-excluded",
+  "lessons/menu-link-excluded/index.md": null,
+  "lessons/menu-link-excluded/draft.md": null
 }

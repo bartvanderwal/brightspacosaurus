@@ -72,6 +72,7 @@ The automated tests compare emitted diagnostics with `expected-rules.json` and r
 | `menu-draft-listed` | warning | [index.md](lessons/menu-draft-listed/index.md) |
 | `menu-link-missing` | error | [index.md](lessons/menu-link-missing/index.md) |
 | `menu-link-twice` | error | [index.md](lessons/menu-link-twice/index.md) |
+| `menu-link-excluded` | warning | [page.md](lessons/menu-link-excluded/page.md) |
 | `menu-position-listed` | warning | [page.md](lessons/menu-position-listed/page.md) |
 | `menu-position-duplicate` | warning | [b.md](lessons/menu-position-duplicate/b.md) |
 | `menu-position-partial` | warning | [b.md](lessons/menu-position-partial/b.md) |
