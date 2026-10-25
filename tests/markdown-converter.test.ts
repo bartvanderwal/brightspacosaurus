@@ -237,8 +237,7 @@ Deno.test("convertReaderLinks: ./reader-technisch-schrijven.md wordt geconvertee
 });
 
 Deno.test("convertReaderLinks: bronmap readers/ wordt niet verdubbeld en diepte volgt de HTML-map (Brightspace-import)", () => {
-  const input =
-    "Zie de [reader](../../readers/reader-testing-basics.md).";
+  const input = "Zie de [reader](../../readers/reader-testing-basics.md).";
   assertEquals(
     convertReaderLinks(input, 2),
     "Zie de [reader](../../readers/reader-testing-basics.pdf).",
@@ -566,11 +565,17 @@ Deno.test("convertMarkdown: HTML-uitvoer bevat copy-knop script en CSS voor code
   }
 });
 
-async function convertCodeBlock(language: string, code: string): Promise<string> {
+async function convertCodeBlock(
+  language: string,
+  code: string,
+): Promise<string> {
   const tempRoot = await makeTempDir();
   try {
     const sourcePath = join(tempRoot, "code.md");
-    await Deno.writeTextFile(sourcePath, `# Code\n\n\`\`\`${language}\n${code}\n\`\`\`\n`);
+    await Deno.writeTextFile(
+      sourcePath,
+      `# Code\n\n\`\`\`${language}\n${code}\n\`\`\`\n`,
+    );
     const result = await convertMarkdown({
       sourcePath,
       outputDir: join(tempRoot, "build"),
@@ -849,4 +854,15 @@ Deno.test("with deckLinks a link to a slide deck points at the slides topic next
   } finally {
     await Deno.remove(tempRoot, { recursive: true });
   }
+});
+
+Deno.test("a link to an unpublished file (a name with an underscore) becomes plain text, other links are converted", () => {
+  const out = convertInternalMdLinks(
+    "See [the form](_cgi/form.md) and [Other](other.md#top) and [deep](a/_b/c.md).",
+    "/course/lessons/week/page.md",
+  );
+  assertEquals(
+    out,
+    "See the form and [Other](other.html#top) and deep.",
+  );
 });

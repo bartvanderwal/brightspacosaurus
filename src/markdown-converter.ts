@@ -152,6 +152,10 @@ export function convertInternalMdLinks(
   return markdown.replace(INTERNAL_MD_LINK_REGEX, (match, text, href) => {
     if (/^(?:https?:)?\/\//i.test(href)) return match;
 
+    // A file or folder with a name that starts with an underscore is not published
+    // (it is an include or the source of nested slides): a link to it is plain text.
+    if (isUnpublishedPath(href)) return text;
+
     const hashIndex = href.indexOf("#");
     const pathPart = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
     const anchor = hashIndex >= 0 ? href.slice(hashIndex) : "";
@@ -160,6 +164,16 @@ export function convertInternalMdLinks(
       .replace(/\.md$/i, ".html");
     return `[${text}](${htmlPath}${anchor})`;
   });
+}
+
+/**
+ * Whether a link target points at an unpublished file: a name in its path starts
+ * with an underscore, as for the include-only partials that the source scanner skips.
+ */
+export function isUnpublishedPath(href: string): boolean {
+  return href.split(/[?#]/, 1)[0].split(/[\\/]/).some((part) =>
+    part.startsWith("_")
+  );
 }
 
 /**

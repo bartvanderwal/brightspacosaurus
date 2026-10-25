@@ -105,5 +105,6 @@
   "lessons/menu-link-excluded/index.md": null,
   "lessons/menu-link-excluded/draft.md": null,
   "lessons/metadata/old-quiz.xml": "unexpected-file",
-  "lessons/metadata/slides-appendix-not-last.md": "slides-appendix-not-last"
+  "lessons/metadata/slides-appendix-not-last.md": "slides-appendix-not-last",
+  "lessons/metadata/link-to-unpublished-page.md": "link-to-unpublished-page"
 }

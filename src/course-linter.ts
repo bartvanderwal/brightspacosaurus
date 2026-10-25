@@ -46,7 +46,7 @@ import {
   parseTeacherAnswers,
   type QuizBiasOptions,
 } from "./quiz-bias.ts";
-import { parseIncludeTarget } from "./markdown-converter.ts";
+import { isUnpublishedPath, parseIncludeTarget } from "./markdown-converter.ts";
 import { scanSources } from "./source-scanner.ts";
 import type { ResolvedConfig, SlidesConfig } from "./types.ts";
 import {
@@ -1355,7 +1355,9 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
   // A link to a file that is left out of the menu is a dead link in the package.
   for (const file of [...menuFiles].sort()) {
     if (menu.excluded.has(file)) continue;
-    for (const link of findMarkdownLinks(await Deno.readTextFile(file))) {
+    const text = await Deno.readTextFile(file);
+    const lines = text.split(/\r?\n/);
+    for (const link of findMarkdownLinks(text)) {
       let path = link.href.split(/[?#]/, 1)[0];
       try {
         path = decodeURIComponent(path);
@@ -1363,6 +1365,20 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
         // keep the raw path
       }
       if (!/\.md$/i.test(path)) continue;
+      // `{@include}` and the nested slides use such files; only a link on the page is a problem.
+      const sourceLine = lines[link.line - 1] ?? "";
+      if (isUnpublishedPath(path) && !sourceLine.includes("{@include")) {
+        diagnostics.push({
+          sourceFile: file,
+          line: link.line,
+          column: 1,
+          severity: "warning",
+          rule: "link-to-unpublished-page",
+          message:
+            `The link to '${link.href}' points at a file that is not published (a name in its path starts with an underscore), so the page shows the link text without a link. Slides with 'nest' can still include the file.`,
+        });
+        continue;
+      }
       const target = resolve(dirname(file), path);
       if (!menu.excluded.has(target)) continue;
       // The overview of a lead page is reported by its own rules.
