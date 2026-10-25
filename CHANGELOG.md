@@ -7,6 +7,7 @@ All notable changes to Brightspacosaurus are documented here.
 ### Changed
 
 - **Breaking: the order of the menu.** BSO no longer reads the order of a module from lesson codes in titles and file names. The order now comes from three layers, the most specific first: a list in an `Overview` section of the module's lead page (`menu.overviewHeadings` sets the name), `sidebar_position` in the front matter of a lesson, a quiz or a slide deck, and the natural order of the file name. A module with an overview publishes only the files it lists; `draft: true` leaves a file out. A course whose order only followed from the old derivation stops the build with an error that shows the old and the new order. New lint rules: `menu-unlisted`, `menu-draft-listed`, `menu-link-missing`, `menu-link-twice`, `menu-position-listed`, `menu-position-duplicate`, `menu-position-partial`, `menu-link-excluded` (#151).
+- `deep-relative-path` now warns at four or more `../` in a row, not three: three steps up to a shared folder is a normal layout.
 - A slides topic made from a lesson follows its lesson in the menu.
 - The lead page of a module is recognised by its whole file name: `index.md`, `intro.md`, `overview.md`, or `weekintro.md` or `weekindex.md` with an optional week number. A name that only starts with one of these, such as `index-2.md`, is an ordinary page.
 

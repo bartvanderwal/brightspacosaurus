@@ -389,15 +389,17 @@ function inspectMarkdown(
     );
   }
 
-  // Three or more `../` in a row: the path breaks when the file moves. Links,
+  // Four or more `../` in a row: the path breaks when the file moves (three are accepted: a shared folder next to the weeks is a normal layout). Links,
   // images and `{@include}` targets (which parse as links) are all checked.
   function checkDeepRelativePath(node: Node): void {
     const path = (node.url ?? "").split(/[?#]/, 1)[0];
-    if (!/(?:^|[\\/])\.\.[\\/]\.\.[\\/]\.\.(?:[\\/]|$)/.test(path)) return;
+    if (!/(?:^|[\\/])\.\.[\\/]\.\.[\\/]\.\.[\\/]\.\.(?:[\\/]|$)/.test(path)) {
+      return;
+    }
     report(
       node,
       "deep-relative-path",
-      `Avoid going up three or more folders with '../' in '${path}'; move the file closer or into a shared folder inside sourcesDir, to avoid brittle file paths.`,
+      `Avoid going up four or more folders with '../' in '${path}'; move the file closer or into a shared folder inside sourcesDir, to avoid brittle file paths.`,
       "warning",
     );
   }

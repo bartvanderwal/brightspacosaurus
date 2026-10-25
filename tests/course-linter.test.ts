@@ -1091,32 +1091,32 @@ Deno.test("lint accepts a valid diagram inside a QuizDown block", () => {
   assertEquals(lintMarkdown(source, "/repo/quiz-diagram.md"), []);
 });
 
-Deno.test("lint warns about three or more '../' in links, images and includes, not in code", () => {
+Deno.test("lint warns about four or more '../' in links, images and includes, not in code", () => {
   const rule = (markdown: string) =>
     lintMarkdown(markdown, "lesson.md").filter((issue) =>
       issue.rule === "deep-relative-path"
     );
-  const deepLink = rule("See [notes](../../../shared/notes.md).\n");
+  const deepLink = rule("See [notes](../../../../shared/notes.md).\n");
   assertEquals(deepLink.length, 1);
   assertEquals(deepLink[0].severity, "warning");
   assertEquals(deepLink[0].line, 1);
-  assertStringIncludes(deepLink[0].message, "../../../shared/notes.md");
+  assertStringIncludes(deepLink[0].message, "../../../../shared/notes.md");
   assertStringIncludes(deepLink[0].message, "brittle file paths");
-  assertEquals(rule("![fig](../../../images/a.png)\n").length, 1);
+  assertEquals(rule("![fig](../../../../images/a.png)\n").length, 1);
   assertEquals(
-    rule("{@include: [Goals](../../../partials/goals.md)}\n").length,
+    rule("{@include: [Goals](../../../../partials/goals.md)}\n").length,
     1,
   );
-  assertEquals(rule("[x](../../../a.md#part)\n").length, 1);
-  assertEquals(rule("[x](../a/../../../b.md)\n").length, 1);
-  assertEquals(rule("[x](../../a/../../b.md)\n").length, 0);
-  // Two steps are fine, and so is code that merely shows the path.
-  assertEquals(rule("[x](../../a.md) [y](../a.md)\n").length, 0);
+  assertEquals(rule("[x](../../../../a.md#part)\n").length, 1);
+  assertEquals(rule("[x](../a/../../../../b.md)\n").length, 1);
+  assertEquals(rule("[x](../../a/../../../b.md)\n").length, 0);
+  // Three steps are fine (a shared folder next to the weeks), and so is code that merely shows the path.
+  assertEquals(rule("[x](../../../a.md) [y](../../a.md)\n").length, 0);
   assertEquals(
-    rule("```\n[x](../../../a.md)\n```\n\n`[x](../../../a.md)`\n").length,
+    rule("```\n[x](../../../../a.md)\n```\n\n`[x](../../../../a.md)`\n").length,
     0,
   );
-  assertEquals(rule("[x](https://example.org/a/../../../b)\n").length, 1);
+  assertEquals(rule("[x](https://example.org/a/../../../../b)\n").length, 1);
 });
 
 // Spec *Generated slides: what a section gives*, rule G4: `slides-section-without-content`.
