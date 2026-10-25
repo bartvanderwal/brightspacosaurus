@@ -49,6 +49,10 @@ function isCoreConcepts(heading: string): boolean {
   return normalized === "kernbegrippen" || normalized === "core concepts";
 }
 
+function isAppendix(heading: string): boolean {
+  return /^bijlage(?:n)?(?:\s|$)/i.test(heading.trim());
+}
+
 function glossaryTerms(list: MarkdownNode): string[] | undefined {
   const items = list.children ?? [];
   if (!items.length) return undefined;
@@ -333,6 +337,49 @@ function parseLesson(source: string): ParsedLesson {
   return { tree, title, introNodes, sections };
 }
 
+function titleIntro(
+  nodes: MarkdownNode[],
+  source: string,
+  includeProse = false,
+): string {
+  const images = sectionBlocks(
+    nodes.filter((node) =>
+      node.type === "paragraph" || node.type === "image" ||
+      node.type === "imageReference"
+    ),
+    source,
+    false,
+  ).map((block) => block.markdown);
+  const paragraph = includeProse
+    ? nodes.find((node) =>
+      node.type === "paragraph" && nodeText(node).trim()
+    )
+    : undefined;
+  return [
+    ...images,
+    ...(paragraph
+      ? [
+        (paragraph.children ?? []).reduce(
+          (text, node) =>
+            node.type === "image" || node.type === "imageReference"
+              ? text.replace(sourceFor(node, source), "")
+              : text,
+          sourceFor(paragraph, source),
+        ).trim(),
+      ]
+      : []),
+  ].filter(Boolean).map((block) => `\n\n${block}`).join("");
+}
+
+function sectionSlides(section: LessonSection): string[] {
+  if (isAppendix(section.heading)) {
+    return renderSection("Bijlagen", section.blocks);
+  }
+  return section.blocks.length
+    ? renderSection(section.heading, section.blocks)
+    : [];
+}
+
 /**
  * The slides of a nested page: first a divider slide with the title of the
  * page, then the slides of its sections, built by the same rules as for any
@@ -345,10 +392,10 @@ function nestedSet(source: string, number: string): NestedSet {
     number,
     title,
     slides: [
-      `# ${number ? `${number} ` : ""}${title}`,
-      ...page.sections.flatMap((each) =>
-        each.blocks.length > 0 ? renderSection(each.heading, each.blocks) : []
-      ),
+      `# ${number ? `${number} ` : ""}${title}${
+        titleIntro(page.introNodes, source, true)
+      }`,
+      ...page.sections.flatMap(sectionSlides),
     ],
   };
 }
@@ -364,7 +411,7 @@ function sectionNumber(heading: string): string {
 /**
  * Builds a Marp slide deck from a lesson: a title slide, an optional contents
  * slide, and slides for the lists, tables, images, code and diagrams of each
- * section. Running text is left out.
+ * section. Running text is left out except for a nested page's first intro paragraph.
  */
 export function generateLessonSlides(
   source: string,
@@ -407,9 +454,31 @@ export function generateLessonSlides(
   }
   // A section that has nothing to show on a slide gets no slide, and its
   // heading is left out too (spec rule G4).
-  const listed = sections.filter((each) => each.blocks.length > 0);
+  const listed = sections.filter((each) =>
+    each.blocks.length > 0 || isAppendix(each.heading)
+  );
+  const renderedSections = sections.map((each) => [
+    ...sectionSlides(each),
+    ...each.decks.map((deck) => deck.markdown),
+    ...each.nested.flatMap((set) => set.slides),
+  ]);
+  const firstAppendix = sections.findIndex((each) => isAppendix(each.heading));
+  // Count real separators, not `---` inside fenced code or HTML blocks.
+  const appendixCount = firstAppendix < 0
+    ? 0
+    : renderedSections.slice(firstAppendix).flat().reduce((count, markdown) => {
+      const parsed = unified().use(remarkParse).parse(markdown);
+      return count + 1 + parsed.children.filter((node) =>
+        node.type === "thematicBreak" &&
+        /^-{3,}$/.test(sourceFor(node as MarkdownNode, markdown))
+      ).length;
+    }, 0);
   // The title slide is a `lead` slide: centred, with the course logo (or the BSO logo).
-  const slides = [`<!-- _class: lead -->\n# ${nodeText(title).trim()}`];
+  const slides = [
+    `<!-- _class: lead -->\n# ${nodeText(title).trim()}${
+      titleIntro(introNodes, source)
+    }`,
+  ];
   if (options.contentsTitle && listed.length >= 2) {
     // `1. Intro` after `- ` would start a nested ordered list (roman numbers)
     const entry = (text: string, indent = "") =>
@@ -418,25 +487,25 @@ export function generateLessonSlides(
       `# ${options.contentsTitle}\n\n${
         [
           ...introDecks.map((deck) => entry(deck.title)),
-          ...sections.flatMap((each) => [
-            ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
-            ...each.decks.map((deck) => entry(deck.title)),
-            ...each.nested.map((set) =>
-              entry(`${set.number ? `${set.number} ` : ""}${set.title}`, "  ")
-            ),
-          ]),
+          ...sections.flatMap((each, index) =>
+            firstAppendix >= 0 && index >= firstAppendix
+              ? (index === firstAppendix
+                ? [entry(`Bijlagen (B1 t/m B${appendixCount})`)]
+                : [])
+              : [
+                ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
+                ...each.decks.map((deck) => entry(deck.title)),
+                ...each.nested.map((set) =>
+                  entry(`${set.number ? `${set.number} ` : ""}${set.title}`, "  ")
+                ),
+              ]
+          ),
         ].join("\n")
       }`,
     );
   }
   slides.push(...introDecks.map((deck) => deck.markdown));
-  for (const { heading, blocks, decks, nested } of sections) {
-    slides.push(
-      ...(blocks.length > 0 ? renderSection(heading, blocks) : []),
-      ...decks.map((deck) => deck.markdown),
-      ...nested.flatMap((set) => set.slides),
-    );
-  }
+  slides.push(...renderedSections.flat());
   const definitions = tree.children.filter((node) => node.type === "definition")
     .map((node) => sourceFor(node, source)).filter(Boolean);
   const deck = slides.join("\n\n---\n\n");

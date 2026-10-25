@@ -1,7 +1,7 @@
 /**
  * Turns a parsed BSO slide deck into an editable PowerPoint file (`.pptx`): real
  * text boxes, lists, tables and images, with the speaker notes when asked.
- * The layout is estimated, not rendered; look at the result in PowerPoint.
+ * Content is wrapped and paginated before numbering the resulting slides.
  *
  * @module
  */
@@ -10,10 +10,10 @@ import pptxgenModule from "pptxgenjs";
 import JSZip from "jszip";
 import { imageSize } from "image-size";
 import { dirname, isAbsolute, resolve } from "@std/path";
+import { slideNumbers } from "../slide-numbering.ts";
 import type {
   PptxBlock,
   PptxDeck,
-  PptxListItem,
   PptxRun,
   PptxSlide,
 } from "./deck-parser.ts";
@@ -148,145 +148,306 @@ async function loadImage(
 }
 
 function runOptions(run: PptxRun, theme: PptxTheme, size: number) {
+  const href = externalHref(run.href);
   return {
     bold: run.bold,
     italic: run.italic,
     fontFace: run.code ? "Courier New" : theme.fontFace,
     fontSize: size,
-    color: run.href ? theme.accentColor : theme.textColor,
-    ...(run.href ? { hyperlink: { url: run.href } } : {}),
+    color: href ? theme.accentColor : theme.textColor,
+    ...(href ? { hyperlink: { url: href } } : {}),
   };
 }
 
-/** Rough height in inches of some text at a font size, in a box of a width. */
-function textHeight(text: string, size: number, width: number): number {
-  const perLine = Math.max(8, (width * 72) / (size * 0.5));
-  const lines = text.split("\n").reduce(
-    (sum, line) => sum + Math.max(1, Math.ceil(line.length / perLine)),
-    0,
-  );
-  return lines * ((size * 1.25) / 72);
+function externalHref(href: string | undefined): string | undefined {
+  if (!href || href.startsWith("#")) return undefined;
+  if (
+    (/^[a-z][a-z\d+.-]*:/i.test(href) && !/^file:/i.test(href)) ||
+    href.startsWith("//")
+  ) {
+    return href;
+  }
+  let path = href.split(/[?#]/, 1)[0];
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    return undefined;
+  }
+  return /\.md$/i.test(path) ? undefined : href;
 }
 
-function listText(items: PptxListItem[], depth = 0): string[] {
-  return items.flatMap((
-    item,
-  ) => [
-    item.runs.map((run) => run.text).join(""),
-    ...listText(item.children, depth + 1),
+/** Explicit lines leave room for wide glyphs and do not rely on Office auto-fit. */
+function wrapRuns(runs: PptxRun[], size: number, width: number): PptxRun[][] {
+  const capacity = Math.max(1, width * 72 / size);
+  const lines: PptxRun[][] = [[]];
+  let used = 0;
+  const units = (char: string) => char === " " ? 0.6 : 1.1;
+  for (const run of runs) {
+    const tokens = run.text.replace(/\t/g, "    ").replace(/\r\n?/g, "\n")
+      .match(/\n|[^\S\n]+|[^\s]+/gu) ?? [];
+    for (const token of tokens) {
+      const length = [...token].reduce((sum, char) => sum + units(char), 0);
+      if (
+        /^\S/u.test(token) && length <= capacity && used > 0 &&
+        used + length > capacity
+      ) {
+        lines.push([]);
+        used = 0;
+      }
+      for (const char of token) {
+        if (char === "\n" || (used > 0 && used + units(char) > capacity)) {
+          lines.push([]);
+          used = 0;
+        }
+        if (char === "\n") continue;
+        const line = lines[lines.length - 1];
+        const last = line[line.length - 1];
+        if (
+          last && last.bold === run.bold && last.italic === run.italic &&
+          last.code === run.code && last.href === run.href
+        ) last.text += char;
+        else line.push({ ...run, text: char });
+        used += units(char);
+      }
+    }
+  }
+  return lines;
+}
+
+function joinLines(lines: PptxRun[][]): PptxRun[] {
+  return lines.flatMap((line, index) => [
+    ...(index ? [{ text: "\n" }] : []),
+    ...line,
   ]);
 }
 
-function blockHeight(block: PptxBlock, size: number, width: number): number {
-  if (block.kind === "paragraph" || block.kind === "quote") {
-    return textHeight(block.runs.map((run) => run.text).join(""), size, width) +
-      0.12;
-  }
-  if (block.kind === "list") {
-    return listText(block.items).reduce(
-      (sum, line) => sum + textHeight(line, size, width - 0.4) + 0.08,
-      0,
-    ) + 0.1;
-  }
-  if (block.kind === "table") {
-    return block.rows.length * ((14 * 1.6) / 72 + 0.1) + 0.1;
-  }
-  if (block.kind === "code") {
-    return block.text.split("\n").length * ((13 * 1.3) / 72) + 0.3;
-  }
-  return 0;
+interface Piece {
+  block: PptxBlock;
+  height: number;
+  size: number;
+  indent?: number;
+  bullet?: boolean;
+  ordinal?: number;
+  rowHeights?: number[];
+  image?: Loaded;
 }
 
-function pickSize(
-  blocks: PptxBlock[],
-  width: number,
-  available: number,
-): number {
-  for (const size of SIZES) {
-    const used = blocks.reduce(
-      (sum, block) => sum + blockHeight(block, size, width),
-      0,
-    );
-    if (used <= available) return size;
-  }
-  return SIZES[SIZES.length - 1];
+interface LayoutPage {
+  slide: PptxSlide;
+  pieces: Piece[];
+  left: number;
+  width: number;
+  top: number;
 }
 
-function flatten(
-  items: PptxListItem[],
-  ordered: boolean,
-  size: number,
-  theme: PptxTheme,
-  level = 0,
-) {
-  const out: { text: string; options: Record<string, unknown> }[] = [];
-  for (const item of items) {
-    const runs = item.runs.length ? item.runs : [{ text: "" }];
-    runs.forEach((run, index) => {
-      out.push({
-        text: run.text,
-        options: {
-          ...runOptions(run, theme, size),
-          // The list settings sit on the first part of the item: a part with
-          // them starts a new paragraph in pptxgenjs.
-          ...(index === 0
-            ? {
-              bullet: ordered ? { type: "number" } : true,
-              indentLevel: level,
-            }
-            : {}),
-          breakLine: index === runs.length - 1,
-        },
-      });
-    });
-    out.push(...flatten(item.children, ordered, size, theme, level + 1));
-  }
-  return out;
-}
-
-async function addSlide(
-  pres: Presentation,
-  slide: PptxSlide,
-  number: number,
-  total: number,
-  options: PptxRenderOptions,
-  theme: PptxTheme,
-  logo: Loaded | undefined,
-) {
-  const page = pres.addSlide();
+function textBounds(slide: PptxSlide) {
   const background = slide.blocks.find((block) =>
     block.kind === "image" && block.background
   );
   let left = MARGIN;
   let right = WIDTH - MARGIN;
+  if (background?.kind === "image" && background.background) {
+    const { side, share } = background.background;
+    if (side === "left") left = WIDTH * share + 0.3;
+    if (side === "right") right = WIDTH * (1 - share) - 0.3;
+  }
+  if (right - left < 0.5) {
+    throw new Error("Background image leaves less than 0.5 inch for slide text.");
+  }
+  return { left, width: right - left };
+}
+
+async function paginate(deck: PptxDeck, options: PptxRenderOptions) {
+  const pages: LayoutPage[] = [];
+  for (const [sourceIndex, slide] of deck.slides.entries()) {
+    const bounds = textBounds(slide);
+    let page: LayoutPage;
+    let used = 0;
+    const next = () => {
+      const lead = pages.length === 0 && slide.lead;
+      page = {
+        slide: { ...slide, lead },
+        pieces: [],
+        ...bounds,
+        top: lead ? 2.7 : BODY_TOP,
+      };
+      pages.push(page);
+      used = 0;
+    };
+    next();
+    const room = () => BODY_BOTTOM - page.top - used;
+    const put = (piece: Piece) => {
+      if (piece.height > room() + 0.000001) next();
+      page.pieces.push(piece);
+      used += piece.height;
+    };
+    const text = (
+      block: Extract<PptxBlock, { kind: "paragraph" | "quote" | "code" }>,
+      size: number,
+      indent = 0,
+      bullet = false,
+      ordinal?: number,
+    ) => {
+      const code = block.kind === "code";
+      while (
+        bounds.width - indent - (code ? 0.24 : bullet ? size / 72 + 0.1 : 0) <
+          size * 1.1 / 72
+      ) size *= 0.8;
+      const lines = wrapRuns(
+        code ? [{ text: block.text, code: true }] : block.runs,
+        size,
+        bounds.width - indent - (code ? 0.24 : bullet ? size / 72 + 0.1 : 0),
+      );
+      const lineHeight = size * 1.5 / 72;
+      const padding = code ? 0.24 : 0.08;
+      let first = true;
+      while (lines.length) {
+        let count = Math.floor((room() - padding) / lineHeight);
+        if (count < 1) {
+          next();
+          count = Math.floor((room() - padding) / lineHeight);
+        }
+        const part = joinLines(lines.splice(0, count));
+        put({
+          block: code
+            ? { ...block, text: part.map((run) => run.text).join("") }
+            : { ...block, runs: part },
+          size,
+          height: Math.ceil((part.filter((run) => run.text === "\n").length + 1) *
+            lineHeight * 1000000) / 1000000 + padding,
+          indent,
+          bullet: first && bullet,
+          ordinal,
+        });
+        first = false;
+      }
+    };
+    const list = (
+      block: Extract<PptxBlock, { kind: "list" }>,
+      depth = 0,
+    ) => {
+      block.items.forEach((item, index) => {
+        const indent = Math.min(0.3 * (depth + 1), bounds.width / 2);
+        text(
+          { kind: "paragraph", runs: item.runs },
+          18,
+          indent,
+          true,
+          block.ordered ? index + 1 : undefined,
+        );
+        list({ ...block, items: item.children }, depth + 1);
+      });
+    };
+    for (const block of slide.blocks) {
+      if (block.kind === "image" && block.background) continue;
+      if (block.kind === "paragraph" || block.kind === "quote") {
+        const size = SIZES.find((size) =>
+          wrapRuns(block.runs, size, bounds.width).length * size * 1.5 / 72 +
+              0.08 <= room()
+        ) ?? 18;
+        text(block, size);
+      } else if (block.kind === "code") text(block, 13);
+      else if (block.kind === "list") list(block);
+      else if (block.kind === "image") {
+        const image = await loadImage(block.src, options.baseDir, sourceIndex + 1);
+        if (room() < 1.2) next();
+        const height = Math.min(
+          room() - 0.08,
+          image.height * bounds.width / image.width,
+        );
+        put({ block, size: 0, height: height + 0.08, image });
+      } else if (block.kind === "table" && block.rows.length) {
+        const columns = Math.max(...block.rows.map((row) => row.length));
+        let size = Math.min(14, bounds.width * 72 / (columns * 4));
+        const padding = Math.min(0.08, bounds.width / columns / 8);
+        const cellWidth = bounds.width / columns - padding * 2;
+        const available = BODY_BOTTOM - BODY_TOP;
+        let header: PptxRun[][];
+        let headerHeight: number;
+        do {
+          header = Array.from({ length: columns }, (_, index) =>
+            joinLines(wrapRuns(block.rows[0][index] ?? [], size, cellWidth))
+          );
+          headerHeight = Math.max(...header.map((cell) =>
+            cell.map((run) => run.text).join("").split("\n").length
+          )) * size * 1.5 / 72 + padding * 2;
+          if (headerHeight <= available / 2) break;
+          size *= 0.8;
+        } while (true);
+        const rowHeight = (count: number) =>
+          count * size * 1.5 / 72 + padding * 2;
+        let rows: PptxRun[][][] = [header];
+        let heights = [headerHeight];
+        const flush = () => {
+          put({
+            block: { kind: "table", rows },
+            size,
+            height: heights.reduce((sum, height) => sum + height, 0),
+            rowHeights: heights,
+          });
+          rows = [header];
+          heights = [headerHeight];
+        };
+        if (headerHeight + rowHeight(1) > room()) next();
+        for (const row of block.rows.slice(1)) {
+          const cells = Array.from({ length: columns }, (_, index) =>
+            wrapRuns(row[index] ?? [], size, cellWidth)
+          );
+          while (cells.some((cell) => cell.length)) {
+            const occupied = heights.reduce((sum, height) => sum + height, 0);
+            const count = Math.floor((room() - occupied - padding * 2) /
+              (size * 1.5 / 72));
+            if (count < 1) {
+              if (rows.length > 1) flush();
+              next();
+              continue;
+            }
+            const taken = Math.min(count, Math.max(...cells.map((cell) => cell.length)));
+            rows.push(cells.map((cell) => joinLines(cell.splice(0, taken))));
+            heights.push(rowHeight(taken));
+          }
+        }
+        if (rows.length > 1 || block.rows.length === 1) flush();
+      }
+    }
+  }
+  return pages;
+}
+
+async function addSlide(
+  pres: Presentation,
+  layout: LayoutPage,
+  number: number,
+  label: string,
+  options: PptxRenderOptions,
+  theme: PptxTheme,
+  logo: Loaded | undefined,
+) {
+  const { slide, left, width, top } = layout;
+  const page = pres.addSlide();
+  const background = slide.blocks.find((block) =>
+    block.kind === "image" && block.background
+  );
 
   if (background && background.kind === "image" && background.background) {
-    const { side, share, contain } = background.background;
+    const { side, share } = background.background;
     const picture = await loadImage(background.src, options.baseDir, number);
     const w = WIDTH * share;
     const x = side === "left" ? 0 : side === "right" ? WIDTH - w : 0;
-    const fit = contain
-      ? (() => {
-        const scale = Math.min(w / picture.width, HEIGHT / picture.height);
-        const iw = picture.width * scale;
-        const ih = picture.height * scale;
-        return { x: x + (w - iw) / 2, y: (HEIGHT - ih) / 2, w: iw, h: ih };
-      })()
-      : { x, y: 0, w, h: HEIGHT };
+    const scale = Math.min(w / picture.width, HEIGHT / picture.height);
+    const iw = picture.width * scale;
+    const ih = picture.height * scale;
+    const fit = { x: x + (w - iw) / 2, y: (HEIGHT - ih) / 2, w: iw, h: ih };
     page.addImage({
       data: picture.data,
       ...fit,
-      ...(contain ? {} : { sizing: { type: "cover", w: fit.w, h: fit.h } }),
       altText: background.alt.replace(
         /(?:^|\s)(?:bg|fit|contain|left|right)(?::\d+(?:\.\d+)?%)?(?=\s|$)/g,
         " ",
       ).trim() || "Slide image",
     });
-    if (side === "left") left = w + 0.3;
-    else if (side === "right") right = x - 0.3;
   }
 
-  const width = right - left;
   const lead = slide.lead && number === 1;
   if (options.disclaimer) {
     page.addText(options.disclaimer, {
@@ -297,64 +458,77 @@ async function addSlide(
       fontSize: 10,
       color: theme.mutedColor,
       fontFace: theme.fontFace,
+      margin: 0,
+      fit: "shrink",
     });
   }
   if (slide.title) {
-    page.addText(slide.title, {
+    const height = lead ? 1.2 : 0.9;
+    let size = lead ? 36 : 28;
+    let lines = wrapRuns([{ text: slide.title }], size, width);
+    while (lines.length * size * 1.5 / 72 > height) {
+      size *= 0.9;
+      lines = wrapRuns([{ text: slide.title }], size, width);
+    }
+    page.addText(joinLines(lines).map((run) => ({ text: run.text })), {
       x: left,
       y: lead ? 1.3 : 0.4,
       w: width,
-      h: lead ? 1.2 : 0.9,
-      fontSize: lead ? 36 : 28,
+      h: height,
+      fontSize: size,
       bold: true,
       color: theme.titleColor,
       fontFace: theme.fontFace,
       valign: "middle",
+      margin: 0,
+      fit: "shrink",
     });
   }
 
-  const body = slide.blocks.filter((block) =>
-    !(block.kind === "image" && block.background)
-  );
-  const top = lead ? 2.7 : BODY_TOP;
-  const textBlocks = body.filter((block) => block.kind !== "image");
-  const size = pickSize(textBlocks, width, BODY_BOTTOM - top);
   let y = top;
-  for (const block of body) {
+  for (const piece of layout.pieces) {
+    const { block, size, height } = piece;
     if (block.kind === "paragraph" || block.kind === "quote") {
-      const height = blockHeight(block, size, width);
       page.addText(
         block.runs.map((run) => ({
-          text: run.text,
+          text: run.text === "\n" ? "" : run.text,
           options: {
             ...runOptions(run, theme, size),
             italic: block.kind === "quote" || run.italic,
+            softBreakBefore: run.text === "\n",
           },
         })),
-        { x: left, y, w: width, h: height, valign: "top", margin: 0 },
+        {
+          x: left + (piece.indent ?? 0),
+          y,
+          w: width - (piece.indent ?? 0),
+          h: height,
+          valign: "top",
+          margin: 0,
+          fontSize: size,
+          fontFace: theme.fontFace,
+          lineSpacingMultiple: 1,
+          paraSpaceAfter: 0,
+          ...(piece.bullet
+            ? {
+              bullet: piece.ordinal
+                ? { type: "number" as const, numberStartAt: piece.ordinal }
+                : { indent: size },
+              hanging: Math.max(2, size / 4),
+            }
+            : {}),
+        },
       );
-      y += height;
-    } else if (block.kind === "list") {
-      const height = blockHeight(block, size, width);
-      page.addText(flatten(block.items, block.ordered, size, theme), {
-        x: left,
-        y,
-        w: width,
-        h: height,
-        valign: "top",
-        margin: [0, 0, 0, 4],
-      });
-      y += height;
     } else if (block.kind === "table") {
-      const height = blockHeight(block, size, width);
       page.addTable(
         block.rows.map((row, rowIndex) =>
           row.map((cell) => ({
             text: cell.map((run) => ({
-              text: run.text,
+              text: run.text === "\n" ? "" : run.text,
               options: {
-                ...runOptions(run, theme, 14),
+                ...runOptions(run, theme, size),
                 bold: run.bold || rowIndex === 0,
+                softBreakBefore: run.text === "\n",
               },
             })),
           }))
@@ -363,30 +537,38 @@ async function addSlide(
           x: left,
           y,
           w: width,
-          fontSize: 14,
+          colW: Array(block.rows[0].length).fill(width / block.rows[0].length),
+          rowH: piece.rowHeights,
+          fontSize: size,
+          fontFace: theme.fontFace,
+          margin: Math.min(5.76, width / block.rows[0].length * 72 / 8),
+          autoPage: false,
+          valign: "top",
+          paraSpaceAfter: 0,
           border: { type: "solid", color: "D0D5DB", pt: 1 },
         },
       );
-      y += height;
     } else if (block.kind === "code") {
-      const height = blockHeight(block, size, width);
       page.addText(block.text, {
         x: left,
         y,
         w: width,
         h: height,
         fontFace: "Courier New",
-        fontSize: 13,
+        fontSize: size,
         color: "D4D4D4",
         fill: { color: "1E1E1E" },
         valign: "top",
         margin: 8,
+        lineSpacingMultiple: 1,
+        paraSpaceAfter: 0,
       });
-      y += height + 0.1;
     } else if (block.kind === "image") {
-      const picture = await loadImage(block.src, options.baseDir, number);
-      const room = Math.max(1.2, BODY_BOTTOM - y);
-      const scale = Math.min(width / picture.width, room / picture.height);
+      const picture = piece.image!;
+      const scale = Math.min(
+        width / picture.width,
+        (height - 0.08) / picture.height,
+      );
       const w = picture.width * scale;
       const h = picture.height * scale;
       page.addImage({
@@ -397,13 +579,17 @@ async function addSlide(
         h,
         altText: block.alt || "Slide image",
       });
-      y += h + 0.1;
     }
+    y += height;
   }
 
   if (logo) {
-    const w = lead ? 1.5 : 0.5;
-    const h = w * (logo.height / logo.width);
+    const scale = Math.min(
+      (lead ? 1.5 : 0.5) / logo.width,
+      (lead ? 0.9 : 0.3) / logo.height,
+    );
+    const w = logo.width * scale;
+    const h = logo.height * scale;
     page.addImage({
       data: logo.data,
       x: lead ? left : WIDTH - 0.4 - w,
@@ -413,7 +599,7 @@ async function addSlide(
       altText: "Logo",
     });
   }
-  page.addText(`${number}/${total}`, {
+  page.addText(label, {
     x: left,
     y: HEIGHT - 0.4,
     w: 0.8,
@@ -440,12 +626,14 @@ export async function renderDeck(
   const logo = options.logo
     ? await loadImage(options.logo, dirname(resolve(options.logo)), 0)
     : undefined;
-  for (const [index, slide] of deck.slides.entries()) {
+  const pages = await paginate(deck, options);
+  const numbers = slideNumbers(pages.map((page) => page.slide.title));
+  for (const [index, slide] of pages.entries()) {
     await addSlide(
       pres,
       slide,
       index + 1,
-      deck.slides.length,
+      numbers[index].label,
       options,
       theme,
       logo,
