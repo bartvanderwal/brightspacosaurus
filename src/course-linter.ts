@@ -974,6 +974,25 @@ export function generatedSlideLessons(
 }
 
 /**
+ * What is wrong with the whitespace in one folder or file name, or undefined.
+ * Edge, double and unusual whitespace break paths in tools and show as `%20`
+ * or worse in URLs; a single space only shows as `%20` in the preview.
+ */
+export function nameWhitespaceProblem(name: string): string | undefined {
+  if (/[^\S ]/.test(name)) {
+    return "contains a whitespace character that is not an ordinary space (a tab or a no-break space, for example)";
+  }
+  if (name !== name.trim() || /\s\.[^.]+$/.test(name) || /^\.?\s/.test(name)) {
+    return "starts or ends with a space (or has one before the extension)";
+  }
+  if (/ {2,}/.test(name)) return "contains two or more spaces in a row";
+  if (name.includes(" ")) {
+    return "contains a space, which shows as %20 in a URL and in the preview; use a hyphen";
+  }
+  return undefined;
+}
+
+/**
  * The slide decks that `slides.lessons` selects with a `decks` pattern, which
  * may sit outside `sourcesDir`. Lint checks them like any other Markdown file.
  */
@@ -1222,6 +1241,29 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     }
   }
   for (const file of [...files].sort()) await check(file);
+  // Folder and file names under the repository: each offending name once.
+  const reportedNames = new Set<string>();
+  for (const file of [...files].sort()) {
+    const parts = relative(config.repoRoot, file).split(/[\\/]/);
+    if (parts[0] === "..") continue;
+    for (let index = 0; index < parts.length; index++) {
+      const path = parts.slice(0, index + 1).join("/");
+      if (reportedNames.has(path)) continue;
+      const problem = nameWhitespaceProblem(parts[index]);
+      if (!problem) continue;
+      reportedNames.add(path);
+      diagnostics.push({
+        sourceFile: resolve(config.repoRoot, path),
+        line: 1,
+        column: 1,
+        severity: "warning",
+        rule: "path-whitespace",
+        message: `The ${index === parts.length - 1 ? "file" : "folder"} name '${
+          parts[index]
+        }' ${problem}.`,
+      });
+    }
+  }
   const visitedCategoryDirectories = new Set<string>();
   async function findCategoryMetadata(dir: string): Promise<void> {
     if (visitedCategoryDirectories.has(dir)) return;

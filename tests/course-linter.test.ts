@@ -11,6 +11,7 @@ import {
   formatLintScope,
   lintCourse,
   lintMarkdown,
+  nameWhitespaceProblem,
   shouldColorLint,
 } from "../src/course-linter.ts";
 import {
@@ -829,7 +830,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "44 errors, 24 warnings",
+        "44 errors, 25 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),
@@ -1214,5 +1215,23 @@ Deno.test("lint also checks the slide decks that slides.lessons selects outside 
     );
   } finally {
     await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("path-whitespace: edge, double and unusual whitespace and single spaces in a folder or file name", () => {
+  assertEquals(nameWhitespaceProblem("week-1"), undefined);
+  assertEquals(nameWhitespaceProblem("les-1.1.md"), undefined);
+  for (
+    const [name, expected] of [
+      ["week-1 ", "starts or ends"],
+      [" week-1", "starts or ends"],
+      ["les .md", "starts or ends"],
+      ["les  een.md", "two or more spaces"],
+      ["les\teen.md", "not an ordinary space"],
+      ["les\u00a0een.md", "not an ordinary space"],
+      ["les een.md", "%20"],
+    ] as const
+  ) {
+    assertStringIncludes(nameWhitespaceProblem(name) ?? "", expected, name);
   }
 });

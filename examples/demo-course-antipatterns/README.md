@@ -67,6 +67,7 @@ The automated tests compare emitted diagnostics with `expected-rules.json` and r
 | `quiz-option-syntax` | error | [quiz-option-syntax.md](lessons/quizzes/quiz-option-syntax.md) |
 | `quiz-option-content` | error | [quiz-option-content.md](lessons/quizzes/quiz-option-content.md) |
 | `slides-deck-invalid` | error | [slides-deck-invalid.md](decks/slides-deck-invalid.md) |
+| `path-whitespace` | warning | [path with space.md](lessons/metadata/path%20with%20space.md) |
 | `hard-wrapped-lines` | warning | [hard-wrapped-lines.md](lessons/metadata/hard-wrapped-lines.md) |
 | `lesson-frontmatter` | warning | [lesson-frontmatter.md](lessons/metadata/lesson-frontmatter.md) |
 | `metadata-fields-one-line` | warning | [metadata-fields-one-line.md](lessons/metadata/metadata-fields-one-line.md) |
