@@ -4,6 +4,11 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+### Changed
+
+- **Breaking: the order of the menu.** BSO no longer reads the order of a module from lesson codes in titles and file names. The order now comes from three layers, the most specific first: a list in an `Overview` section of the module's lead page (`menu.overviewHeadings` sets the name), `sidebar_position` in the front matter of a lesson, a quiz or a slide deck, and the natural order of the file name. A module with an overview publishes only the files it lists; `draft: true` leaves a file out. A course whose order only followed from the old derivation stops the build with an error that shows the old and the new order. New lint rules: `menu-unlisted`, `menu-draft-listed`, `menu-link-missing`, `menu-link-twice`, `menu-position-listed`, `menu-position-duplicate`, `menu-position-partial` (#151).
+- A slides topic made from a lesson follows its lesson in the menu.
+
 ### Added
 
 - `bso lint` warns about whitespace in folder and file names (`path-whitespace`): a space at the start or end, two spaces in a row, a tab or no-break space, and a single space (it shows as `%20` in URLs and in the preview). Each name is reported once.
@@ -12,6 +17,8 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
+- The hidden resource that carries the images of a quiz no longer appears as a menu item in `navigation.json`, the Docusaurus sidebar and the native package.
+- `numbered-sources` only reports a heading that is the whole list of sources (`Bronnen`, `Referenties`, ...), not one that starts with the word (#153).
 - Slides: a deck with both `slides: true` and `marp: true` that a `decks` pattern selects was skipped without a message. It is now an error in the preview and the build, and `bso lint` reports it (`slides-deck-invalid`). Lint also checks the decks that `slides.lessons` selects outside `sourcesDir` (for example `slides-empty-separator`), and the build warns when a `decks` pattern matches no file (#141).
 - `reader-heading-numbering`: an unnumbered heading `Bijlagen` (or `Appendices`) above `Bijlage A`, `Bijlage B`, ... is allowed; a number or letter on it is an error (#137).
 

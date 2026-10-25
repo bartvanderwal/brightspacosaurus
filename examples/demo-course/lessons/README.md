@@ -1,3 +1,7 @@
+---
+sidebar_position: 1
+---
+
 # Demo Course Handbook
 
 This course index is the single handbook for the demo course. The week folders are modules, not separate student handbooks.

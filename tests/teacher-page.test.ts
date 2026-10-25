@@ -181,6 +181,7 @@ function testConfig(repoRoot: string, explicit: boolean): ResolvedConfig {
       questionPrefix: "Question",
       subquestionPrefix: "Subquestion",
     },
+    menu: { overviewHeadings: ["Overview", "Overzicht"] },
     teacherPage: { path: join(sourcesDir, "for-teachers.md"), explicit },
     diagrams: {
       krokiUrl: "https://kroki.io",

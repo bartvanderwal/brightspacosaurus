@@ -5,6 +5,7 @@
  */
 import { deckMarkerConflict, isSlideDeck } from "./includes.ts";
 import { findDeckLinks, findMarkdownLinks } from "./linked-decks.ts";
+import { planMenu } from "./menu-plan.ts";
 import { sectionsWithoutSlideContent } from "./lesson-slides.ts";
 import {
   findEmptySlideSeparators,
@@ -339,7 +340,9 @@ function inspectMarkdown(
       m[1]
     );
     const ignored = [
-      ...new Set(keys.filter((key) => key !== "sidebar_position")),
+      ...new Set(
+        keys.filter((key) => key !== "sidebar_position" && key !== "draft"),
+      ),
     ];
     if (ignored.length > 0) {
       report(
@@ -349,7 +352,7 @@ function inspectMarkdown(
           ignored.map((key) => `'${key}'`).join(", ")
         } ${
           ignored.length > 1 ? "are" : "is"
-        } ignored in lesson pages; only 'sidebar_position' is used (menu order). Put the title as '# heading' and remove the rest.`,
+        } ignored in lesson pages; only 'sidebar_position' (menu order) and 'draft' (left out of the menu) are used. Put the title as '# heading' and remove the rest.`,
         "warning",
       );
     }
@@ -1241,6 +1244,36 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
     }
   }
   for (const file of [...files].sort()) await check(file);
+  // The order and the contents of the menu: the overview of a module, `sidebar_position` and `draft`.
+  const quizFilesOfCourse = new Set<string>();
+  const menuFiles = new Set<string>(lessonFiles);
+  for (const dir of lintDirs) {
+    const scan = await scanSources({
+      sourcesDir: dir,
+      repoRoot: config.repoRoot,
+    });
+    for (const file of scan.quizFiles) quizFilesOfCourse.add(file);
+  }
+  for (const file of quizFilesOfCourse) menuFiles.add(file);
+  const menu = await planMenu({
+    sourcesDir: config.sourcesDir,
+    files: [...menuFiles].filter((file) => {
+      const path = relative(config.sourcesDir, file);
+      return path !== ".." && !path.startsWith("..") && !isAbsolute(path);
+    }),
+    overviewHeadings: config.menu.overviewHeadings,
+    alwaysIncluded: config.teacherPage ? [config.teacherPage.path] : [],
+  });
+  for (const issue of menu.issues) {
+    diagnostics.push({
+      sourceFile: issue.file,
+      line: issue.line,
+      column: 1,
+      severity: issue.severity,
+      rule: issue.rule,
+      message: issue.message,
+    });
+  }
   // Folder and file names under the repository: each offending name once.
   const reportedNames = new Set<string>();
   for (const file of [...files].sort()) {

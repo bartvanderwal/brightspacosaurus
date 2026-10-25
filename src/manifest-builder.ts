@@ -157,7 +157,21 @@ function comparePositions(a: ManifestEntry, b: ManifestEntry): number {
   return a.position - b.position;
 }
 
-/** Sorts manifest entries into the navigation order expected in Brightspace. */
+/** The listed files of an overview come first, in list order. */
+function compareListed(a: ManifestEntry, b: ManifestEntry): number {
+  if (a.order === undefined && b.order === undefined) return 0;
+  if (a.order === undefined) return 1;
+  if (b.order === undefined) return -1;
+  return a.order - b.order;
+}
+
+/**
+ * Sorts manifest entries into the navigation order of Brightspace and the
+ * preview. Per module: the teacher page, the lead page, the files of the
+ * overview list in list order, the files with a `sidebar_position`, and then
+ * the rest in the natural order of the file name. BSO reads no order from
+ * numbers in titles (see the Software Guidebook, *Menu order*).
+ */
 export function sortManifestEntriesForNavigation(
   entries: ManifestEntry[],
   options: NavigationOptions = {},
@@ -179,23 +193,84 @@ export function sortManifestEntriesForNavigation(
     const moduleLeadCompare = moduleLeadPageWeight(a) - moduleLeadPageWeight(b);
     if (moduleLeadCompare !== 0) return moduleLeadCompare;
 
+    const listedCompare = compareListed(a, b);
+    if (listedCompare !== 0) return listedCompare;
+
     const positionCompare = comparePositions(a, b);
     if (positionCompare !== 0) return positionCompare;
 
-    const codeCompare = compareNavigationCodes(
-      extractNavigationCode(a),
-      extractNavigationCode(b),
+    const nameCompare = naturalCompare(
+      a.sortName ?? getFileStem(a.href),
+      b.sortName ?? getFileStem(b.href),
     );
-    if (codeCompare !== 0) return codeCompare;
-
-    const typeCompare = navigationTypeWeight(a) - navigationTypeWeight(b);
-    if (typeCompare !== 0) return typeCompare;
+    if (nameCompare !== 0) return nameCompare;
 
     const titleCompare = naturalCompare(a.title, b.title);
     if (titleCompare !== 0) return titleCompare;
 
     return naturalCompare(a.href, b.href);
   });
+}
+
+/**
+ * The order that BSO derived before the menu order was specified: lesson codes
+ * read from titles and file names, quizzes after lessons. Kept only to tell a
+ * course that still relies on it what changed.
+ */
+function legacyNavigationOrder(entries: ManifestEntry[]): ManifestEntry[] {
+  return [...entries].sort((a, b) => {
+    const codeCompare = compareNavigationCodes(
+      extractNavigationCode(a),
+      extractNavigationCode(b),
+    );
+    if (codeCompare !== 0) return codeCompare;
+    const typeCompare = navigationTypeWeight(a) - navigationTypeWeight(b);
+    if (typeCompare !== 0) return typeCompare;
+    const titleCompare = naturalCompare(a.title, b.title);
+    if (titleCompare !== 0) return titleCompare;
+    return naturalCompare(a.href, b.href);
+  });
+}
+
+/** A module whose order only followed from the old derivation. */
+export interface ImplicitOrderProblem {
+  module: string;
+  /** Hrefs in the order BSO used to give them, and in the order they have now. */
+  before: string[];
+  after: string[];
+}
+
+/**
+ * The modules whose files have neither an overview list nor a `sidebar_position`
+ * and whose old derived order differs from the natural order: for those the
+ * order changes, and BSO says so instead of reordering silently.
+ */
+export function implicitOrderProblems(
+  entries: ManifestEntry[],
+  options: NavigationOptions = {},
+): ImplicitOrderProblem[] {
+  const modules = new Map<string, ManifestEntry[]>();
+  for (const entry of entries) {
+    if (entry.hidden || entry.href.startsWith("readers/")) continue;
+    if (
+      entry.order !== undefined || entry.position !== undefined ||
+      moduleLeadPageWeight(entry) === 0 || entry.href === options.firstHref
+    ) continue;
+    const module = getGroupLabel(entry.href) ?? "";
+    modules.set(module, [...(modules.get(module) ?? []), entry]);
+  }
+  const problems: ImplicitOrderProblem[] = [];
+  for (const [module, moduleEntries] of modules) {
+    const natural = sortManifestEntriesForNavigation(moduleEntries, options)
+      .map((entry) => entry.href);
+    const legacy = legacyNavigationOrder(moduleEntries).map((entry) =>
+      entry.href
+    );
+    if (natural.join("\n") !== legacy.join("\n")) {
+      problems.push({ module, before: legacy, after: natural });
+    }
+  }
+  return problems.sort((a, b) => naturalCompare(a.module, b.module));
 }
 
 /**
@@ -257,7 +332,8 @@ export function buildNavigationModel(
 
   for (const entry of sortedEntries) {
     if (
-      isNavigationExcluded(entry) ||
+      // A hidden entry only carries files (the images of a quiz): no menu item.
+      entry.hidden || isNavigationExcluded(entry) ||
       entry.href.startsWith("content/docenten/") ||
       entry.href.startsWith("docenten/")
     ) continue;
@@ -410,13 +486,12 @@ function buildOrganizationItems(
       );
       children.splice(at + 1, 0, ...instructorEntries);
     }
-    const isReadersModule = module.id === navigationGroupId(readersModule.slug) &&
+    const isReadersModule =
+      module.id === navigationGroupId(readersModule.slug) &&
       module.items.length > 0 &&
       module.items.every((item) => item.kind === "reader");
     const identifier = isReadersModule
-      ? `module_${
-        readersModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_")
-      }`
+      ? `module_${readersModule.slug.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`
       : `group_${module.id.replace(/-/g, "_")}`;
     const title = holdsDashboard && dashboard.module?.title
       ? dashboard.module.title

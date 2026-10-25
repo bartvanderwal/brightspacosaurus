@@ -1,3 +1,7 @@
+---
+sidebar_position: 2
+---
+
 # What Brightspacosaurus does
 
 Brightspacosaurus (BSO) turns Markdown course material into a Brightspace Common Cartridge (`.imscc`) package. This demo course shows every feature. Each section below says what it does, links to the page where you can see it, and shows the minimal setting to turn it on; the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/) has the full reference.

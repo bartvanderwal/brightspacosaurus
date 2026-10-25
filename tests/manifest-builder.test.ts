@@ -14,6 +14,7 @@ import {
   buildTimeFromEnv,
   deriveReaderMenuTitle,
   formatBuildInfo,
+  implicitOrderProblems,
   sortManifestEntriesForNavigation,
 } from "../src/manifest-builder.ts";
 import type { ManifestEntry } from "../src/types.ts";
@@ -213,51 +214,101 @@ Deno.test("Brightspace-manifest groepeert entries op eerste submap-naam", () => 
   );
 });
 
-Deno.test("Brightspace-manifest sorteert quizzen direct na hun lescode binnen een week", () => {
-  const entries: ManifestEntry[] = [
-    {
-      id: "res_quiz_week_6_qti_les_6_2_xml",
-      title: "Quiz 6.2",
-      href: "quiz/week-6/qti-les-6-2.xml",
-      type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
-    },
-    {
-      id: "res_content_week_6_les_6_2_html",
-      title: "Les 6.2",
-      href: "content/week-6/les-6.2.html",
-      type: "webcontent",
-    },
-    {
-      id: "res_quiz_week_6_qti_les_6_1_xml",
-      title: "Quiz 6.1",
-      href: "quiz/week-6/qti-les-6-1.xml",
-      type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
-    },
-    {
-      id: "res_content_week_6_les_6_1_html",
-      title: "Les 6.1",
-      href: "content/week-6/les-6.1.html",
-      type: "webcontent",
-    },
-  ];
+// Spec *Menu order*, rules O1-O4 and O11.
+const week6 = (): ManifestEntry[] => [
+  {
+    id: "q2",
+    title: "Quiz 6.2",
+    href: "quiz/week-6/qti-les-6-2.xml",
+    type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+  },
+  {
+    id: "l2",
+    title: "Les 6.2",
+    href: "content/week-6/les-6.2.html",
+    type: "webcontent",
+  },
+  {
+    id: "q1",
+    title: "Quiz 6.1",
+    href: "quiz/week-6/qti-les-6-1.xml",
+    type: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+  },
+  {
+    id: "l1",
+    title: "Les 6.1",
+    href: "content/week-6/les-6.1.html",
+    type: "webcontent",
+  },
+];
 
-  const sorted = sortManifestEntriesForNavigation(entries);
+Deno.test("O4: without an overview or positions the order is the natural order of the names, not read from the titles", () => {
+  assertEquals(
+    sortManifestEntriesForNavigation(week6()).map((entry) => entry.title),
+    ["Les 6.1", "Les 6.2", "Quiz 6.1", "Quiz 6.2"],
+  );
+});
+
+Deno.test("O1: the overview list puts quizzes and lessons in the order of the list", () => {
+  const order: Record<string, number> = { l1: 0, q1: 1, l2: 2, q2: 3 };
+  const sorted = sortManifestEntriesForNavigation(
+    week6().map((entry) => ({ ...entry, order: order[entry.id] })),
+  );
   assertEquals(sorted.map((entry) => entry.title), [
     "Les 6.1",
     "Quiz 6.1",
     "Les 6.2",
     "Quiz 6.2",
   ]);
-
   const xml = buildManifest("Cursus X", sorted);
-  const les61 = xml.indexOf("<title>Les 6.1</title>");
-  const quiz61 = xml.indexOf("<title>Quiz 6.1</title>");
-  const les62 = xml.indexOf("<title>Les 6.2</title>");
-  const quiz62 = xml.indexOf("<title>Quiz 6.2</title>");
+  assertEquals(
+    xml.indexOf("<title>Quiz 6.1</title>") <
+      xml.indexOf("<title>Les 6.2</title>"),
+    true,
+  );
+});
 
-  assertEquals(les61 < quiz61, true);
-  assertEquals(quiz61 < les62, true);
-  assertEquals(les62 < quiz62, true);
+Deno.test("O1/O3: a listed file comes before a file with a sidebar_position, and that before the rest", () => {
+  const entries: ManifestEntry[] = week6().map((entry) => {
+    if (entry.id === "q2") return { ...entry, order: 0 };
+    if (entry.id === "l2") return { ...entry, position: 1 };
+    return entry;
+  });
+  assertEquals(
+    sortManifestEntriesForNavigation(entries).map((entry) => entry.id),
+    ["q2", "l2", "l1", "q1"],
+  );
+});
+
+Deno.test("O11: a module whose order only followed from the old derivation is reported, one with an order is not", () => {
+  const problems = implicitOrderProblems(week6());
+  assertEquals(problems.length, 1);
+  assertEquals(problems[0].module, "week-6");
+  assertEquals(problems[0].before, [
+    "content/week-6/les-6.1.html",
+    "quiz/week-6/qti-les-6-1.xml",
+    "content/week-6/les-6.2.html",
+    "quiz/week-6/qti-les-6-2.xml",
+  ]);
+  assertEquals(problems[0].after, [
+    "content/week-6/les-6.1.html",
+    "content/week-6/les-6.2.html",
+    "quiz/week-6/qti-les-6-1.xml",
+    "quiz/week-6/qti-les-6-2.xml",
+  ]);
+  assertEquals(
+    implicitOrderProblems(
+      week6().map((entry, index) => ({ ...entry, order: index })),
+    )
+      .length,
+    0,
+  );
+  // Lessons that sort the same either way are not a problem.
+  assertEquals(
+    implicitOrderProblems(week6().filter((entry) => entry.id.startsWith("l")))
+      .length,
+    0,
+  );
 });
 
 Deno.test("Brightspace-manifest zet weekintro of weekindex eerst binnen een week", () => {
@@ -897,4 +948,27 @@ Deno.test("buildTimeFromEnv converts SOURCE_DATE_EPOCH and ignores bad values", 
   assertEquals(buildTimeFromEnv(undefined), undefined);
   assertEquals(buildTimeFromEnv(""), undefined);
   assertEquals(buildTimeFromEnv("yesterday"), undefined);
+});
+
+Deno.test("a hidden entry that only carries files is not a menu item in the navigation model", () => {
+  const entries: ManifestEntry[] = [
+    {
+      id: "l",
+      title: "Les",
+      href: "content/week-1/les.html",
+      type: "webcontent",
+    },
+    {
+      id: "a",
+      title: "Quiz (images)",
+      href: "quiz/week-1/assets/a.svg",
+      type: "webcontent",
+      hidden: true,
+    },
+  ];
+  const model = buildNavigationModel(sortManifestEntriesForNavigation(entries));
+  assertEquals(
+    model.modules.flatMap((module) => module.items.map((item) => item.href)),
+    ["content/week-1/les.html"],
+  );
 });

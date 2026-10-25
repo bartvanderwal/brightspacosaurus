@@ -102,6 +102,10 @@ export interface ManifestEntry {
   hidden?: boolean;
   /** `sidebar_position` from the page's front matter, as in Docusaurus. */
   position?: number;
+  /** Index in the overview list of the module's lead page; listed files come first, in list order. */
+  order?: number;
+  /** File name of the source (without extension), for the natural order. */
+  sortName?: string;
 }
 
 // --- Packer ---
@@ -240,6 +244,8 @@ export interface BsoConfig {
   quiz?: QuizConfig;
   /** Configuratie voor diagramrendering (PlantUML/Mermaid via Kroki). Optioneel. */
   diagrams?: DiagramsConfig;
+  /** The order and the contents of the menu of a module (see `MenuConfig`). */
+  menu?: MenuConfig;
   /** Automatic flashcards for configured section headings. */
   flashcards?: FlashcardsConfig;
   /** Teacher page relative to sourcesDir, filled with versions. Default: "for-teachers.md". */
@@ -295,6 +301,16 @@ export interface TeacherManualConfig {
  * Volledig opgelost configuratieobject met absolute paden.
  * Geproduceerd door resolveConfig() na het mergen van CLI-overrides.
  */
+/** Settings for the menu of a module. */
+export interface MenuConfig {
+  /**
+   * Headings of the section in a module's lead page that lists the menu items in
+   * order. Default `["Overview", "Overzicht"]`; a course can use its own name,
+   * for example `["Weekoverzicht"]`.
+   */
+  overviewHeadings?: string[];
+}
+
 export interface ResolvedConfig {
   /** Absoluut pad naar de bronmap voor les- en quizbestanden. */
   sourcesDir: string;
@@ -333,6 +349,8 @@ export interface ResolvedConfig {
   diagrams: ResolvedDiagramConfig;
   /** Automatic flashcards; absent or empty disables heading recognition. */
   flashcards?: FlashcardsConfig;
+  /** Headings that mark the overview list of a module, never empty. */
+  menu: { overviewHeadings: string[] };
   /** Teacher page that BSO fills with versions. Absent = no teacher page. */
   teacherPage?: ResolvedTeacherPageConfig;
   /** Optional lint input selection, with absolute directory paths. */

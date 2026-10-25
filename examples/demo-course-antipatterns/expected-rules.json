@@ -83,5 +83,22 @@
   "lessons/quizzes/quiz-points.md": "quiz-points",
   "lessons/quizzes/quiz-question.md": "quiz-question",
   "lessons/quizzes/quiz-question-name.md": "quizdown-question-name",
-  "lessons/quizzes/quiz-no-bias.md": null
+  "lessons/quizzes/quiz-no-bias.md": null,
+  "lessons/menu-unlisted/forgotten.md": "menu-unlisted",
+  "lessons/menu-draft-listed/index.md": "menu-draft-listed",
+  "lessons/menu-link-missing/index.md": "menu-link-missing",
+  "lessons/menu-link-twice/index.md": "menu-link-twice",
+  "lessons/menu-position-listed/page.md": "menu-position-listed",
+  "lessons/menu-position-duplicate/b.md": "menu-position-duplicate",
+  "lessons/menu-position-partial/b.md": "menu-position-partial",
+  "lessons/menu-unlisted/index.md": null,
+  "lessons/menu-unlisted/listed.md": null,
+  "lessons/menu-draft-listed/draft.md": null,
+  "lessons/menu-link-missing/page.md": null,
+  "lessons/menu-link-twice/page.md": null,
+  "lessons/menu-position-listed/index.md": null,
+  "lessons/menu-position-duplicate/index.md": null,
+  "lessons/menu-position-duplicate/a.md": null,
+  "lessons/menu-position-partial/index.md": null,
+  "lessons/menu-position-partial/a.md": null
 }

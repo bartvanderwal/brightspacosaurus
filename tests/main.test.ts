@@ -42,6 +42,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
       subquestionPrefix: "Subquestion",
     },
     flashcards: { sectionHeadings: ["Kernbegrippen"] },
+    menu: { overviewHeadings: ["Overview", "Overzicht"] },
     diagrams: {
       krokiUrl: "https://kroki.io",
       output: "img-html-base64",
@@ -91,7 +92,10 @@ Deno.test("main helpers parse CLI options and decode generated HTML titles", () 
   });
   assertEquals(parseArgs(["build", "--skip-readers"])?.skipReaders, true);
   assertEquals(parseArgs(["build", "--skip-slides"])?.skipSlides, true);
-  assertEquals(parseArgs(["pack", "--format", "brightspace"])?.format, "brightspace");
+  assertEquals(
+    parseArgs(["pack", "--format", "brightspace"])?.format,
+    "brightspace",
+  );
   assertEquals(parseArgs(["prepare", "--skip-readers"]), null);
   assertStringIncludes(
     buildUsage("0.9.0"),
@@ -375,7 +379,10 @@ Deno.test("topic-course navigation uses the docs root and supports readers in a 
         "readers/reader-glossary.pdf",
       ],
     );
-    assertEquals(introduction.indexId, "course-docs/content/introduction/index");
+    assertEquals(
+      introduction.indexId,
+      "course-docs/content/introduction/index",
+    );
     assertEquals(
       sidebars.docs[0].items,
       [
@@ -402,7 +409,9 @@ Deno.test("bso lint reports missing generated navigation outputs", async () => {
     const config = testConfig(repoRoot);
     await Deno.mkdir(config.sourcesDir, { recursive: true });
     // `bso lint` scans the readers folder too, and stops when it is missing.
-    if (config.readersDir) await Deno.mkdir(config.readersDir, { recursive: true });
+    if (config.readersDir) {
+      await Deno.mkdir(config.readersDir, { recursive: true });
+    }
     await Deno.writeTextFile(
       join(config.sourcesDir, "lesson.md"),
       "# Lesson\n",
@@ -586,13 +595,73 @@ Deno.test("runPack lists a slide deck by its bso-title, after its lesson, withou
     );
     const zip = await JSZip.loadAsync(await Deno.readFile(packageFile));
     const manifest = await zip.file("imsmanifest.xml")!.async("string");
-    assertStringIncludes(manifest, "<title>Slides: Lesson 1.1: FizzBuzz</title>");
+    assertStringIncludes(
+      manifest,
+      "<title>Slides: Lesson 1.1: FizzBuzz</title>",
+    );
     assertEquals(manifest.includes("First slide"), false);
     assertEquals(manifest.includes("data:image"), false);
     assertEquals(
       manifest.indexOf("<title>Lesson 1.1: FizzBuzz</title>") <
         manifest.indexOf("<title>Slides: Lesson 1.1: FizzBuzz</title>"),
       true,
+    );
+  } finally {
+    await Deno.remove(repoRoot, { recursive: true });
+  }
+});
+
+Deno.test("menu order: the overview lists the menu, files outside it and drafts are not built, and an old derived order is an error", async () => {
+  const repoRoot = await Deno.makeTempDir();
+  try {
+    const config = testConfig(repoRoot);
+    const week = join(config.sourcesDir, "week-1");
+    await Deno.mkdir(week, { recursive: true });
+    const write = (name: string, text: string) =>
+      Deno.writeTextFile(join(week, name), text);
+    await write(
+      "weekintro-1.md",
+      "# Week 1\n\n## Overview\n\n- [Quiz](quiz-a.md)\n- [Second](b.md)\n- [First](a.md)\n",
+    );
+    await write("a.md", "# First\n");
+    await write("b.md", "# Second\n");
+    await write("c.md", "# Forgotten\n");
+    await write("d.md", "---\ndraft: true\n---\n# Not ready\n");
+    await write(
+      "quiz-a.md",
+      "---\nsidebar_position: 9\n---\n\n# Quiz\n\n## Vraag 1\n\nWat klopt?\n\n- A. Ja\n- B. Nee\nCorrect answer: A\n",
+    );
+
+    await runBuild(config, false, { skipReaders: true });
+    const navigation = JSON.parse(
+      await Deno.readTextFile(join(config.outputDir, "navigation.json")),
+    );
+    assertEquals(
+      navigation.modules[0].items.map((item: { title: string }) => item.title),
+      ["Week 1", "Quiz", "Second", "First"],
+    );
+    assertEquals(
+      await exists(join(config.outputDir, "content", "week-1", "c.html")),
+      false,
+    );
+    assertEquals(
+      await exists(join(config.outputDir, "content", "week-1", "d.html")),
+      false,
+    );
+
+    // Without an overview, lessons and quizzes whose derived order differs from the natural order are an error.
+    await Deno.remove(week, { recursive: true });
+    await Deno.mkdir(week, { recursive: true });
+    await write("les-6.1.md", "# Les 6.1\n");
+    await write("les-6.2.md", "# Les 6.2\n");
+    await write(
+      "quiz-6.1.md",
+      "# Quiz 6.1\n\n## Vraag 1\n\nWat klopt?\n\n- A. Ja\n- B. Nee\nCorrect answer: A\n",
+    );
+    await assertRejects(
+      () => runBuild(config, false, { skipReaders: true }),
+      Error,
+      "The order of the menu changed",
     );
   } finally {
     await Deno.remove(repoRoot, { recursive: true });

@@ -1,3 +1,7 @@
+---
+sidebar_position: 4
+---
+
 # Quiz 1: Agentic UI patterns
 
 ## Opdracht 1

@@ -54,11 +54,14 @@ import {
   buildNavigationModel,
   buildTimeFromEnv,
   deriveReaderMenuTitle,
+  implicitOrderProblems,
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
 import { nativePackageName, packNative } from "./native-packer.ts";
 import { publishPackages } from "./publisher.ts";
+import { planMenu } from "./menu-plan.ts";
+import type { MenuPlan } from "./menu-plan.ts";
 import type { ManifestEntry, ResolvedConfig } from "./types.ts";
 import {
   EXAMPLE_CONFIG,
@@ -211,6 +214,37 @@ function teacherDashboardSrc(config: ResolvedConfig, teacherPagePath: string): s
   return relative(pageDir, join("docenten", "voortgangsverkenner.html")).split(/[\\/]/).join("/");
 }
 
+/**
+ * The plan of the menu of the course: which files are in it and in which order
+ * (Software Guidebook, *Menu order*). A listed file that does not exist, or a
+ * file listed twice, stops the build.
+ */
+async function planCourseMenu(
+  config: ResolvedConfig,
+  files: string[],
+): Promise<MenuPlan> {
+  const plan = await planMenu({
+    sourcesDir: config.sourcesDir,
+    files,
+    overviewHeadings: config.menu.overviewHeadings,
+    alwaysIncluded: config.teacherPage ? [config.teacherPage.path] : [],
+  });
+  const errors = plan.issues.filter((issue) => issue.severity === "error");
+  if (errors.length) {
+    throw Object.assign(
+      new Error(
+        `The menu of the course is not valid:\n${
+          errors.map((issue) =>
+            `  ${relative(config.repoRoot, issue.file)}:${issue.line}: ${issue.message}`
+          ).join("\n")
+        }`,
+      ),
+      { exitCode: 3 },
+    );
+  }
+  return plan;
+}
+
 /** Options for `runBuild` that do not come from the configuration file. */
 export interface BuildOptions {
   /** Skip all PDF generation with pandoc; pre-built PDFs are still copied. */
@@ -259,6 +293,27 @@ export async function runBuild(
     sourcesDir: config.sourcesDir,
     repoRoot,
   });
+  // Files that are not in the menu (draft, or not in the overview of their module) are not built.
+  const menuPlan = await planCourseMenu(config, [
+    ...scanResult.markdownFiles,
+    ...scanResult.quizFiles,
+  ]);
+  if (menuPlan.excluded.size) {
+    const names = [...menuPlan.excluded].sort().map((file) =>
+      relative(config.sourcesDir, file)
+    );
+    console.log(
+      `Left out of the menu and the package (draft or not in an overview): ${
+        names.join(", ")
+      }`,
+    );
+    scanResult.markdownFiles = scanResult.markdownFiles.filter((file) =>
+      !menuPlan.excluded.has(file)
+    );
+    scanResult.quizFiles = scanResult.quizFiles.filter((file) =>
+      !menuPlan.excluded.has(file)
+    );
+  }
 
   // Reader scan from config.readersDir (null → skip without notice)
   let readerFiles: string[] = [];
@@ -844,10 +899,7 @@ async function writeManifestAndNavigation(
       )
     }`
     : undefined;
-  const sortedEntries = sortManifestEntriesForNavigation(
-    await collectManifestEntries(config),
-    { firstHref: teacherPageHref },
-  );
+  const collectedEntries = await collectManifestEntries(config);
   const sourceScan = scannedQuizFiles === undefined ||
       scannedMarkdownFiles === undefined
     ? await pathExists(config.sourcesDir)
@@ -882,6 +934,61 @@ async function writeManifestAndNavigation(
     sourcePathsByHref.set(
       href,
       sourcePath,
+    );
+  }
+  // The order of the menu comes from the sources: the overview list of the lead
+  // page, then `sidebar_position`, then the natural order of the file names.
+  // The plan is made over all sources, also those that are left out of the build.
+  const allSources = await pathExists(config.sourcesDir)
+    ? await scanSources({
+      sourcesDir: config.sourcesDir,
+      repoRoot: config.repoRoot,
+    })
+    : { quizFiles: [], markdownFiles: [] };
+  const menuPlan = await planCourseMenu(config, [
+    ...allSources.markdownFiles,
+    ...allSources.quizFiles,
+  ]);
+  // A slides topic made from a lesson (`<lesson>-slides.html`) follows its lesson.
+  const sourceOfEntry = (entry: ManifestEntry): string | undefined => {
+    const direct = sourcePathsByHref.get(entry.href);
+    if (direct) return direct;
+    const slidesOf = entry.href.match(/^(content\/.+)-slides\.html$/);
+    return slidesOf ? sourcePathsByHref.get(`${slidesOf[1]}.html`) : undefined;
+  };
+  const orderedEntries = collectedEntries.map((entry) => {
+    const sourcePath = sourceOfEntry(entry);
+    if (!sourcePath) return entry;
+    const listed = menuPlan.listed.get(sourcePath);
+    const position = menuPlan.positions.get(sourcePath);
+    const name = basename(sourcePath).replace(/\.md$/i, "");
+    return {
+      ...entry,
+      sortName: sourcePathsByHref.has(entry.href) ? name : `${name}-slides`,
+      ...(listed === undefined ? {} : { order: listed }),
+      ...(position === undefined ? {} : { position }),
+    };
+  });
+  const sortedEntries = sortManifestEntriesForNavigation(orderedEntries, {
+    firstHref: teacherPageHref,
+  });
+  const implicit = implicitOrderProblems(orderedEntries, {
+    firstHref: teacherPageHref,
+  });
+  if (implicit.length) {
+    throw Object.assign(
+      new Error(
+        `The order of the menu changed: BSO no longer reads it from numbers in titles and file names. In ${
+          implicit.map((problem) =>
+            `${problem.module || "the source folder"} it was:\n${
+              problem.before.map((href) => `    ${href}`).join("\n")
+            }\n  and it is now:\n${
+              problem.after.map((href) => `    ${href}`).join("\n")
+            }`
+          ).join("\n  In ")
+        }\nKeep the old order with a list in the 'Overview' section of the lead page of the module, with 'sidebar_position' in the front matter of the files, or by renaming the files so that their natural order is the order you want (see the user manual, 8.2).`,
+      ),
+      { exitCode: 3 },
     );
   }
   const docIdForEntry = (entry: ManifestEntry): string | null => {

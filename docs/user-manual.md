@@ -139,6 +139,7 @@ The most important fields:
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
 | `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner) |
+| `menu.overviewHeadings` | no       | Headings of the overview section in a module's lead page, default `["Overview", "Overzicht"]`; see [8.2](#82-menu-module-and-order) |
 | `readersModule`        | no       | Menu module for the reader PDFs: `slug` (default `readers`) and `title`; see [8.2](#82-menu-module-and-order) |
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
@@ -265,7 +266,7 @@ For Docusaurus preview parity and implementation details, see the [Software Guid
 
 The `error` or `warning` word is colored (red and dark orange) only when stderr is a terminal, `NO_COLOR` is not set and `TERM` is not `dumb`; in a pipe or log the output stays plain. Only that word is colored, so `file:line:column` stays clickable. When there are diagnostics, one blank line precedes the summary line `Checked N Markdown files: X errors, Y warnings.`
 
-`lesson-frontmatter` (warning) reports YAML frontmatter keys that BSO ignores in a lesson file, and names them. BSO reads one key from a lesson's frontmatter: `sidebar_position`, a number that orders the page in the Brightspace menu, as in the Docusaurus sidebar (see 8.2); it does not trigger the warning, but a value that is not a number does. Readers use `title`, `author`, `version`, `date`, `updated`, `coverImage`, `coverAlt` and `lintHeadingNumbers` instead. For any other key in a lesson, put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
+`lesson-frontmatter` (warning) reports YAML frontmatter keys that BSO ignores in a lesson file, and names them. BSO reads two keys from a lesson's frontmatter: `sidebar_position`, a number that orders the page in the Brightspace menu (see 8.2), and `draft: true`, which leaves the page out of the menu and the package; neither triggers the warning, but a `sidebar_position` that is not a number does. Readers use `title`, `author`, `version`, `date`, `updated`, `coverImage`, `coverAlt` and `lintHeadingNumbers` instead. For any other key in a lesson, put the title as a `# heading` and remove the rest. The rule does not apply to readers, quizzes or included files.
 
 `module-index-title` (error) reports a first-level module `index.md` without a non-empty H1. Its H1 supplies the module title; a YAML `title:` field is not used. `docusaurus-category-metadata` (warning) reports `_category_.json` files in `sourcesDir`: BSO does not read these Docusaurus files.
 
@@ -954,12 +955,25 @@ Put a non-empty H1 in each module's lead page; that heading becomes the module n
 
 The preview derives its sidebar from the same course folders and ordering as the Brightspace menu. You do not need to maintain Docusaurus `sidebars.js` or `_category_.json` files in the course content. BSO ignores `_category_.json`; `bso lint` warns if one remains in `sourcesDir`.
 
-Within a module BSO orders the pages like the Docusaurus sidebar:
+Within a module BSO orders the pages in three layers; the most specific wins, and none is required:
 
-1. the teacher page (`teacherPage`), always first in its module;
-2. the folder's lead page;
-3. pages with `sidebar_position` in their front matter, ascending;
-4. the rest by lesson code (for example `1.2`) and title.
+1. the teacher page (`teacherPage`), always first in its module, and the folder's lead page after it;
+2. **the overview**: an ordered list of links in an `Overview` section (or `Overzicht`; set `menu.overviewHeadings` to use your own name, such as `Weekoverzicht`) of the lead page. The listed files are the menu, in list order, lessons and quizzes and slide decks mixed. This is the recommended way:
+
+   ```markdown
+   ## Overview
+
+   - [Lesson 1.1](lesson-1.md)
+   - [Quiz 1.1](quiz-1.md)
+   - [Lesson 1.2](lesson-2.md)
+   ```
+
+3. `sidebar_position` in the front matter of a lesson, a quiz or a slide deck (one shared system), ascending;
+4. the rest in the natural order of the file name (`lesson-2` before `lesson-10`).
+
+BSO does not read an order from numbers in a title or a file name. A module that has an overview publishes **only the files it lists**: a file that exists but is not listed is not in the menu and not in the package, and `bso build` says which files it left out. The same goes for a file with `draft: true` in its front matter (not ready yet); mark a file you leave out on purpose that way, because `bso lint` warns about a file that is neither listed nor a draft (`menu-unlisted`), and about a listed file that is a draft (`menu-draft-listed`). Other findings: a link to a file that does not exist or listed twice (errors, `menu-link-missing`, `menu-link-twice`), a listed file that also has a `sidebar_position` (`menu-position-listed`; the list wins), the same `sidebar_position` twice in a folder (`menu-position-duplicate`) and a folder where only some files have one (`menu-position-partial`).
+
+**Changed in 0.33.0:** a course that relied on the old derivation, which read lesson codes from titles and file names and put a quiz after the lesson with its code, now stops the build with an error that shows the old and the new order. Choose one of the three ways to say what you mean: an overview, `sidebar_position`, or file names whose natural order is the order you want.
 
 Reader PDFs get their own module by default. To put them in a content module instead, after its pages, set `readersModule` to that folder's name:
 

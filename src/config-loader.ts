@@ -132,6 +132,9 @@ export async function loadConfig(configPath: string): Promise<BsoConfig> {
   return parsed;
 }
 
+/** The headings that mark the overview list of a module unless `menu.overviewHeadings` says otherwise. */
+export const DEFAULT_OVERVIEW_HEADINGS = ["Overview", "Overzicht"];
+
 /**
  * Validates the configuration object against the expected schema.
  * @throws Error if required fields are missing or invalid
@@ -165,6 +168,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "quiz",
     "diagrams",
     "flashcards",
+    "menu",
     "teacherPage",
     "lint",
     "teacherDashboard",
@@ -388,6 +392,34 @@ export function validateConfig(config: unknown): config is BsoConfig {
       );
     }
     validateQuizBias(lint.quizBias);
+  }
+
+  if (obj.menu !== undefined) {
+    if (
+      typeof obj.menu !== "object" || obj.menu === null ||
+      Array.isArray(obj.menu)
+    ) {
+      throw new Error("Field 'menu' must be an object.");
+    }
+    const menu = obj.menu as Record<string, unknown>;
+    for (const key of Object.keys(menu)) {
+      if (key !== "overviewHeadings") {
+        throw new Error(`Unknown configuration field 'menu.${key}'.`);
+      }
+    }
+    if (
+      menu.overviewHeadings !== undefined && (
+        !Array.isArray(menu.overviewHeadings) ||
+        menu.overviewHeadings.length === 0 ||
+        menu.overviewHeadings.some((heading) =>
+          typeof heading !== "string" || !heading.trim()
+        )
+      )
+    ) {
+      throw new Error(
+        "Field 'menu.overviewHeadings' must be a non-empty array of non-empty headings.",
+      );
+    }
   }
 
   // Validate diagrams if it is present
@@ -894,6 +926,11 @@ export function resolveConfig(
       config.flashcards,
       config.diagrams?.locale ?? "nl",
     ),
+    menu: {
+      overviewHeadings: config.menu?.overviewHeadings?.map((heading) =>
+        heading.trim()
+      ) ?? [...DEFAULT_OVERVIEW_HEADINGS],
+    },
     teacherPage: {
       path: resolve(sourcesDir, resolveTeacherPage(config.teacherPage)),
       explicit: config.teacherPage !== undefined,
@@ -945,6 +982,7 @@ export function resolveFromCliOnly(
     teacherManual: null,
     quiz: { ...DEFAULT_QUIZ_CONFIG },
     flashcards: resolveFlashcardsOptions(undefined, "nl"),
+    menu: { overviewHeadings: [...DEFAULT_OVERVIEW_HEADINGS] },
     teacherPage: {
       path: resolve(sourcesDir, resolveTeacherPage()),
       explicit: false,
