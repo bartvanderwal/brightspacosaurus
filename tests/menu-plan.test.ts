@@ -56,6 +56,19 @@ Deno.test("the lead page of a module is recognised by its name", () => {
     assertEquals(isLeadPageName(name), true, name);
   }
   assertEquals(isLeadPageName("lesson-1.md"), false);
+  // The whole file name, not a prefix of it.
+  for (
+    const name of [
+      "index-2.md",
+      "introduction.md",
+      "overview-of-tests.md",
+      "weekintro-one.md",
+      "index.html",
+      "index",
+    ]
+  ) {
+    assertEquals(isLeadPageName(name), false, name);
+  }
 });
 
 async function course(

@@ -132,15 +132,20 @@ function navigationTypeWeight(entry: ManifestEntry): number {
   return entry.type === "webcontent" ? 0 : 1;
 }
 
+/**
+ * Whether a file name without extension is the lead page of a module: exactly
+ * `index`, `intro` or `overview`, or `weekintro` or `weekindex` with an
+ * optional week number (`weekintro-1`). A name that merely starts with one of
+ * these is not a lead page. Case does not matter.
+ */
+export function isLeadPageStem(stem: string): boolean {
+  return /^(?:index|intro|overview|(?:weekintro|weekindex)(?:[-_.]\d+)?)$/i
+    .test(stem);
+}
+
 function moduleLeadPageWeight(entry: ManifestEntry): number {
   if (entry.type !== "webcontent") return 1;
-
-  const stem = getFileStem(entry.href).toLowerCase();
-  return /^(?:weekintro|weekindex|intro|index|overview)(?:[-_.]\d+)?$/.test(
-      stem,
-    )
-    ? 0
-    : 1;
+  return isLeadPageStem(getFileStem(entry.href)) ? 0 : 1;
 }
 
 /** Options for the navigation order. */

@@ -797,10 +797,11 @@ BSO **duplicates** the conventions of Docusaurus (`sidebar_position`, `draft`, t
 
 | # | Rule |
 | --- | --- |
-| O1 | **Layer C, the overview.** The lead page of a module (`index`, `weekintro`, `weekindex`, `intro`, `overview`) may hold an ordered list of links to files of that module in a section named *Overview*. The listed files are the menu items, in list order; lessons, quizzes and slide decks may be mixed. |
+| O1 | **Layer C, the overview.** The lead page of a module may hold an ordered list of links to files of that module in a section named *Overview*. The listed files are the menu items, in list order; lessons, quizzes and slide decks may be mixed. |
 | O2 | **The section name is configurable.** The default heading is `Overview` (`Overzicht` is recognised too); `menu.overviewHeadings` lists the headings to recognise, as `flashcards.sectionHeadings` does for *Core concepts*, for example `["Weekoverzicht"]`. |
 | O3 | **Layer B, `sidebar_position`.** A file of any kind (lesson, QuizDown quiz, slide deck) may set `sidebar_position` in its front matter. Lessons, quizzes and decks share one system. Files not in the list are ordered by it, ascending, after the listed files. |
 | O4 | **Layer A, natural order.** Files that are neither listed nor positioned follow in natural order of the file name (`les-2` before `les-10`). BSO reads no number from a title or a file name beyond what the natural order of the name does. |
+| O1a | **The lead page is recognised by its whole file name**, not by a prefix: `index.md`, `intro.md`, `overview.md`, or `weekintro.md` or `weekindex.md` with an optional week number (`weekintro-1.md`, `weekindex_2.md`); case does not matter. `index-2.md` or `introduction.md` is an ordinary page. |
 | O5 | **Fixed places.** The teacher page (`teacherPage`) comes first in its module and the lead page after it, as now. |
 | O6 | **A module with an overview publishes only what the overview lists.** A file that exists but is not listed is not in the menu and not in the package; it is not published (yet). A module without an overview keeps all its files (layers B and A). |
 | O7 | **`draft: true`.** A file may say in its front matter that it is not ready: BSO leaves it out of the menu and the package, with the same effect as not listing it. The generated Docusaurus front matter gets the same `draft`. |

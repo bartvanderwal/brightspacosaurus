@@ -13,6 +13,7 @@
 
 import { basename, dirname, relative, resolve } from "@std/path";
 import { readDraft, readSidebarPosition } from "./front-matter.ts";
+import { isLeadPageStem } from "./manifest-builder.ts";
 
 /** A finding of the menu plan, reported by `bso lint`. */
 export interface MenuIssue {
@@ -34,10 +35,10 @@ export interface MenuPlan {
   issues: MenuIssue[];
 }
 
-/** The lead page of a module: `index`, `weekintro-1`, `intro`, ... */
+/** The lead page of a module by its file name: `index.md`, `intro.md`, `overview.md`, `weekintro-1.md`, ... */
 export function isLeadPageName(fileName: string): boolean {
-  return /^(?:weekintro|weekindex|intro|index|overview)(?:[-_.]\d+)?\.md$/i
-    .test(fileName);
+  return /\.md$/i.test(fileName) &&
+    isLeadPageStem(fileName.replace(/\.md$/i, ""));
 }
 
 /** A link to a Markdown file in a list item of an overview, with its line. */

@@ -697,7 +697,7 @@ BSO generates an `.imscc` package conforming to IMS Common Cartridge 1.3 from Ma
 
 A Common Cartridge import drops the text and the images of a main menu item (the *module description*). Brightspace's own export (a `.zip` with D2L XML) keeps them: there the HTML of a module sits in the `description` attribute of the module item. `bso pack --format brightspace` builds such a package next to the `.imscc`: `<name>.v<version>.d2l.zip`.
 
-The lead page of each module (`index`, `weekintro`, ...) becomes the module description, with its images; the other lessons and the reader PDFs are topics, and `content/` and `readers/` are the course files. **Quizzes (experimental):** each quiz becomes a `quiz_d2l_<n>.xml` file with a link topic in its module, and the images of the quizzes (diagrams too) go to the root of the package, as Brightspace does itself. BSO writes the same QTI as for the `.imscc` with the extra attributes Brightspace expects; whether Brightspace accepts that, and shows the diagrams, is not yet verified with an import. Until it is, import the quizzes from the `.imscc` as well and compare.
+The lead page of each module (`index.md`, `weekintro-1.md`, ...; see 8.2) becomes the module description, with its images; the other lessons and the reader PDFs are topics, and `content/` and `readers/` are the course files. **Quizzes (experimental):** each quiz becomes a `quiz_d2l_<n>.xml` file with a link topic in its module, and the images of the quizzes (diagrams too) go to the root of the package, as Brightspace does itself. BSO writes the same QTI as for the `.imscc` with the extra attributes Brightspace expects; whether Brightspace accepts that, and shows the diagrams, is not yet verified with an import. Until it is, import the quizzes from the `.imscc` as well and compare.
 
 The format is reverse-engineered from exports, not documented by D2L, so treat the package as a test: import it into a sandbox course first and check the module descriptions on the main menu items (issue #21).
 
@@ -951,7 +951,7 @@ lessons/
     css.md
 ```
 
-Put a non-empty H1 in each module's lead page; that heading becomes the module name in Brightspace and in the preview. BSO uses `index.md`, `weekintro-N.md`, `weekindex-N.md`, `intro.md`, or `overview.md` as the lead page. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without a lead page, the folder name is used.
+Put a non-empty H1 in each module's lead page; that heading becomes the module name in Brightspace and in the preview. BSO takes the file with exactly one of these names as the lead page: `index.md`, `intro.md`, `overview.md`, `weekintro.md` or `weekindex.md`, the last two with an optional week number (`weekintro-1.md`). The whole file name counts, not a prefix: `introduction.md` is an ordinary page. A `title:` in YAML front matter does not set the module name—BSO uses the H1, and `bso lint` reports an index without one. Without a lead page, the folder name is used.
 
 The preview derives its sidebar from the same course folders and ordering as the Brightspace menu. You do not need to maintain Docusaurus `sidebars.js` or `_category_.json` files in the course content. BSO ignores `_category_.json`; `bso lint` warns if one remains in `sourcesDir`.
 
