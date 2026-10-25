@@ -494,4 +494,9 @@ export interface LintConfig {
   includeDirs?: string[];
   /** Thresholds for the quiz bias rules; see `QuizBiasOptions`. */
   quizBias?: QuizBiasOptions;
+  /**
+   * File types besides the default ones that may sit in the course folders, for
+   * example `[".xml"]`. Any other file gets the warning `unexpected-file`.
+   */
+  allowedFileTypes?: string[];
 }

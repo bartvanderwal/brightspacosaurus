@@ -385,7 +385,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     const lint = obj.lint as Record<string, unknown>;
     for (const key of Object.keys(lint)) {
-      if (key !== "includeDirs" && key !== "quizBias") {
+      if (key !== "includeDirs" && key !== "quizBias" && key !== "allowedFileTypes") {
         throw new Error(`Unknown configuration field 'lint.${key}'.`);
       }
     }
@@ -397,6 +397,18 @@ export function validateConfig(config: unknown): config is BsoConfig {
     ) {
       throw new Error(
         "Field 'lint.includeDirs' must be a non-empty array of non-empty directory paths.",
+      );
+    }
+    if (
+      lint.allowedFileTypes !== undefined && (
+        !Array.isArray(lint.allowedFileTypes) ||
+        lint.allowedFileTypes.some((type) =>
+          typeof type !== "string" || !/^\.[A-Za-z0-9]+$/.test(type)
+        )
+      )
+    ) {
+      throw new Error(
+        "Field 'lint.allowedFileTypes' must be an array of file extensions with a leading dot, for example [\".xml\"].",
       );
     }
     validateQuizBias(lint.quizBias);
@@ -948,6 +960,7 @@ export function resolveConfig(
         ? [sourcesDir]
         : config.lint?.includeDirs?.map((dir) => resolve(repoRoot, dir)),
       quizBias: config.lint?.quizBias,
+      allowedFileTypes: config.lint?.allowedFileTypes,
     },
     diagrams: resolveDiagramsConfig(config),
     teacherDashboard: resolveTeacherDashboardConfig(config.teacherDashboard),

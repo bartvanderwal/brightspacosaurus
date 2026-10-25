@@ -979,6 +979,57 @@ export function generatedSlideLessons(
 }
 
 /**
+ * File types that belong in the course folders without a word: Markdown, images,
+ * documents and downloads. Anything else, an `.xml` file or an old QTI export for
+ * example, gets the warning `unexpected-file` unless `lint.allowedFileTypes` lists it.
+ */
+export const DEFAULT_ALLOWED_FILE_TYPES = [
+  ".md",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".svg",
+  ".webp",
+  ".pdf",
+  ".zip",
+  ".pptx",
+  ".docx",
+  ".xlsx",
+  ".csv",
+  ".txt",
+  ".json",
+];
+
+/** The files under a folder whose type is not allowed; dot files and `node_modules` are skipped. */
+export async function unexpectedFiles(
+  dir: string,
+  extraTypes: string[] = [],
+): Promise<string[]> {
+  const allowed = new Set(
+    [...DEFAULT_ALLOWED_FILE_TYPES, ...extraTypes].map((type) =>
+      type.toLowerCase()
+    ),
+  );
+  const found: string[] = [];
+  async function walk(current: string): Promise<void> {
+    for await (const entry of Deno.readDir(current)) {
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      const path = join(current, entry.name);
+      if (entry.isSymlink) continue;
+      if (entry.isDirectory) await walk(path);
+      else if (entry.isFile) {
+        const extension = /\.[^./\\]+$/.exec(entry.name)?.[0].toLowerCase() ??
+          "";
+        if (!allowed.has(extension)) found.push(path);
+      }
+    }
+  }
+  await walk(dir);
+  return found.sort();
+}
+
+/**
  * What is wrong with the whitespace in one folder or file name, or undefined.
  * Edge, double and unusual whitespace break paths in tools and show as `%20`
  * or worse in URLs; a single space only shows as `%20` in the preview.
@@ -1299,6 +1350,23 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
         rule: "menu-link-excluded",
         message:
           `The link to '${link.href}' points at a file that is left out of the menu and the package (a draft, or not in the overview of its module), so it is a dead link for students.`,
+      });
+    }
+  }
+  // Files that do not belong in the course folders: old QTI exports, for example.
+  for (const dir of lintDirs) {
+    for (
+      const file of await unexpectedFiles(dir, config.lint?.allowedFileTypes)
+    ) {
+      const extension = /\.[^./\\]+$/.exec(file)?.[0] ?? "(no extension)";
+      diagnostics.push({
+        sourceFile: file,
+        line: 1,
+        column: 1,
+        severity: "warning",
+        rule: "unexpected-file",
+        message:
+          `A ${extension} file does not belong in the course folders; it may be an old export (a QTI quiz, for example) that BSO does not use. Remove it, or allow the type with lint.allowedFileTypes: ["${extension}"].`,
       });
     }
   }

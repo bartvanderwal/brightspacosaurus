@@ -13,6 +13,7 @@ import {
   lintMarkdown,
   nameWhitespaceProblem,
   shouldColorLint,
+  unexpectedFiles,
 } from "../src/course-linter.ts";
 import {
   loadConfig,
@@ -806,7 +807,11 @@ Deno.test("clean demo has no diagnostics and antipattern demo has exactly one fi
     Object.keys(expectedDiagnostics).length,
   );
   const result = await lintCourse(config);
-  assertEquals(result.filesChecked, Object.keys(expected).length);
+  // `filesChecked` counts Markdown files; the fixture list also holds a file of another type.
+  assertEquals(
+    result.filesChecked,
+    Object.keys(expected).filter((file) => file.endsWith(".md")).length,
+  );
   assertEquals(
     result.diagnostics.length,
     Object.keys(expectedDiagnostics).length,
@@ -830,7 +835,7 @@ Deno.test("local CLI runs clean and antipattern configs, and can select a single
         resolve("examples/demo-course-antipatterns"),
         [],
         1,
-        "46 errors, 31 warnings",
+        "46 errors, 32 warnings",
       ],
       [
         resolve("examples/demo-course-antipatterns"),
@@ -1247,4 +1252,60 @@ Deno.test("numbered-sources: only a heading that is the whole list of sources, n
   assertEquals(rules("## 2. Referenties naar online community-bronnen"), 0);
   assertEquals(rules("## 2. Sources of error"), 0);
   assertEquals(rules("## Referenties"), 0);
+});
+
+Deno.test("unexpected-file: files of a type that does not belong in the course folders, unless the type is allowed", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({
+    dir: resolve("build"),
+    prefix: "unexpected-",
+  });
+  try {
+    for (
+      const name of [
+        "lesson.md",
+        "week/image.PNG",
+        "week/starter.zip",
+        "week/slides.pptx",
+        "week/old-quiz.xml",
+        "week/export.imscc",
+        "week/Makefile",
+        ".DS_Store",
+        "node_modules/x/readme.rst",
+      ]
+    ) {
+      await Deno.mkdir(join(root, name, ".."), { recursive: true });
+      await Deno.writeTextFile(join(root, name), "x");
+    }
+    const names = (files: string[]) =>
+      files.map((file) => relative(root, file));
+    assertEquals(names(await unexpectedFiles(root)), [
+      "week/Makefile",
+      "week/export.imscc",
+      "week/old-quiz.xml",
+    ]);
+    assertEquals(names(await unexpectedFiles(root, [".xml"])), [
+      "week/Makefile",
+      "week/export.imscc",
+    ]);
+    assertThrows(
+      () =>
+        validateConfig({
+          courseName: "C",
+          version: "1",
+          sourcesDir: "lessons",
+          lint: { allowedFileTypes: ["xml"] },
+        }),
+      Error,
+      "lint.allowedFileTypes",
+    );
+    validateConfig({
+      courseName: "C",
+      version: "1",
+      sourcesDir: "lessons",
+      lint: { allowedFileTypes: [".xml"] },
+    });
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
