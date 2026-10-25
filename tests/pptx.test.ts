@@ -294,3 +294,20 @@ Deno.test("X5: headingDivider starts a slide at those headings, like Marp, and a
     2,
   );
 });
+
+// Spec *Nested lesson pages*, rule N12: `#<n>` in a link goes to slide n of the same presentation.
+Deno.test("N12: a link to #2 in a deck becomes a jump to slide 2, not an external link", async () => {
+  const zip = await entries(
+    await convertDeckToPptx(
+      "# One\n\n- [to two](#2) and [outside](https://example.org)\n\n---\n\n# Two\n",
+      { baseDir: images },
+    ),
+  );
+  const slide = await zip.file("ppt/slides/slide1.xml")!.async("string");
+  const rels = await zip.file("ppt/slides/_rels/slide1.xml.rels")!.async(
+    "string",
+  );
+  assertStringIncludes(rels, 'Target="slide2.xml"');
+  assertStringIncludes(rels, "https://example.org");
+  assertStringIncludes(slide, "hlinkClick");
+});

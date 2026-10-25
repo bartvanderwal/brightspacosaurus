@@ -13,7 +13,12 @@ import {
   expandIncludesOnce,
   isSlideDeck,
 } from "./includes.ts";
-import { type DeckLink, deckTopicName, findDeckLinks } from "./linked-decks.ts";
+import {
+  type DeckLink,
+  deckTopicName,
+  findDeckLinks,
+  rewriteLinkTargets,
+} from "./linked-decks.ts";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
@@ -879,10 +884,27 @@ function nestResolver(
     if (isSlideDeck(text)) return undefined;
     return {
       id: path,
-      source: rewriteImagePaths(
-        expandSlideIncludes(text, path),
-        dirname(path),
-        dirname(lesson),
+      // Image paths and links to other pages are relative to the nested page; the deck is that of the overview page.
+      source: rewriteLinkTargets(
+        rewriteImagePaths(
+          expandSlideIncludes(text, path),
+          dirname(path),
+          dirname(lesson),
+        ),
+        (href) => {
+          const [target, fragment] = href.split("#");
+          if (!target) return undefined;
+          let decoded = target;
+          try {
+            decoded = decodeURIComponent(target);
+          } catch {
+            // keep the raw target
+          }
+          return `${
+            relative(dirname(lesson), resolve(dirname(path), decoded))
+              .replaceAll("\\", "/")
+          }${fragment === undefined ? "" : `#${fragment}`}`;
+        },
       ),
     };
   };
@@ -1524,7 +1546,7 @@ export async function exportSlidesToContent(
       file: basename(`${topic}.html`),
       pptx: pptxLinkNames(html).map((name) => ({
         href: copyName(name),
-        label: name,
+        label: copyName(name),
       })),
     };
   };

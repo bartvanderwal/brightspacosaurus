@@ -421,3 +421,91 @@ Deno.test("N5: a section without a number gives no sub-numbers, and a section 2.
       .includes("# 2.1.1 Unit tests"),
   );
 });
+
+// Spec *Generated slides*, rule G1, and *Nested lesson pages*, rules N3 and N12.
+Deno.test("G1/N3: the images under an H1 stand on the title slide and on the divider slide of a nested page", () => {
+  const slides = generateLessonSlides(
+    "# Overview\n\n![Cover](cover.png)\n\nSome words.\n\n## 1. Pages\n\n- [Unit](levels/unit.md)\n",
+    {
+      nestedPage: (url) =>
+        url === "levels/unit.md"
+          ? {
+            id: "unit",
+            source:
+              "# Unit tests\n\n![Unit picture](unit.png)\n\n## 1. Fast\n\n- quick\n",
+          }
+          : undefined,
+    },
+  );
+  assertStringIncludes(
+    slides,
+    "<!-- _class: lead -->\n# Overview\n\n![Cover](cover.png)",
+  );
+  assertStringIncludes(
+    slides,
+    "<!-- _class: lead -->\n# 1.1 Unit tests\n\n![Unit picture](unit.png)",
+  );
+});
+
+Deno.test("N12: links to nested pages and to headings of the deck point at slides of the deck", () => {
+  const pages: Record<string, string> = {
+    "levels/unit.md":
+      "# Unit tests\n\n## 1. Fast\n\n- quick, see [integration](../levels/integration.md#2-slower)\n",
+    "levels/integration.md": "# Integration tests\n\n## 2. Slower\n\n- slow\n",
+  };
+  const slides = generateLessonSlides(
+    [
+      "# Overview",
+      "",
+      "## 1. Pages",
+      "",
+      "- [Unit](levels/unit.md)",
+      "- [Integration](levels/integration.md)",
+      "",
+      "## 2. Back",
+      "",
+      "- [unit again](levels/unit.md), [the pages](#1-pages), [outside](https://example.org/x.md), [unknown](#nowhere)",
+      "",
+    ].join("\n"),
+    {
+      contentsTitle: "Contents",
+      nestedPage: (url) => {
+        const path = url.split("#")[0].replace(/^\.\.\//, "");
+        return pages[path] ? { id: path, source: pages[path] } : undefined;
+      },
+    },
+  );
+  const parts = slides.split("\n\n---\n\n");
+  // Title (with the front matter), contents, "1. Pages", unit divider, "1. Fast", integration divider, "2. Slower", "2. Back".
+  assertEquals(parts.length, 8);
+  const back = parts[parts.length - 1];
+  assertStringIncludes(back, "[unit again](#4)");
+  assertStringIncludes(back, "[the pages](#3)");
+  assertStringIncludes(back, "[outside](https://example.org/x.md)");
+  assertStringIncludes(back, "[unknown](#nowhere)");
+  // A link from a nested page to a heading of another nested page.
+  assertStringIncludes(slides, "[integration](#7)");
+});
+
+// Spec *Generated slides*, rule G6: a table counts the wrapped lines of its long cells.
+Deno.test("G6: a table with long cells continues on more slides than one with short cells", () => {
+  const long = "x".repeat(100);
+  const table = (cell: string) =>
+    [
+      "| A | B | C |",
+      "| --- | --- | --- |",
+      ...Array.from({ length: 7 }, (_, i) => `| ${cell}${i} | b | c |`),
+    ].join("\n");
+  const slidesOf7 = (cell: string) =>
+    generateLessonSlides(`# L\n\n## 1. T\n\n${table(cell)}\n`).split(
+      "\n\n---\n\n",
+    ).filter((slide) => slide.includes("| A | B | C |")).length;
+  assertEquals(slidesOf7("short"), 1);
+  assertEquals(slidesOf7(long) > 1, true);
+  // The header line is repeated on each continuation slide.
+  const parts = generateLessonSlides(`# L\n\n## 1. T\n\n${table(long)}\n`)
+    .split(
+      "\n\n---\n\n",
+    ).filter((slide) => slide.includes("| A | B | C |"));
+  for (const part of parts) assertStringIncludes(part, "| --- | --- | --- |");
+});

@@ -97,23 +97,60 @@ function listBlocks(
   return blocks;
 }
 
+/** The cells of a table row line, without the outer `|`. */
+function tableCells(line: string): string[] {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split(/(?<!\\)\|/)
+    .map((cell) => cell.trim());
+}
+
+/**
+ * How many lines a table row takes on a slide: a long cell wraps, so it counts
+ * as several lines (about 130 characters fit on a line, shared by the columns).
+ */
+function rowLines(line: string, columns: number): number {
+  const perLine = Math.max(14, Math.floor(130 / Math.max(1, columns)));
+  const longest = Math.max(0, ...tableCells(line).map((cell) => cell.length));
+  return Math.max(1, Math.ceil(longest / perLine));
+}
+
+/**
+ * A table that fits on a slide stays in one piece; a longer one continues on
+ * further slides with its header line repeated. The length counts the wrapped
+ * lines of long cells, not only the rows.
+ */
 function tableBlocks(node: MarkdownNode, source: string): SlideBlock[] {
   const value = sourceFor(node, source);
+  if (!value) return [];
   const lines = value.split("\n");
-  if (lines.length <= MAX_SLIDE_LINES) {
-    return value ? [{ markdown: value }] : [];
-  }
-  const blocks: SlideBlock[] = [];
   const header = lines.slice(0, 2);
   const rows = lines.slice(2);
-  const rowsPerSlide = MAX_SLIDE_LINES - header.length;
-  for (let index = 0; index < rows.length; index += rowsPerSlide) {
-    blocks.push({
-      markdown: [...header, ...rows.slice(index, index + rowsPerSlide)].join(
-        "\n",
-      ),
-      separate: true,
-    });
+  const columns = tableCells(header[0]).length;
+  // The header row and the line under it count too.
+  const headerLines = rowLines(header[0], columns) + 1;
+  const weights = rows.map((row) => rowLines(row, columns));
+  if (
+    headerLines + weights.reduce((sum, weight) => sum + weight, 0) <=
+      MAX_SLIDE_LINES
+  ) {
+    return [{ markdown: value }];
+  }
+  const blocks: SlideBlock[] = [];
+  let chunk: string[] = [];
+  let used = headerLines;
+  for (const [index, row] of rows.entries()) {
+    if (chunk.length && used + weights[index] > MAX_SLIDE_LINES) {
+      blocks.push({
+        markdown: [...header, ...chunk].join("\n"),
+        separate: true,
+      });
+      chunk = [];
+      used = headerLines;
+    }
+    chunk.push(row);
+    used += weights[index];
+  }
+  if (chunk.length) {
+    blocks.push({ markdown: [...header, ...chunk].join("\n"), separate: true });
   }
   return blocks;
 }
@@ -278,6 +315,8 @@ interface LessonSection {
  * slide deck of an overview page (spec *Nested lesson pages*).
  */
 interface NestedSet {
+  /** The id of the page, to find its divider slide from a link. */
+  id: string;
   /**
    * The number of this set, such as `2.1` under a section numbered `2.`. It is
    * empty when the section has no number.
@@ -333,19 +372,50 @@ function parseLesson(source: string): ParsedLesson {
   return { tree, title, introNodes, sections };
 }
 
+/** The sources of the images in the nodes under an H1, in order. */
+function introImages(nodes: MarkdownNode[], source: string): string[] {
+  const images: string[] = [];
+  const visit = (node: MarkdownNode) => {
+    if (node.type === "image" || node.type === "imageReference") {
+      const image = sourceFor(node, source);
+      if (image) images.push(image);
+    } else if (node.type === "paragraph") node.children?.forEach(visit);
+  };
+  nodes.forEach(visit);
+  return images;
+}
+
+/** A `lead` slide with a title and the images under the H1 of the page. */
+function titleSlide(
+  title: string,
+  introNodes: MarkdownNode[],
+  source: string,
+): string {
+  const images = introImages(introNodes, source);
+  return `<!-- _class: lead -->\n# ${title}${
+    images.length ? `\n\n${images.join("\n\n")}` : ""
+  }`;
+}
+
 /**
  * The slides of a nested page: first a divider slide with the title of the
  * page, then the slides of its sections, built by the same rules as for any
  * lesson.
  */
-function nestedSet(source: string, number: string): NestedSet {
+function nestedSet(id: string, source: string, number: string): NestedSet {
   const page = parseLesson(source);
   const title = nodeText(page.title).trim();
   return {
+    id,
     number,
     title,
     slides: [
-      `# ${number ? `${number} ` : ""}${title}`,
+      // A divider is a title slide of the set, with the images under its H1.
+      titleSlide(
+        `${number ? `${number} ` : ""}${title}`,
+        page.introNodes,
+        source,
+      ),
       ...page.sections.flatMap((each) =>
         each.blocks.length > 0 ? renderSection(each.heading, each.blocks) : []
       ),
@@ -359,6 +429,80 @@ function nestedSet(source: string, number: string): NestedSet {
  */
 function sectionNumber(heading: string): string {
   return heading.match(/^(\d+(?:\.\d+)*)[.)]?\s/)?.[1] ?? "";
+}
+
+/** The number of slides in a piece of Markdown: its `---` separators outside code, plus one. */
+function slideCount(markdown: string): number {
+  let count = 1;
+  let fence: string | undefined;
+  for (const line of markdown.split("\n")) {
+    const opening = line.match(/^\s*(`{3,}|~{3,})/);
+    if (opening) {
+      if (!fence) fence = opening[1][0];
+      else if (opening[1][0] === fence) fence = undefined;
+    } else if (!fence && /^---\s*$/.test(line)) count++;
+  }
+  return count;
+}
+
+/** The anchor that a heading gets in a rendered page: lower case, no punctuation, hyphens for spaces. */
+function headingSlug(text: string): string {
+  return text.toLowerCase().trim().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(
+    /\s/g,
+    "-",
+  );
+}
+
+/**
+ * Points the links inside a generated deck at slides of the same deck (spec
+ * *Nested lesson pages*, rule N12): a link to a nested page goes to its divider
+ * slide, `#anchor` to the slide of the heading with that anchor, and `page.md#anchor`
+ * to that heading when it is in the page. The target is `#<number>`, which Marp's HTML
+ * and the pptx follow. Other links stay as they are.
+ */
+function linkWithinDeck(
+  slides: string[],
+  dividers: Map<string, number>,
+  nestedPage: LessonSlidesOptions["nestedPage"],
+): string[] {
+  const numbers: number[] = [];
+  let next = 1;
+  for (const slide of slides) {
+    numbers.push(next);
+    next += slideCount(slide);
+  }
+  const anchors = new Map<string, number>();
+  slides.forEach((slide, index) => {
+    const heading = slide.match(/^# (.+)$/m)?.[1];
+    if (!heading) return;
+    const slug = headingSlug(heading.replace(/\s*\(\d+\/\d+\)$/, ""));
+    if (slug && !anchors.has(slug)) anchors.set(slug, numbers[index]);
+  });
+  if (!anchors.size && !dividers.size) return slides;
+  const pages = new Map<string, string | undefined>();
+  const pageOf = (path: string): string | undefined => {
+    if (!pages.has(path)) pages.set(path, nestedPage?.(path)?.id);
+    return pages.get(path);
+  };
+  return slides.map((slide) =>
+    slide.replace(
+      /(?<!!)(\[[^\]]*\]\()([^)\s]+)(\))/g,
+      (whole, open, url, close) => {
+        if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url)) return whole;
+        const [path, fragment] = url.split("#");
+        let target: number | undefined;
+        if (path) {
+          const id = pageOf(path);
+          const divider = id === undefined ? undefined : dividers.get(id);
+          if (divider === undefined) return whole;
+          target = (fragment && anchors.get(fragment)) || numbers[divider];
+        } else if (fragment) {
+          target = anchors.get(fragment);
+        }
+        return target === undefined ? whole : `${open}#${target}${close}`;
+      },
+    )
+  );
 }
 
 /**
@@ -395,7 +539,11 @@ export function generateLessonSlides(
       if (!page || seenPages.has(page.id)) continue;
       seenPages.add(page.id);
       found.push(
-        nestedSet(page.source, base ? `${base}.${found.length + 1}` : ""),
+        nestedSet(
+          page.id,
+          page.source,
+          base ? `${base}.${found.length + 1}` : "",
+        ),
       );
     }
     return found;
@@ -409,7 +557,7 @@ export function generateLessonSlides(
   // heading is left out too (spec rule G4).
   const listed = sections.filter((each) => each.blocks.length > 0);
   // The title slide is a `lead` slide: centred, with the course logo (or the BSO logo).
-  const slides = [`<!-- _class: lead -->\n# ${nodeText(title).trim()}`];
+  const slides = [titleSlide(nodeText(title).trim(), introNodes, source)];
   if (options.contentsTitle && listed.length >= 2) {
     // `1. Intro` after `- ` would start a nested ordered list (roman numbers)
     const entry = (text: string, indent = "") =>
@@ -430,16 +578,22 @@ export function generateLessonSlides(
     );
   }
   slides.push(...introDecks.map((deck) => deck.markdown));
+  // The index in `slides` of the divider slide of each nested page, for links.
+  const dividers = new Map<string, number>();
   for (const { heading, blocks, decks, nested } of sections) {
     slides.push(
       ...(blocks.length > 0 ? renderSection(heading, blocks) : []),
       ...decks.map((deck) => deck.markdown),
-      ...nested.flatMap((set) => set.slides),
     );
+    for (const set of nested) {
+      dividers.set(set.id, slides.length);
+      slides.push(...set.slides);
+    }
   }
+  const linked = linkWithinDeck(slides, dividers, options.nestedPage);
   const definitions = tree.children.filter((node) => node.type === "definition")
     .map((node) => sourceFor(node, source)).filter(Boolean);
-  const deck = slides.join("\n\n---\n\n");
+  const deck = linked.join("\n\n---\n\n");
   return [
     "---",
     "marp: true",

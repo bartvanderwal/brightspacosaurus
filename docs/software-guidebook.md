@@ -664,7 +664,7 @@ An overview page can show the slides of the pages it links to as nested sets, wi
 | --- | --- | --- |
 | N1 | `nest` is a glob or a list of globs, relative to the folder of the lesson. A link in the lesson nests when its target matches. Any other link stays an ordinary link. A file that matches but is not linked is not included. | lesson-slides test |
 | N2 | Inline links to `.md` files outside code count, in the order of the lesson. A page that is linked more than once is nested at the first link only. | lesson-slides test |
-| N3 | The slides of the nested page are the slides that the page gives as a lesson (rules G3-G7), without its own title and contents slide: a divider slide with its H1, then one slide set per section as authored. They sit after the last slide of the section of the overview that contains the link. | lesson-slides test |
+| N3 | The slides of the nested page are the slides that the page gives as a lesson (rules G3-G7), without its own title and contents slide: a divider slide (a `lead` slide) with its number and H1 and the images under it, then one slide set per section as authored. They sit after the last slide of the section of the overview that contains the link. | lesson-slides test |
 | N4 | *One level.* A nested page's own links, linked decks and `nest` setting are not followed. Its includes are expanded one level as for any lesson (#143). | preview test |
 | N5 | *Sub-numbering.* Under a section numbered `P.` (for example `2. The levels`) the k-th nested page of that section gets the number `P.k` (`2.1`, `2.2`, ...). The divider slide shows `P.k <H1 of the page>`, so titles such as "2.2 Integration tests" stay in the navigation and in search. A section without a number gives no sub-numbers; the section headings of the nested page stay as the author wrote them. | lesson-slides test |
 | N6 | The contents slide lists each nested page as a sub-entry under the entry of its section, with its number. | lesson-slides test |
@@ -672,7 +672,8 @@ An overview page can show the slides of the pages it links to as nested sets, wi
 | N8 | The number of nested pages in one section is not limited, but `bso lint` warns (`slides-too-many-nested`) above 9: more than seven plus or minus two items in one place is hard to grasp. | lint test |
 | N9 | `bso lint` warns (`slides-nest-unused`) when a lesson has a `nest` pattern and no link matches it, so a mistyped glob is noticed. | lint test |
 | N10 | The nested pages stay available as their own decks when they are configured as lessons with slides themselves. A change in a nested page shows in the overview deck at the next build: nothing is cached or copied. | preview test |
-| N11 | Generated decks have no pptx (#115), so nested sets have none either. | existing rule |
+| N11 | A nested set is part of the pptx of the deck when the deck has one (X1, X2). | slides-preview test |
+| N12 | *Links inside the deck.* A link to a nested page goes to its divider slide, `#anchor` to the slide of the heading with that anchor, and `page.md#anchor` to that heading when it is in the page; the target is `#<slide number>`, which Marp's HTML and the pptx follow. The links of a nested page are read relative to that page. Other links stay as they are. | lesson-slides and pptx tests |
 
 **Not decided.** How the nested sets appear in a pptx, should generated decks ever get one.
 
@@ -696,12 +697,12 @@ A lesson that becomes slides is read from top to bottom. The rules below say whi
 
 | # | Rule |
 | --- | --- |
-| G1 | *Title slide.* The H1 gives one `lead` slide. |
+| G1 | *Title slide.* The H1 gives one `lead` slide, with the images that stand between the H1 and the first section. |
 | G2 | *Contents slide.* With two or more sections with content, a slide lists them as plain `1. Introduction` lines, in lesson order, followed by the titles of linked decks (rule L6). |
 | G3 | *A section gives slides only for what is on a slide:* lists, tables, images, code and diagrams. Running text is left out. |
 | G4 | *A section without anything of that is left out.* A `##` section that has only running text gets no slide and no entry in the contents slide, and does not count as a section for the contents slide. A linked deck in such a section is still inserted, and its title is still listed. |
 | G5 | *Sources are not sections.* A `Sources`, `Bronnen` or `References` section has slides by the same rules, but needs no number, does not count towards the nine sections and gets no `slides-section-without-content` warning. |
-| G6 | *Long content continues.* More than 6 list items, 12 table lines or 16 code lines continue on a next slide under the same heading. Tables repeat their header line. A section with more than one slide shows a counter after the heading: `Heading (1/3)`, `Heading (2/3)`, `Heading (3/3)`. |
+| G6 | *Long content continues.* More than 6 list items, 12 table lines (a long cell counts as several: about 130 characters fit on a line, shared by the columns) or 16 code lines continue on a next slide under the same heading. Tables repeat their header line. A section with more than one slide shows a counter after the heading: `Heading (1/3)`, `Heading (2/3)`, `Heading (3/3)`. |
 | G7 | *No empty slide.* A `---` that Marp would turn into an empty slide is not written (headingDivider, #141). |
 
 `bso lint` warns (`slides-section-without-content`) about a section that G4 leaves out, so the author knows that the section is not on the slides: *add a list, a table, an image, code or a diagram to it, or leave it as running text on purpose.* Sources are exempt.

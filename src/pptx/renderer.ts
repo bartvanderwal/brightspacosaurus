@@ -114,7 +114,9 @@ async function loadImage(
   }
   if (/^[a-z][a-z\d+.-]*:/i.test(src)) {
     throw new Error(
-      `Slide ${slide}: only local images can go into a .pptx, not '${src.slice(0, 80)}'.`,
+      `Slide ${slide}: only local images can go into a .pptx, not '${
+        src.slice(0, 80)
+      }'.`,
     );
   }
   const file = isAbsolute(src)
@@ -154,7 +156,17 @@ function runOptions(run: PptxRun, theme: PptxTheme, size: number) {
     fontFace: run.code ? "Courier New" : theme.fontFace,
     fontSize: size,
     color: run.href ? theme.accentColor : theme.textColor,
-    ...(run.href ? { hyperlink: { url: run.href } } : {}),
+    ...(run.href
+      ? {
+        // `#12` points at slide 12 of the same presentation.
+        hyperlink: /^#\d+$/.test(run.href)
+          ? {
+            slide: Number(run.href.slice(1)),
+            tooltip: `Slide ${run.href.slice(1)}`,
+          }
+          : { url: run.href },
+      }
+      : {}),
   };
 }
 
@@ -177,6 +189,40 @@ function listText(items: PptxListItem[], depth = 0): string[] {
   ]);
 }
 
+const TABLE_SIZES = [14, 12, 11, 10, 9];
+
+/** Rough height in inches of a table at a font size, with equal columns: a long cell wraps. */
+function tableHeight(
+  block: Extract<PptxBlock, { kind: "table" }>,
+  size: number,
+  width: number,
+): number {
+  const columns = Math.max(1, ...block.rows.map((row) => row.length));
+  const column = width / columns - 0.2;
+  const rows = block.rows.reduce((sum, row) => {
+    const tallest = Math.max(
+      1 / 72,
+      ...row.map((cell) =>
+        textHeight(cell.map((run) => run.text).join(""), size, column)
+      ),
+    );
+    return sum + tallest + 0.12;
+  }, 0);
+  return rows + 0.1;
+}
+
+/** The largest font size from {@link TABLE_SIZES} at which the table fits in `available` inches. */
+function tableSize(
+  block: Extract<PptxBlock, { kind: "table" }>,
+  width: number,
+  available: number,
+): number {
+  return TABLE_SIZES.find((size) =>
+    tableHeight(block, size, width) <= available
+  ) ??
+    TABLE_SIZES[TABLE_SIZES.length - 1];
+}
+
 function blockHeight(block: PptxBlock, size: number, width: number): number {
   if (block.kind === "paragraph" || block.kind === "quote") {
     return textHeight(block.runs.map((run) => run.text).join(""), size, width) +
@@ -188,9 +234,7 @@ function blockHeight(block: PptxBlock, size: number, width: number): number {
       0,
     ) + 0.1;
   }
-  if (block.kind === "table") {
-    return block.rows.length * ((14 * 1.6) / 72 + 0.1) + 0.1;
-  }
+  if (block.kind === "table") return tableHeight(block, TABLE_SIZES[0], width);
   if (block.kind === "code") {
     return block.text.split("\n").length * ((13 * 1.3) / 72) + 0.3;
   }
@@ -346,14 +390,15 @@ async function addSlide(
       });
       y += height;
     } else if (block.kind === "table") {
-      const height = blockHeight(block, size, width);
+      const tableFont = tableSize(block, width, BODY_BOTTOM - y);
+      const height = tableHeight(block, tableFont, width);
       page.addTable(
         block.rows.map((row, rowIndex) =>
           row.map((cell) => ({
             text: cell.map((run) => ({
               text: run.text,
               options: {
-                ...runOptions(run, theme, 14),
+                ...runOptions(run, theme, tableFont),
                 bold: run.bold || rowIndex === 0,
               },
             })),
@@ -363,7 +408,7 @@ async function addSlide(
           x: left,
           y,
           w: width,
-          fontSize: 14,
+          fontSize: tableFont,
           border: { type: "solid", color: "D0D5DB", pt: 1 },
         },
       );
