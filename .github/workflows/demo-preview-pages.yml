@@ -68,12 +68,6 @@ jobs:
         if: github.event_name != 'pull_request'
         run: deno run --config deno.json --allow-read --allow-write=build demo-course-docs/write-dashboard-static.ts build/preview-static
 
-      # Alt/Option+P on a lesson opens its slides: the decks are rendered here,
-      # and the build reads their list from BSO_PREVIEW_SLIDES.
-      - name: Slide decks for the preview
-        if: github.event_name != 'pull_request'
-        run: deno run --config deno.json --allow-read --allow-write=build --allow-env --allow-run=npm demo-course-docs/write-slides-static.ts build/preview-static
-
       - name: Wait for Kroki (PlantUML and Mermaid)
         if: github.event_name != 'pull_request'
         run: |
@@ -84,6 +78,12 @@ jobs:
             sleep 2
           done
           echo "Kroki did not become ready."; exit 1
+
+      # Alt/Option+P on a lesson opens its slides: the decks are rendered here,
+      # and the build reads their list from BSO_PREVIEW_SLIDES.
+      - name: Slide decks for the preview
+        if: github.event_name != 'pull_request'
+        run: deno run --config deno.json --allow-read --allow-write=build --allow-net=localhost:8000 --allow-env --allow-run=npm demo-course-docs/write-slides-static.ts build/preview-static
 
       # Readers are PDFs in Brightspace; the demo shows those PDFs too.
       - name: Install pandoc 3.9 and LuaLaTeX
