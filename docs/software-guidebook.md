@@ -767,6 +767,7 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | X2 | The pptx holds the same slides as the HTML deck: the title slide, the contents slide, the sections, the nested pages with their sub-numbers, and the images and diagrams. |
 | X3 | The file is `slides.pptx` next to the deck, and a lesson page and the slides page link to it like to the pptx of a manual deck; in the package it is named `<lesson>-slides.pptx`, next to the slides topic. |
 | X4 | The generated deck carries its images as `data:` URLs (a diagram is an SVG that Kroki drew); the pptx writer accepts `data:image/png`, `jpeg`, `gif` and `svg+xml` and takes the proportions of an SVG from its `viewBox`. |
+| X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 
 ### 7.9 The publication folder
 

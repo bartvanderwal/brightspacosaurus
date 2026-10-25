@@ -252,3 +252,45 @@ Deno.test("X4: a data URL image goes into the pptx", async () => {
     true,
   );
 });
+
+// Spec *Generated deck pptx*, rule X5: the pptx splits a deck where Marp does.
+Deno.test("X5: headingDivider starts a slide at those headings, like Marp, and a heading in code does not", () => {
+  const deck = [
+    "---",
+    "marp: true",
+    "headingDivider: 2",
+    "---",
+    "",
+    "# Title",
+    "",
+    "## Slide 1 - First",
+    "",
+    "- one",
+    "",
+    "## Slide 2 - Second",
+    "",
+    "```md",
+    "## not a heading",
+    "```",
+    "",
+    "---",
+    "",
+    "## Slide 3 - Third",
+    "",
+    "- three",
+  ].join("\n");
+  const parsed = parseDeck(deck);
+  assertEquals(parsed.slides.length, 4);
+  assertEquals(
+    parseDeck("---\nmarp: true\n---\n\n## One\n\n- a\n\n## Two\n\n- b\n").slides
+      .length,
+    1,
+  );
+  assertEquals(
+    parseDeck(
+      "---\nmarp: true\nheadingDivider: [2, 3]\n---\n\n## One\n\n### Two\n\n#### Four\n",
+    ).slides
+      .length,
+    2,
+  );
+});

@@ -7,6 +7,7 @@
  * @module
  */
 
+import { headingDividerLevels } from "../slide-separators.ts";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
@@ -88,6 +89,7 @@ function splitDeck(markdown: string): { front: string; slides: string[] } {
       start = end + 1;
     }
   }
+  const dividers = headingDividerLevels(front);
   const slides: string[][] = [[]];
   let fence: string | null = null;
   for (const line of lines.slice(start)) {
@@ -98,8 +100,18 @@ function splitDeck(markdown: string): { front: string; slides: string[] } {
         opening[1][0] === fence[0] && opening[1].length >= fence.length
       ) fence = null;
     }
-    if (fence === null && /^---\s*$/.test(line)) slides.push([]);
-    else slides[slides.length - 1].push(line);
+    if (fence === null && /^---\s*$/.test(line)) {
+      slides.push([]);
+      continue;
+    }
+    // Marp's `headingDivider` starts a slide at these headings, unless the heading
+    // is the first thing on its slide.
+    const heading = fence === null ? line.match(/^(#{1,6})\s/) : null;
+    if (
+      heading && dividers.includes(heading[1].length) &&
+      slides[slides.length - 1].some((text) => text.trim() !== "")
+    ) slides.push([]);
+    slides[slides.length - 1].push(line);
   }
   return { front, slides: slides.map((slide) => slide.join("\n")) };
 }
