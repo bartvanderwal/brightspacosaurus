@@ -77,6 +77,7 @@ The automated tests compare emitted diagnostics with `expected-rules.json` and r
 | `menu-position-duplicate` | warning | [b.md](lessons/menu-position-duplicate/b.md) |
 | `menu-position-partial` | warning | [b.md](lessons/menu-position-partial/b.md) |
 | `unexpected-file` | warning | [old-quiz.xml](lessons/metadata/old-quiz.xml) |
+| `slides-appendix-not-last` | warning | [slides-appendix-not-last.md](lessons/metadata/slides-appendix-not-last.md) |
 | `hard-wrapped-lines` | warning | [hard-wrapped-lines.md](lessons/metadata/hard-wrapped-lines.md) |
 | `lesson-frontmatter` | warning | [lesson-frontmatter.md](lessons/metadata/lesson-frontmatter.md) |
 | `metadata-fields-one-line` | warning | [metadata-fields-one-line.md](lessons/metadata/metadata-fields-one-line.md) |

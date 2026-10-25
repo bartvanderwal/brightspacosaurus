@@ -13,6 +13,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- Generated slides: appendices. A section `Bijlagen`, `Appendices`, `Bijlage ...` or `Appendix ...` and everything after it are numbered apart, in the HTML and in the pptx: `Bijlage 5/127` on an appendix slide, `3/12` on the others, and one line in the contents slide (`Bijlagen (B1 t/m B127)`). New lint rule `slides-appendix-not-last` (#156).
 - `bso lint` warns about a file in the course folders whose type does not belong there (`unexpected-file`), such as an `.xml` or `.imscc` file that may be an old QTI export. `lint.allowedFileTypes` allows more types.
 - A generated slide deck, with the pages it nests (`nest`), can be written as an editable `.pptx`: set `pptx: true` on the lesson in `slides.lessons`, or `slides.pptx: true` for the course and `pptx: false` on a lesson to leave one out. The slides and the lesson page link to it. Diagrams and images go into the file (#115, #147).
 - `bso lint` warns about whitespace in folder and file names (`path-whitespace`): a space at the start or end, two spaces in a row, a tab or no-break space, and a single space (it shows as `%20` in URLs and in the preview). Each name is reported once.

@@ -6,7 +6,10 @@
 import { deckMarkerConflict, isSlideDeck } from "./includes.ts";
 import { findDeckLinks, findMarkdownLinks } from "./linked-decks.ts";
 import { isLeadPageName, planMenu } from "./menu-plan.ts";
-import { sectionsWithoutSlideContent } from "./lesson-slides.ts";
+import {
+  isAppendixHeading,
+  sectionsWithoutSlideContent,
+} from "./lesson-slides.ts";
 import {
   findEmptySlideSeparators,
   headingDividerLevels,
@@ -437,10 +440,32 @@ function inspectMarkdown(
     const all = ((tree as Node).children ?? []).filter((node) =>
       node.type === "heading" && node.depth === 2
     );
-    // Sources are never numbered, and not counted as a section.
+    // Sources and appendices are never numbered, and not counted as a section.
     const sections = all.filter((heading) =>
-      !isSourcesHeading(nodeText(heading))
+      !isSourcesHeading(nodeText(heading)) &&
+      !isAppendixHeading(nodeText(heading))
     );
+    // The appendices run to the end of the deck and have their own numbering,
+    // so a section after the first appendix would be numbered as an appendix.
+    const firstAppendix = all.findIndex((heading) =>
+      isAppendixHeading(nodeText(heading))
+    );
+    if (firstAppendix >= 0) {
+      const after = all.slice(firstAppendix).find((heading) =>
+        !isAppendixHeading(nodeText(heading)) &&
+        !isSourcesHeading(nodeText(heading))
+      );
+      if (after) {
+        report(
+          after,
+          "slides-appendix-not-last",
+          `The section '${
+            nodeText(after).trim()
+          }' comes after the first appendix; the slides from the first appendix to the end are appendix slides with their own numbering. Move it before the appendices.`,
+          "warning",
+        );
+      }
+    }
     const unnumbered = sections.filter((heading) =>
       !hasSectionNumber(nodeText(heading))
     );

@@ -1177,6 +1177,9 @@ export async function renderPreviewSlides(
               plan.lesson,
             ),
             {
+              locale: (diagrams ?? resolveDiagramsConfig({})).locale === "en"
+                ? "en"
+                : "nl",
               contentsTitle:
                 (diagrams ?? resolveDiagramsConfig({})).locale === "en"
                   ? "Contents"

@@ -251,6 +251,8 @@ function renderSection(heading: string, blocks: SlideBlock[]): string[] {
 
 /** Options for {@link generateLessonSlides}. */
 export interface LessonSlidesOptions {
+  /** Language of the words for appendices (`Bijlage`, `Appendix`); default `nl`. */
+  locale?: "nl" | "en";
   /**
    * Title of a contents slide, listing the lesson's sections right after the
    * title slide. Omitted: no contents slide. Left out for a lesson with fewer
@@ -505,6 +507,58 @@ function linkWithinDeck(
   );
 }
 
+/** Whether a section heading starts the appendices: `Bijlagen`, `Bijlage A: ...`, `Appendices`, `Appendix A ...`. */
+export function isAppendixHeading(heading: string): boolean {
+  return /^(?:bijlagen|appendices|(?:bijlage|appendix)\b.*)$/i.test(
+    heading.trim().replace(/^\d+(?:\.\d+)*[.)]?\s+/, ""),
+  );
+}
+
+const APPENDIX_WORDS = {
+  nl: { one: "Bijlage", many: "Bijlagen", range: "t/m", letter: "B" },
+  en: { one: "Appendix", many: "Appendices", range: "to", letter: "A" },
+};
+
+/** The slides of a piece of Markdown, split at its `---` lines outside code. */
+function splitSlides(markdown: string): string[] {
+  const slides: string[][] = [[]];
+  let fence: string | undefined;
+  for (const line of markdown.split("\n")) {
+    const opening = line.match(/^\s*(`{3,}|~{3,})/);
+    if (opening) {
+      if (!fence) fence = opening[1][0];
+      else if (opening[1][0] === fence) fence = undefined;
+    }
+    if (!fence && !opening && /^---\s*$/.test(line)) slides.push([]);
+    else slides[slides.length - 1].push(line);
+  }
+  return slides.map((lines) => lines.join("\n").replace(/^\n+|\n+$/g, ""));
+}
+
+/**
+ * Marks the slides from `from` on as appendix slides: Marp leaves them out of
+ * the count (`_paginate: skip`, so the others are `3/12`, not `3/139`) and shows
+ * `Bijlage 5/127` in the footer instead. The class `appendix` tells the pptx.
+ */
+function markAppendix(
+  slides: string[],
+  from: number,
+  words: { one: string },
+): string[] {
+  const parts = slides.slice(from).flatMap(splitSlides);
+  const total = parts.length;
+  const marked = parts.map((part, index) => {
+    const lead = part.match(/^<!-- _class: lead -->\n/);
+    const body = lead ? part.slice(lead[0].length) : part;
+    return `<!-- _class: ${
+      lead ? "lead " : ""
+    }appendix -->\n<!-- _paginate: skip -->\n<!-- _footer: "${words.one} ${
+      index + 1
+    }/${total}" -->\n${body}`;
+  });
+  return [...slides.slice(0, from), ...marked];
+}
+
 /**
  * Builds a Marp slide deck from a lesson: a title slide, an optional contents
  * slide, and slides for the lists, tables, images, code and diagrams of each
@@ -556,6 +610,22 @@ export function generateLessonSlides(
   // A section that has nothing to show on a slide gets no slide, and its
   // heading is left out too (spec rule G4).
   const listed = sections.filter((each) => each.blocks.length > 0);
+  // The appendices run from the first appendix section to the end of the deck.
+  const appendixStart = sections.findIndex((each) =>
+    isAppendixHeading(each.heading)
+  );
+  const words = APPENDIX_WORDS[options.locale ?? "nl"];
+  const appendixTotal = appendixStart < 0 ? 0 : sections.slice(appendixStart)
+    .reduce(
+      (sum, each) =>
+        sum +
+        (each.blocks.length > 0
+          ? renderSection(each.heading, each.blocks).length
+          : 0) +
+        each.decks.reduce((n, deck) => n + slideCount(deck.markdown), 0) +
+        each.nested.reduce((n, set) => n + set.slides.length, 0),
+      0,
+    );
   // The title slide is a `lead` slide: centred, with the course logo (or the BSO logo).
   const slides = [titleSlide(nodeText(title).trim(), introNodes, source)];
   if (options.contentsTitle && listed.length >= 2) {
@@ -566,13 +636,22 @@ export function generateLessonSlides(
       `# ${options.contentsTitle}\n\n${
         [
           ...introDecks.map((deck) => entry(deck.title)),
-          ...sections.flatMap((each) => [
-            ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
-            ...each.decks.map((deck) => entry(deck.title)),
-            ...each.nested.map((set) =>
-              entry(`${set.number ? `${set.number} ` : ""}${set.title}`, "  ")
-            ),
-          ]),
+          ...sections.flatMap((each, index) =>
+            appendixStart >= 0 && index >= appendixStart ? [] : [
+              ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
+              ...each.decks.map((deck) => entry(deck.title)),
+              ...each.nested.map((set) =>
+                entry(`${set.number ? `${set.number} ` : ""}${set.title}`, "  ")
+              ),
+            ]
+          ),
+          ...(appendixTotal > 0
+            ? [
+              entry(
+                `${words.many} (${words.letter}1 ${words.range} ${words.letter}${appendixTotal})`,
+              ),
+            ]
+            : []),
         ].join("\n")
       }`,
     );
@@ -580,7 +659,10 @@ export function generateLessonSlides(
   slides.push(...introDecks.map((deck) => deck.markdown));
   // The index in `slides` of the divider slide of each nested page, for links.
   const dividers = new Map<string, number>();
-  for (const { heading, blocks, decks, nested } of sections) {
+  let appendixFrom = -1;
+  for (const [index, section] of sections.entries()) {
+    const { heading, blocks, decks, nested } = section;
+    if (index === appendixStart) appendixFrom = slides.length;
     slides.push(
       ...(blocks.length > 0 ? renderSection(heading, blocks) : []),
       ...decks.map((deck) => deck.markdown),
@@ -590,7 +672,10 @@ export function generateLessonSlides(
       slides.push(...set.slides);
     }
   }
-  const linked = linkWithinDeck(slides, dividers, options.nestedPage);
+  const numbered = linkWithinDeck(slides, dividers, options.nestedPage);
+  const linked = appendixFrom < 0
+    ? numbered
+    : markAppendix(numbered, appendixFrom, words);
   const definitions = tree.children.filter((node) => node.type === "definition")
     .map((node) => sourceFor(node, source)).filter(Boolean);
   const deck = linked.join("\n\n---\n\n");
@@ -601,6 +686,10 @@ export function generateLessonSlides(
     "paginate: true",
     "---",
     "",
+    ...(appendixFrom < 0 ? [] : [
+      "<style>section.appendix footer{left:auto;right:0;padding:inherit}</style>",
+      "",
+    ]),
     deck,
     ...(definitions.length ? ["", definitions.join("\n\n")] : []),
     "",

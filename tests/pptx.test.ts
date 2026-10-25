@@ -311,3 +311,43 @@ Deno.test("N12: a link to #2 in a deck becomes a jump to slide 2, not an externa
   assertStringIncludes(rels, "https://example.org");
   assertStringIncludes(slide, "hlinkClick");
 });
+
+// Spec *Appendices in a generated deck*, rule A6: the pptx counts the appendix slides apart.
+Deno.test("A6: appendix slides are not counted with the others and show their footer text", async () => {
+  const deck = [
+    "# One",
+    "",
+    "---",
+    "",
+    "# Two",
+    "",
+    "---",
+    "",
+    '<!-- _class: appendix -->\n<!-- _paginate: skip -->\n<!-- _footer: "Bijlage 1/2" -->\n# Appendix A',
+    "",
+    "---",
+    "",
+    '<!-- _class: appendix -->\n<!-- _paginate: skip -->\n<!-- _footer: "Bijlage 2/2" -->\n# Appendix B\n\n<!-- A note for the teacher -->',
+  ].join("\n");
+  const parsed = parseDeck(deck);
+  assertEquals(parsed.slides.map((slide) => slide.appendix), [
+    false,
+    false,
+    true,
+    true,
+  ]);
+  assertEquals(parsed.slides[3].footer, "Bijlage 2/2");
+  // The directive comments are not speaker notes; a real note stays one.
+  assertEquals(parsed.slides[3].notes, ["A note for the teacher"]);
+  const zip = await entries(await convertDeckToPptx(deck, { baseDir: images }));
+  const texts = await Promise.all(
+    [1, 2, 3, 4].map((n) =>
+      zip.file(`ppt/slides/slide${n}.xml`)!.async("string")
+    ),
+  );
+  assertStringIncludes(texts[0], "1/2");
+  assertStringIncludes(texts[1], "2/2");
+  assertStringIncludes(texts[2], "Bijlage 1/2");
+  assertStringIncludes(texts[3], "Bijlage 2/2");
+  assertEquals(texts[3].includes("4/4"), false);
+});

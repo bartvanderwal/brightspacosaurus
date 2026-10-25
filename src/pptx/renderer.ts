@@ -292,7 +292,7 @@ async function addSlide(
   pres: Presentation,
   slide: PptxSlide,
   number: number,
-  total: number,
+  pageLabel: string,
   options: PptxRenderOptions,
   theme: PptxTheme,
   logo: Loaded | undefined,
@@ -458,10 +458,10 @@ async function addSlide(
       altText: "Logo",
     });
   }
-  page.addText(`${number}/${total}`, {
+  page.addText(pageLabel, {
     x: left,
     y: HEIGHT - 0.4,
-    w: 0.8,
+    w: 2.4,
     h: 0.3,
     fontSize: 10,
     color: theme.mutedColor,
@@ -485,12 +485,17 @@ export async function renderDeck(
   const logo = options.logo
     ? await loadImage(options.logo, dirname(resolve(options.logo)), 0)
     : undefined;
+  // The appendix slides are not counted with the others: `3/12`, and
+  // `Bijlage 5/127` (the footer text of the slide) for an appendix slide.
+  const counted = deck.slides.filter((slide) => !slide.appendix).length;
+  let rank = 0;
   for (const [index, slide] of deck.slides.entries()) {
+    if (!slide.appendix) rank++;
     await addSlide(
       pres,
       slide,
       index + 1,
-      deck.slides.length,
+      slide.appendix ? slide.footer ?? "" : `${rank}/${counted}`,
       options,
       theme,
       logo,

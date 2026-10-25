@@ -770,6 +770,19 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | X4 | The generated deck carries its images as `data:` URLs (a diagram is an SVG that Kroki drew); the pptx writer accepts `data:image/png`, `jpeg`, `gif` and `svg+xml` and takes the proportions of an SVG from its `viewBox`. |
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 
+#### Appendices in a generated deck
+
+Decided with the owner for #156; rules A1 to A6, each with a test in `tests/lesson-slides.test.ts`, `tests/pptx.test.ts` and `tests/course-linter.test.ts` (written after the code). Marp leaves a slide with `paginate: skip` out of both the number and the total (checked: the other slides read `3/4` when four slides are counted), so the numbering of the other slides needs no CSS.
+
+| # | Rule |
+| --- | --- |
+| A1 | **What is an appendix.** From the first section whose heading is `Bijlagen`, `Appendices`, `Bijlage ...` or `Appendix ...` (a number in front is ignored) to the end of the deck: its slides, its linked decks and the nested pages below it. |
+| A2 | **Their own numbering.** Each appendix slide has `<!-- _class: appendix -->`, `<!-- _paginate: skip -->` and a footer `Bijlage 5/127` (`Appendix 5/127`; the word follows `diagrams.locale`), counted over all appendix slides. The other slides keep `3/12`. A `<style>` puts the footer at the right, where the page number is. |
+| A3 | **The contents slide** names the appendices as one entry, `Bijlagen (B1 t/m B127)` (`Appendices (A1 to A127)`), instead of one entry per appendix section. |
+| A4 | **Not a section.** An appendix heading is not counted as a section and needs no number, like a list of sources: `slides-unnumbered-headings` and `slides-too-many-sections` leave it out. |
+| A5 | **Appendices come last.** `bso lint` warns (`slides-appendix-not-last`) about a section after the first appendix, because its slides would be appendix slides. A deck without appendix has no appendix marks and no style. |
+| A6 | **The pptx follows.** The parser reads the class `appendix` and the footer text; the writer numbers the other slides `3/12` and writes the footer text on an appendix slide. A manual deck gets this too when its slides carry the class and a footer. |
+
 ### 7.9 The publication folder
 
 `src/publisher.ts` (#145). The build output (`outputDir`) is temporary; some files are published on purpose and belong in version control. The rules, each with a test in `tests/publisher.test.ts`:

@@ -509,3 +509,74 @@ Deno.test("G6: a table with long cells continues on more slides than one with sh
     ).filter((slide) => slide.includes("| A | B | C |"));
   for (const part of parts) assertStringIncludes(part, "| --- | --- | --- |");
 });
+
+// Spec *Appendices in a generated deck*, rules A1-A5.
+const withAppendices = [
+  "# Lesson",
+  "",
+  "## 1. Intro",
+  "",
+  "- one",
+  "",
+  "## 2. Context",
+  "",
+  "- two",
+  "",
+  "## Bijlagen",
+  "",
+  "- [Page](pages/a.md)",
+  "",
+  "## Bijlage B: Extra",
+  "",
+  "- extra",
+  "",
+].join("\n");
+const pageA = { id: "a", source: "# Page A\n\n## 1. Part\n\n- part\n" };
+
+Deno.test("A1-A3: the slides from the first appendix section on are appendix slides with their own count and a contents entry", () => {
+  const deck = generateLessonSlides(withAppendices, {
+    contentsTitle: "Inhoudsopgave",
+    nestedPage: (url) => url === "pages/a.md" ? pageA : undefined,
+  });
+  const parts = deck.split("\n\n---\n\n");
+  // Title, contents, 1. Intro, 2. Context, then Bijlagen, Page A divider, Page A part, Bijlage B.
+  assertEquals(parts.length, 8);
+  // The appendices are one entry in the contents slide, with their own range.
+  assertStringIncludes(parts[1], "- Bijlagen (B1 t/m B4)");
+  assertEquals(parts[1].includes("Bijlage B: Extra"), false);
+  // The normal slides carry no appendix marks.
+  for (const part of parts.slice(1, 4)) {
+    assertEquals(part.includes("appendix"), false);
+  }
+  assertEquals(parts[0].includes("_class: appendix"), false);
+  // The appendix slides do not count in the page numbering and name themselves in the footer.
+  for (const [index, part] of parts.slice(4).entries()) {
+    assertStringIncludes(part, "<!-- _paginate: skip -->");
+    assertStringIncludes(part, `<!-- _footer: "Bijlage ${index + 1}/4" -->`);
+    assertStringIncludes(part, "appendix -->");
+  }
+  assertStringIncludes(deck, "<style>section.appendix footer");
+});
+
+Deno.test("A4: the words of the appendices follow the language", () => {
+  const deck = generateLessonSlides(
+    withAppendices.replace("Bijlage", "Appendix").replace(
+      "Bijlagen",
+      "Appendices",
+    ),
+    { contentsTitle: "Contents", locale: "en" },
+  );
+  assertStringIncludes(deck, "- Appendices (A1 to A");
+  assertStringIncludes(deck, '<!-- _footer: "Appendix 1/');
+});
+
+Deno.test("A5: a deck without appendix has no appendix marks and no style", () => {
+  const deck = generateLessonSlides(
+    "# L\n\n## 1. A\n\n- a\n\n## 2. B\n\n- b\n",
+    {
+      contentsTitle: "Contents",
+    },
+  );
+  assertEquals(deck.includes("appendix"), false);
+  assertEquals(deck.includes("<style>"), false);
+});

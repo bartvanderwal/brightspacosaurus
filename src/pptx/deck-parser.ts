@@ -52,6 +52,10 @@ export interface PptxSlide {
   notes: string[];
   /** The slide is a title slide (the first one, or `<!-- _class: lead -->`). */
   lead: boolean;
+  /** The slide is an appendix slide (`<!-- _class: appendix -->`): left out of the count of the other slides. */
+  appendix: boolean;
+  /** The text of `<!-- _footer: "..." -->`, such as `Bijlage 5/127`; shown instead of the page number of an appendix slide. */
+  footer: string | null;
 }
 
 /** A parsed slide deck. */
@@ -73,7 +77,6 @@ interface MdNode {
 
 const DIRECTIVE =
   /^\s*_?(?:class|paginate|header|footer|backgroundColor|backgroundImage|color|style|theme|size|marp|slides|title)\s*:/;
-const COMMENT = /^<!--([\s\S]*?)-->$/;
 
 /** Splits a slide deck into front matter and slide sources, ignoring `---` in code fences. */
 function splitDeck(markdown: string): { front: string; slides: string[] } {
@@ -176,13 +179,32 @@ function parseSlide(source: string, first: boolean): PptxSlide {
   const tree = unified().use(remarkParse).use(remarkGfm).parse(
     source,
   ) as MdNode;
-  const slide: PptxSlide = { title: null, blocks: [], notes: [], lead: first };
-  const note = (comment: string) => {
-    const body = comment.match(COMMENT)?.[1];
-    if (body === undefined) return false;
-    if (DIRECTIVE.test(body)) {
-      if (/^\s*_?class\s*:\s*.*\blead\b/.test(body)) slide.lead = true;
-    } else if (body.trim()) slide.notes.push(body.trim());
+  const slide: PptxSlide = {
+    title: null,
+    blocks: [],
+    notes: [],
+    lead: first,
+    appendix: false,
+    footer: null,
+  };
+  const note = (html: string) => {
+    // Several comments on consecutive lines are one HTML node.
+    const comments = [...html.matchAll(/<!--([\s\S]*?)-->/g)];
+    if (!comments.length || html.replace(/<!--[\s\S]*?-->/g, "").trim()) {
+      return false;
+    }
+    for (const [, body] of comments) {
+      if (DIRECTIVE.test(body)) {
+        const classes = body.match(/^\s*_?class\s*:\s*(.*)$/)?.[1];
+        if (classes !== undefined) {
+          if (/\blead\b/.test(classes)) slide.lead = true;
+          if (/\bappendix\b/.test(classes)) slide.appendix = true;
+        }
+        const footer = body.match(/^\s*_?footer\s*:\s*["']?(.*?)["']?\s*$/)
+          ?.[1];
+        if (footer) slide.footer = footer;
+      } else if (body.trim()) slide.notes.push(body.trim());
+    }
     return true;
   };
   for (const node of tree.children ?? []) {
