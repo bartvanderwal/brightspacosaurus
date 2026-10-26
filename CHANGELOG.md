@@ -2,6 +2,12 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## Unreleased
+
+### Added
+
+- Slides: `slides.maxImageWidth` (default 1600 pixels, `0` turns it off) shrinks wider PNG and JPEG pictures in the copy that is embedded in the slides and the pptx files, with pure JavaScript libraries (`jpeg-js`, `pngjs`), so it works on every platform without a network; the source pictures stay as they are (#162, ADR 025).
+
 ## 0.33.1
 
 ### Fixed

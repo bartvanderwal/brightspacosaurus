@@ -3,9 +3,11 @@ import {
   assertEquals,
   assertRejects,
   assertStringIncludes,
+  assertThrows,
 } from "@std/assert";
 import { dirname, join, resolve } from "@std/path";
 import JSZip from "jszip";
+import { validateConfig } from "../src/config-loader.ts";
 import {
   DECK_KEY_PREFIX,
   deckWantsPptx,
@@ -2115,4 +2117,82 @@ Deno.test("N10: a change in a nested page shows at the next build, and the page 
       2,
     );
   });
+});
+
+// Spec *Slide images*, rules I7-I9 (ADR 025).
+async function widePng(width: number, height: number): Promise<Uint8Array> {
+  const { Buffer } = await import("node:buffer");
+  const pngjs = (await import("pngjs")).default;
+  const image = new pngjs.PNG({ width, height });
+  const data = new Uint8Array(width * height * 4);
+  let seed = 7;
+  for (let i = 0; i < data.length; i++) {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    data[i] = i % 4 === 3 ? 255 : (seed >> 16) & 255;
+  }
+  image.data = Buffer.from(data);
+  return new Uint8Array(pngjs.PNG.sync.write(image));
+}
+
+Deno.test("I7/I8: the copy of a wide image in the slides is shrunk to slides.maxImageWidth, the source stays, and 0 turns it off", async () => {
+  const source = await widePng(1800, 20);
+  const widthIn = (markdown: string): number => {
+    const match = markdown.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)/);
+    const bytes = Uint8Array.from(atob(match![1]), (c) => c.charCodeAt(0));
+    return new DataView(bytes.buffer).getUint32(16);
+  };
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. Picture\n\n![Wide](wide.png)\n",
+    );
+    await Deno.writeFile(join(root, "lessons/week/wide.png"), source);
+    const run = async (maxImageWidth?: number) => {
+      const captured: string[] = [];
+      await renderPreviewSlides(
+        {
+          lessons: { "week/lesson.md": { generate: true } },
+          ...(maxImageWidth === undefined ? {} : { maxImageWidth }),
+        },
+        root,
+        "lessons",
+        "static",
+        fake(captured),
+      );
+      return widthIn(captured[0]);
+    };
+    // The default is 1600; a setting changes it; 0 keeps the image as it is.
+    assertEquals(await run(), 1600);
+    assertEquals(await run(500), 500);
+    assertEquals(await run(0), 1800);
+    // The source image is never changed.
+    assertEquals(
+      await Deno.readFile(join(root, "lessons/week/wide.png")),
+      source,
+    );
+  });
+});
+
+Deno.test("I9: slides.maxImageWidth is a whole number of pixels or 0", () => {
+  const base = { courseName: "C", version: "1", sourcesDir: "lessons" };
+  validateConfig({
+    ...base,
+    slides: { generateForPrefix: "x", maxImageWidth: 1200 },
+  });
+  validateConfig({
+    ...base,
+    slides: { generateForPrefix: "x", maxImageWidth: 0 },
+  });
+  for (const bad of [-1, 1.5, "1600"]) {
+    assertThrows(
+      () =>
+        validateConfig({
+          ...base,
+          slides: { generateForPrefix: "x", maxImageWidth: bad },
+        }),
+      Error,
+      "slides.maxImageWidth",
+    );
+  }
 });

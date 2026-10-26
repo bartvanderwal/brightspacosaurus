@@ -789,6 +789,23 @@ Decided with the owner for #156; rules A1 to A6, each with a test in `tests/less
 | A6 | **The pptx follows.** The parser reads the class `appendix` and the footer text; the writer numbers the other slides `3/12` and writes the footer text on an appendix slide. A manual deck gets this too when its slides carry the class and a footer. |
 | A7 | **No empty slide from a directive.** The directives of a slide (`_class`, `_paginate`, `_footer`) come after its heading, and the `<style>` after the last slide; a comment before a heading that `headingDivider` splits at is a slide of its own, and so is a `---` before such a heading, so BSO leaves those `---` out of the appendix when the manual deck has a `headingDivider`. | slides-preview test; checked with Marp on a real deck |
 
+#### Slide images
+
+Decided in ADR 025 for #162; rules I1 to I10, with tests in `tests/image-shrink.test.ts`, `tests/slides-preview.test.ts` and `tests/pptx.test.ts` (written after the code). `src/image-shrink.ts`.
+
+| # | Rule |
+| --- | --- |
+| I1 | A PNG or JPEG wider than `slides.maxImageWidth` is made that wide, with the same proportions, in the copy that goes into the slides and the pptx. The type stays (a photo stays a JPEG, a diagram a PNG); nothing is guessed. |
+| I2 | An image that is not wider than the maximum is returned as it was, not enlarged and not encoded again. A maximum of 0 turns shrinking off. |
+| I3 | SVG, GIF, files of another type and files that cannot be decoded are returned as they were. A result that is not smaller than the original is not used. More than 100 million pixels are not decoded. |
+| I4 | The same image gives the same bytes. Transparency stays; the average over the pixels of a new pixel is weighted by alpha. |
+| I5 | A JPEG with a turned Exif orientation is left as it is, because a re-encoded file would lose the turn. |
+| I6 | The resize is an average over the pixels that fall in a new pixel (a box filter), in pure JavaScript (`jpeg-js`, `pngjs`): the same on every platform, no network. |
+| I7 | `slides.maxImageWidth` is a whole number of pixels; the default is 1600; the source file is never changed. |
+| I8 | It applies to the images of generated decks, of manual decks and of the appendix slides in the HTML. |
+| I9 | The setting is checked: a negative number, a fraction or a string is an error. |
+| I10 | The pptx writer shrinks a local image the same way when `maxImageWidth` is given; an image that arrives as a data URL is already shrunk. |
+
 ### 7.9 The publication folder
 
 `src/publisher.ts` (#145). The build output (`outputDir`) is temporary; some files are published on purpose and belong in version control. The rules, each with a test in `tests/publisher.test.ts`:

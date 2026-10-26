@@ -25,6 +25,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import type { ResolvedDiagramConfig, SlidesConfig } from "./types.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
 import { loadAssetBytes } from "./assets.ts";
+import { DEFAULT_MAX_IMAGE_WIDTH, shrinkImage } from "./image-shrink.ts";
 import {
   generateLessonSlides,
   generateNestedAppendix,
@@ -143,6 +144,7 @@ async function imageUrl(
   url: string,
   source: string,
   root: string,
+  maxWidth = 0,
 ): Promise<string> {
   if (/^(?:https?:|data:|#|\/\/)/i.test(url)) return url;
   if (/^[a-z][a-z\d+.-]*:/i.test(url)) {
@@ -164,7 +166,7 @@ async function imageUrl(
     );
   }
   try {
-    const bytes = await Deno.readFile(path);
+    const bytes = shrinkImage(await Deno.readFile(path), mime, maxWidth);
     let binary = "";
     for (const byte of bytes) binary += String.fromCharCode(byte);
     return `data:${mime};base64,${btoa(binary)}`;
@@ -222,6 +224,7 @@ async function embedImages(
   source: string,
   root: string,
   svgImages: Map<string, string>,
+  maxWidth = 0,
 ): Promise<string> {
   const tree = unified().use(remarkParse).use(remarkFrontmatter, ["yaml"])
     .parse(text) as ImageNode;
@@ -239,7 +242,9 @@ async function embedImages(
   }
   definitionsIn(tree);
   function embeddedUrl(url: string): Promise<string> {
-    if (!imageCache.has(url)) imageCache.set(url, imageUrl(url, source, root));
+    if (!imageCache.has(url)) {
+      imageCache.set(url, imageUrl(url, source, root, maxWidth));
+    }
     return imageCache.get(url)!;
   }
   function markdownImageUrl(url: string): string {
@@ -962,6 +967,7 @@ export async function renderPreviewSlides(
   previewFavicon?: string,
 ): Promise<Record<string, string>> {
   if (!config) return {};
+  const maxImageWidth = config.maxImageWidth ?? DEFAULT_MAX_IMAGE_WIDTH;
   if (
     (config.lessons !== undefined &&
       (typeof config.lessons !== "object" || config.lessons === null ||
@@ -1210,6 +1216,7 @@ export async function renderPreviewSlides(
           plan.lesson,
           root,
           svgImages,
+          maxImageWidth,
         ),
         diagrams,
         undefined,
@@ -1233,6 +1240,7 @@ export async function renderPreviewSlides(
         source,
         root,
         svgImages,
+        maxImageWidth,
       );
       const deck = frontmatter(embedded)!;
       if (plan.generate && index === 0) {
@@ -1265,7 +1273,13 @@ export async function renderPreviewSlides(
       });
       if (appendix) {
         const processed = await renderDiagramFences(
-          await embedImages(appendix, plan.lesson, root, svgImages),
+          await embedImages(
+            appendix,
+            plan.lesson,
+            root,
+            svgImages,
+            maxImageWidth,
+          ),
           diagrams,
           undefined,
           svgImages,
@@ -1381,6 +1395,7 @@ export async function renderPreviewSlides(
           }
           used.add(name);
           const bytes = await convertDeckToPptx(deckMarkdown, {
+            maxImageWidth,
             baseDir: dirname(source),
             notes: config.notes === true,
             logo: config.logo

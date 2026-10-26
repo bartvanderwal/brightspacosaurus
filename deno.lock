@@ -6,7 +6,9 @@
     "jsr:@std/path@1": "1.1.4",
     "npm:fast-check@^4.7.0": "4.7.0",
     "npm:image-size@^2.0.2": "2.0.4",
+    "npm:jpeg-js@0.4.4": "0.4.4",
     "npm:jszip@^3.10.0": "3.10.1",
+    "npm:pngjs@7.0.0": "7.0.0",
     "npm:pptxgenjs@^4.0.1": "4.0.1",
     "npm:rehype-external-links@3": "3.0.0",
     "npm:rehype-prism-plus@2": "2.0.2",
@@ -313,6 +315,9 @@
     },
     "isarray@1.0.0": {
       "integrity": "sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ=="
+    },
+    "jpeg-js@0.4.4": {
+      "integrity": "sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg=="
     },
     "jszip@3.10.1": {
       "integrity": "sha512-xXDvecyTpGLrqFrvkrUSoxxfJI5AH7U8zxxtVclpsUtMCq4JQ290LY8AW5c7Ggnr/Y/oK+bQMbqK2qmtk3pN4g==",
@@ -803,6 +808,9 @@
         "entities"
       ]
     },
+    "pngjs@7.0.0": {
+      "integrity": "sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow=="
+    },
     "pptxgenjs@4.0.1": {
       "integrity": "sha512-TeJISr8wouAuXw4C1F/mC33xbZs/FuEG6nH9FG1Zj+nuPcGMP5YRHl6X+j3HSUnS1f3at6k75ZZXPMZlA5Lj9A==",
       "dependencies": [
@@ -1095,7 +1103,9 @@
       "jsr:@std/path@1",
       "npm:fast-check@^4.7.0",
       "npm:image-size@^2.0.2",
+      "npm:jpeg-js@0.4.4",
       "npm:jszip@^3.10.0",
+      "npm:pngjs@7.0.0",
       "npm:pptxgenjs@^4.0.1",
       "npm:rehype-external-links@3",
       "npm:rehype-prism-plus@2",

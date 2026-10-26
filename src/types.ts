@@ -202,6 +202,12 @@ export interface SlidesConfig {
    * matter. Slides generated from a lesson are never converted.
    */
   pptx?: boolean;
+  /**
+   * Largest width in pixels of a PNG or JPEG in the slides and the pptx files; wider
+   * pictures are shrunk in the copy that is embedded, never in the source. Default 1600;
+   * 0 turns it off (ADR 025).
+   */
+  maxImageWidth?: number;
 }
 
 export interface BsoConfig {

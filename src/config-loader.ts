@@ -223,7 +223,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
       if (
         key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
         key !== "theme" && key !== "logo" && key !== "generateForPrefix" &&
-        key !== "pptx"
+        key !== "pptx" && key !== "maxImageWidth"
       ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
@@ -308,6 +308,12 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     if (slides.notes !== undefined && typeof slides.notes !== "boolean") {
       throw new Error("Field 'slides.notes' must be true or false.");
+    }
+    if (
+      slides.maxImageWidth !== undefined &&
+      (!Number.isInteger(slides.maxImageWidth) || (slides.maxImageWidth as number) < 0)
+    ) {
+      throw new Error("Field 'slides.maxImageWidth' must be a whole number of pixels, or 0 to turn it off.");
     }
     if (slides.pptx !== undefined && typeof slides.pptx !== "boolean") {
       throw new Error("Field 'slides.pptx' must be true or false.");

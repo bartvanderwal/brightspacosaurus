@@ -9,6 +9,7 @@
 import pptxgenModule from "pptxgenjs";
 import JSZip from "jszip";
 import { imageSize } from "image-size";
+import { shrinkImage } from "../image-shrink.ts";
 import { dirname, isAbsolute, resolve } from "@std/path";
 import type {
   PptxBlock,
@@ -38,6 +39,8 @@ export interface PptxRenderOptions {
   /** Text shown at the top of every slide; empty or missing shows none. */
   disclaimer?: string;
   theme?: Partial<PptxTheme>;
+  /** Shrink PNG and JPEG files that are wider than this many pixels (0: do not). */
+  maxImageWidth?: number;
   /** Date in the file properties, so the same slide deck gives the same file. */
   date?: string;
 }
@@ -96,6 +99,7 @@ async function loadImage(
   src: string,
   baseDir: string,
   slide: number,
+  maxWidth = 0,
 ): Promise<Loaded> {
   // An image that BSO embedded itself (a generated deck): `data:image/...;base64,...`.
   const dataUrl = src.match(
@@ -135,6 +139,7 @@ async function loadImage(
       `Slide ${slide}: unsupported image type '.${extension}': ${file}`,
     );
   }
+  bytes = shrinkImage(bytes, mime, maxWidth);
   const size = extension === "svg"
     ? svgSize(new TextDecoder().decode(bytes))
     : imageSize(bytes);
@@ -440,7 +445,12 @@ async function addSlide(
 
   if (background && background.kind === "image" && background.background) {
     const { side, share, contain } = background.background;
-    const picture = await loadImage(background.src, options.baseDir, number);
+    const picture = await loadImage(
+      background.src,
+      options.baseDir,
+      number,
+      options.maxImageWidth,
+    );
     const w = WIDTH * share;
     const x = side === "left" ? 0 : side === "right" ? WIDTH - w : 0;
     const fit = contain
@@ -563,7 +573,12 @@ async function addSlide(
       });
       y += height + 0.1;
     } else if (block.kind === "image") {
-      const picture = await loadImage(block.src, options.baseDir, number);
+      const picture = await loadImage(
+        block.src,
+        options.baseDir,
+        number,
+        options.maxImageWidth,
+      );
       const room = Math.max(1.2, BODY_BOTTOM - y);
       const scale = Math.min(width / picture.width, room / picture.height);
       const w = picture.width * scale;

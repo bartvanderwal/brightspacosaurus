@@ -456,3 +456,44 @@ Deno.test("parseDeck reads inline formatting, hard breaks, quotes, code, ordered
   // A comment inside a paragraph is a note, not text.
   assertEquals(slide.notes.includes("inline note"), true);
 });
+
+// Spec *Slide images*, rule I10 (ADR 025): the pptx holds the shrunk copy of a local image.
+Deno.test("I10: a wide local image goes into the pptx shrunk when maxImageWidth says so, and as it is without", async () => {
+  const { Buffer } = await import("node:buffer");
+  const pngjs = (await import("pngjs")).default;
+  const width = 1200;
+  const image = new pngjs.PNG({ width, height: 16 });
+  const data = new Uint8Array(width * 16 * 4);
+  let seed = 9;
+  for (let i = 0; i < data.length; i++) {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    data[i] = i % 4 === 3 ? 255 : (seed >> 16) & 255;
+  }
+  image.data = Buffer.from(data);
+  await Deno.mkdir("build", { recursive: true });
+  const dir = await Deno.makeTempDir({ dir: "build", prefix: "pptx-img-" });
+  try {
+    await Deno.writeFile(
+      `${dir}/wide.png`,
+      new Uint8Array(pngjs.PNG.sync.write(image)),
+    );
+    const widthInPptx = async (maxImageWidth?: number) => {
+      const zip = await entries(
+        await convertDeckToPptx("# T\n\n![w](wide.png)\n", {
+          baseDir: dir,
+          maxImageWidth,
+        }),
+      );
+      const media = Object.keys(zip.files).find((name) =>
+        /^ppt\/media\/.*\.png$/.test(name)
+      )!;
+      const bytes = await zip.file(media)!.async("uint8array");
+      return new DataView(bytes.buffer, bytes.byteOffset).getUint32(16);
+    };
+    assertEquals(await widthInPptx(400), 400);
+    assertEquals(await widthInPptx(0), width);
+    assertEquals(await widthInPptx(), width);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
