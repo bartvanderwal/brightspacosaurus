@@ -288,6 +288,140 @@ function flatten(
   return out;
 }
 
+const MIN_SIZE = SIZES[SIZES.length - 1];
+
+/** Height of a block at the smallest font size: what it needs at least. */
+function minimumHeight(block: PptxBlock, width: number): number {
+  return block.kind === "table"
+    ? tableHeight(block, TABLE_SIZES[TABLE_SIZES.length - 1], width)
+    : blockHeight(block, MIN_SIZE, width);
+}
+
+/** The parts of a block that can go on different slides: list items, table rows, lines of code. */
+function splitUnits(block: PptxBlock): PptxBlock[] {
+  if (block.kind === "list") {
+    return block.items.map((item) => ({ ...block, items: [item] }));
+  }
+  if (block.kind === "table" && block.rows.length > 2) {
+    return block.rows.slice(1).map((row) => ({
+      ...block,
+      rows: [block.rows[0], row],
+    }));
+  }
+  if (block.kind === "code") {
+    return block.text.split("\n").map((line) => ({ ...block, text: line }));
+  }
+  return [block];
+}
+
+/** The blocks of a slide with one more part added: it joins the block before it when it is of the same kind. */
+function withUnit(blocks: PptxBlock[], unit: PptxBlock): PptxBlock[] {
+  const last = blocks[blocks.length - 1];
+  if (last && last.kind === "list" && unit.kind === "list") {
+    return [...blocks.slice(0, -1), {
+      ...last,
+      items: [...last.items, ...unit.items],
+    }];
+  }
+  if (
+    last && last.kind === "table" && unit.kind === "table" &&
+    last.rows[0] === unit.rows[0]
+  ) {
+    return [
+      ...blocks.slice(0, -1),
+      { ...last, rows: [...last.rows, ...unit.rows.slice(1)] },
+    ];
+  }
+  if (last && last.kind === "code" && unit.kind === "code") {
+    return [
+      ...blocks.slice(0, -1),
+      { ...last, text: `${last.text}\n${unit.text}` },
+    ];
+  }
+  return [...blocks, unit];
+}
+
+/** Copy of a block (or run) with the `#<slide>` links pointed at the new slide numbers. */
+function remapLinks<T>(value: T, map: number[]): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => remapLinks(item, map)) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        key === "href" && typeof item === "string" && /^#\d+$/.test(item)
+          ? `#${map[Number(item.slice(1)) - 1] ?? item.slice(1)}`
+          : remapLinks(item, map),
+      ]),
+    ) as T;
+  }
+  return value;
+}
+
+/**
+ * Spreads the content of a slide over more slides when it does not fit even at
+ * the smallest font size: list items, table rows (with the header repeated) and
+ * lines of code go to a next slide with the same title and a counter, `(2/3)`.
+ * The speaker notes stay with the first of them. Links to other slides
+ * (`#12`) follow the new numbering.
+ */
+export function paginateSlides(slides: PptxSlide[]): PptxSlide[] {
+  const pieces = slides.map((slide) => {
+    if (slide.lead) return [slide];
+    const background = slide.blocks.find((block) =>
+      block.kind === "image" && block.background
+    );
+    const width = (WIDTH - 2 * MARGIN) *
+      (background && background.kind === "image" && background.background
+        ? 1 - background.background.share
+        : 1);
+    const available = BODY_BOTTOM - BODY_TOP;
+    const need = (blocks: PptxBlock[]) =>
+      blocks.filter((block) => block.kind !== "image").reduce(
+        (sum, block) => sum + minimumHeight(block, width),
+        0,
+      );
+    if (need(slide.blocks) <= available) return [slide];
+    let parts: PptxBlock[][] = [[]];
+    for (const block of slide.blocks) {
+      if (block.kind === "image") {
+        parts[parts.length - 1] = [...parts[parts.length - 1], block];
+        continue;
+      }
+      for (const unit of splitUnits(block)) {
+        let current = parts[parts.length - 1];
+        let trial = withUnit(current, unit);
+        if (
+          current.some((b) => b.kind !== "image") && need(trial) > available
+        ) {
+          parts = [...parts, []];
+          current = parts[parts.length - 1];
+          trial = withUnit(current, unit);
+        }
+        parts[parts.length - 1] = trial;
+      }
+    }
+    if (parts.length < 2) return [slide];
+    return parts.map((blocks, index) => ({
+      ...slide,
+      title: slide.title
+        ? `${slide.title} (${index + 1}/${parts.length})`
+        : slide.title,
+      blocks,
+      notes: index === 0 ? slide.notes : [],
+    }));
+  });
+  // Where the first slide of each original slide ended up, for the `#<n>` links.
+  const first: number[] = [];
+  let next = 1;
+  for (const group of pieces) {
+    first.push(next);
+    next += group.length;
+  }
+  return pieces.flat().map((slide) => remapLinks(slide, first));
+}
+
 async function addSlide(
   pres: Presentation,
   slide: PptxSlide,
@@ -487,9 +621,10 @@ export async function renderDeck(
     : undefined;
   // The appendix slides are not counted with the others: `3/12`, and
   // `Bijlage 5/127` (the footer text of the slide) for an appendix slide.
-  const counted = deck.slides.filter((slide) => !slide.appendix).length;
+  const slides = paginateSlides(deck.slides);
+  const counted = slides.filter((slide) => !slide.appendix).length;
   let rank = 0;
-  for (const [index, slide] of deck.slides.entries()) {
+  for (const [index, slide] of slides.entries()) {
     if (!slide.appendix) rank++;
     await addSlide(
       pres,

@@ -351,3 +351,60 @@ Deno.test("A6: appendix slides are not counted with the others and show their fo
   assertStringIncludes(texts[3], "Bijlage 2/2");
   assertEquals(texts[3].includes("4/4"), false);
 });
+
+// Spec *Generated deck pptx*, rule X6: what does not fit goes on a next slide.
+Deno.test("X6: a list that does not fit continues on more slides with a counter, and links follow the new numbers", async () => {
+  const items = Array.from({ length: 40 }, (_, i) => `- item number ${i + 1}`)
+    .join("\n");
+  const deck =
+    `# Title\n\n---\n\n# One\n\n[to two](#3)\n\n${items}\n\n---\n\n# Two\n\n- short\n`;
+  const zip = await entries(await convertDeckToPptx(deck, { baseDir: images }));
+  const slides = Object.keys(zip.files).filter((name) =>
+    /^ppt\/slides\/slide\d+\.xml$/.test(name)
+  );
+  assertEquals(slides.length > 3, true);
+  const first = await zip.file("ppt/slides/slide2.xml")!.async("string");
+  assertStringIncludes(first, `One (1/${slides.length - 2})`);
+  const last = await zip.file(`ppt/slides/slide${slides.length}.xml`)!.async(
+    "string",
+  );
+  assertStringIncludes(last, "Two");
+  // Slide 3 of the deck is now the last slide.
+  const rels = await zip.file("ppt/slides/_rels/slide2.xml.rels")!.async(
+    "string",
+  );
+  assertStringIncludes(rels, `Target="slide${slides.length}.xml"`);
+  // Every item is somewhere, once.
+  const all = (await Promise.all(
+    slides.map((name) => zip.file(name)!.async("string")),
+  )).join("\n");
+  for (const n of [1, 20, 40]) {
+    assertEquals(all.split(`item number ${n}<`).length - 1, 1);
+  }
+});
+
+Deno.test("X6: a table that does not fit continues with its header, a slide that fits stays one", async () => {
+  const rows = Array.from(
+    { length: 30 },
+    (_, i) => `| row ${i + 1} | value ${i + 1} |`,
+  ).join("\n");
+  const long =
+    `# Title\n\n---\n\n# Table\n\n| Name | Value |\n| --- | --- |\n${rows}\n`;
+  const zip = await entries(await convertDeckToPptx(long, { baseDir: images }));
+  const slides = Object.keys(zip.files).filter((name) =>
+    /^ppt\/slides\/slide\d+\.xml$/.test(name)
+  );
+  assertEquals(slides.length > 1, true);
+  for (const name of slides.slice(1)) {
+    assertStringIncludes(await zip.file(name)!.async("string"), "Name");
+  }
+  const short = await entries(
+    await convertDeckToPptx("# Short\n\n- a\n- b\n", { baseDir: images }),
+  );
+  assertEquals(
+    Object.keys(short.files).filter((name) =>
+      /^ppt\/slides\/slide\d+\.xml$/.test(name)
+    ).length,
+    1,
+  );
+});

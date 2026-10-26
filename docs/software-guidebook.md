@@ -773,6 +773,7 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | X3 | The file is `slides.pptx` next to the deck, and a lesson page and the slides page link to it like to the pptx of a manual deck; in the package it is named `<lesson>-slides.pptx`, next to the slides topic. |
 | X4 | The generated deck carries its images as `data:` URLs (a diagram is an SVG that Kroki drew); the pptx writer accepts `data:image/png`, `jpeg`, `gif` and `svg+xml` and takes the proportions of an SVG from its `viewBox`. |
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
+| X6 | *What does not fit goes on a next slide.* A slide whose text does not fit at the smallest font size continues on further slides with the same title and a counter, `Title (2/3)`: list items, table rows (the header repeated) and lines of code are spread; the speaker notes stay with the first slide, an image stays where it was, and a link to another slide (`#12`) follows the new numbering. A title slide is not split. | pptx tests |
 
 #### Appendices in a generated deck
 

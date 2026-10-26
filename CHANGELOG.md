@@ -24,6 +24,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Fixed
 
+- pptx: content that does not fit on a slide even at the smallest font size (a long list, a table with many rows, a long piece of code) continues on further slides with the same title and a counter, `(2/3)`; the table header is repeated and links to other slides follow the new numbers (#156).
 - Generated slides: an image under the H1 of a lesson stands on the title slide, and on the divider slide of a nested page, which is now a `lead` slide. A link to a nested page, or to a heading of the deck (`#anchor`, `page.md#anchor`), points at that slide, in the HTML and in the pptx (`#<number>`). A table with long cells continues on more slides, with its header repeated, and the pptx shrinks the font of a table until it fits. The download link of a generated deck names the file `<lesson>-slides.pptx` (#156).
 - pptx: a deck that splits its slides with Marp's `headingDivider` (`## Slide 1`, `## Slide 2`, without `---`) became one slide in the pptx. The pptx now splits at the same headings as Marp does (#155).
 - The hidden resource that carries the images of a quiz no longer appears as a menu item in `navigation.json`, the Docusaurus sidebar and the native package.
