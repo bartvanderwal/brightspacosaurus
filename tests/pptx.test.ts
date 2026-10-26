@@ -408,3 +408,51 @@ Deno.test("X6: a table that does not fit continues with its header, a slide that
     1,
   );
 });
+
+Deno.test("parseDeck reads inline formatting, hard breaks, quotes, code, ordered lists and tables", () => {
+  const deck = [
+    "# Rich",
+    "",
+    "Some **bold**, *italic*, ~~gone~~, `code` and a [link](https://example.org).  ",
+    "Second line after a hard break.",
+    "",
+    "> A quoted line",
+    "",
+    "```js",
+    "const x = 1;",
+    "```",
+    "",
+    "1. First",
+    "2. Second",
+    "",
+    "| A | B |",
+    "| --- | --- |",
+    "| 1 | **2** |",
+    "",
+    "### A deeper heading stays text",
+    "",
+    "Text with a comment <!-- inline note --> inside.",
+  ].join("\n");
+  const [slide] = parseDeck(deck).slides;
+  const kinds = slide.blocks.map((block) => block.kind);
+  assertEquals(kinds.includes("quote"), true);
+  assertEquals(kinds.includes("code"), true);
+  assertEquals(kinds.includes("table"), true);
+  const list = slide.blocks.find((block) => block.kind === "list");
+  assertEquals(list?.kind === "list" && list.ordered, true);
+  const paragraph = slide.blocks.find((block) => block.kind === "paragraph");
+  const runs = paragraph?.kind === "paragraph" ? paragraph.runs : [];
+  assertEquals(runs.some((run) => run.bold && run.text === "bold"), true);
+  assertEquals(runs.some((run) => run.italic && run.text === "italic"), true);
+  assertEquals(runs.some((run) => run.code && run.text === "code"), true);
+  assertEquals(
+    runs.some((run) =>
+      run.href === "https://example.org" && run.text === "link"
+    ),
+    true,
+  );
+  assertEquals(runs.some((run) => run.text === "\n"), true);
+  assertEquals(runs.some((run) => run.text === "gone"), true);
+  // A comment inside a paragraph is a note, not text.
+  assertEquals(slide.notes.includes("inline note"), true);
+});

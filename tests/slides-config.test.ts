@@ -294,3 +294,57 @@ Deno.test("slides.lessons nest needs generate or decks, and works with a manual 
     "needs 'generate: true' or 'decks'",
   );
 });
+
+Deno.test("remarkPreviewSlides adds the hidden slides marker with a default base URL, and nothing for a page without slides or a path", () => {
+  const tree = { children: [] as unknown[] };
+  remarkPreviewSlides({ lessons: { "/repo/a.md": "slides/a/index.html" } })(
+    tree,
+    { path: "/repo/a.md" },
+  );
+  const marker = tree.children[0] as {
+    attributes: { name: string; value: string | null }[];
+  };
+  assertEquals(
+    marker.attributes.find((attribute) => attribute.name === "data-bso-slides")
+      ?.value,
+    "/slides/a/index.html",
+  );
+  const other = { children: [] as unknown[] };
+  remarkPreviewSlides({ lessons: {} })(other, { path: "/repo/b.md" });
+  remarkPreviewSlides({ lessons: {} })(other, {});
+  assertEquals(other.children.length, 0);
+});
+
+Deno.test("remarkPreviewDeckLinks recognises a deck on disk by default, and keeps a link to a file that is not a deck", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({ dir: "build", prefix: "deck-links-" });
+  try {
+    const dir = `${Deno.cwd()}/${root}`;
+    await Deno.writeTextFile(`${dir}/deck.md`, "---\nslides: true\n---\n# D\n");
+    await Deno.writeTextFile(`${dir}/page.md`, "# Page\n");
+    const link = (url: string) => ({
+      type: "root",
+      children: [{ type: "link", url, children: [] }],
+    });
+    const plugin = remarkPreviewDeckLinks({ lessons: {} });
+    const deck = link("deck.md");
+    plugin(deck, { path: `${dir}/lesson.md` });
+    // No presentation was rendered, so the link becomes text.
+    assertEquals(
+      (deck.children[0] as { type: string }).type,
+      "mdxJsxTextElement",
+    );
+    const page = link("page.md");
+    plugin(page, { path: `${dir}/lesson.md` });
+    assertEquals((page.children[0] as { url?: string }).url, "page.md");
+    const missing = link("missing.md");
+    plugin(missing, { path: `${dir}/lesson.md` });
+    assertEquals((missing.children[0] as { url?: string }).url, "missing.md");
+    // Without a path of the page there is nothing to resolve against.
+    const none = link("deck.md");
+    plugin(none, {});
+    assertEquals((none.children[0] as { url?: string }).url, "deck.md");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

@@ -1,6 +1,8 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { dirname, join, resolve } from "@std/path";
 import {
+  deckMarkerConflict,
+  deckProblem,
   expandIncludesOnce,
   type IncludeHost,
   isSlideDeck,
@@ -140,4 +142,38 @@ Deno.test("bso lint flags a nested include in a slide deck only through lintCour
     ),
     [],
   );
+});
+
+Deno.test("deckProblem says why a file is not a slide deck, and deckMarkerConflict only for slides plus marp", () => {
+  assertEquals(deckProblem("---\nslides: true\n---\n# A"), undefined);
+  assertEquals(deckProblem("---\nmarp: true # on\n---\n# A"), undefined);
+  assertStringIncludes(
+    deckProblem("# No front matter") ?? "",
+    "no front matter",
+  );
+  assertStringIncludes(
+    deckProblem("---\ntitle: x\n---\n# A") ?? "",
+    "neither",
+  );
+  assertStringIncludes(
+    deckProblem("---\nslides: true\nmarp: true\n---\n# A") ?? "",
+    "more than one",
+  );
+  assertStringIncludes(
+    deckProblem('---\nslides: "true"\n---\n# A') ?? "",
+    "unquoted value true",
+  );
+  assertStringIncludes(
+    deckProblem("---\nslides: true\nnot yaml at all\n---\n# A") ?? "",
+    "malformed",
+  );
+  assertEquals(
+    deckMarkerConflict("---\nslides: true\nmarp: true\n---\n"),
+    true,
+  );
+  assertEquals(
+    deckMarkerConflict("---\nmarp: true\nmarp: false\n---\n"),
+    false,
+  );
+  assertEquals(deckMarkerConflict("# No front matter"), false);
 });
