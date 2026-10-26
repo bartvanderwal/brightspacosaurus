@@ -51,6 +51,11 @@ export {
 } from "./flashcards.ts";
 export type { FlashcardNode, FlashcardsConfig } from "./flashcards.ts";
 export {
+  remarkLearningGoals,
+  resolveLearningGoalsOptions,
+} from "./learning-goals.ts";
+export type { GoalNode, LearningGoalsConfig } from "./learning-goals.ts";
+export {
   DASHBOARD_DIRECTIVE,
   DEFAULT_TEACHER_PAGE,
   insertVersionTable,

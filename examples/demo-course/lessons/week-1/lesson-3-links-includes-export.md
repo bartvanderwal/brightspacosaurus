@@ -2,6 +2,8 @@
 
 **Manual test:** test internal links (#7/#8), external links, Markdown includes and content ordering.
 
+## 1. Learning goals
+
 {@include: [Learning goals](../../partials/learning-goals.md)}
 
 Use the [FizzBuzz lesson](lesson-1-fizzbuzz.md) and the [test strategy lesson](lesson-2-test-strategy.md) to test internal topic links.

@@ -367,6 +367,7 @@ export async function runBuild(
         customCssPath: config.customCss ?? undefined,
         diagrams: config.diagrams,
         flashcards: config.flashcards,
+        learningGoals: config.learningGoals,
         deckLinks: config.slides !== undefined,
         teacherPageVersions: mdFile === teacherPage?.path
           ? {
@@ -1271,6 +1272,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
       BSO_PREVIEW_SLIDES: JSON.stringify(slides),
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
+      BSO_PREVIEW_GOALS_CONFIG: JSON.stringify(config.learningGoals ?? {}),
       BSO_PREVIEW_READERS_MODULE: JSON.stringify(config.readersModule),
       BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({
         path: config.teacherPage?.path ?? null,

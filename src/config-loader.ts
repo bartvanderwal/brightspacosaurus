@@ -8,6 +8,7 @@
  */
 
 import { resolveFlashcardsOptions } from "./flashcards.ts";
+import { resolveLearningGoalsOptions } from "./learning-goals.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
 import { resolveTeacherPage } from "./teacher-page.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
@@ -168,6 +169,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "quiz",
     "diagrams",
     "flashcards",
+    "learningGoals",
     "menu",
     "teacherPage",
     "lint",
@@ -377,6 +379,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
 
   resolveQuizOptions(obj.quiz);
   resolveFlashcardsOptions(obj.flashcards);
+  resolveLearningGoalsOptions(obj.learningGoals);
   resolveTeacherPage(obj.teacherPage);
   resolveReadersModule(obj.readersModule);
   if (obj.readerChapterNewPage !== undefined && typeof obj.readerChapterNewPage !== "boolean") {
@@ -952,6 +955,10 @@ export function resolveConfig(
       config.flashcards,
       config.diagrams?.locale ?? "nl",
     ),
+    learningGoals: resolveLearningGoalsOptions(
+      config.learningGoals,
+      config.diagrams?.locale ?? "nl",
+    ),
     menu: {
       overviewHeadings: config.menu?.overviewHeadings?.map((heading) =>
         heading.trim()
@@ -1009,6 +1016,7 @@ export function resolveFromCliOnly(
     teacherManual: null,
     quiz: { ...DEFAULT_QUIZ_CONFIG },
     flashcards: resolveFlashcardsOptions(undefined, "nl"),
+    learningGoals: resolveLearningGoalsOptions(undefined, "nl"),
     menu: { overviewHeadings: [...DEFAULT_OVERVIEW_HEADINGS] },
     teacherPage: {
       path: resolve(sourcesDir, resolveTeacherPage()),

@@ -240,6 +240,52 @@ article.markdown pre code {
   color: var(--han-ink);
 }
 
+/* Learning goals that a student ticks off; the state stays in the browser (#167). */
+.bso-goals {
+  margin: 1rem 0;
+}
+
+.bso-goals-list {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+
+.bso-goal {
+  margin: 0.4rem 0;
+}
+
+.bso-goal-label {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.bso-goal-check {
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0.2rem 0 0;
+  accent-color: var(--han-red);
+  cursor: pointer;
+}
+
+.bso-goal-check:focus-visible {
+  outline: 3px solid var(--han-red);
+  outline-offset: 2px;
+}
+
+.bso-goal.is-done .bso-goal-text {
+  opacity: 0.75;
+}
+
+.bso-goals-progress {
+  margin: 0 0 0.5rem;
+  font-size: 0.9em;
+  color: var(--han-ink);
+}
+
 /* Flashcards progressively enhance readable Markdown definitions (issue #31). */
 .bso-flashcards {
   margin: 1.5rem 0;

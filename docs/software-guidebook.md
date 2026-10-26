@@ -879,6 +879,26 @@ BSO **duplicates** the conventions of Docusaurus (`sidebar_position`, `draft`, t
 
 **Open points.** Whether a quiz takes `sidebar_position` and `draft` from a front matter block above a `quiz` block. How O11 compares the two orders. The key for "not ready" is `draft`, the Docusaurus name with BSO's own definition; Docusaurus has no `unpublished`. The SKILLS (`bso-course-setup`, `bso-content-authoring`) recommend layer C with an example.
 
+### 7.12 Tickable learning goals
+
+Phase 1 of #167. `src/learning-goals.ts` (`remarkLearningGoals`) uses the same heading recognition as the flashcards (`normalizeSectionHeading`) and turns the bullet list under a learning-goals heading into `section.bso-goals`. `assets/brightspacosaurus-goals.js` adds the behaviour in the browser and is inlined in the Brightspace HTML (`wrapHtml`) and loaded by the preview through `demo-course-docs/src/goals-client.js`. Not built yet: tri-state (open / check with teacher / done), a personal note, traceability to LUK/AC, a coverage check and an aggregated overview.
+
+| # | Rule |
+| --- | --- |
+| LG1 | The bullet list directly under a heading from `learningGoals.sectionHeadings` (default `Learning goals`, `Leerdoelen`) becomes a `section.bso-goals` with one `li.bso-goal` per item, each with a checkbox `input.bso-goal-check`. |
+| LG2 | Each box sits in a `label` with the goal text, so the whole text is clickable and a screen reader reads the goal as the name of the box. |
+| LG3 | Other lists and other sections are left as they are. A list whose first item child is not a paragraph is left alone. |
+| LG4 | Nested lists inside an item stay inside that item. |
+| LG5 | `sectionHeadings: []` turns it off; an empty or non-string heading is rejected with an actionable error. The labels follow `diagrams.locale`. |
+| LG6 | Unknown keys under `learningGoals` are rejected. |
+| LG7 | Ticking saves the goal in `localStorage` and the next visit shows it ticked; unticking removes the entry. The counter ("n of m checked") is updated in both cases, also without storage. |
+| LG8 | The key is `bso:goals:v1:<page>:<hash of the goal text>`. The page is normalised (`index.html`, a trailing slash); a rewritten goal starts empty; pages do not share. The `v1` makes a later change of the format explicit. |
+| LG9 | The order of the goals does not matter, because the key uses the text. |
+| LG10 | Missing, blocked or failing storage never throws: the boxes still work for the visit. |
+| LG11 | A section is set up once, also when the script runs again after a page change in the preview. |
+
+Tests: `tests/learning-goals.test.ts` (LG1-LG6) and `tests/goals-client.test.ts` (LG7-LG11). The client tests were written after the code; LG10 caught a real defect (the counter did not update without storage).
+
 ## 8. Design Decisions
 
 This chapter summarises the main design decisions and links to the full Architecture Decision Records (ADRs). Section 8.1 explains the most pervasive one: the preview must show the same output as Brightspace.

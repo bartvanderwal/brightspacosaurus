@@ -1,8 +1,10 @@
 # Lesson 1.1: FizzBuzz
 
+## 1. Learning goals
+
 {@include: [Learning goals](../../partials/learning-goals.md)}
 
-## 1. Introduction
+## 2. Introduction
 
 FizzBuzz is a classic beginner exercise. For each number from 1 to n:
 
@@ -11,7 +13,7 @@ FizzBuzz is a classic beginner exercise. For each number from 1 to n:
 - print `FizzBuzz` if it is divisible by both
 - otherwise print the number itself
 
-## 2. Implementation (Java)
+## 3. Implementation (Java)
 
 ```java
 public class FizzBuzzer {
@@ -26,7 +28,7 @@ public class FizzBuzzer {
 
 [Extra slides: FizzBuzz, step by step](../../slides/slides-fizzbuzz.md)
 
-## 3. Command-line application
+## 4. Command-line application
 
 ```java
 public class Main {
@@ -41,7 +43,7 @@ public class Main {
 }
 ```
 
-## 4. Unit test (JUnit)
+## 5. Unit test (JUnit)
 
 ```java
 import org.junit.jupiter.api.Test;
@@ -72,7 +74,7 @@ class FizzBuzzerTest {
 }
 ```
 
-## 5. Class diagram
+## 6. Class diagram
 
 The example has a `Main` entry point that loops from 1 to a configurable limit and delegates each value to `FizzBuzzer.fizzBuzz`. The default limit is 100.
 

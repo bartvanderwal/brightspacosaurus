@@ -121,6 +121,10 @@ More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guid
 
 Term/definition lists become interactive flashcards, in a short and a long variant. See [the flashcards for core concepts page](features/flashcards.md).
 
+## Learning goals to tick off
+
+The list under a heading *Learning goals* (or *Leerdoelen*) becomes a list of square checkboxes. A student ticks off the goals and the browser remembers it: in `localStorage` of that browser, not on a server. See [the learning goals page](features/learning-goals.md).
+
 ## Teacher-only page
 
 One page in the course for teachers, hidden from students after import. BSO fills in which version of the course material and which BSO version were used for the package, so after an import you see at a glance whether Brightspace shows the current material. The page also hosts the Voortgangsverkenner.

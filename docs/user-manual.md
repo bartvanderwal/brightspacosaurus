@@ -165,6 +165,7 @@ The most important fields:
 | `diagrams.locale`      | no       | Language of generated labels: diagram UI and reader PDF cover and document language (`nl` or `en`, default `nl`) |
 | `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
 | `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.4](#44-core-concept-flashcards) |
+| `learningGoals.sectionHeadings` | no | Headings whose bullet list becomes tickable learning goals (default `["Learning goals", "Leerdoelen"]`, `[]` disables); see [4.9](#49-tickable-learning-goals) |
 | `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.7](#47-teacher-page) |
 
 > **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
@@ -241,27 +242,6 @@ Sections titled `Core concepts` become flashcards automatically. To recognize ot
 This is an optional fragment to add to your existing course configuration. The list replaces the default `["Core concepts"]`; `[]` disables automatic heading recognition. With that setting, this plain Markdown becomes a flashcard set:
 
 ```markdown
-## Kernbegrippen
-
-- **request:** bericht waarmee een client een server om een handeling of gegevens vraagt.
-- **response:** bericht waarmee de server het resultaat van een request terugstuurt.
-- **statuscode:** HTTP-code die het resultaat van een request aanduidt, bijvoorbeeld `200`.
-```
-
-BSO always supports both syntaxes, without a setting. Lists under these headings stay real bulleted lists: each clickable term and its short definition share a line, and only the definition is hidden, so a long glossary stays compact. Rich definitions with multiple paragraphs or lists keep their block layout. Explicit `::::flashcards` sets show boxed cards, also under a flashcard heading. The "Show definitions" / "Hide definitions" button follows `diagrams.locale` (`Toon definities` / `Verberg definities` for `nl`). Terms are real buttons with `aria-expanded`, so keyboard and screen readers work.
-
-Heading titles match exactly after trimming and ignoring letter case and a leading section number, so `## 7. Kernbegrippen` and `### 2.3 Kernbegrippen` match `Kernbegrippen`; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists or a `::::flashcards` set, so a heading without any flashcards is reported. The default heading `Core concepts` (any letter case) is checked even when `flashcards` is not configured. Place introductory prose before the heading or in a separate section.
-
-Each unordered list is converted only when every item has a non-empty term before the first colon (`:`) and a non-empty definition after it. Plain, **bold** and `inline-code` terms work, with the colon inside or outside their formatting. Definitions retain Markdown formatting, links, subsequent paragraphs and nested lists. Additional colons belong to the definition. Numbered lists, task lists and lists with incomplete items remain ordinary Markdown in full; other sections are unaffected.
-
-The demo's “Core Concepts Flashcards” lesson includes both directive cards and an English `Core concepts` list, using `"sectionHeadings": ["Core concepts"]`. Both the Brightspace HTML export and the configured Docusaurus preview use the same transformation. For your own Docusaurus app, pass the same `flashcards` options to `remarkFlashcards`; see the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). `bso preview` supplies the selected course's options through `BSO_PREVIEW_FLASHCARDS_CONFIG`; direct Docusaurus builds must read them from the course configuration.
-
-BSO renders the definitions as normal HTML first. JavaScript progressively adds global and per-card reveal controls, while keyboard focus and `aria-expanded` communicate state. If JavaScript is unavailable or storage is blocked, the definition remains usable. Flashcards are practice support, not a Brightspace quiz or formal assessment; use the QTI quiz format for graded questions.
-
-The current implementation does not persist a student preference across pages until Brightspace storage behavior has been validated in a real course. The fallback is intentionally safe: no storage is required for the cards to work.
-
-For Docusaurus preview parity and implementation details, see the [Software Guidebook](software-guidebook.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). The demo uses the same `remarkFlashcards` transformation, CSS and `brightspacosaurus-flashcards.js` initializer as Brightspace. Docusaurus invokes the initializer after hydration and every client-side navigation.
-
 ### 4.5 Linting course material
 
 `bso lint` applies developer best practices to course material: it checks flashcards, includes, diagrams, quiz authoring and source hygiene (frontmatter in lessons, hard-wrapped paragraphs) before you export, without building or contacting external services, so mistakes surface in your editor or CI instead of after the Brightspace import. It starts by saying which directories and how many files it scanned. It reports `file:line:column`, severity and rule. Errors return exit code 1; warnings alone return 0.
@@ -483,6 +463,44 @@ Cached data includes student identifiers, work-item titles and status, counts of
 - **Dynamic overrides:** Instructors can adjust the threshold sliders and toggle the comment requirement directly on the dashboard's Settings tab to dynamically recolor the student overview in real time.
 
 ---
+
+### 4.9 Tickable learning goals
+
+A bullet list under a heading `Learning goals` or `Leerdoelen` gets a square checkbox per goal, so a student can tick what they can do. No syntax is needed:
+
+```markdown
+## Leerdoelen
+
+- Je kunt uitleggen wat een request en een response zijn.
+- Je kunt een eenvoudige REST-aanroep lezen.
+```
+
+The student sees "1 van 2 afgevinkt" (the text follows `diagrams.locale`) and the ticked goals are dimmed. To recognise other headings, set `learningGoals.sectionHeadings` in `brightspacosaurus.config.json`; `[]` turns it off. Heading matching works as for the flashcards (letter case and a leading section number are ignored, all levels work). A list whose items do not start with text (for example a list of only code blocks) stays an ordinary list.
+
+**Privacy.** The state lives only in the browser of the student (`localStorage`), per page and per goal text. There is no server, no account and nothing is sent. The consequences: a student who uses another browser or device starts empty, clearing the site data clears the ticks, and if a teacher rewrites the text of a goal, that goal starts unticked. Where storage is blocked, the boxes still work for the visit but are forgotten. The ticks are not visible to the teacher.
+
+In your own Docusaurus app, add `remarkLearningGoals` (from `@bartvanderwal/brightspacosaurus/learning-goals`) to the remark plugins and run `initializeGoals(document)` from `@bartvanderwal/brightspacosaurus/goals-client` in an `onRouteDidUpdate` client module; see the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). The Brightspace HTML export has the script built in.
+
+## Kernbegrippen
+
+- **request:** bericht waarmee een client een server om een handeling of gegevens vraagt.
+- **response:** bericht waarmee de server het resultaat van een request terugstuurt.
+- **statuscode:** HTTP-code die het resultaat van een request aanduidt, bijvoorbeeld `200`.
+```
+
+BSO always supports both syntaxes, without a setting. Lists under these headings stay real bulleted lists: each clickable term and its short definition share a line, and only the definition is hidden, so a long glossary stays compact. Rich definitions with multiple paragraphs or lists keep their block layout. Explicit `::::flashcards` sets show boxed cards, also under a flashcard heading. The "Show definitions" / "Hide definitions" button follows `diagrams.locale` (`Toon definities` / `Verberg definities` for `nl`). Terms are real buttons with `aria-expanded`, so keyboard and screen readers work.
+
+Heading titles match exactly after trimming and ignoring letter case and a leading section number, so `## 7. Kernbegrippen` and `### 2.3 Kernbegrippen` match `Kernbegrippen`; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists or a `::::flashcards` set, so a heading without any flashcards is reported. The default heading `Core concepts` (any letter case) is checked even when `flashcards` is not configured. Place introductory prose before the heading or in a separate section.
+
+Each unordered list is converted only when every item has a non-empty term before the first colon (`:`) and a non-empty definition after it. Plain, **bold** and `inline-code` terms work, with the colon inside or outside their formatting. Definitions retain Markdown formatting, links, subsequent paragraphs and nested lists. Additional colons belong to the definition. Numbered lists, task lists and lists with incomplete items remain ordinary Markdown in full; other sections are unaffected.
+
+The demo's “Core Concepts Flashcards” lesson includes both directive cards and an English `Core concepts` list, using `"sectionHeadings": ["Core concepts"]`. Both the Brightspace HTML export and the configured Docusaurus preview use the same transformation. For your own Docusaurus app, pass the same `flashcards` options to `remarkFlashcards`; see the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). `bso preview` supplies the selected course's options through `BSO_PREVIEW_FLASHCARDS_CONFIG`; direct Docusaurus builds must read them from the course configuration.
+
+BSO renders the definitions as normal HTML first. JavaScript progressively adds global and per-card reveal controls, while keyboard focus and `aria-expanded` communicate state. If JavaScript is unavailable or storage is blocked, the definition remains usable. Flashcards are practice support, not a Brightspace quiz or formal assessment; use the QTI quiz format for graded questions.
+
+The current implementation does not persist a student preference across pages until Brightspace storage behavior has been validated in a real course. The fallback is intentionally safe: no storage is required for the cards to work.
+
+For Docusaurus preview parity and implementation details, see the [Software Guidebook](software-guidebook.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). The demo uses the same `remarkFlashcards` transformation, CSS and `brightspacosaurus-flashcards.js` initializer as Brightspace. Docusaurus invokes the initializer after hydration and every client-side navigation.
 
 ## 5. Workflow: from Markdown to Brightspace
 
