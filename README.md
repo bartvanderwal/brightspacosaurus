@@ -64,45 +64,62 @@ Brightspacosaurus was created by Bart van der Wal, lecturer in Software Engineer
 - [Deno](https://deno.com/) ≥ 2.0 — see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the rationale
 - [pandoc](https://pandoc.org/) (optional) — required for reader-PDF generation and the instructor manual
 
-## Installation
+## Install and update
 
-Install once to get the `bso` command:
+You need [Deno](https://deno.com/) 2.0 or newer. Without it, see *No Deno yet?* below.
 
-```sh
-deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
-```
-
-The `-A` flag grants all permissions for brevity. To follow least-privilege, replace it with the minimal set: `--allow-read --allow-write --allow-run=pandoc,git --allow-env` (`git` is optional and only used for deterministic reader-PDF cover dates; see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the security rationale).
-
-Or if you already installed but want the latest you have to add the `-f` flag for forcing override (jsr has NO separate `update` subcommand).:
+### Install
 
 ```sh
 deno install -A -g -n bso jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 
-<details>
-<summary>Install problems/questions</summary>
+Check it with `bso --version`.
 
-**Don't have Deno yet?** Install it first — no Node.js required:
+### Update to the newest version
+
+There is no `update` command: you install again, with `-f` (force) to overwrite the old version.
+
+```sh
+deno install -A -g -f -n bso jsr:@bartvanderwal/brightspacosaurus/cli
+```
+
+If the newest version was published only a short time ago, Deno may still install the older one, because it does not take a version that is too new (a defence against a malicious package that is published and used before anyone notices). To get the version that was just published, add `--min-dep-age 0`:
+
+```sh
+deno install -A -g -f --min-dep-age 0 -n bso jsr:@bartvanderwal/brightspacosaurus/cli
+```
+
+Then run `bso --version` to see which version you have. To install one exact version, put it in the address: `jsr:@bartvanderwal/brightspacosaurus@0.33.1/cli`.
+
+A project can also pin the version in its own scripts (`deno run -A jsr:@bartvanderwal/brightspacosaurus@0.33.1/cli build`), so that everyone who builds the course uses the same version.
+
+### Permissions
+
+`-A` grants all permissions, for brevity. For least privilege, replace it with `--allow-read --allow-write --allow-run=pandoc,git,npm --allow-env`; `git` is only used for deterministic reader-PDF cover dates, and `npm` for the preview and the slides (see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the security rationale).
+
+### Without installing
+
+```sh
+deno run -A jsr:@bartvanderwal/brightspacosaurus/cli build
+```
+
+### No Deno yet?
+
+Install it first, no Node.js needed:
 
 ```sh
 curl -fsSL https://deno.land/install.sh | sh      # macOS/Linux
 irm https://deno.land/install.ps1 | iex            # Windows (PowerShell)
 ```
 
-Or via a package manager: `brew install deno` (macOS), `choco install deno` / `winget install DenoLand.Deno` (Windows), `scoop install deno`. Deno also publishes itself to npm, so `npm install -g deno` works if you'd rather stick to tools you already have installed — but the native install script above is the officially recommended route and doesn't pull in Node.js as a dependency. See the [Deno install docs](https://docs.deno.com/runtime/getting_started/installation/) for all options.
+Or `brew install deno` (macOS), `choco install deno` / `winget install DenoLand.Deno` (Windows), `scoop install deno`. See the [Deno install docs](https://docs.deno.com/runtime/getting_started/installation/) for all options.
 
-**Command not found after installing?** The installer adds Deno to your shell profile, but you may need to restart your terminal (or `source` your profile) before `deno` is on your `PATH`.
+### Command not found after installing?
 
-**"Too new" / dependency age error?** JSR blocks resolving dependencies published too recently, as a defence against supply-chain attacks where a malicious version is published and consumed before anyone notices. If you're a contributor or tester and want today's just-published version, add the `--minimum-dependency-age 0` flag. See [all flags of `deno install` in the Deno docs](https://docs.deno.com/runtime/reference/cli/install/).
+The installer adds Deno to your shell profile, but you may need to restart your terminal (or `source` your profile) before `deno` and `bso` are on your `PATH`.
 
-**Prefer not to install anything?** Run it on demand instead:
-
-```sh
-deno run -A jsr:@bartvanderwal/brightspacosaurus/cli build
-```
-
-</details>
+See [all flags of `deno install`](https://docs.deno.com/runtime/reference/cli/install/) in the Deno docs.
 
 ### Also on npm
 
