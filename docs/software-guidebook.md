@@ -141,6 +141,7 @@ This chapter describes what BSO does from the author's point of view: the two co
 - **2.2** `pack` — build directory to `.imscc`
 - **2.3** File classification by prefix
 - **2.4** Configuration
+- **2.5** Domain model: outcomes, objectives, lessons and assessment
 
 BSO exposes two commands (see the [README](../README.md) for full CLI usage).
 
@@ -178,6 +179,99 @@ Instructor answer keys are deliberately skipped so answers never leak into a stu
 ### 2.4 Configuration
 
 All project-specific behaviour comes from `brightspacosaurus.config.json`, never from the source code. The required fields are `courseName`, `version`, and `sourcesDir`; the rest (readers, assets, output directory, custom CSS, instructor manual) are optional with sensible defaults. CLI arguments override config values. See the [README configuration section](../README.md#configuration) for the full field reference.
+
+### 2.5 Domain model: outcomes, objectives, lessons and assessment
+
+Status: first draft for #167 and the lint epic (#11). The concepts below are the ones the course teams at HAN already use (the traceability issues #65 and #66 describe them from owe-1). BSO supports only part of them today; the table after the figure says which. Terms that are marked *to confirm* are an assumption and need the owner's check before they become rules.
+
+Figure 1 shows how the concepts relate. Read it from the top: a course (OWE) states what a student must be able to do (learning outcomes); every lesson breaks that down into learning objectives; assessment criteria and assessments say how it is checked.
+
+```plantuml
+@startuml
+hide empty members
+skinparam classAttributeIconSize 0
+
+class "Course\n(OWE, onderwijseenheid)" as Course
+class "Level\n(niveau, for example N1-N4)" as Level
+class "Learning outcome\n(LUK, leeruitkomst)" as Outcome
+class "Assessment criterion\n(AC, beoordelingscriterium)" as Criterion
+class "Assessment\n(toets)" as Assessment
+class "Quiz question" as Question
+class "Lesson" as Lesson
+class "Lesson part\n(for example Learning objectives, New material)" as Part
+class "Learning objective\n(leerdoel)" as Objective
+
+Course "1" *-- "1..*" Outcome
+Course "1" *-- "0..*" Level
+Course "1" *-- "1..*" Lesson
+Outcome "1" *-- "1..*" Criterion
+Outcome "0..*" -- "0..1" Level : reached at >
+Lesson "1" *-- "1..*" Part : follows a template >
+Lesson "1" *-- "1..*" Objective
+Objective "1..*" -- "1..*" Outcome : contributes to >
+Criterion "1..*" -- "1..*" Assessment : checked by >
+Assessment "1" o-- "0..*" Question : QuizDown quiz
+Question "0..*" -- "0..1" Objective : tests >
+@enduml
+```
+
+*Figure 1. Domain model of a course: outcomes at the top, objectives per lesson, assessment criteria and assessments as the check.*
+
+**Toelichting.** Look at the two chains that meet at the objective. The upper chain goes from course to outcome to criterion to assessment and is the *evidence* chain. The lower chain goes from course to lesson to objective and is the *teaching* chain. The objective is where they connect, so it is the object that traceability (#65) and coverage (#66) check: an objective that contributes to no outcome, an outcome that no objective contributes to, and an objective without a quiz question.
+
+| Concept | Meaning | Level | In BSO today |
+| --- | --- | --- | --- |
+| Learning outcome (LUK, leeruitkomst) | What a student demonstrably can do at the end of the course. Outcome in the sense of *evidence of arrival* (Poorvu Center, n.d.). | Course | Not built (#65) |
+| Assessment criterion (AC, beoordelingscriterium) | A checkable statement per outcome, with a code such as `FUSTEN 01-01`. | Course | Not built (#65) |
+| Level (niveau) | A step of the course that raises the complexity, for example N1 to N4 in owe-1. *To confirm:* whether a level belongs to a course or to the programme. | Course | Not built |
+| Learning objective (leerdoel) | A specific, observable statement of what a student can do at the end of a lesson: a waypoint to an outcome (Poorvu Center, n.d.). Optionally with a Bloom level and a code. | Lesson | Tickable list (#167, phase 1) |
+| Learning goal | A broad intention of a course or programme, the destination (Poorvu Center, n.d.). BSO does not model it; the headings `Learning goals` still work as a synonym for objectives, because many authors use that word for what is an objective. | Course | Heading only |
+| Lesson | A Markdown page that follows a lesson template; also a reading page, a generated deck and a pptx. | Lesson | Built |
+| Lesson part | A numbered section of the template, for example *Learning objectives*, *Recap*, *New material*, *Core concepts*, *Exit ticket*. | Lesson | Template and lint planned (#160) |
+| Assessment (toets) | A formative or summative check. BSO only builds the formative one, as a QuizDown quiz imported as a Brightspace quiz. Summative assessment stays outside BSO. *To confirm.* | Course | Quiz built |
+| Quiz question | One question; planned to carry a reference to the objective or criterion it tests. | Lesson | Reference planned (#66) |
+
+Two things in the figure are choices to confirm with the owner and not yet decisions:
+
+1. **The first part of every lesson is the learning objectives and outcomes, before the lesson overview** (decided by the owner, as in owe-1). The standard lesson template then grows from 8 to 9 parts (#160 still lists 7 for the demo course and needs the same change). Open: whether this is one part that lists the lesson's own objectives with the LUK codes they contribute to, or two parts (*Learning outcomes*, then *Learning objectives*); this model assumes one part, because the tickable list of #167 already carries the codes.
+2. **How the course-level concepts are written down.** Candidates are a table in the course description (the `traceability.oweDocument` of #65) or front matter per lesson. The syntax is not decided; the principle of one canonical form (*strict, not forgiving*) applies.
+
+The vocabulary follows the Poorvu Center at Yale for goal, objective and outcome. The link with the teaching model of the course (4C/ID, with learning tasks, supportive and procedural information and part-task practice) is *not drawn yet*: it would add the learning task as a lesson part and is a candidate for a later version of this model.
+
+#### 2.5.1 Didactic rationale: why the objectives open and close the lesson
+
+Status: the owner's didactic reasoning, written down so that later design choices (tri-state, notes, coverage) can be checked against it. It is not research evidence; no source other than the Poorvu Center page has been read for it.
+
+- **Objectives are the student's, not the lesson's.** The course teams speak of *leerdoelen* (learning objectives) and avoid *lesdoelen* (lesson goals). A lesson goal suggests that the lesson delivers the learning and the student receives it passively. A learning objective says what the student must reach, and that the student takes the initiative to get it out of the lesson. BSO follows this in its names (`learningObjectives`, the headings `Learning objectives` and `Leerdoelen`) and does not introduce *lesson goal* anywhere.
+- **The list is shown once, at the top; the end of the lesson links back to it (DRY).** The first lesson part holds the objectives, with terms the student does not know yet, including the core concepts. At the end, next to the exit ticket and the room for questions, one sentence asks the student to check whether they reached the objectives, with a plain link back up to that list. The list is not repeated, in the text or in the user interface: one list, one state, and the link is a normal browser link (no custom button or scrolling script). The repetition for the student is the return to the same list, with more knowledge than at the start.
+- **Ticking is that check, done at the top.** The student ticks the objectives that they reached. The ticks are a self-assessment, kept private in the browser (#167, phase 1) and not an assessment by the teacher.
+- **An unticked objective asks for action.** The student then thinks of a plan for reaching it: what to read, repeat or ask, and when. This is the reason for the later phases of #167: the state *check with the teacher* for what a student cannot judge alone, and a personal note per objective that holds the plan. Without that, the tick would only be a counter.
+- **Link to retrieval practice.** The core-concept flashcards (4.4 in the user manual) ask the student to recall before revealing. Objectives and flashcards serve the same loop: meet the term at the start, practise recall during the lesson, check at the end.
+
+Consequences for the design, none built yet:
+
+1. The closing part of the lesson holds a sentence with a link to the objectives at the top. The link needs an anchor on the objectives heading that is the same in the preview and in Brightspace (parity); whether BSO already gives headings the same `id` in both is not verified.
+2. The end-of-lesson check belongs to the lesson template: the closing part (now *Questions and an exit ticket* in #160) holds that sentence and link, so `bso lint` can ask for it and check that the link points at the objectives part.
+3. The plan for unticked objectives is personal and stays with the student; BSO shows no teacher or group overview of it unless the student chooses to share (privacy, as for the ticks).
+
+#### 2.5.2 What "coverage" means
+
+*Coverage* says how well one set of things is covered by another. In this domain there are at least four kinds. They differ in **who asks** (the course designer or the student), **what is compared** and **where the data lives**. Keeping them apart is the point of this section; one word for all four would hide that they need different data and different privacy.
+
+| # | Kind | Who asks | Question | Data | Issue |
+| --- | --- | --- | --- | --- | --- |
+| C1 | Teaching coverage | Designer | Does every learning outcome (LUK), and every assessment criterion (AC) under it, have lesson objectives that teach it? Is the spread balanced? | Source files | #65 |
+| C2 | Assessment coverage | Designer | Does every objective, or topic, have quiz questions? Does the assessment matrix (toetsmatrijs) hold: are the planned objectives actually tested, and in balance? | Source files | #66 |
+| C3 | Student coverage | Student | Which objectives did I tick, so which outcomes and criteria do I reach, and where are the gaps? | Ticks in the browser, plus the mapping objective to outcome from the build | #167 |
+| C4 | Candidate: result coverage | Student | Which objectives did I show in assessment results (quiz scores)? | Brightspace results | not planned |
+
+C1 and C2 are about the **designed course** and can be computed from the source alone: a `bso coverage`-like report (or `bso lint` with a report option) is natural for them, and they run in CI. In both, a gap has a mirror image: an outcome without objectives (a gap in the teaching) and an objective that points at no existing outcome (a loose objective); likewise an objective without questions and a question without an objective. C1 answers *is the material taught*, C2 answers *is it tested*; an outcome can be taught and not tested, or tested and not taught.
+
+C3 is the **student's view** and belongs to #167. The objectives are the common thread: the student ticks objectives (phase 1), and once an objective carries the codes of the outcomes and criteria it contributes to (the LUK/AC mapping of C1), the ticks add up to a picture per outcome: *ticked, partly ticked, not ticked*. That shows the student where the gaps are and feeds the plan for the unticked objectives (2.5.1). It needs an overview page that aggregates over all lessons; how it reads the ticks across pages (they are stored per page) is open.
+
+Privacy: C3 is the student's own data in the student's own browser (rule LG7 to LG10) and the designer does not see it. A course that wants group figures for C3 has to ask the students to share; BSO builds no server for it. C4 would need results from Brightspace, which BSO does not read; it is listed only so the question is not forgotten.
+
+Status: none of C1 to C3 is built beyond the tick boxes of #167. Open: the format that holds the outcomes, the criteria and the codes on the objectives (see the two choices after Figure 1); the form of the assessment matrix for C2 (owe-1 epic on the matrix); and whether C1 and C2 are one command with two reports, as *easy to use, hard to make* suggests.
 
 ---
 
@@ -1126,6 +1220,7 @@ Design and requirements history lives in two Kiro specs:
 - MDN contributors. (n.d.). *Window: close() method*. MDN Web Docs. <https://developer.mozilla.org/en-US/docs/Web/API/Window/close>
 - Nielsen, J. (1999). *The top 10 web design mistakes of 1999*. Nielsen Norman Group. <https://www.nngroup.com/articles/the-top-ten-web-design-mistakes-of-1999/>
 - Saint-Exupéry, A. de. (1939). *Terre des hommes* (chap. 3, titled "The Tool" in the English edition). Gallimard. Passage read as quoted at <https://en.wikiquote.org/wiki/Antoine_de_Saint-Exup%C3%A9ry>
+- Poorvu Center for Teaching and Learning. (n.d.). *Writing learning goals, objectives, and outcomes*. Yale University. <https://poorvucenter.yale.edu/teaching/teaching-resource-library/writing-learning-goals-objectives-and-outcomes>
 - Spolsky, J. (2000, April 22). Consistency and other hobgoblins. In *User interface design for programmers* (chap. 5). Joel on Software. <https://www.joelonsoftware.com/2000/04/22/consistency-and-other-hobgoblins/>
 - Spolsky, J. (2001, October 24). *User interface design for programmers* [Table of contents]. Joel on Software. <https://www.joelonsoftware.com/2001/10/24/user-interface-design-for-programmers/>
 - Spolsky, J. (2002, November 11). *The law of leaky abstractions*. Joel on Software. <https://www.joelonsoftware.com/2002/11/11/the-law-of-leaky-abstractions/>
