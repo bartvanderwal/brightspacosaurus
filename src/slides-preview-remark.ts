@@ -88,7 +88,21 @@ export function remarkPreviewDeckLinks(
           const url = decks.get(path) ??
             decks.get(path.replace(/^\/([A-Za-z]:)/, "$1"));
           if (url) {
-            node.url = `${base}${url}${anchor ? `#${anchor}` : ""}`;
+            // The presentation is a static file that Docusaurus does not know as a
+            // route, so its check for broken links would fail the build. A JSX link
+            // can say `data-noBrokenLinkCheck` as Docusaurus spells it.
+            const href = `${base}${url}${anchor ? `#${anchor}` : ""}`;
+            node.type = "mdxJsxTextElement";
+            node.name = "a";
+            node.attributes = [
+              { type: "mdxJsxAttribute", name: "href", value: href },
+              {
+                type: "mdxJsxAttribute",
+                name: "data-noBrokenLinkCheck",
+                value: null,
+              },
+            ];
+            delete node.url;
           } else if (isDeck(path)) {
             // No presentation was rendered: keep the text, drop the link.
             node.type = "mdxJsxTextElement";

@@ -195,9 +195,25 @@ Deno.test("remarkPreviewDeckLinks points links to a rendered slide deck at its p
     }],
   };
   transform(tree, { path: "/repo/lessons/week/lesson.md" });
-  const urls = tree.children[0].children.map((link) => link.url);
-  assertEquals(urls, [
-    "/course/slides/decks/slides/slides-a/index.html#part",
+  const [deckLink, ...others] = tree.children[0].children as {
+    type: string;
+    name?: string;
+    url?: string;
+    attributes?: { type: string; name: string; value: string | null }[];
+  }[];
+  // The presentation is a static file, not a route: a JSX link that Docusaurus
+  // does not check, so its broken-link check does not fail the build.
+  assertEquals(deckLink.type, "mdxJsxTextElement");
+  assertEquals(deckLink.name, "a");
+  assertEquals(deckLink.attributes, [
+    {
+      type: "mdxJsxAttribute",
+      name: "href",
+      value: "/course/slides/decks/slides/slides-a/index.html#part",
+    },
+    { type: "mdxJsxAttribute", name: "data-noBrokenLinkCheck", value: null },
+  ]);
+  assertEquals(others.map((link) => link.url), [
     "../other.md",
     "https://example.org/slides-a.md",
   ]);
