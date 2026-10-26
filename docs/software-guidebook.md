@@ -192,14 +192,14 @@ hide empty members
 skinparam classAttributeIconSize 0
 
 class "Course\n(OWE, onderwijseenheid)" as Course
-class "Level\n(niveau, for example N1-N4)" as Level
+class "Course level\n(niveau, for example N1-N4)" as Level
 class "Learning outcome\n(LUK, leeruitkomst)" as Outcome
 class "Assessment criterion\n(AC, beoordelingscriterium)" as Criterion
 class "Assessment\n(toets)" as Assessment
 class "Quiz question" as Question
 class "Lesson" as Lesson
 class "Lesson part\n(for example Learning objectives, New material)" as Part
-class "Learning objective\n(leerdoel)" as Objective
+class "Learning objective\n(leerdoel)\ncode, cognitive level" as Objective
 
 Course "1" *-- "1..*" Outcome
 Course "1" *-- "0..*" Level
@@ -208,14 +208,14 @@ Outcome "1" *-- "1..*" Criterion
 Outcome "0..*" -- "0..1" Level : reached at >
 Lesson "1" *-- "1..*" Part : follows a template >
 Lesson "1" *-- "1..*" Objective
-Objective "1..*" -- "1..*" Outcome : contributes to >
+Criterion "1" -- "1..*" Objective : is served by >
 Criterion "1..*" -- "1..*" Assessment : checked by >
 Assessment "1" o-- "0..*" Question : QuizDown quiz
-Question "0..*" -- "0..1" Objective : tests >
+Question "0..*" -- "1" Objective : tests >
 @enduml
 ```
 
-*Figure 1. Domain model of a course: outcomes at the top, objectives per lesson, assessment criteria and assessments as the check.*
+*Figure 1. Domain model of a course: outcomes at the top, objectives per lesson, assessment criteria and assessments as the check. An objective belongs to one lesson and to one criterion.*
 
 **Toelichting.** Look at the two chains that meet at the objective. The upper chain goes from course to outcome to criterion to assessment and is the *evidence* chain. The lower chain goes from course to lesson to objective and is the *teaching* chain. The objective is where they connect, so it is the object that traceability (#65) and coverage (#66) check: an objective that contributes to no outcome, an outcome that no objective contributes to, and an objective without a quiz question.
 
@@ -223,8 +223,8 @@ Question "0..*" -- "0..1" Objective : tests >
 | --- | --- | --- | --- |
 | Learning outcome (LUK, leeruitkomst) | What a student demonstrably can do at the end of the course. Outcome in the sense of *evidence of arrival* (Poorvu Center, n.d.). | Course | Not built (#65) |
 | Assessment criterion (AC, beoordelingscriterium) | A checkable statement per outcome, with a code such as `FUSTEN 01-01`. | Course | Not built (#65) |
-| Level (niveau) | A step of the course that raises the complexity, for example N1 to N4 in owe-1. *To confirm:* whether a level belongs to a course or to the programme. | Course | Not built |
-| Learning objective (leerdoel) | A specific, observable statement of what a student can do at the end of a lesson: a waypoint to an outcome (Poorvu Center, n.d.). Optionally with a Bloom level and a code. | Lesson | Tickable list (#167, phase 1) |
+| Course level (niveau) | A step of the course that raises the complexity, for example N1 to N4 in owe-1. *To confirm:* whether a level belongs to a course or to the programme. | Course | Not built |
+| Learning objective (leerdoel) | A specific, observable statement of what a student can do at the end of a lesson: a waypoint to an outcome (Poorvu Center, n.d.). It has a code, which includes its cognitive level (Bloom), and belongs to exactly one criterion (ADR 026). | Lesson | Tickable list (#167, phase 1) |
 | Learning goal | A broad intention of a course or programme, the destination (Poorvu Center, n.d.). BSO does not model it; the headings `Learning goals` still work as a synonym for objectives, because many authors use that word for what is an objective. | Course | Heading only |
 | Lesson | A Markdown page that follows a lesson template; also a reading page, a generated deck and a pptx. | Lesson | Built |
 | Lesson part | A numbered section of the template, for example *Learning objectives*, *Recap*, *New material*, *Core concepts*, *Exit ticket*. | Lesson | Template and lint planned (#160) |
@@ -234,7 +234,7 @@ Question "0..*" -- "0..1" Objective : tests >
 Two things in the figure are choices to confirm with the owner and not yet decisions:
 
 1. **The first part of every lesson is the learning objectives and outcomes, before the lesson overview** (decided by the owner, as in owe-1). The standard lesson template then grows from 8 to 9 parts (#160 still lists 7 for the demo course and needs the same change). Open: whether this is one part that lists the lesson's own objectives with the LUK codes they contribute to, or two parts (*Learning outcomes*, then *Learning objectives*); this model assumes one part, because the tickable list of #167 already carries the codes.
-2. **How the course-level concepts are written down.** Candidates are a table in the course description (the `traceability.oweDocument` of #65) or front matter per lesson. The syntax is not decided; the principle of one canonical form (*strict, not forgiving*) applies.
+2. **How the course-level concepts are written down (the outcomes and criteria themselves).** Candidates are a table in the course description (the `traceability.oweDocument` of #65) or front matter per lesson. The syntax is not decided; the principle of one canonical form (*strict, not forgiving*) applies.
 
 The vocabulary follows the Poorvu Center at Yale for goal, objective and outcome. The link with the teaching model of the course (4C/ID, with learning tasks, supportive and procedural information and part-task practice) is *not drawn yet*: it would add the learning task as a lesson part and is a candidate for a later version of this model.
 
@@ -992,6 +992,29 @@ Phase 1 of #167. `src/learning-goals.ts` (`remarkLearningGoals`) uses the same h
 | LG11 | A section is set up once, also when the script runs again after a page change in the preview. |
 
 Tests: `tests/learning-goals.test.ts` (LG1-LG6) and `tests/goals-client.test.ts` (LG7-LG11). The client tests were written after the code; LG10 caught a real defect (the counter did not update without storage).
+
+#### 7.12.1 Design: codes and traceability of objectives (not built)
+
+Proposed in ADR 026, to be accepted by the owner. The tick state of phase 1 is keyed by page and a hash of the text (LG8). The design below replaces that key with a code that the author writes, so ticks survive rewording, reordering and moving an objective to another lesson, and it carries the link to the criterion for coverage (2.5.2). The owner's observations that shaped it: a topic name alone is not unique, because one topic (for example the arrange-act-assert pattern) has several objectives, and a different cognitive level is a different objective.
+
+**The code** is `<level>-<topic>` with an optional `-<qualifier>`, for example `R-aaa-pattern` (reproduce) and `T-aaa-pattern` (apply) for two objectives about the same topic. The level is one letter of the cognitive scale (the owner: from *reproductie*, R, to *synthese*, S; the letters in between are to be set). The topic and the qualifier are lower-case words with hyphens. A qualifier tells apart two objectives of the same topic and level. The level is part of the identity on purpose: *explain the pattern* and *apply the pattern* are two objectives, and a student who reached the first has not reached the second. The topic can be the name of a core concept (the flashcards), so an objective, a term and later a question can share one name; whether BSO checks that link is open.
+
+**The criterion** is a separate property in the same braces: `{#R-aaa-pattern ac=FUSTEN-01-02}`. It is not in the code, because a relation changes (an objective moves to another criterion, a criterion is renumbered) while the identity must not.
+
+| # | Rule |
+| --- | --- |
+| OB1 | The code is written in braces at the end of the item, `{#R-aaa-pattern}`; BSO removes the braces from the visible text. The braces may also hold `ac=<code of a criterion>`. |
+| OB2 | The code has the form `<level>-<topic>` or `<level>-<topic>-<qualifier>`: a level letter from the scale, then lower-case words and digits separated by hyphens. Another form is an error with a message that shows the form. |
+| OB3 | The code is unique in the course. A duplicate is an error that names both places. |
+| OB4 | An objective has at most one `ac=`: the main criterion. An objective that serves two criteria is written as two objectives. A second `ac=` is an error. |
+| OB5 | When the outcomes and criteria are configured (#65), the `ac=` must exist in them (error), and an `ac=` that names an outcome while the criteria exist is a warning. |
+| OB6 | The cognitive level is read from the code and is not stored twice. |
+| OB7 | The key of the tick state is `bso:goals:v2:<course code>:<code>`. The course code comes from the configuration; the key does not contain the page, the position or the text. |
+| OB8 | Rewording, reordering or moving an objective to another lesson keeps its ticks. Changing the level, topic or qualifier in the code makes it another objective with an empty tick. |
+| OB9 | An objective without a code keeps the key of phase 1 (`v1`, page and hash of the text). With traceability configured, `bso lint` warns about it. |
+| OB10 | Every objective is in exactly one lesson and every quiz question tests exactly one objective (#66); `bso lint` reports the objective and question without the other. |
+
+Status: rules OB1 to OB10 are not built, and no test exists yet; the tests are written from these rules before the code (specification first). Open points are listed in ADR 026, among them the letters of the scale, the configuration key of the course code, the format that holds outcomes and criteria, and the link between a topic and a core concept.
 
 ## 8. Design Decisions
 
