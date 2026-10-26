@@ -20,3 +20,4 @@ The numbering is historical rather than contiguous. Brightspacosaurus was extrac
 | [022](adr022-opening-lesson-slides-in-the-same-page.md) | Opening a lesson's slides in the same tab |
 | [023](adr023-separate-content-from-processing.md) | Separate content from processing (proposed) |
 | [024](adr024-native-brightspace-package-as-main-export.md) | The native Brightspace package as the main export format (proposed) |
+| [025](adr025-pure-javascript-libraries-to-shrink-images.md) | Pure JavaScript libraries to shrink images (`jpeg-js` and `pngjs`) |
