@@ -29,6 +29,7 @@
     "check": "deno check src/mod.ts src/main.ts",
     "lint": "deno lint",
     "test": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts all",
+    "audit": "deno run --allow-run=deno utils/audit.ts",
     "test:fast": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts fast",
     "test:pdf": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts pdf",
     "demo": "deno task preview",

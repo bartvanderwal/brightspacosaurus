@@ -3,7 +3,7 @@
  * working tree, branch and tag are in order (ADR 018), publishes to JSR with
  * `deno publish`, and then publishes to npm with `deno task release:npm`.
  *
- * `--dry-run` passes through to both publish steps. npm asks for a 2FA code
+ * The dependencies are audited first (`deno task audit`). `--dry-run` passes through to both publish steps. npm asks for a 2FA code
  * itself at its step (no `--otp` needed); `--otp=<code>` is passed on if given (#88).
  *
  * @module
@@ -98,6 +98,8 @@ if (import.meta.main) {
     Deno.exit(1);
   }
   console.log(`Releasing ${version}${dryRun ? " (dry run)" : ""}`);
+  // Dependencies are checked at every release (Software Guidebook, 5.3).
+  await step(["task", "audit"]);
   await step(["publish", ...(dryRun ? ["--dry-run"] : [])]);
   await step([
     "task",

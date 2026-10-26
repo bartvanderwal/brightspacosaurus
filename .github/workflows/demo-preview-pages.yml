@@ -61,6 +61,11 @@ jobs:
           deno task lint:demo
           deno task lint:docs
 
+      # High advisories fail the run, except the two known ones with a reason in
+      # the Software Guidebook, 5.3 (they are in `utils/audit.ts`).
+      - name: Audit dependencies
+        run: deno task audit
+
       - name: Fast tests (without pandoc PDFs)
         run: deno task test:fast
 

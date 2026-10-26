@@ -6,6 +6,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- `deno task audit` checks the dependencies for high and critical advisories, with a list of accepted exceptions and their reason (`utils/audit.ts`); it runs in the GitHub workflow and in `deno task release` before anything is published. The two known `image-size` advisories brought by `pptxgenjs` are accepted for now (the Software Guidebook, 5.3, #166).
 - Slides: `slides.maxImageWidth` (default 1600 pixels, `0` turns it off) shrinks wider PNG and JPEG pictures in the copy that is embedded in the slides and the pptx files, with pure JavaScript libraries (`jpeg-js`, `pngjs`), so it works on every platform without a network; the source pictures stay as they are (#162, ADR 025).
 
 ## 0.33.1

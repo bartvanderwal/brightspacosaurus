@@ -282,6 +282,23 @@ These apply to the Voortgangsverkenner and to any future page that calls an exte
 - **Links to concrete work open in a new tab** with `rel="noopener"`, so GitLab pages cannot control the Brightspace page.
 - **Student data cached locally (#61).** Progress data, never tokens, is stored in versioned `localStorage` entries separated by GitLab server, course, class and repository/week configuration. A visible warning explains that other scripts on the same origin can read it. Entries older than seven days are pruned on page entry and every minute while open; the cache can be cleared explicitly.
 
+### 5.3 Dependencies and advisories
+
+BSO has npm and JSR dependencies, and `deno audit` checks them against the advisories of GitHub.
+
+- **Checked at every release and in CI.** `deno task audit` (`utils/audit.ts`, tested in `tests/audit.test.ts`) runs in the GitHub workflow on every push and pull request and in `deno task release`, before anything is published. It fails on an advisory of level *high* or *critical* that is not on the list of exceptions. A registry that does not answer is not a failure (`--ignore-registry-errors`).
+- **A finding with a fix** is fixed by upgrading the dependency, in the same change.
+- **A finding without a fix** is not hidden. It is assessed (is the vulnerable code loaded and can an author or a student reach it with a file?), and an exception goes into `utils/audit.ts` with its advisory id (`deno audit --ignore` does not take these advisories in Deno 2.9), and into the list below with the reason, the upstream issue and when to look again. An exception that is not in this list is not allowed.
+- **Dependencies are chosen for the platforms of the course teams** (macOS, Windows, Linux): pure JavaScript, no native binary, no network at run time (ADR 025).
+
+**Current exceptions**
+
+| Advisory | Package | Why it is accepted | Upstream | Remove when |
+| --- | --- | --- | --- | --- |
+| GHSA-w3rx-r6r6-pgpr (ICNS, DoS), GHSA-5p2g-fcmc-qvqq (JXL and HEIF, DoS) | `image-size@1.2.1`, brought by `pptxgenjs@4.0.1` | `pptxgenjs` declares it, but its bundle never loads it (checked in the package files); BSO reads image sizes with its own `image-size` 2.0.4, which is fixed; the 1.x line has no fixed version | PptxGenJS issue #1474, pull requests #1473 and #1529 (remove the unused dependency) | `pptxgenjs` is released without `image-size` |
+
+A course that uses the npm package and runs `npm audit` sees the same two findings. It can silence them with an `overrides` entry for `image-size` in its own `package.json`, because the package is not loaded.
+
 ---
 
 ## 6. Software Architecture
