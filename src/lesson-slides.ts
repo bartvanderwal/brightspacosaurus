@@ -387,6 +387,8 @@ function introImages(nodes: MarkdownNode[], source: string): string[] {
   return images;
 }
 
+const LEAD = "<!-- _class: lead -->";
+
 /** A `lead` slide with a title and the images under the H1 of the page. */
 function titleSlide(
   title: string,
@@ -394,9 +396,11 @@ function titleSlide(
   source: string,
 ): string {
   const images = introImages(introNodes, source);
-  return `<!-- _class: lead -->\n# ${title}${
+  // The directive comes after the heading: before it, a `headingDivider` would
+  // start a slide of its own for the comment, and that slide would be empty.
+  return `# ${title}${
     images.length ? `\n\n${images.join("\n\n")}` : ""
-  }`;
+  }\n\n${LEAD}`;
 }
 
 /**
@@ -551,13 +555,15 @@ function markAppendix(
   const parts = slides.slice(from).flatMap(splitSlides);
   const total = parts.length;
   const marked = parts.map((part, index) => {
-    const lead = part.match(/^<!-- _class: lead -->\n/);
-    const body = lead ? part.slice(lead[0].length) : part;
-    return `<!-- _class: ${
-      lead ? "lead " : ""
-    }appendix -->\n<!-- _paginate: skip -->\n<!-- _footer: "${words.one} ${
+    // The directives come at the end of the slide: before the heading, a
+    // `headingDivider` would start a slide of its own for them (an empty one).
+    const lead = part.includes(LEAD);
+    const body = lead
+      ? part.replace(LEAD, "<!-- _class: lead appendix -->")
+      : `${part}\n\n<!-- _class: appendix -->`;
+    return `${body}\n<!-- _paginate: skip -->\n<!-- _footer: "${words.one} ${
       index + 1
-    }/${total}" -->\n${body}`;
+    }/${total}" -->`;
   });
   return [...slides.slice(0, from), ...marked];
 }
@@ -605,9 +611,11 @@ export function generateNestedAppendix(
   );
   if (!slides.length) return "";
   const words = APPENDIX_WORDS[options.locale ?? "nl"];
-  return `${APPENDIX_STYLE}\n\n${
+  // The style comes last: before the first heading it would be a slide of its own
+  // under a `headingDivider`.
+  return `${
     markAppendix(slides, 0, words).join("\n\n---\n\n")
-  }`;
+  }\n\n${APPENDIX_STYLE}`;
 }
 
 /**

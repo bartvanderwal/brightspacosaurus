@@ -1270,7 +1270,16 @@ export async function renderPreviewSlides(
           undefined,
           svgImages,
         );
-        chunks.push(processed);
+        // A `---` before a heading that the `headingDivider` of the deck splits at
+        // would give an empty slide: leave it out, the heading starts the slide.
+        const levels = headingDividerLevels(
+          frontmatter(chunks[0])?.header ?? "",
+        );
+        chunks.push(
+          levels.length
+            ? dropEmptySlideSeparators(processed, levels)
+            : processed,
+        );
         appendixForPptx = processed;
       }
     }

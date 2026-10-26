@@ -392,6 +392,14 @@ Deno.test("slides preview: a manual deck with nest gets the linked lesson pages 
     assertStringIncludes(input, '<!-- _footer: "Bijlage 1/4" -->');
     assertStringIncludes(input, '<!-- _footer: "Bijlage 4/4" -->');
     assertStringIncludes(input, "<style>section.appendix footer");
+    // With headingDivider 2 Marp splits at the headings itself: a `---` before one, or a comment
+    // or a style before the first heading of a slide, would give an empty slide (rule A7).
+    const appendix = input.slice(input.indexOf("# Form"));
+    assertEquals(/---\s*\n\s*#\s/.test(appendix), false);
+    assertEquals(
+      input.indexOf("<style>section.appendix") > input.indexOf("# Unit tests"),
+      true,
+    );
     const zip = await JSZip.loadAsync(
       await Deno.readFile(
         join(root, "static", "slides", "week", "lesson", "manual.pptx"),

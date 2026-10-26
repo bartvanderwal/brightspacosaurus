@@ -439,11 +439,11 @@ Deno.test("G1/N3: the images under an H1 stand on the title slide and on the div
   );
   assertStringIncludes(
     slides,
-    "<!-- _class: lead -->\n# Overview\n\n![Cover](cover.png)",
+    "# Overview\n\n![Cover](cover.png)\n\n<!-- _class: lead -->",
   );
   assertStringIncludes(
     slides,
-    "<!-- _class: lead -->\n# 1.1 Unit tests\n\n![Unit picture](unit.png)",
+    "# 1.1 Unit tests\n\n![Unit picture](unit.png)\n\n<!-- _class: lead -->",
   );
 });
 
@@ -579,4 +579,21 @@ Deno.test("A5: a deck without appendix has no appendix marks and no style", () =
   );
   assertEquals(deck.includes("appendix"), false);
   assertEquals(deck.includes("<style>"), false);
+});
+
+// Spec *Appendices in a generated deck*, rule A7.
+Deno.test("A7: the directives of a slide come after its heading, so that headingDivider adds no empty slide", () => {
+  const deck = generateLessonSlides(withAppendices, {
+    contentsTitle: "Inhoudsopgave",
+    nestedPage: (url) => url === "pages/a.md" ? pageA : undefined,
+  });
+  for (const slide of deck.split("\n\n---\n\n")) {
+    // No slide starts with a comment: a comment before a heading that headingDivider
+    // splits at would be a slide of its own.
+    const body = slide.replace(
+      /^---[\s\S]*?\n---\n\n(<style>.*<\/style>\n\n)?/,
+      "",
+    );
+    assertEquals(/^<!--/.test(body), false, body.slice(0, 60));
+  }
 });

@@ -786,6 +786,7 @@ Decided with the owner for #156; rules A1 to A6, each with a test in `tests/less
 | A4 | **Not a section.** An appendix heading is not counted as a section and needs no number, like a list of sources: `slides-unnumbered-headings` and `slides-too-many-sections` leave it out. |
 | A5 | **Appendices come last.** `bso lint` warns (`slides-appendix-not-last`) about a section after the first appendix, because its slides would be appendix slides. A deck without appendix has no appendix marks and no style. |
 | A6 | **The pptx follows.** The parser reads the class `appendix` and the footer text; the writer numbers the other slides `3/12` and writes the footer text on an appendix slide. A manual deck gets this too when its slides carry the class and a footer. |
+| A7 | **No empty slide from a directive.** The directives of a slide (`_class`, `_paginate`, `_footer`) come after its heading, and the `<style>` after the last slide; a comment before a heading that `headingDivider` splits at is a slide of its own, and so is a `---` before such a heading, so BSO leaves those `---` out of the appendix when the manual deck has a `headingDivider`. | slides-preview test; checked with Marp on a real deck |
 
 ### 7.9 The publication folder
 
