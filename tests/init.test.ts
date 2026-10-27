@@ -281,7 +281,7 @@ Deno.test("init: rule I4 generated demo lints and builds HTML, quizzes and a tea
       "0.1.0",
     );
     assertEquals(
-      (await entries(join(config.outputDir, "quiz"))).some((name) =>
+      (await entries(join(config.outputDir, "quiz", "week-1"))).some((name) =>
         name.endsWith(".xml")
       ),
       true,
