@@ -770,7 +770,7 @@ Two kinds of slides are told apart. A **lesson presentation** is the deck genera
 | T3 | Alt/Option+T opens the URL of `data-bso-slides-lesson` in the same tab, so the Back button returns to the lesson (ADR 022). Alt/Option+P opens the URL of `data-bso-slides`. Both use the physical key (`KeyT`, `KeyP`) and the same guards (editable fields, repeat, other modifiers, a link to another origin). |
 | T4 | A key does nothing on a page without the attribute it reads. |
 | T5 | The visible button follows `data-bso-slides` only: it is shown for extra slides, never for a lesson presentation without them. |
-| T6 | The lesson page has no line of links to its slides, in the preview and in the cartridge (rules B1 and B2 of *Slides on the lesson page in the cartridge*). The generated deck of a lesson is shown with Alt/Option+T in the preview, and in the cartridge it is the topic after the lesson in the menu. |
+| T6 | The lesson page has no line of links to its slides. In the preview and in the cartridge the generated deck of a lesson is shown with Alt/Option+T, and the extra deck with the *Slides* button and Alt/Option+P (rule B1 of *Slides on the lesson page in the cartridge*); the slides are not items of the menu. |
 | T7 | Alt/Option+T opens the deck without any speaker notes setting of its own. |
 | T8 | The page number of a slide has a light background, so that it stays readable over a background image (`![bg right]`). |
 
@@ -811,14 +811,15 @@ An overview page can show the slides of the pages it links to as nested sets, wi
 
 #### Slides on the lesson page in the cartridge (#146)
 
-Decision of 27 October 2026: the lesson page has **no line of links** to its slides, neither in the preview nor in Brightspace. The first design (rules B1 to B5 of the earlier version) put one short paragraph of links after the first heading, with the presentation, the linked decks and the pptx downloads. It was dropped because the line ended up above the title in the preview, several links made a forest, and the generated deck is reached with Alt/Option+T. The slides are reached in two other ways, the same in both targets (parity, 8.1):
+Decision of 27 October 2026, after a test import: the lesson page has **no line of links** to its slides, and the slides are **not items of the menu**. A test import showed an extra menu item *Slides: …* after every lesson. The lesson page gets the same button and keys as in the preview instead (parity, 8.1).
 
 | # | Rule | Test |
 | --- | --- | --- |
-| B1 | A lesson page in the cartridge is left as it is: it gets no line of links to its slides. The slides stay topics after the lesson in the menu (`Slides: <lesson title>`, and one for each deck the lesson links), and the pptx files of dedicated decks are in the package next to their topics. | export test |
-| B2 | The way in from the lesson is the link that the author writes in the text (a link to a deck, see the linked decks rules L1 to L9) and, in the preview, the *Slides* button and Alt/Option+P for extra slides and Alt/Option+T for the lesson. | slides remark and Playwright tests |
+| B1 | A lesson page in the cartridge that has slides gets a hidden element with `data-bso-slides` (the extra deck: a hand-written deck of the lesson or the first deck that it links) and `data-bso-slides-lesson` (the lesson presentation), with the file names next to the lesson, and the script of the preview (`brightspacosaurus-slides.js`) in the page. So the *Slides* button, Alt/Option+P and Alt/Option+T work as in the preview. A page without slides is left as it is. | export test |
+| B2 | The slides stay files in the package (`content/<lesson>-slides.html` and one file for each linked deck) but are not items of the menu: their topics carry `<meta name="bso-hidden" content="slides">`, and the manifest lists them as resources without an item, like the files of a quiz. They are not topics of the native package either. | export test; checked on the demo package |
+| B3 | The download link, *Download pptx*, is on the slides page of a dedicated deck (rule X3), not on the lesson page. | |
 
-The download link, *Download pptx*, is on the slides page of a dedicated deck (rule X3).
+Not verified: that the keys and the button work inside the frame of Brightspace (they work on the extracted package in a browser), and that a relative link from a lesson page to a hidden file works after the import.
 
 #### Generated slides: what a section gives (#141)
 
@@ -882,7 +883,7 @@ The link is the only marker. There is no new syntax and no `decks` entry in the 
 3. The link on the lesson page leads to the standalone presentation, which starts without the lesson deck, in the preview and in the cartridge.
 4. A deck link inside an inserted deck is not followed and gives `slides-nested-deck`; the same deck linked twice is inserted once and gives `slides-deck-linked-twice`.
 5. A missing deck file fails the build with an actionable message.
-6. The cartridge has the standalone topic after the lesson's slides topic, and `.pptx` rules still apply.
+6. The cartridge has the standalone file next to the lesson's slides file (not an item of the menu, rule B2 of *Slides on the lesson page in the cartridge*), and `.pptx` rules still apply.
 7. A lesson without a generated deck that links a deck still gets the standalone presentation.
 
 **Open points.** The exact file name when two lessons link decks with the same file name; how global directives of a linked deck that differ from the lesson deck are reported (ignored silently is not acceptable under the no-magic principle); and whether the section marker for insertion should also be allowed between two sections.

@@ -789,12 +789,15 @@ async function collectManifestEntries(
         const positionMatch = html.match(
           /<meta name="bso-sidebar-position" content="(-?\d+(?:\.\d+)?)">/,
         );
+        // Slides are files that the lesson page opens, not items of the menu.
+        const hidden = /<meta name="bso-hidden" content="slides">/i.test(html);
         entries.push({
           id,
           title,
           href: relPath,
           type: "webcontent",
           dependencies: [...dependencies].sort(),
+          ...(hidden ? { hidden: true } : {}),
           ...(positionMatch ? { position: Number(positionMatch[1]) } : {}),
         });
       }

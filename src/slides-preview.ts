@@ -24,7 +24,7 @@ import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import type { ResolvedDiagramConfig, SlidesConfig } from "./types.ts";
 import { resolveDiagramsConfig } from "./diagram-config.ts";
-import { loadAssetBytes } from "./assets.ts";
+import { loadAssetBytes, loadAssetText } from "./assets.ts";
 import { DEFAULT_MAX_IMAGE_WIDTH, shrinkImage } from "./image-shrink.ts";
 import {
   generateLessonSlides,
@@ -1545,7 +1545,10 @@ export async function exportSlidesToContent(
     const html = stripBackControls(
       config.notes === true ? rendered : stripPresenterNotes(rendered),
     );
-    const meta = `<meta name="bso-title" content="${escapeAttribute(title)}">`;
+    // The slides are files that the lesson page opens, not items of the menu (rule S1).
+    const meta = `<meta name="bso-title" content="${
+      escapeAttribute(title)
+    }"><meta name="bso-hidden" content="slides">`;
     // Each linked .pptx goes along, named after the lesson, so slide decks never clash.
     let linked = html;
     for (const name of pptxLinkNames(html)) {
@@ -1579,6 +1582,13 @@ export async function exportSlidesToContent(
   };
   const stemOf = (lesson: string) =>
     relative(sources, lesson).replaceAll("\\", "/").replace(/\.md$/i, "");
+  // Per lesson: the file of the lesson presentation (Alt+T) and of the first extra deck (Alt+P and the button).
+  const markers = new Map<string, { lesson?: string; extra?: string }>();
+  const mark = (stem: string, kind: "lesson" | "extra", file: string) => {
+    const known = markers.get(stem) ?? {};
+    if (known[kind] === undefined) known[kind] = file;
+    markers.set(stem, known);
+  };
   for (const [lesson, url] of Object.entries(rendered)) {
     if (
       lesson.startsWith(DECK_KEY_PREFIX) ||
@@ -1586,6 +1596,11 @@ export async function exportSlidesToContent(
       lesson.startsWith(EXTRA_KEY_PREFIX)
     ) continue;
     const stem = stemOf(lesson);
+    mark(
+      stem,
+      rendered[LESSON_KEY_PREFIX + lesson] === undefined ? "extra" : "lesson",
+      `${basename(stem)}-slides.html`,
+    );
     await exportTopic(
       url,
       `${stem}-slides`,
@@ -1610,6 +1625,16 @@ export async function exportSlidesToContent(
       const url = rendered[DECK_KEY_PREFIX + deck.path];
       if (!url || seen.has(deck.path)) continue;
       seen.add(deck.path);
+      mark(
+        stem,
+        "extra",
+        `${
+          deckTopicName(
+            basename(stem),
+            basename(deck.path).replace(/\.md$/i, ""),
+          )
+        }.html`,
+      );
       await exportTopic(
         url,
         join(
@@ -1629,6 +1654,27 @@ export async function exportSlidesToContent(
           }.pptx`,
       );
     }
+  }
+  // The lesson page opens its slides with the button and the keys of the preview (rule S2).
+  const script = await loadAssetText("brightspacosaurus-slides.js");
+  for (const [stem, found] of markers) {
+    const path = join(contentDir, `${stem}.html`);
+    const page = await Deno.readTextFile(path).catch(() => undefined);
+    if (page === undefined || page.includes("data-bso-slides-client")) continue;
+    const attributes = [
+      found.extra ? ` data-bso-slides="${escapeAttribute(found.extra)}"` : "",
+      found.lesson
+        ? ` data-bso-slides-lesson="${escapeAttribute(found.lesson)}"`
+        : "",
+    ].join("");
+    const injected =
+      `<span hidden${attributes}></span><script data-bso-slides-client>${script}</script>`;
+    await Deno.writeTextFile(
+      path,
+      /<\/body>/i.test(page)
+        ? page.replace(/<\/body>/i, () => `${injected}</body>`)
+        : page + injected,
+    );
   }
   return exported;
 }

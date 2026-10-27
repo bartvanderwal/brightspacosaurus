@@ -1883,8 +1883,8 @@ Deno.test("acceptance 7: a lesson that links a slide deck but has no generated s
   });
 });
 
-// Spec *Slides on the lesson page in the cartridge*, rule B1: the lesson page has no line of links to its slides.
-Deno.test("B1: an exported lesson page gets no links to its slides, the slides stay topics after the lesson", async () => {
+// Spec *Slides on the lesson page in the cartridge*, rules B1 and B2.
+Deno.test("B1/B2: an exported lesson page gets the markers and the script of the preview, and the slides are files that the menu does not list", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1896,8 +1896,16 @@ Deno.test("B1: an exported lesson page gets no links to its slides, the slides s
       "decks/extra.md",
       "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n",
     );
-    const page = "<html><body><h1>The lesson</h1><p>Text</p></body></html>";
-    await write(root, "content/week/lesson.html", page);
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>The lesson</h1><p>Text</p></body></html>",
+    );
+    await write(
+      root,
+      "content/week/plain.html",
+      "<html><body><h1>No slides</h1></body></html>",
+    );
     const exported = await exportSlidesToContent(
       { lessons: { "week/lesson.md": { generate: true } }, pptx: true },
       root,
@@ -1910,10 +1918,25 @@ Deno.test("B1: an exported lesson page gets no links to its slides, the slides s
       "week/lesson-slides-extra.html",
       "week/lesson-slides.html",
     ]);
-    assertEquals(
-      await Deno.readTextFile(join(root, "content/week/lesson.html")),
-      page,
+    const page = await Deno.readTextFile(
+      join(root, "content/week/lesson.html"),
     );
+    // B1: the lesson presentation (Alt+T) and the extra deck (Alt+P and the button), as file names next to the lesson.
+    assertStringIncludes(page, 'data-bso-slides="lesson-slides-extra.html"');
+    assertStringIncludes(page, 'data-bso-slides-lesson="lesson-slides.html"');
+    assertStringIncludes(page, "<script data-bso-slides-client>");
+    // A page without slides is left as it is.
+    assertEquals(
+      await Deno.readTextFile(join(root, "content/week/plain.html")),
+      "<html><body><h1>No slides</h1></body></html>",
+    );
+    // B2: the topics say that they are files for the lesson page, not menu items.
+    for (const topic of exported) {
+      assertStringIncludes(
+        await Deno.readTextFile(join(root, "content", topic)),
+        '<meta name="bso-hidden" content="slides">',
+      );
+    }
     // The dedicated deck has its pptx next to its topic.
     assert(
       (await Deno.stat(join(root, "content/week/lesson-slides-extra.pptx")))

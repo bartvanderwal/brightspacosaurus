@@ -24,9 +24,9 @@ function presentLessonSlides(event, doc, browser) {
   const attribute = event.code === "KeyT"
     ? "data-bso-slides-lesson"
     : "data-bso-slides";
-  const path = doc.querySelector(`article [${attribute}]`)?.getAttribute(
-    attribute,
-  );
+  const path = doc.querySelector(
+    `article [${attribute}], .brightspace-content [${attribute}], body > [${attribute}]`,
+  )?.getAttribute(attribute);
   if (!path) return;
   const url = new URL(path, browser.location.href);
   if (url.origin !== browser.location.origin) return;
@@ -59,10 +59,9 @@ function placeSlidesButton(doc) {
  * because Docusaurus navigates without reloading the page.
  */
 function showSlidesButton(doc, browser) {
-  const article = doc.querySelector("article");
-  const path = article?.querySelector("[data-bso-slides]")?.getAttribute(
-    "data-bso-slides",
-  );
+  const path = doc.querySelector(
+    "article [data-bso-slides], .brightspace-content [data-bso-slides], body > [data-bso-slides]",
+  )?.getAttribute("data-bso-slides");
   const existing = doc.querySelector("a.bso-slides-button");
   // The button is for extra slides; a lesson presentation (Alt+T) has none.
   if (!path) {
