@@ -17,6 +17,7 @@ const {
 const { remarkQuizPreview } = require("../src/quiz-preview.ts");
 const { resolveQuizOptions } = require("../src/quiz-config.ts");
 const { resolveDiagramsConfig } = require("../src/diagram-config.ts");
+const { isLeadPageName, overviewLinks } = require("../src/menu-overview.ts");
 const { remarkPreviewSlides, remarkPreviewDeckLinks } = require("../src/slides-preview-remark.ts");
 const course = require("../brightspacosaurus.config.json");
 const quizOptions = resolveQuizOptions(
@@ -212,8 +213,31 @@ function titleReadersCategory(items) {
   );
 }
 
+// The index of each doc in the overview list of its module's lead page, as in the
+// Brightspace menu (rule O1); `bso preview` passes the headings of `menu.overviewHeadings`.
+function overviewOrders(docs) {
+  const headings = process.env.BSO_PREVIEW_MENU_HEADINGS
+    ? JSON.parse(process.env.BSO_PREVIEW_MENU_HEADINGS)
+    : ["Overview", "Overzicht"];
+  const absolute = new Map(docs.map((doc) => [
+    path.resolve(__dirname, doc.source.replace(/^@site\//, "")),
+    doc.id,
+  ]));
+  const orders = new Map();
+  for (const [file] of absolute) {
+    if (!isLeadPageName(path.basename(file))) continue;
+    const links = overviewLinks(fs.readFileSync(file, "utf8"), headings);
+    if (!links) continue;
+    links.forEach((link, index) => {
+      const id = absolute.get(path.resolve(path.dirname(file), link.target));
+      if (id !== undefined && !orders.has(id)) orders.set(id, index);
+    });
+  }
+  return orders;
+}
+
 // Reorders doc items per sidebar level like the Brightspace manifest; categories keep their slots.
-function sortLikeBrightspace(items, titles, positions, firstId) {
+function sortLikeBrightspace(items, titles, positions, firstId, orders = new Map()) {
   const docs = items.filter((item) => item.type === "doc");
   const queue = sortManifestEntriesForNavigation(docs.map((item) => ({
     id: item.id,
@@ -223,11 +247,12 @@ function sortLikeBrightspace(items, titles, positions, firstId) {
       ? "imsqti_xmlv1p2/imscc_xmlv1p3/assessment"
       : "webcontent",
     ...(positions.has(item.id) ? { position: positions.get(item.id) } : {}),
+    ...(orders.has(item.id) ? { order: orders.get(item.id) } : {}),
   })), { firstHref: firstId }).map((entry) => docs.find((doc) => doc.id === entry.id));
   return items.map((item) => {
     if (item.type === "doc") return queue.shift();
     if (item.type === "category") {
-      return { ...item, items: sortLikeBrightspace(item.items, titles, positions, firstId) };
+      return { ...item, items: sortLikeBrightspace(item.items, titles, positions, firstId, orders) };
     }
     return item;
   });
@@ -251,6 +276,7 @@ function courseDocsOptions(coursePath, routeBasePath) {
           .map((doc) => [doc.id, doc.sidebarPosition])),
         // The teacher page first in its module, as in the Brightspace menu.
         args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
+        overviewOrders(args.docs),
       )),
     beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions], [remarkPreviewDeckLinks, {
       lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),

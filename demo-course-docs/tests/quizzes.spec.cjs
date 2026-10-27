@@ -110,8 +110,9 @@ test("quiz preview initializes after client navigation and supports keyboard ans
     name: "Week 1: Authoring and links",
     exact: true,
   }).first().click();
-  await page.getByRole("link", { name: "Quiz 1.1: FizzBuzz", exact: true })
-    .click();
+  // The overview of the module links the quiz too, so take the link in the sidebar.
+  await page.getByRole("navigation", { name: "Docs sidebar" })
+    .getByRole("link", { name: "Quiz 1.1: FizzBuzz", exact: true }).click();
   const quiz = page.locator(".bso-quiz");
   await expect(quiz.getByRole("button", { name: "Check answers", exact: true }))
     .toHaveCount(1);
