@@ -127,17 +127,18 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
 
 ## Quickstart
 
-1. **Create a `brightspacosaurus.config.json`** in the root of your course project:
+1. **Start a new course** in your chosen directory:
 
-   ```json
-   {
-     "courseName": "My Course",
-     "version": "1.0.0",
-     "sourcesDir": "source-material/lessons/"
-   }
+   ```sh
+   bso init
+   bso lint
    ```
 
-2. **Author your course material as Markdown** in the configured `sourcesDir`. Brightspacosaurus classifies files by name:
+   `bso init` lists the files it will add and asks you to confirm the absolute directory (default **no**). Use `bso init --yes` or `bso init -y` for scripts. It never overwrites existing files; unrelated files in a non-empty directory are allowed.
+
+   This creates `brightspacosaurus.config.json` and the demo course from your installed BSO version: lessons, all quiz question types, flashcards, diagrams, readers, slides and a teacher page. The course name defaults to the directory name and the course version to `0.1.0`; sources are in `lessons/`, readers in `readers/`, slide decks in `slides/`, and output goes to `build/brightspace/`. Quiz, flashcard and diagram settings use the documented defaults; readers and slides are enabled in the config. No Docusaurus app, `package.json` or `node_modules` is created.
+
+2. **Adapt the demo material as Markdown** in the configured `sourcesDir`. Brightspacosaurus classifies files by name:
 
    - **Lesson pages** — regular Markdown files. Headings, lists, tables, images (relative paths), and fenced code blocks (any language, with a copy button and syntax highlighting for every language Prism supports) are all supported.
    - **Quizzes** — files with the `quiz-` prefix are converted to QTI 1.2 and imported into the Brightspace Quizzes tool.
@@ -162,7 +163,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    bso preview
    ```
 
-   This starts the Docusaurus dev server (requires a `docusaurusDir` in your config — see [Preview](#preview-docusaurus-dev-server)).
+   Preview currently needs a separate Docusaurus setup and `docusaurusDir` in your config — it does **not** work directly after `init` yet (see [Preview](#preview-docusaurus-dev-server) and [#124](https://github.com/bartvanderwal/brightspacosaurus/issues/124)). `init` deliberately does not create that app.
 
 4. **Build the package** — convert your Markdown to HTML + QTI and package it into a `.imscc`:
 
@@ -171,7 +172,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    bso pack
    ```
 
-   The result is a file such as `build/brightspace/my-course.v1.0.0+3f9c2a1.imscc` (the digits are a hash of the content) that you can import into Brightspace (see [Importing into Brightspace](#importing-into-brightspace)).
+   The result is a file such as `build/brightspace/my-course.v0.1.0+3f9c2a1.imscc` (the digits are a hash of the content) that you can import into Brightspace (see [Importing into Brightspace](#importing-into-brightspace)). Diagram rendering needs access to Kroki (default `https://kroki.io`); PDF generation needs pandoc and XeLaTeX, and slides need npm. For a build without PDF/slide tooling, use `bso build --skip-readers --skip-slides`.
 
 5. **Import into Brightspace** — upload the generated `.imscc` (see [Importing into Brightspace](#importing-into-brightspace)).
 

@@ -108,6 +108,25 @@ Images and HTML files used as content end up in Brightspace as course files / Ma
 
 ## 4. Installation and configuration
 
+### Quickstart
+
+After installing BSO, open the directory for your new course and run:
+
+```sh
+bso init
+bso lint
+bso build
+bso pack
+```
+
+`bso init` lists its additions and asks `Create a BSO project in /absolute/path? [y/N]`. The default is **no**; `--yes` or `-y` skips confirmation. Existing destination files, symlinks or file-shaped parent directories are reported as conflicts and nothing is overwritten. A non-empty directory with unrelated files is allowed.
+
+The generated `brightspacosaurus.config.json` uses the folder name as `courseName`, version `0.1.0`, `sourcesDir: "lessons"` and `outputDir: "build/brightspace"`. It enables `readersDir: "readers"` and the demo slides: generated lesson slides (`generateForPrefix: "lesson-"`), nested test-level pages, and two linked manual decks. Quiz, flashcard and diagram settings use the defaults documented below.
+
+The demo content comes from the **same installed BSO version**, including lessons, all quiz question types, flashcards, PlantUML and Mermaid, readers, slides and a teacher page. Edit these examples to make your own course. No repository-specific dashboard settings, Docusaurus app, `package.json` or `node_modules` is created.
+
+`bso preview` is also printed as a next step, but **currently requires a separate Docusaurus setup** and `docusaurusDir`; standalone preview is not built yet ([#124](https://github.com/bartvanderwal/brightspacosaurus/issues/124)). See the [preview setup instructions](../README.md#preview-docusaurus-dev-server). Builds need access to Kroki for diagrams, pandoc/XeLaTeX for PDFs, and npm for slides. Use `bso build --skip-readers --skip-slides` when PDF/slide tooling is unavailable.
+
 ### 4.1 Requirements
 
 - **Deno** ≥ 1.40: runtime for Brightspacosaurus
