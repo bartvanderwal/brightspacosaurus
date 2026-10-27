@@ -10,6 +10,7 @@ import {
   nativeQuizFromQti,
   packNative,
   quizLink,
+  withoutCourseFileLinks,
 } from "../src/native-packer.ts";
 
 Deno.test("escapeXml escapes markup and keeps newlines as character references", () => {
@@ -19,7 +20,7 @@ Deno.test("escapeXml escapes markup and keeps newlines as character references",
   );
 });
 
-Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles and roots relative paths", () => {
+Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles, roots the paths of pictures and drops links to course files", () => {
   const html =
     '<html><head><style>x{}</style></head><body><div><h1>Week</h1><img src="../images/pic.png" alt="p"><a href="other.html#a">o</a><a href="https://e.org/x.png">e</a></div><script>alert(1)</script></body></html>';
   const description = moduleDescriptionFromHtml(
@@ -27,7 +28,9 @@ Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles a
     "content/week-1/index.html",
   );
   assertStringIncludes(description, 'src="content/images/pic.png"');
-  assertStringIncludes(description, 'href="content/week-1/other.html#a"');
+  // A link to a file of the course does not work in a description: it is plain text (rule D1).
+  assertStringIncludes(description, "<img");
+  assert(!description.includes("other.html"));
   assertStringIncludes(description, 'href="https://e.org/x.png"');
   assert(!description.includes("script"));
   assert(!description.includes("style"));
@@ -153,6 +156,7 @@ Deno.test("packNative makes the lead page the module description, links quizzes 
       topics: 3,
       files: 4,
       quizzes: 1,
+      descriptionLinks: [],
     });
     const zip = await JSZip.loadAsync(await Deno.readFile(outputPath));
     const names = Object.keys(zip.files).sort();
@@ -227,4 +231,21 @@ Deno.test("the course resource code is 24 hex digits and the same for the same c
   assertEquals(/^[0-9a-f]{24}$/.test(code), true);
   assertEquals(code, await courseResourceCode("Demo"));
   assertEquals(code === await courseResourceCode("Other"), false);
+});
+
+// Spec *Module descriptions in the native package*, rule D1.
+Deno.test("D1: links to files of the course in a module description are shown as plain text, and the report says how many", () => {
+  const html =
+    '<body><p><a href="lesson-1.html">Lesson 1</a> and <a href="../week-2/x.html#a">Lesson 2</a>, see <a href="https://example.org/a">the site</a>, <a href="#top">top</a> and <a href="/d2l/home">home</a>.</p><img src="images/p.png"></body>';
+  const result = withoutCourseFileLinks(html);
+  assertEquals(result.removed, 2);
+  assertEquals(
+    result.html,
+    '<body><p>Lesson 1 and Lesson 2, see <a href="https://example.org/a">the site</a>, <a href="#top">top</a> and <a href="/d2l/home">home</a>.</p><img src="images/p.png"></body>',
+  );
+  // A picture keeps its path, relative to the course files, as before.
+  assertStringIncludes(
+    moduleDescriptionFromHtml(html, "content/week-1/index.html"),
+    'src="content/week-1/images/p.png"',
+  );
 });

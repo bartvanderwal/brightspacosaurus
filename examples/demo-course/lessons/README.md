@@ -8,7 +8,7 @@ sidebar_position: 1
 
 *Figure 1. Markdown course material becomes one package for Brightspace.*
 
-This course index is the single handbook for the demo course. The week folders are modules, not separate student handbooks.
+This is the start page of the demo course. Each week is a module with its own lessons and quizzes, and the tables below list them.
 
 New to Brightspacosaurus? Start with [What Brightspacosaurus does](features.md): every feature, with the page in this demo that shows it.
 

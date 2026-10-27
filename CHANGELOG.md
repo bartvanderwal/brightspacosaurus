@@ -2,6 +2,14 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
+## 0.34.1
+
+### Fixed
+
+- `bso lint` no longer reports `publish-version-mismatch` for a package with the hash of the content in its name (`FUSTEN.v0.7.0+7bf462d.imscc`): only the version before the `+` counts.
+- Native package: a link to a file of the course in a module description is shown as plain text, with a note for each module at `bso pack --format brightspace`. Brightspace shows the description on the page of the module, so such a link found nothing (the Software Guidebook, 7.10). Pictures in a description are unchanged.
+- The start page of the demo course says what it is in plain words.
+
 ## 0.34.0
 
 ### Changed

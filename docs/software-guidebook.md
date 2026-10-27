@@ -979,6 +979,16 @@ P6 is checked by running `bso pack` with a `publishDir`; the output names the co
 
 **Open points.** Whether Brightspace accepts the QTI of BSO without the other `d2l_2p0` fields of its own quizzes (`itemproc_extension`, `assess_procextension`). Whether `{orgUnitId}` is filled in on import. Question types other than single and multiple choice. Parity with the Common Cartridge (#149).
 
+#### Module descriptions in the native package (D1)
+
+The lead page of a module becomes the *description* of the module in the native package (ADR 024). Brightspace shows the description on the page of the module, not next to the course files, so a relative link to a lesson in it finds nothing (a test import of owe-1 on 27 October 2026: the links in the overview of a week did not work, while the pictures in it did).
+
+| # | Rule | Test |
+| --- | --- | --- |
+| D1 | In a module description a link to a file of the course (a relative address) is shown as plain text: the link text stays, the link goes. Links to other sites, to an anchor on the page and to an address from the root stay. `bso pack --format brightspace` says for each module how many links it took out. The pages are in the menu of the module. | `tests/native-packer.test.ts` |
+
+Not built: a working link from a description to a lesson. It needs the address of the topic or of the course file as Brightspace gives it after the import (the quick link of a topic has a code that BSO does not know); the layer for it is not designed. The overview list that makes the menu order (rule O1) is read from the source, so the plain text in the description does not change the order.
+
 ### 7.11 Menu order
 
 Design decided on 25 October 2026 and built for #151, except the points below. `src/menu-plan.ts` makes the plan (listed files, positions, left-out files and the lint findings), `sortManifestEntriesForNavigation` in `src/manifest-builder.ts` orders by it, and `implicitOrderProblems` implements O11. BSO now derives the order of the pages in a module from numbers in the title or the file name (`extractNavigationCode` in `src/manifest-builder.ts`) and, after that, from the alphabetical order of the file name, and only lessons can take a `sidebar_position`. That is a leaky abstraction: the order hides in names, and a name does not say that it is an order. The order of a module now comes from three layers, the most specific wins, and none is required. The preview and Brightspace use the same navigation model, so the order is the same in both.

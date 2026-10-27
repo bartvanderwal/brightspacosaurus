@@ -866,7 +866,7 @@ function checkDeckLinks(file: string, text: string): LintDiagnostic[] {
 /**
  * A package in the publication folder is out of date when its version differs
  * from the `version` of the course, because it was published for another
- * version. Only packages of this course (`<name>.v<version>.imscc` or
+ * version. Only packages of this course (`<name>.v<version>[+<hash>].imscc` or
  * `.d2l.zip`) count.
  */
 async function checkPublishedVersions(
@@ -879,7 +879,9 @@ async function checkPublishedVersions(
   const pattern = new RegExp(`^${escaped}\\.v(.+?)(?:\\.imscc|\\.d2l\\.zip)$`);
   try {
     for await (const entry of Deno.readDir(folder)) {
-      const version = entry.isFile ? entry.name.match(pattern)?.[1] : undefined;
+      const named = entry.isFile ? entry.name.match(pattern)?.[1] : undefined;
+      // The name has the hash of the content after a `+` (Software Guidebook, 7.13): only the version counts.
+      const version = named?.split("+", 1)[0];
       if (version === undefined || version === config.version) continue;
       found.push({
         sourceFile: join(folder, entry.name),

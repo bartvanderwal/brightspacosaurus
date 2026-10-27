@@ -145,6 +145,11 @@ Deno.test("bso lint warns about a published package of another version, and abou
       join(publish, "brightspace", "demo.v1.0.0.imscc"),
       "current",
     );
+    // The hash of the content after the `+` is not a version.
+    await Deno.writeTextFile(
+      join(publish, "brightspace", "demo.v1.0.0+7bf462d.d2l.zip"),
+      "current with hash",
+    );
     await Deno.writeTextFile(
       join(publish, "brightspace", "other.v0.1.0.imscc"),
       "other course",

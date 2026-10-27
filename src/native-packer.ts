@@ -235,6 +235,27 @@ export function buildNativeManifest(input: NativeManifestInput): string {
 }
 
 /**
+ * A link to a file of the course in a module description is shown as plain text: Brightspace
+ * shows the description on the page of the module, so a relative link does not find the file
+ * (rule D1 of *Module descriptions in the native package*). Links to other sites, to an anchor
+ * and to an address from the root stay. Returns the HTML and how many links were taken out.
+ */
+export function withoutCourseFileLinks(
+  html: string,
+): { html: string; removed: number } {
+  let removed = 0;
+  const result = html.replace(
+    /<a\b[^>]*?\bhref="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi,
+    (whole, href: string, text: string) => {
+      if (/^(?:[a-z][a-z\d+.-]*:|\/|#|$)/i.test(href)) return whole;
+      removed++;
+      return text;
+    },
+  );
+  return { html: result, removed };
+}
+
+/**
  * The module description from the HTML of its lead page: the inside of
  * `<body>` without scripts and styles, with relative `src` and `href` paths made relative to the root of
  * the course files, because that is where Brightspace looks for them.
@@ -243,11 +264,21 @@ export function moduleDescriptionFromHtml(
   html: string,
   leadHref: string,
 ): string {
+  return moduleDescription(html, leadHref).html;
+}
+
+/** {@link moduleDescriptionFromHtml}, with the number of links to files that were taken out. */
+export function moduleDescription(
+  html: string,
+  leadHref: string,
+): { html: string; linksRemoved: number } {
   // A description is rich text: no scripts or styles, only the content.
-  const body = (html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html)
-    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "");
+  const stripped = withoutCourseFileLinks(
+    (html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html)
+      .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ""),
+  );
   const directory = posix.dirname(leadHref);
-  return body.replace(
+  const rooted = stripped.html.replace(
     /\b(src|href)="([^"#?]+)([^"]*)"/gi,
     (whole, attribute, path, rest) =>
       /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(path)
@@ -256,6 +287,7 @@ export function moduleDescriptionFromHtml(
           posix.normalize(posix.join(directory, path))
         }${rest}"`,
   ).trim();
+  return { html: rooted, linksRemoved: stripped.removed };
 }
 
 /** Options of {@link packNative}. */
@@ -275,6 +307,8 @@ export interface PackNativeResult {
   files: number;
   /** Quizzes in the package, as `quiz_d2l_<n>.xml` files linked from their module. */
   quizzes: number;
+  /** Per module: links to files that were taken out of its description (they do not work there). */
+  descriptionLinks: { module: string; removed: number }[];
 }
 
 async function collectFiles(
@@ -306,6 +340,7 @@ export async function packNative(
     await Deno.readTextFile(join(options.buildDir, "navigation.json")),
   ) as NavigationModel;
   const modules: NativeModule[] = [];
+  const descriptionLinks: { module: string; removed: number }[] = [];
   const resourceCode = await courseResourceCode(options.courseName);
   const quizFiles: { name: string; xml: string }[] = [];
   const quizImages = new Map<string, string>();
@@ -313,12 +348,19 @@ export async function packNative(
     const lead = module.items.find((item) =>
       item.docId !== null && item.docId === module.indexId
     );
-    const descriptionHtml = lead
-      ? moduleDescriptionFromHtml(
+    const description = lead
+      ? moduleDescription(
         await Deno.readTextFile(join(options.buildDir, lead.href)),
         lead.href,
       )
-      : "";
+      : { html: "", linksRemoved: 0 };
+    const descriptionHtml = description.html;
+    if (description.linksRemoved) {
+      descriptionLinks.push({
+        module: module.title,
+        removed: description.linksRemoved,
+      });
+    }
     const topics: NativeTopic[] = [];
     for (const item of module.items) {
       if (item === lead) continue;
@@ -394,6 +436,7 @@ export async function packNative(
     topics: modules.reduce((sum, module) => sum + module.topics.length, 0),
     files,
     quizzes: quizFiles.length,
+    descriptionLinks,
   };
 }
 

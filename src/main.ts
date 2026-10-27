@@ -1122,6 +1122,12 @@ export async function runPack(
         `  ${result.quizzes} quizzes (experimental: the quiz files are not verified with a real import yet)`,
       );
     }
+    // Say what was left out: Brightspace does not resolve a link to a course file in a module description.
+    for (const { module, removed } of result.descriptionLinks) {
+      console.log(
+        `  note: module '${module}': ${removed} link(s) to course files in the description are shown as plain text, because Brightspace does not find them there; the pages are in the menu of the module.`,
+      );
+    }
     await publishIfConfigured(config, [nativePath]);
     console.log("Pack complete.");
     return;
