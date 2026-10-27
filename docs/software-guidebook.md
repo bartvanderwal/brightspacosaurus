@@ -352,6 +352,7 @@ This chapter lists the principles that guide design decisions, from configuratio
   ```
 
   BSO derives the rest: output goes to `build/brightspace/`, the package name `demo-course` comes from the course name, so the archive is `build/brightspace/demo-course.v1.0.0+3f9c2a1.imscc` (the digits after the `+` are a hash of the content, 7.13). Each of these has a field to override it (`outputDir`, `name`).
+- **Opinionated framework.** BSO makes common decisions for the course author, preferring one good way over many equal ones, as John Papa's Angular style guide does (Papa, n.d.). A default is chosen for the typical course by judging what works for students and teachers, not what is easiest to build. Every default can still be overridden in `brightspacosaurus.config.json`; a default that regularly needs overriding is a bug in the default.
 - **Single source of truth.** Markdown in Git is authoritative. Every artifact (HTML, QTI, PDF, manifest, `.imscc`) is generated and never hand-edited. Brightspace is a distribution channel, not the store of record.
 - **Config-driven, no hardcoded paths.** Nothing project-specific lives in the code; it all comes from `brightspacosaurus.config.json` or CLI arguments.
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
@@ -1097,7 +1098,7 @@ This chapter summarises the main design decisions and links to the full Architec
 - **8.6** Publication via JSR
 - **8.7** Asset loading via fetch + materialize for JSR compatibility
 - **8.8** Diagram rendering via remark-kroki-a11y
-- **8.9** Convention over configuration, with a config file for overrides
+- **8.9** Convention over configuration, sensible defaults, and escape hatches
 
 ### 8.1 Preview/output parity
 
@@ -1185,11 +1186,11 @@ Reader PDFs use a mandatory separate cover page ('voorblad', AIM Controle Kaart)
 - **Decision:** run `remark-kroki-a11y` in-process, share one option mapper with preview, adapt provider HTML to native Brightspace disclosures, and keep offline validation reusable.
 - **Rationale:** keeps rendering and natural-language descriptions in one upstream provider while giving BSO deterministic no-JS output and strict/fallback error policy.
 
-### 8.9 Convention over configuration, with a config file for overrides — _(brightspacosaurus-generiek spec)_
+### 8.9 Convention over configuration, sensible defaults, and escape hatches — _(brightspacosaurus-generiek spec)_
 
 - **Context:** the original tool was convention-based and tied to one specific course's directory layout.
-- **Decision:** move to a "convention over configuration" approach: an opinionated setup with good, sensible defaults that works without any configuration, where everything can still be configured differently and project specifics live in `brightspacosaurus.config.json`.
-- **Rationale:** decouples the tool from any single course, making it reusable and publishable, while a new course needs little or no configuration to get started. See `.kiro/specs/brightspacosaurus-generiek/`.
+- **Decision:** move to a "convention over configuration" approach: an opinionated setup with sensible defaults that works without configuration, while project specifics and necessary overrides live in `brightspacosaurus.config.json`. BSO chooses one good way for the typical course; defaults are judged by what works for students and teachers, not by what is easiest to build. A default that regularly needs overriding is a bug in the default.
+- **Rationale:** decouples the tool from any single course, making it reusable and publishable, while a new course needs little or no configuration to get started. For every new setting, its default must work well without configuration and be justified in the Software Guidebook or an ADR. `bso lint` or the documentation names the default so authors can discover it. See `.kiro/specs/brightspacosaurus-generiek/` and [ADR 021](adr/adr021-convention-over-configuration-and-good-defaults.md).
 
 ---
 
@@ -1311,6 +1312,7 @@ Design and requirements history lives in two Kiro specs:
 - Laws of UX. (n.d.). *Jakob's law*. <https://lawsofux.com/jakobs-law/>
 - MDN contributors. (n.d.). *Window: close() method*. MDN Web Docs. <https://developer.mozilla.org/en-US/docs/Web/API/Window/close>
 - Nielsen, J. (1999). *The top 10 web design mistakes of 1999*. Nielsen Norman Group. <https://www.nngroup.com/articles/the-top-ten-web-design-mistakes-of-1999/>
+- Papa, J. (n.d.). *Angular style guide*. GitHub. <https://github.com/johnpapa/angular-styleguide>
 - Saint-Exupéry, A. de. (1939). *Terre des hommes* (chap. 3, titled "The Tool" in the English edition). Gallimard. Passage read as quoted at <https://en.wikiquote.org/wiki/Antoine_de_Saint-Exup%C3%A9ry>
 - Poorvu Center for Teaching and Learning. (n.d.). *Writing learning goals, objectives, and outcomes*. Yale University. <https://poorvucenter.yale.edu/teaching/teaching-resource-library/writing-learning-goals-objectives-and-outcomes>
 - Spolsky, J. (2000, April 22). Consistency and other hobgoblins. In *User interface design for programmers* (chap. 5). Joel on Software. <https://www.joelonsoftware.com/2000/04/22/consistency-and-other-hobgoblins/>
