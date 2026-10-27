@@ -16,7 +16,7 @@ In theory, a test pyramid suggests a mix of three kinds of tests (Chaves, 2025):
 
 ![A pyramid with a broad base of unit tests, a smaller layer of integration tests and a thin top of end-to-end tests](images/test-pyramid.svg)
 
-_Figure 1_: The test pyramid, redrawn for this course after Chaves (2025).
+_Figure 1_: The test pyramid, redrawn for this course, based on the original image by Chaves (2025).
 
 Figure 1 shows the shape: the higher a layer, the fewer tests it holds. The reason is cost and speed.
 
@@ -31,6 +31,8 @@ Figure 1 shows the shape: the higher a layer, the fewer tests it holds. The reas
 - Write most tests at the lowest level that can show the behaviour.
 - Add an integration test where two components meet.
 - Add an E2E test for a few key user journeys.
+
+[Extra slides: where does this test belong?](../../slides/slides-test-strategy.md)
 
 ## 5. Reader
 

@@ -32,14 +32,14 @@ Explanation: look at the fixed title position, which does not move with the amou
 - **Code** gets its own slide, and long code continues on the next slide.
 - **PlantUML and Mermaid diagrams** are drawn through Kroki and get a slide each.
 - Page numbers read `4 / 10`. Appendix slides (a section titled *Appendix* or *Bijlage*) are left out of the total.
-- The preview shows a *Slides* button in the top right corner of every lesson that has extra slides (a deck written by hand). Alt+T presents the lesson itself and has no button. In Brightspace the slides are topics after the lesson in the module; the *Download pptx* link is on the slides page of a hand-written deck.
+- The preview shows a *Slides* button in the top right corner of every lesson that has extra slides (a deck written by hand). Alt+T presents the lesson itself and has no button; it works on the lessons that `generateForPrefix` selects (here the files that start with `lesson-`), not on overview, feature or quiz pages. In Brightspace the slides are topics after the lesson in the module; the *Download pptx* link is on the slides page of a hand-written deck.
 
 **Try it in this course**
 
 | Lesson | What you can do |
 | --- | --- |
 | [Lesson 1.1: FizzBuzz](../week-1/lesson-1-fizzbuzz.md) | Alt+T presents the lesson as slides, generated from the lesson text; the *FizzBuzz, step by step* deck, which the lesson links, is part of it. Alt+P (or the button) opens that extra deck alone. |
-| [Lesson 1.2: Test strategy](../week-1/lesson-2-test-strategy.md) | A hand-written deck belongs to this lesson and is not generated: Alt+P and the button open it, Alt+T does nothing. |
+| [Lesson 1.2: Test strategy](../week-1/lesson-2-test-strategy.md) | Like lesson 1.1: Alt+T presents the lesson, and the extra slides *Where does this test belong?* (three practice cases that are not in the lesson text) are linked in the lesson and open with Alt+P or the button. |
 | [Lesson 2.5: Test levels](../week-2/lesson-5-test-levels.md) | Alt+T presents the lesson with the three pages it links as nested sets. |
 
 The lesson is not copied: the generated slides are made from the lesson file each time, so a change in the lesson shows in the slides. Only the extra deck is a separate file.
