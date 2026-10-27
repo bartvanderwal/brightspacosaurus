@@ -787,3 +787,24 @@ export function sectionsWithoutSlideContent(
   finish();
   return found;
 }
+
+/**
+ * Removes the start of the titles of the slides that the regular expression `prefix` matches, so
+ * `## Slide 3 - Standup` becomes `## Standup` (spec *Title prefix*, rules TP1-TP3). Only headings
+ * outside code fences are changed, only at the start of the title, and a title that is only the
+ * prefix is left as it is: an empty title would be a worse slide than a long one.
+ */
+export function stripTitlePrefix(markdown: string, prefix: string): string {
+  const pattern = new RegExp(`^(#{1,6})[ \\t]+(?:${prefix})(?=\\S)`);
+  let fence: string | undefined;
+  return markdown.split("\n").map((line) => {
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      if (!fence) fence = fenceMatch[1][0];
+      else if (fenceMatch[1][0] === fence) fence = undefined;
+      return line;
+    }
+    if (fence) return line;
+    return line.replace(pattern, "$1 ");
+  }).join("\n");
+}

@@ -348,3 +348,25 @@ Deno.test("remarkPreviewDeckLinks recognises a deck on disk by default, and keep
     await Deno.remove(root, { recursive: true });
   }
 });
+
+Deno.test("slides.titlePrefix must be a valid regular expression", () => {
+  const base = { courseName: "C", version: "1.0.0", sourcesDir: "lessons" };
+  assertEquals(
+    validateConfig({
+      ...base,
+      slides: { generateForPrefix: "lesson-", titlePrefix: "Slide \\d+ - " },
+    }),
+    true,
+  );
+  for (const value of ["", "(", 5]) {
+    assertThrows(
+      () =>
+        validateConfig({
+          ...base,
+          slides: { generateForPrefix: "lesson-", titlePrefix: value },
+        }),
+      Error,
+      "slides.titlePrefix",
+    );
+  }
+});

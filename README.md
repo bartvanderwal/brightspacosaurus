@@ -90,9 +90,9 @@ If the newest version was published only a short time ago, Deno may still instal
 deno install -A -g -f --min-dep-age 0 -n bso jsr:@bartvanderwal/brightspacosaurus/cli
 ```
 
-Then run `bso --version` to see which version you have. To install one exact version, put it in the address: `jsr:@bartvanderwal/brightspacosaurus@0.34.1/cli`.
+Then run `bso --version` to see which version you have. To install one exact version, put it in the address: `jsr:@bartvanderwal/brightspacosaurus@0.35.0/cli`.
 
-A project can also pin the version in its own scripts (`deno run -A jsr:@bartvanderwal/brightspacosaurus@0.34.1/cli build`), so that everyone who builds the course uses the same version.
+A project can also pin the version in its own scripts (`deno run -A jsr:@bartvanderwal/brightspacosaurus@0.35.0/cli build`), so that everyone who builds the course uses the same version.
 
 ### Permissions
 

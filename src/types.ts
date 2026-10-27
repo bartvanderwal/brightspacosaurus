@@ -211,6 +211,12 @@ export interface SlidesConfig {
    * 0 turns it off (ADR 025).
    */
   maxImageWidth?: number;
+  /**
+   * A regular expression for the start of a slide title that is left out, for example
+   * `Slide \\d+ - ` for the headings `## Slide 3 - Standup`. It is removed from the titles of
+   * the slides in the HTML and in the pptx; the Markdown source stays as it is.
+   */
+  titlePrefix?: string;
 }
 
 export interface BsoConfig {

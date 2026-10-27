@@ -2291,3 +2291,40 @@ Deno.test("T1: a generated lesson that links a deck gets that deck as its extra 
     assertEquals(result[EXTRA_KEY_PREFIX + key("week/plain.md")], undefined);
   });
 });
+
+// Spec *Title prefix*, rule TP4: the pptx and the HTML of a deck do not have the prefix.
+Deno.test("TP4: slides.titlePrefix is left out of the titles in the HTML input and in the pptx", async () => {
+  await fixture(async (root) => {
+    await write(root, "lessons/week/lesson.md", "# Lesson\n\nText.\n");
+    await write(
+      root,
+      "decks/les.md",
+      "---\nslides: true\ntitle: Les\n---\n\n# Slide 1 - Start\n\n- one\n\n---\n\n## Slide 2 - Standup\n\n- two\n",
+    );
+    const captured: string[] = [];
+    await renderPreviewSlides(
+      {
+        lessons: { "week/lesson.md": { decks: "decks/les.md", pptx: true } },
+        pptx: true,
+        titlePrefix: "Slide \\d+ - ",
+      } as SlidesConfig,
+      root,
+      "lessons",
+      "static",
+      fake(captured),
+    );
+    assertStringIncludes(captured[0], "# Start");
+    assertStringIncludes(captured[0], "## Standup");
+    assert(!captured[0].includes("Slide 1 - "));
+    const zip = await JSZip.loadAsync(
+      await Deno.readFile(join(root, "static/slides/week/lesson/les.pptx")),
+    );
+    const text = (await Promise.all(
+      Object.keys(zip.files).filter((name) =>
+        /^ppt\/slides\/slide\d+\.xml$/.test(name)
+      ).map((name) => zip.file(name)!.async("string")),
+    )).join("\n");
+    assertStringIncludes(text, "Standup");
+    assert(!text.includes("Slide 2 - "));
+  });
+});

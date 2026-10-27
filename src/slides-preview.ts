@@ -29,6 +29,7 @@ import { DEFAULT_MAX_IMAGE_WIDTH, shrinkImage } from "./image-shrink.ts";
 import {
   generateLessonSlides,
   generateNestedAppendix,
+  stripTitlePrefix,
 } from "./lesson-slides.ts";
 import {
   dropEmptySlideSeparators,
@@ -1168,6 +1169,11 @@ export async function renderPreviewSlides(
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
   const result: Record<string, string> = {};
+  // The start of the titles that the course leaves out (`slides.titlePrefix`), in the HTML and the pptx.
+  const titled = (markdown: string) =>
+    config.titlePrefix
+      ? stripTitlePrefix(markdown, config.titlePrefix)
+      : markdown;
   let toolsPrepared = false;
   for (const plan of plans) {
     const chunks: string[] = [];
@@ -1308,7 +1314,10 @@ export async function renderPreviewSlides(
     await Deno.mkdir(dirname(destination), { recursive: true });
     const input = join(dirname(destination), ".bso-slides-input.md");
     try {
-      await Deno.writeTextFile(input, joinChunks(chunks, plan.generate));
+      await Deno.writeTextFile(
+        input,
+        titled(joinChunks(chunks, plan.generate)),
+      );
       if (!toolsPrepared) {
         const rel = relative(output, tools);
         if (
@@ -1361,7 +1370,7 @@ export async function renderPreviewSlides(
           for (const [placeholder, url] of svgImages) {
             markdown = markdown.replaceAll(placeholder, url);
           }
-          const bytes = await convertDeckToPptx(markdown, {
+          const bytes = await convertDeckToPptx(titled(markdown), {
             baseDir: dirname(plan.lesson),
             notes: config.notes === true,
             logo: config.logo
@@ -1399,7 +1408,7 @@ export async function renderPreviewSlides(
             name = `${basename(source).replace(/\.md$/i, "")}-${n}.pptx`;
           }
           used.add(name);
-          const bytes = await convertDeckToPptx(deckMarkdown, {
+          const bytes = await convertDeckToPptx(titled(deckMarkdown), {
             maxImageWidth,
             baseDir: dirname(source),
             notes: config.notes === true,

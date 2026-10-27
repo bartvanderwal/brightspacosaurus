@@ -2,7 +2,11 @@
 
 All notable changes to Brightspacosaurus are documented here.
 
-## 0.34.1
+## 0.35.0
+
+### Added
+
+- `slides.titlePrefix`: a regular expression for the start of a slide title that is left out, in the HTML slides and in the pptx, for example `Slide \\d+ - ` for `## Slide 3 - Standup` (the Software Guidebook, *Title prefix*; #156).
 
 ### Fixed
 

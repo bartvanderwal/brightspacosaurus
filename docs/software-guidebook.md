@@ -902,6 +902,19 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 | X6 | *What does not fit goes on a next slide.* A slide whose text does not fit at the smallest font size continues on further slides with the same title and a counter, `Title (2/3)`: list items, table rows (the header repeated) and lines of code are spread; the speaker notes stay with the first slide, an image stays where it was, and a link to another slide (`#12`) follows the new numbering. A title slide is not split. | pptx tests |
 
+#### Title prefix
+
+Some courses number the headings of their decks in the title (`## Slide 3 - Standup`), so that a teacher can say "slide 3" in a lecture. The prefix is useful in the source and in the lecture but not on the slide or in the pptx, where the number of the slide is shown anyway. `slides.titlePrefix` is a regular expression for what to leave out.
+
+| # | Rule |
+| --- | --- |
+| TP1 | The start of a heading that `slides.titlePrefix` matches is removed, at every heading level (`#` to `######`), before the deck goes to Marp and before it goes to the pptx. The Markdown source is never changed. |
+| TP2 | Only headings outside code fences count, and only at the start of the title. Text in the middle of a title, a line that is not a heading and the contents of a code block stay as they are. |
+| TP3 | A title that is only the prefix is left as it is: an empty title is a worse slide than a long one. |
+| TP4 | The setting is checked when the configuration is read: it must be a non-empty string and a valid regular expression. |
+
+Tests: `tests/lesson-slides.test.ts` (TP1 to TP3), `tests/slides-config.test.ts` (TP4, the setting) and `tests/slides-preview.test.ts` (the HTML input and the pptx). The tests were written after the code.
+
 #### Step-by-step lists
 
 A hand-written deck can show a list one item at a time. BSO adds no syntax for it: it is the *fragmented list* of Marp (the HTML of the deck marks the items with `data-marpit-fragment`). In this guidebook and in the user manual it is called a **step-by-step list**, because *fragmented* says nothing about what the audience sees; PowerPoint calls the same effect animating bullet points one at a time (*Appear*; Microsoft, n.d.).

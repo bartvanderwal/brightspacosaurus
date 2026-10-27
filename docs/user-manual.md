@@ -151,6 +151,7 @@ The most important fields:
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
 | `slides.pptx`          | no       | `true` also writes every manual deck as an editable PowerPoint file; default `false`. A deck overrides it with `pptx: true`, `pptx: false` or `pptx: auto` in its front matter |
 | `slides.maxImageWidth` | no       | Largest width in pixels of a PNG or JPEG in the slides and the pptx files, default `1600`; wider pictures are shrunk in the embedded copy, never in the source; `0` turns it off |
+| `slides.titlePrefix` | no | A regular expression for the start of a slide title that is left out, for example `Slide \\d+ - ` for the headings `## Slide 3 - Standup`. It is removed from the titles in the HTML slides and in the pptx; the Markdown source stays as it is. A title that is only the prefix is kept. |
 | `slides.lessons.<lesson>.pptx` | no | `true` also writes the generated deck of that lesson, nested pages included, as an editable PowerPoint file. Without it, a generated deck has no pptx, whatever `slides.pptx` says: only the dedicated decks, the ones written by hand, are for download. Needs `generate: true` |
 | `slides.theme`         | no       | Marp theme CSS file, relative to the repository root; overrides deck-level theme selection in preview and the `.imscc` |
 | `slides.logo`          | no       | Logo on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |

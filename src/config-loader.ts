@@ -225,7 +225,8 @@ export function validateConfig(config: unknown): config is BsoConfig {
       if (
         key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
         key !== "theme" && key !== "logo" && key !== "generateForPrefix" &&
-        key !== "pptx" && key !== "maxImageWidth"
+        key !== "pptx" && key !== "maxImageWidth" &&
+        key !== "titlePrefix"
       ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
@@ -310,6 +311,16 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     if (slides.notes !== undefined && typeof slides.notes !== "boolean") {
       throw new Error("Field 'slides.notes' must be true or false.");
+    }
+    if (slides.titlePrefix !== undefined) {
+      if (typeof slides.titlePrefix !== "string" || !slides.titlePrefix) {
+        throw new Error("Field 'slides.titlePrefix' must be a non-empty regular expression, for example 'Slide \\\\d+ - '.");
+      }
+      try {
+        new RegExp(slides.titlePrefix);
+      } catch {
+        throw new Error(`Field 'slides.titlePrefix' is not a valid regular expression: ${slides.titlePrefix}`);
+      }
     }
     if (
       slides.maxImageWidth !== undefined &&

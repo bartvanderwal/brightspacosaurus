@@ -4,7 +4,10 @@ import {
   assertStringIncludes,
   assertThrows,
 } from "@std/assert";
-import { generateLessonSlides } from "../src/lesson-slides.ts";
+import {
+  generateLessonSlides,
+  stripTitlePrefix,
+} from "../src/lesson-slides.ts";
 
 Deno.test("generated lesson slides keep the H1 and H2s but omit prose", () => {
   const result = generateLessonSlides(`# 8.1 Lescontext
@@ -596,4 +599,27 @@ Deno.test("A7: the directives of a slide come after its heading, so that heading
     );
     assertEquals(/^<!--/.test(body), false, body.slice(0, 60));
   }
+});
+
+// Spec *Title prefix*, rules TP1-TP3.
+Deno.test("TP1: the start of a title that the pattern matches is left out, at every heading level", () => {
+  const source =
+    "## Slide 3 - Standup\n\n# Slide 12 - Closing\n\n### Slide 4 - Detail\n";
+  assertEquals(
+    stripTitlePrefix(source, "Slide \\d+ - "),
+    "## Standup\n\n# Closing\n\n### Detail\n",
+  );
+});
+
+Deno.test("TP2: only headings outside code fences, and only at the start of the title", () => {
+  const source =
+    "## Intro on Slide 3 - not a prefix\n\n```md\n## Slide 3 - in code\n```\n\nSlide 3 - plain text\n";
+  assertEquals(stripTitlePrefix(source, "Slide \\d+ - "), source);
+});
+
+Deno.test("TP3: a title that is only the prefix is left as it is", () => {
+  assertEquals(
+    stripTitlePrefix("## Slide 3 -\n", "Slide \\d+ -"),
+    "## Slide 3 -\n",
+  );
 });
