@@ -481,7 +481,7 @@ The student sees "1 van 2 afgevinkt" (the text follows `diagrams.locale`) and th
 
 **Privacy.** The state lives only in the browser of the student (`localStorage`), per page and per goal text. There is no server, no account and nothing is sent. The consequences: a student who uses another browser or device starts empty, clearing the site data clears the ticks, and if a teacher rewrites the text of a goal, that goal starts unticked. Where storage is blocked, the boxes still work for the visit but are forgotten. The ticks are not visible to the teacher.
 
-In your own Docusaurus app, add `remarkLearningObjectives` (from `@bartvanderwal/brightspacosaurus/learning-objectives`) to the remark plugins and run `initializeObjectives(document)` from `@bartvanderwal/brightspacosaurus/objectives-client` in an `onRouteDidUpdate` client module; see the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). The Brightspace HTML export has the script built in.
+In your own Docusaurus app, add `remarkLearningObjectives` (from `@bartvanderwal/brightspacosaurus/learning-objectives`) to the remark plugins and add a client module that imports `@bartvanderwal/brightspacosaurus/objectives-client` and calls `globalThis.bsoObjectives?.initializeObjectives(document)` in `onRouteDidUpdate`. The script has no named export, so `import { initializeObjectives } from …` fails with *initializeObjectives is not a function*; use the global. See the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). The Brightspace HTML export has the script built in.
 
 ## Kernbegrippen
 
