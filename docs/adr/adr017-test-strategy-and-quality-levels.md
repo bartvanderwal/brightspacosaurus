@@ -4,6 +4,8 @@
 
 Accepted
 
+Note (27 October 2026): the task `deno task demo`, named in the Decision, has been renamed to `deno task preview`.
+
 ## Context
 
 Brightspacosaurus transforms Markdown into several outputs and crosses multiple boundaries: unified parsing, HTML generation, QTI, PDF conversion, Common Cartridge packaging, Docusaurus preview and Brightspace import. A single test level cannot provide useful confidence for all of these behaviors.

@@ -34,7 +34,6 @@
     "audit": "deno run --allow-run=deno utils/audit.ts",
     "test:fast": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts fast",
     "test:pdf": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts pdf",
-    "demo": "deno task preview",
     "preview": "deno run --allow-read --allow-write=build,demo-course-docs --allow-env --allow-run=npm --allow-net src/main.ts preview",
     "demo:pack": "cd examples/demo-course && deno run -A ../../src/main.ts build && deno run -A ../../src/main.ts pack",
     "stop": "deno run --allow-run=lsof,ps utils/stop-preview.ts",

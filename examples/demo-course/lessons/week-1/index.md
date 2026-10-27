@@ -2,6 +2,10 @@
 
 This week covers lesson authoring: code blocks, links, includes and flashcards. Each lesson is followed by its quiz.
 
+![Week 1: a teacher writes a lesson at a laptop; a code block, a link, a picture and flashcards float beside the dinosaur](images/week-1-authoring-code-links-flashcards.png)
+
+*Figure 1. Week 1 is about authoring: code, links, pictures and flashcards.*
+
 ## Overview
 
 - [Lesson 1.1: FizzBuzz](lesson-1-fizzbuzz.md)
