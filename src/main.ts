@@ -1,7 +1,7 @@
 /**
  * Command-line interface for Brightspacosaurus.
  *
- * Provides the `build`, `pack` and `preview` commands used to convert
+ * Provides the `init`, `lint`, `build`, `pack` and `preview` commands used to convert
  * Markdown course material into Brightspace-ready build output and packages.
  *
  * @module
@@ -60,6 +60,7 @@ import {
   sortManifestEntriesForNavigation,
 } from "./manifest-builder.ts";
 import { pack } from "./packer.ts";
+import { runInit } from "./init.ts";
 import { nativePackageName, packNative } from "./native-packer.ts";
 import { publishPackages } from "./publisher.ts";
 import { planMenu } from "./menu-plan.ts";
@@ -99,12 +100,14 @@ export function decodeHtmlEntities(text: string): string {
 const USAGE_BODY = `Usage: brightspacosaurus <command> [options]
 
 Commands:
+  init      Create a new course with a default config and the bundled demo
   build     Generate Brightspace HTML, QTI quizzes, PDFs and assets
   pack      Package the build directory into a .imscc archive (--format brightspace: native package)
   preview   Start the Docusaurus dev server (requires docusaurusDir in config)
   lint      Check BSO-specific Markdown, includes, diagrams and quiz answers
 
 Options:
+  --yes, -y         init only: skip confirmation (never overwrite existing files)
   --config <path>    Path to the configuration file (default: brightspacosaurus.config.json in cwd)
   --sources <dir>    Source directory for lesson and quiz Markdown (overrides config.sourcesDir)
   --output <path>    Build directory that also receives the .imscc (overrides config.outputDir)
@@ -138,7 +141,7 @@ function printUsage(
 }
 
 /** Subcommands the CLI accepts as first argument. */
-const COMMANDS = ["build", "pack", "preview", "lint"];
+const COMMANDS = ["init", "build", "pack", "preview", "lint"];
 
 /**
  * Returns the error text for an unknown subcommand, or null when the first
@@ -1419,6 +1422,21 @@ async function main(): Promise<void> {
   // repoRoot = the directory from which deno run is invoked (working directory)
   // This makes brightspacosaurus location-independent: the tool can live anywhere.
   const repoRoot = Deno.cwd();
+
+  if (parsed.command === "init") {
+    try {
+      const options = args.slice(1);
+      const unsupported = options.filter((arg) => arg !== "--yes" && arg !== "-y");
+      if (unsupported.length) {
+        throw new Error(`Unknown init option: ${unsupported.join(", ")}. Use 'bso init [--yes|-y]'.`);
+      }
+      await runInit(repoRoot, { yes: options.length > 0 });
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      Deno.exit(1);
+    }
+    return;
+  }
 
   // Load configuration via the config-loading flow:
   // findConfigFile → loadConfig → resolveConfig

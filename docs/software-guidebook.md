@@ -602,6 +602,18 @@ When no config file exists but `--sources` is given, `resolveFromCliOnly` produc
 
 ## 7. Code
 
+### Project initialization
+
+`bso init` creates a standalone course in the current directory.
+
+| Rule | Required behavior |
+| --- | --- |
+| I1 | List the files to add, then ask `Create a BSO project in /absolute/path? [y/N]`. Only `y` or `yes` (case-insensitive) confirms; empty input, EOF and other answers cancel without writing. `--yes` and `-y` skip the prompt. |
+| I2 | Before writing, report all existing destination files and any non-directory or symbolic-link parent as conflicts, and exit non-zero without changing anything. Unrelated existing files and real directories are allowed. Create files exclusively, never overwrite. |
+| I3 | Copy the bundled demo's lessons, partials, readers and slides byte-for-byte from the installed package, not from a moving remote branch. The published package includes these files; a test checks that the file inventory stays complete. |
+| I4 | Generate a standalone config with the folder name as `courseName`, course version `0.1.0`, `sourcesDir: "lessons"` and `outputDir: "build/brightspace"`. Enable the bundled readers, generated lesson slides (including the nested test-level pages) and linked manual decks; leave quiz, flashcard and diagram behavior at their documented defaults. Do not copy repository-specific config, dashboard endpoints or a Docusaurus application. |
+| I5 | Print `bso lint`, `bso build`, `bso preview` and `bso pack` next steps. Until standalone preview is built, explicitly state that preview needs a separate Docusaurus setup and link to its documentation. |
+
 This chapter describes code-level conventions and solutions that are not visible in the architecture diagrams but matter when you change the code.
 
 - **7.1** Conventions

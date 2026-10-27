@@ -54,6 +54,18 @@ export async function loadAssetBytes(assetName: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
+/** Loads demo content from this installed package, including binary images. */
+export async function loadDemoCourseBytes(path: string): Promise<Uint8Array> {
+  const url = new URL(`../examples/demo-course/${path}`, import.meta.url);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `Cannot load demo file: ${path} (${url}) — status ${response.status}`,
+    );
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 /**
  * Materializes an asset to a temporary local file and returns the path.
  * Needed for external tools such as pandoc that require an actual file path on disk

@@ -118,7 +118,11 @@
       "README.md",
       "deno.json",
       "assets/brightspacosaurus-quizzes.js",
-      "assets/teacher-dashboard/"
+      "assets/teacher-dashboard/",
+      "examples/demo-course/lessons/",
+      "examples/demo-course/partials/",
+      "examples/demo-course/readers/",
+      "examples/demo-course/slides/"
     ]
   }
 }
