@@ -819,6 +819,9 @@ export const LESSON_KEY_PREFIX = "lesson:";
 /** Prefix of the entries with the first slide deck that a generated lesson links: its extra slides. */
 export const EXTRA_KEY_PREFIX = "extra:";
 
+/** Prefix of the entries with the links that the lesson page shows at the top: the same line as in the cartridge. */
+export const LINKS_KEY_PREFIX = "links:";
+
 /**
  * The slide decks that a lesson links to. The links are resolved relative to the
  * lesson file, and a target only counts when the file exists and is marked as a
@@ -1170,6 +1173,8 @@ export async function renderPreviewSlides(
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
   const result: Record<string, string> = {};
+  // The pptx files that each deck got, by the URL of the deck.
+  const pptxByUrl = new Map<string, string[]>();
   let toolsPrepared = false;
   for (const plan of plans) {
     const chunks: string[] = [];
@@ -1439,6 +1444,7 @@ export async function renderPreviewSlides(
         ),
       );
       result[plan.lesson] = plan.url;
+      pptxByUrl.set(plan.url, pptxNames);
       if (plan.generate) result[LESSON_KEY_PREFIX + plan.lesson] = plan.url;
     } catch (error) {
       throw new Error(
@@ -1451,6 +1457,43 @@ export async function renderPreviewSlides(
         if (!(error instanceof Deno.errors.NotFound)) throw error;
       });
     }
+  }
+  // The line of links at the top of each lesson page, as in the cartridge.
+  const linkLocale = (diagrams ?? resolveDiagramsConfig({})).locale === "en"
+    ? "en"
+    : "nl";
+  const pptxLinks = (url: string): SlidesLink[] =>
+    (pptxByUrl.get(url) ?? []).map((name) => ({
+      kind: "pptx" as const,
+      href: `${url.split("/").slice(0, -1).join("/")}/${
+        encodeURIComponent(name)
+      }`,
+      label: name,
+    }));
+  for (const plan of plans) {
+    if (plan.lesson.startsWith(DECK_KEY_PREFIX)) continue;
+    const links: SlidesLink[] = [
+      {
+        kind: "slides",
+        href: plan.url,
+        label: "",
+        presentation: plan.generate,
+      },
+      ...pptxLinks(plan.url),
+    ];
+    const seen = new Set<string>();
+    for (const deck of linkedByLesson.get(plan.lesson) ?? []) {
+      const url = result[DECK_KEY_PREFIX + deck.path];
+      if (!url || seen.has(deck.path)) continue;
+      seen.add(deck.path);
+      links.push(
+        { kind: "slides", href: url, label: deck.title },
+        ...pptxLinks(url),
+      );
+    }
+    result[LINKS_KEY_PREFIX + plan.lesson] = JSON.stringify(
+      slideLinkItems(links, linkLocale),
+    );
   }
   // The extra slides of a lesson presentation: the first slide deck that the lesson links.
   for (const [lesson, decks] of linkedByLesson) {
@@ -1526,6 +1569,41 @@ const SLIDES_LINK_TEXT = {
   },
 } as const;
 
+/** One link of the line at the top of a lesson page, with its text in the language of the course. */
+export interface SlidesLinkItem {
+  href: string;
+  text: string;
+  download: boolean;
+}
+
+/**
+ * The texts of the links of a lesson page. The preview and the cartridge both
+ * show this line (spec *The lesson as slides: Alt+T*, rule T6), so the texts are made here once.
+ */
+export function slideLinkItems(
+  links: SlidesLink[],
+  locale: "nl" | "en",
+): SlidesLinkItem[] {
+  const text = SLIDES_LINK_TEXT[locale];
+  return links.map((link) =>
+    link.kind === "pptx"
+      ? {
+        href: link.href,
+        text: `${text.pptx} (${link.label})`,
+        download: true,
+      }
+      : {
+        href: link.href,
+        text: link.label
+          ? link.label
+          : link.presentation
+          ? text.present
+          : text.slides,
+        download: false,
+      }
+  );
+}
+
 /**
  * Adds one paragraph of links to the slides and to the editable pptx files of
  * a lesson page, after its first `<h1>` (spec *Slides on the lesson page in the cartridge*, rules B1-B5). Plain
@@ -1538,19 +1616,10 @@ export function withSlidesLinks(
   locale: "nl" | "en",
 ): string {
   if (!links.length || html.includes("data-bso-slides-links")) return html;
-  const text = SLIDES_LINK_TEXT[locale];
-  const anchors = links.map((link) =>
-    link.kind === "pptx"
-      ? `<a href="${escapeAttribute(link.href)}" download>${text.pptx} (${
-        escapeAttribute(link.label)
-      })</a>`
-      : `<a href="${escapeAttribute(link.href)}">${
-        link.label
-          ? escapeAttribute(link.label)
-          : link.presentation
-          ? text.present
-          : text.slides
-      }</a>`
+  const anchors = slideLinkItems(links, locale).map((item) =>
+    `<a href="${escapeAttribute(item.href)}"${
+      item.download ? " download" : ""
+    }>${escapeAttribute(item.text)}</a>`
   );
   const paragraph = `<p data-bso-slides-links style="margin:.5rem 0 1rem">${
     anchors.join(" · ")
@@ -1670,7 +1739,8 @@ export async function exportSlidesToContent(
     if (
       lesson.startsWith(DECK_KEY_PREFIX) ||
       lesson.startsWith(LESSON_KEY_PREFIX) ||
-      lesson.startsWith(EXTRA_KEY_PREFIX)
+      lesson.startsWith(EXTRA_KEY_PREFIX) ||
+      lesson.startsWith(LINKS_KEY_PREFIX)
     ) continue;
     const stem = stemOf(lesson);
     addLinks(

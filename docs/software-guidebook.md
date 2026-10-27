@@ -772,9 +772,10 @@ Two kinds of slides are told apart. A **lesson presentation** is the deck genera
 | T5 | The visible button follows `data-bso-slides` only: it is shown for extra slides, never for a lesson presentation without them. |
 | T6 | In the cartridge the link on the lesson page to the generated deck reads *Present this lesson* (*Presenteer deze les* for `nl`); a link to extra slides keeps *View as slides* (*Bekijk als slides*), and a linked deck keeps its title. |
 | T7 | Alt/Option+T opens the deck without any speaker notes setting of its own. |
+| T9 | Preview and cartridge show the same line of links after the first heading of a lesson page: *Present this lesson* (for a generated deck) or *View as slides*, then the pptx downloads, then each deck that the lesson links with its title and its pptx. `renderPreviewSlides` records it for the preview as `links:<path>`, made with the same function (`slideLinkItems`) as the cartridge. Only the file name in the text of a pptx link differs: the package puts the lesson in front of it. |
 | T8 | The page number of a slide has a light background, so that it stays readable over a background image (`![bg right]`). |
 
-Tests: `tests/slides-preview.test.ts` (T1, T6), `tests/slides-remark.test.ts` (T2) and `demo-course-docs/tests/slides.spec.cjs` (T3 to T5). T7 and T8 have no automated test yet (T8 was seen on the demo screenshot). The tests were written after the code.
+Tests: `tests/slides-preview.test.ts` (T1, T6), `tests/slides-remark.test.ts` (T2) and `demo-course-docs/tests/slides.spec.cjs` (T3 to T5). T9 has a test that compares the two lines; T7 and T8 have no automated test yet (T8 was seen on the demo screenshot). The tests were written after the code.
 
 #### Nested lesson pages (#147)
 

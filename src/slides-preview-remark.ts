@@ -8,6 +8,50 @@ const LESSON_KEY_PREFIX = "lesson:";
 /** Prefix of the entries with the extra slides of a lesson presentation. */
 const EXTRA_KEY_PREFIX = "extra:";
 
+/** Prefix of the entries with the line of links at the top of a lesson page. */
+const LINKS_KEY_PREFIX = "links:";
+
+/**
+ * The line of links to the slides and the pptx files after the first heading of
+ * the lesson, the same line that the cartridge shows (rule T6).
+ */
+function insertLinksLine(
+  tree: { children: unknown[] },
+  json: string | undefined,
+  base: string,
+): void {
+  if (!json) return;
+  const items: { href: string; text: string; download: boolean }[] = JSON
+    .parse(json);
+  if (!items.length) return;
+  const children: unknown[] = [];
+  items.forEach((item, index) => {
+    if (index) children.push({ type: "text", value: " · " });
+    children.push({
+      type: "mdxJsxTextElement",
+      name: "a",
+      attributes: [
+        { type: "mdxJsxAttribute", name: "href", value: `${base}${item.href}` },
+        // The presentations are static files that Docusaurus does not know as routes.
+        {
+          type: "mdxJsxAttribute",
+          name: "data-noBrokenLinkCheck",
+          value: null,
+        },
+        ...(item.download
+          ? [{ type: "mdxJsxAttribute", name: "download", value: null }]
+          : []),
+      ],
+      children: [{ type: "text", value: item.text }],
+    });
+  });
+  const heading = tree.children.findIndex((node) =>
+    (node as { type?: string; depth?: number }).type === "heading" &&
+    (node as { depth?: number }).depth === 1
+  );
+  tree.children.splice(heading + 1, 0, { type: "paragraph", children });
+}
+
 export function remarkPreviewSlides(
   options: { lessons: Record<string, string>; baseUrl?: string },
 ): (tree: { children: unknown[] }, file: { path?: string }) => void {
@@ -21,6 +65,7 @@ export function remarkPreviewSlides(
       ? options.lessons[EXTRA_KEY_PREFIX + file.path]
       : options.lessons[file.path];
     if (!presentation && !extra) return;
+    insertLinksLine(tree, options.lessons[LINKS_KEY_PREFIX + file.path], base);
     const attribute = (name: string, value: string | null) => ({
       type: "mdxJsxAttribute",
       name,
