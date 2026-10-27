@@ -718,7 +718,7 @@ The stylesheet cannot be a package export: Deno rejects CSS entries in the modul
 
 `slides.generateForPrefix` selects every Markdown filename in `sourcesDir` beginning with the configured case-sensitive prefix. Explicit entries in `slides.lessons` take precedence, including `{ "generate": false }` opt-outs. Manual deck frontmatter uses `slides: true` as the semantic marker; the legacy `marp: true` marker remains accepted, and BSO normalizes either to the Marp CLI header.
 
-The words used for slides (lesson, generated deck, manual deck, include, linked deck, nested page, appendix) are defined once, in the [user manual](user-manual.md#slides-in-the-preview-and-in-brightspace). This section holds the rules and the implementation: generated decks in `src/lesson-slides.ts`, the decks and the pptx in `src/slides-preview.ts` and `src/pptx/`, the lint rules in `src/course-linter.ts`.
+The two kinds of slides are named **lesson as slides** (the generated deck, Alt/Option+T) and **slides for a lesson** (a manual deck, also *extra slides*, Alt/Option+P); the first can contain the second through a linked deck. The words used for slides (lesson, lesson as slides, slides for a lesson, include, linked deck, nested page, appendix) are defined once, in the [user manual](user-manual.md#slides-in-the-preview-and-in-brightspace). This section holds the rules and the implementation: generated decks in `src/lesson-slides.ts`, the decks and the pptx in `src/slides-preview.ts` and `src/pptx/`, the lint rules in `src/course-linter.ts`.
 
 #### Authoring model: one source, two views
 

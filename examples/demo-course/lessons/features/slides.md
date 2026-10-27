@@ -4,7 +4,10 @@ sidebar_position: 4
 
 # Slides
 
-Every lesson can be shown as slides, without writing a deck first. BSO turns the lesson into a presentation: a title slide, a contents slide, then one slide per section with its lists, tables, images, code and diagrams. Running text stays in the lesson. A teacher can also write a deck by hand and attach it to a lesson.
+Slides come in two forms, and a lesson can have both.
+
+- **Lesson as slides:** every lesson can be shown as slides without writing a deck first. BSO turns the lesson into a presentation: a title slide, a contents slide, then one slide per section with its lists, tables, images, code and diagrams. Running text stays in the lesson, so there is no second file to keep up to date.
+- **Slides for a lesson:** a teacher can also write a deck by hand, for extra material, and link it in the lesson. Its slides then also appear in the lesson as slides, at the place of the link, and the deck still opens on its own.
 
 ## What students and teachers do
 

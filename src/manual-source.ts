@@ -106,6 +106,36 @@ export function buildFeatureChapter(pages: FeaturePage[]): string {
   return parts.join("\n\n") + "\n";
 }
 
+/**
+ * Numbers the headings of the feature chapter like the other chapters of the manual:
+ * the chapter (`##`) gets `chapter`, the headings below it `12.1`, `12.1.1`, and so on. Code
+ * fences are left alone, and a heading that already starts with a number is not numbered again.
+ */
+export function numberHeadings(markdown: string, chapter: number): string {
+  const counters: number[] = [];
+  let fence: string | undefined;
+  return markdown.split("\n").map((line) => {
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      if (!fence) fence = fenceMatch[1][0];
+      else if (fenceMatch[1][0] === fence) fence = undefined;
+      return line;
+    }
+    if (fence) return line;
+    const heading = line.match(/^(#{2,6})\s+(.*)$/);
+    if (!heading) return line;
+    const depth = heading[1].length - 1;
+    if (/^\d+(?:\.\d+)*\.?\s/.test(heading[2])) return line;
+    counters.length = depth;
+    for (let i = 0; i < depth; i++) counters[i] = counters[i] ?? 0;
+    counters[depth - 1] = (counters[depth - 1] ?? 0) + 1;
+    const number = depth === 1
+      ? `${chapter}.`
+      : `${chapter}.${counters.slice(1, depth).join(".")}`;
+    return `${heading[1]} ${number} ${heading[2]}`;
+  }).join("\n");
+}
+
 /** Reads the Markdown pages of a feature folder; empty when it does not exist. */
 export async function loadFeaturePages(dir: string): Promise<FeaturePage[]> {
   const pages: FeaturePage[] = [];

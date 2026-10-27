@@ -44,6 +44,7 @@ import { loadPackageVersion, materializeAsset } from "./assets.ts";
 import { computeContentHash, withContentHash } from "./content-version.ts";
 import {
   buildFeatureChapter,
+  numberHeadings,
   loadFeaturePages,
   splitManualTitleBlock,
 } from "./manual-source.ts";
@@ -632,7 +633,12 @@ export async function runBuild(
         const featureSources: string[] = [];
         if (featureChapter) {
           const featureSource = join(buildDir, "user-manual-features.md");
-          await Deno.writeTextFile(featureSource, featureChapter);
+          // The feature chapter follows the numbered chapters of the manual, and is numbered like them.
+          const lastChapter = Math.max(
+            0,
+            ...[...(await Deno.readTextFile(bsoSource)).matchAll(/^## (\d+)\./gm)].map((m) => Number(m[1])),
+          );
+          await Deno.writeTextFile(featureSource, numberHeadings(featureChapter, lastChapter + 1));
           featureSources.push(featureSource);
         }
         // Cover page and chapter breaks come from the same helpers as the readers:

@@ -129,6 +129,33 @@ Deno.test("Docentenmateriaal (docenten/ in de build-root) komt nooit in het .ims
   }
 });
 
+Deno.test("In de root van de build komt alleen het manifest in het .imscc, niet het native pakket of de tussenbestanden van de handleiding", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(join(sourceDir, "content"), { recursive: true });
+    await Deno.writeTextFile(join(sourceDir, "imsmanifest.xml"), "<manifest/>");
+    await Deno.writeTextFile(join(sourceDir, "content", "les.html"), "<p/>");
+    await Deno.writeTextFile(
+      join(sourceDir, "cursus.v1.0.0.d2l.zip"),
+      "native",
+    );
+    await Deno.writeTextFile(join(sourceDir, "user-manual-body.md"), "# x");
+    await Deno.writeTextFile(join(sourceDir, "user-manual-cover.tex"), "x");
+
+    const outputPath = join(tempRoot, "out.imscc");
+    await pack({ sourceDir, outputPath });
+
+    const zip = await JSZip.loadAsync(await Deno.readFile(outputPath));
+    assertEquals(
+      Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort(),
+      ["content/les.html", "imsmanifest.xml"],
+    );
+  } finally {
+    await removeDir(tempRoot);
+  }
+});
+
 Deno.test("Eigenschap 7: lege bronmap geeft fout en geen artefact", async () => {
   // Feature: brightspacosaurus, Eigenschap 7: Geen corrupt artefact bij archiveringsfout
   const tempRoot = await makeTempDir();

@@ -3,6 +3,7 @@ import {
   buildFeatureChapter,
   flashcardsForPrint,
   loadFeaturePages,
+  numberHeadings,
   shiftHeadings,
   splitManualTitleBlock,
   stripFrontMatter,
@@ -100,4 +101,13 @@ Deno.test("splitManualTitleBlock takes title, author and version off the PDF bod
   assertEquals(plain.title, undefined);
   assertEquals(plain.body, "no heading\n\n## One\n");
   assertEquals(splitManualTitleBlock("# Only title\n").body, "");
+});
+
+Deno.test("numberHeadings numbers the chapter and the headings below it, and leaves code and numbered headings alone", () => {
+  const source =
+    "## Features\n\nText.\n\n### Flashcards\n\n#### Short\n\n```bash\n## not a heading\n```\n\n#### Long\n\n### Slides\n\n#### Lesson as slides\n\n### 7. Already numbered\n";
+  assertEquals(
+    numberHeadings(source, 12),
+    "## 12. Features\n\nText.\n\n### 12.1 Flashcards\n\n#### 12.1.1 Short\n\n```bash\n## not a heading\n```\n\n#### 12.1.2 Long\n\n### 12.2 Slides\n\n#### 12.2.1 Lesson as slides\n\n### 7. Already numbered\n",
+  );
 });

@@ -31,10 +31,11 @@ async function collectFiles(
         // Exclude previously generated .imscc archives
         if (entry.name.endsWith(".imscc")) continue;
         const relPath = relative(baseDir, fullPath);
-        if (
-          relPath === "navigation.json" ||
-          relPath === "docusaurus-sidebars.json"
-        ) continue;
+        // In the root of the build only the manifest belongs in the package. The rest are the
+        // native package, navigation files and the intermediate files of the user manual.
+        if (currentDir === baseDir && entry.name !== "imsmanifest.xml") {
+          continue;
+        }
         files.push({ relPath, absPath: fullPath });
       }
     }
