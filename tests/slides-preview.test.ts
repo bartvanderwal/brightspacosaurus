@@ -14,7 +14,6 @@ import {
   exportSlidesToContent,
   EXTRA_KEY_PREFIX,
   LESSON_KEY_PREFIX,
-  LINKS_KEY_PREFIX,
   renderDiagramFences,
   renderPreviewSlides,
   type SlidesConfig,
@@ -23,7 +22,6 @@ import {
   stripPresenterNotes,
   withBackControls,
   withSlideLayout,
-  withSlidesLinks,
 } from "../src/slides-preview.ts";
 
 async function fixture(run: (root: string) => Promise<void>): Promise<void> {
@@ -51,11 +49,11 @@ async function write(
   await Deno.writeTextFile(destination, content);
 }
 
-/** The decks of a result: without the entries for lesson presentations, extra slides and links. */
+/** The decks of a result: without the entries for lesson presentations and extra slides. */
 function lessonsOnly(result: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(result).filter(([key]) =>
-      ![LESSON_KEY_PREFIX, EXTRA_KEY_PREFIX, LINKS_KEY_PREFIX].some((prefix) =>
+      ![LESSON_KEY_PREFIX, EXTRA_KEY_PREFIX].some((prefix) =>
         key.startsWith(prefix)
       )
     ),
@@ -291,7 +289,7 @@ Deno.test("slides preview: generated lesson slides combine with manual slide dec
 });
 
 // Spec *Generated deck pptx*, rules X1-X3.
-Deno.test("slides preview: a generated deck gets a pptx, nested pages and images included, when the lesson or the course asks for it", async () => {
+Deno.test("slides preview: a generated deck gets a pptx, nested pages and images included, only when the lesson asks for it", async () => {
   const png = Uint8Array.from(
     atob(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
@@ -352,9 +350,9 @@ Deno.test("slides preview: a generated deck gets a pptx, nested pages and images
       true,
     );
 
-    // X1: the course asks for it, and the lesson can say no.
+    // X1: the course setting is for the dedicated decks, not for the generated deck of a lesson.
     await run({ generate: true, nest: "levels/*.md" }, { pptx: true });
-    assertEquals(await exists(join(output, "lesson.pptx")), true);
+    assertEquals(await exists(join(output, "lesson.pptx")), false);
     await run({ generate: true, nest: "levels/*.md", pptx: false }, {
       pptx: true,
     });
@@ -1885,49 +1883,8 @@ Deno.test("acceptance 7: a lesson that links a slide deck but has no generated s
   });
 });
 
-// Spec *Slides on the lesson page in the cartridge*, rules B1-B5.
-Deno.test("B1/B2/B4: the links paragraph sits after the first h1, links the slides and the pptx, and is added once", () => {
-  const links = [
-    { kind: "slides" as const, href: "lesson-slides.html", label: "" },
-    {
-      kind: "slides" as const,
-      href: "lesson-slides-extra.html",
-      label: "Extra deck",
-    },
-    {
-      kind: "pptx" as const,
-      href: "lesson-slides-extra.pptx",
-      label: "extra.pptx",
-    },
-  ];
-  const page =
-    "<html><body><h1>The lesson</h1><p>Text</p><h1>Second</h1></body></html>";
-  const out = withSlidesLinks(page, links, "en");
-  assertEquals(out.match(/data-bso-slides-links/g)?.length, 1);
-  assert(out.indexOf("</h1>") < out.indexOf("data-bso-slides-links"));
-  assert(out.indexOf("data-bso-slides-links") < out.indexOf("<p>Text</p>"));
-  assertStringIncludes(out, '<a href="lesson-slides.html">');
-  assertStringIncludes(out, ">View as slides</a>");
-  assertStringIncludes(out, '<a href="lesson-slides-extra.html">');
-  assertStringIncludes(out, ">Extra deck</a>");
-  assertStringIncludes(out, '<a href="lesson-slides-extra.pptx" download>');
-  assertStringIncludes(out, "Download PowerPoint");
-  assert(!out.includes("<script"));
-  assertEquals(withSlidesLinks(out, links, "en"), out);
-  assertStringIncludes(withSlidesLinks(page, links, "nl"), "Bekijk als slides");
-});
-
-Deno.test("B2: a page without an h1 gets the links at the start of the content", () => {
-  const out = withSlidesLinks(
-    "<html><body><p>Text</p></body></html>",
-    [{ kind: "slides", href: "x-slides.html", label: "" }],
-    "en",
-  );
-  assert(out.indexOf("data-bso-slides-links") < out.indexOf("<p>Text</p>"));
-  assert(out.indexOf("<body>") < out.indexOf("data-bso-slides-links"));
-});
-
-Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked slide deck and the pptx, next to the lesson", async () => {
+// Spec *Slides on the lesson page in the cartridge*, rule B1: the lesson page has no line of links to its slides.
+Deno.test("B1: an exported lesson page gets no links to its slides, the slides stay topics after the lesson", async () => {
   await fixture(async (root) => {
     await write(
       root,
@@ -1939,17 +1896,9 @@ Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked slide 
       "decks/extra.md",
       "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n",
     );
-    await write(
-      root,
-      "content/week/lesson.html",
-      "<html><body><h1>The lesson</h1><p>Text</p></body></html>",
-    );
-    await write(
-      root,
-      "content/week/other.html",
-      "<html><body><h1>No slides</h1></body></html>",
-    );
-    await exportSlidesToContent(
+    const page = "<html><body><h1>The lesson</h1><p>Text</p></body></html>";
+    await write(root, "content/week/lesson.html", page);
+    const exported = await exportSlidesToContent(
       { lessons: { "week/lesson.md": { generate: true } }, pptx: true },
       root,
       "lessons",
@@ -1957,29 +1906,18 @@ Deno.test("B1/B3/B5: an exported lesson page links its slides, the linked slide 
       join(root, "content"),
       fake([]),
     );
-    const page = await Deno.readTextFile(
-      join(root, "content/week/lesson.html"),
-    );
-    assertStringIncludes(page, '<a href="lesson-slides.html">');
-    assertStringIncludes(page, '<a href="lesson-slides-extra.html">');
-    assertStringIncludes(page, '<a href="lesson-slides-extra.pptx" download>');
-    // every linked file exists next to the lesson
-    for (
-      const name of [
-        "lesson-slides.html",
-        "lesson-slides-extra.html",
-        "lesson-slides-extra.pptx",
-      ]
-    ) {
-      assertEquals(
-        (await Deno.stat(join(root, "content/week", name))).isFile,
-        true,
-      );
-    }
-    // a page without slides is untouched
+    assertEquals(exported.sort(), [
+      "week/lesson-slides-extra.html",
+      "week/lesson-slides.html",
+    ]);
     assertEquals(
-      await Deno.readTextFile(join(root, "content/week/other.html")),
-      "<html><body><h1>No slides</h1></body></html>",
+      await Deno.readTextFile(join(root, "content/week/lesson.html")),
+      page,
+    );
+    // The dedicated deck has its pptx next to its topic.
+    assert(
+      (await Deno.stat(join(root, "content/week/lesson-slides-extra.pptx")))
+        .isFile,
     );
   });
 });
@@ -2253,65 +2191,6 @@ Deno.test("T1: only a lesson whose deck is generated from the lesson gets a less
   });
 });
 
-// Spec *The lesson as slides: Alt+T*, rule T6.
-Deno.test("T6: the link to a generated deck reads Present this lesson, the link to extra slides keeps View as slides", () => {
-  const page = "<html><body><h1>Lesson</h1></body></html>";
-  const present = [{
-    kind: "slides" as const,
-    href: "lesson-slides.html",
-    label: "",
-    presentation: true,
-  }];
-  assertStringIncludes(
-    withSlidesLinks(page, present, "en"),
-    ">Present this lesson</a>",
-  );
-  assertStringIncludes(
-    withSlidesLinks(page, present, "nl"),
-    ">Presenteer deze les</a>",
-  );
-  const extra = [{
-    kind: "slides" as const,
-    href: "lesson-slides.html",
-    label: "",
-  }];
-  assertStringIncludes(
-    withSlidesLinks(page, extra, "en"),
-    ">View as slides</a>",
-  );
-  const titled = [{ ...present[0], label: "Extra deck" }];
-  assertStringIncludes(withSlidesLinks(page, titled, "en"), ">Extra deck</a>");
-});
-
-// Spec *The lesson as slides: Alt+T*, rule T6, in the cartridge.
-Deno.test("T6: the exported lesson page links its generated deck as a lesson presentation", async () => {
-  await fixture(async (root) => {
-    await write(
-      root,
-      "lessons/week/lesson.md",
-      "# Lesson\n\n## 1. One\n\n- a\n",
-    );
-    await write(
-      root,
-      "content/week/lesson.html",
-      "<html><body><h1>Lesson</h1></body></html>",
-    );
-    await exportSlidesToContent(
-      { lessons: { "week/lesson.md": { generate: true } } },
-      root,
-      "lessons",
-      "static",
-      join(root, "content"),
-      fake([]),
-    );
-    const page = await Deno.readTextFile(
-      join(root, "content", "week", "lesson.html"),
-    );
-    // The course has no locale set, so the default is Dutch.
-    assertStringIncludes(page, ">Presenteer deze les</a>");
-  });
-});
-
 // Spec *Editable PowerPoint*, rule X3: the file is named after the lesson file.
 Deno.test("X3: the pptx of a generated deck is named after the lesson file, also in the cartridge", async () => {
   await fixture(async (root) => {
@@ -2342,7 +2221,10 @@ Deno.test("X3: the pptx of a generated deck is named after the lesson file, also
     const page = await Deno.readTextFile(
       join(root, "content", "week", "lesson-1-fizz.html"),
     );
-    assertStringIncludes(page, 'href="lesson-1-fizz.pptx" download');
+    assert(
+      !page.includes("lesson-1-fizz.pptx"),
+      "no download link on the lesson page",
+    );
   });
 });
 
@@ -2384,61 +2266,5 @@ Deno.test("T1: a generated lesson that links a deck gets that deck as its extra 
       result[deck],
     );
     assertEquals(result[EXTRA_KEY_PREFIX + key("week/plain.md")], undefined);
-  });
-});
-
-// Spec *The lesson as slides: Alt+T*, rules T6 and T9: the preview shows the same line of links as the cartridge.
-Deno.test("T9: the link line of a lesson in the preview has the texts and the order of the cartridge", async () => {
-  await fixture(async (root) => {
-    await write(
-      root,
-      "lessons/week/lesson.md",
-      "# Lesson\n\n## 1. One\n\n- a\n\n[Extra](../../decks/extra.md)\n",
-    );
-    await write(
-      root,
-      "decks/extra.md",
-      "---\nslides: true\ntitle: Extra deck\npptx: true\n---\n\n# Extra slide\n",
-    );
-    await write(
-      root,
-      "content/week/lesson.html",
-      "<html><body><h1>Lesson</h1></body></html>",
-    );
-    const config = { lessons: { "week/lesson.md": { generate: true } } };
-    const result = await renderPreviewSlides(
-      config,
-      root,
-      "lessons",
-      "static",
-      fake([]),
-    );
-    const key = Object.keys(result).find((each) =>
-      each.startsWith(LINKS_KEY_PREFIX)
-    )!;
-    const preview = (JSON.parse(result[key]) as { text: string }[]).map((
-      item,
-    ) => item.text);
-    await exportSlidesToContent(
-      config,
-      root,
-      "lessons",
-      "static",
-      join(root, "content"),
-      fake([]),
-    );
-    const page = await Deno.readTextFile(
-      join(root, "content", "week", "lesson.html"),
-    );
-    const line = page.match(/<p data-bso-slides-links[^>]*>(.*?)<\/p>/)![1];
-    const cartridge = [...line.matchAll(/<a [^>]*>(.*?)<\/a>/g)].map((m) =>
-      m[1]
-    );
-    // The file name in the text of a pptx link differs: the package puts the lesson in front of it.
-    const withoutNames = (texts: string[]) =>
-      texts.map((text) => text.replace(/ \(.*\)$/, ""));
-    assertEquals(withoutNames(preview), withoutNames(cartridge));
-    assertEquals(preview[0], "Presenteer deze les");
-    assertEquals(preview[1], "Extra deck");
   });
 });

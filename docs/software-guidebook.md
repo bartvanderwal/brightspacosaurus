@@ -770,12 +770,11 @@ Two kinds of slides are told apart. A **lesson presentation** is the deck genera
 | T3 | Alt/Option+T opens the URL of `data-bso-slides-lesson` in the same tab, so the Back button returns to the lesson (ADR 022). Alt/Option+P opens the URL of `data-bso-slides`. Both use the physical key (`KeyT`, `KeyP`) and the same guards (editable fields, repeat, other modifiers, a link to another origin). |
 | T4 | A key does nothing on a page without the attribute it reads. |
 | T5 | The visible button follows `data-bso-slides` only: it is shown for extra slides, never for a lesson presentation without them. |
-| T6 | In the cartridge the link on the lesson page to the generated deck reads *Present this lesson* (*Presenteer deze les* for `nl`); a link to extra slides keeps *View as slides* (*Bekijk als slides*), and a linked deck keeps its title. |
+| T6 | The lesson page has no line of links to its slides, in the preview and in the cartridge (rules B1 and B2 of *Slides on the lesson page in the cartridge*). The generated deck of a lesson is shown with Alt/Option+T in the preview, and in the cartridge it is the topic after the lesson in the menu. |
 | T7 | Alt/Option+T opens the deck without any speaker notes setting of its own. |
-| T9 | Preview and cartridge show the same line of links after the first heading of a lesson page: *Present this lesson* (for a generated deck) or *View as slides*, then the pptx downloads, then each deck that the lesson links with its title and its pptx. `renderPreviewSlides` records it for the preview as `links:<path>`, made with the same function (`slideLinkItems`) as the cartridge. Only the file name in the text of a pptx link differs: the package puts the lesson in front of it. |
 | T8 | The page number of a slide has a light background, so that it stays readable over a background image (`![bg right]`). |
 
-Tests: `tests/slides-preview.test.ts` (T1, T6), `tests/slides-remark.test.ts` (T2) and `demo-course-docs/tests/slides.spec.cjs` (T3 to T5). T9 has a test that compares the two lines; T7 and T8 have no automated test yet (T8 was seen on the demo screenshot). The tests were written after the code.
+Tests: `tests/slides-preview.test.ts` (T1, T6), `tests/slides-remark.test.ts` (T2) and `demo-course-docs/tests/slides.spec.cjs` (T3 to T5). T7 and T8 have no automated test yet (T8 was seen on the demo screenshot). The tests were written after the code.
 
 #### Nested lesson pages (#147)
 
@@ -812,17 +811,14 @@ An overview page can show the slides of the pages it links to as nested sets, wi
 
 #### Slides on the lesson page in the cartridge (#146)
 
-In the preview a lesson with slides has a *Slides* button. The lesson page in Brightspace needs the same way in (parity, 8.1): without it the reader has to find the slides topic in the menu, and the editable pptx is hard to find. The slides topic after the lesson stays.
+Decision of 27 October 2026: the lesson page has **no line of links** to its slides, neither in the preview nor in Brightspace. The first design (rules B1 to B5 of the earlier version) put one short paragraph of links after the first heading, with the presentation, the linked decks and the pptx downloads. It was dropped because the line ended up above the title in the preview, several links made a forest, and the generated deck is reached with Alt/Option+T. The slides are reached in two other ways, the same in both targets (parity, 8.1):
 
 | # | Rule | Test |
 | --- | --- | --- |
-| B1 | A lesson page that has slides gets one short paragraph of links, marked `data-bso-slides-links`: one link to its own presentation, one link to each deck it links to (the deck's title as text), and one download link for each pptx of those presentations. | `withSlidesLinks` and export tests |
-| B2 | It sits right after the first `<h1>`; a page without an `<h1>` gets it at the start of the content. | `withSlidesLinks` test |
-| B3 | The links are relative file names next to the lesson (the slides topics and the pptx files are in the same folder), so they work in the Brightspace frame. No script. | export test |
-| B4 | Idempotent: a page that already has the paragraph gets no second one. | `withSlidesLinks` test |
-| B5 | A lesson without slides, a course without `slides` and a build with `--skip-slides` get no paragraph. The pptx files are in the package and listed in the manifest as dependencies of the page. | export and manifest tests |
+| B1 | A lesson page in the cartridge is left as it is: it gets no line of links to its slides. The slides stay topics after the lesson in the menu (`Slides: <lesson title>`, and one for each deck the lesson links), and the pptx files of dedicated decks are in the package next to their topics. | export test |
+| B2 | The way in from the lesson is the link that the author writes in the text (a link to a deck, see the linked decks rules L1 to L9) and, in the preview, the *Slides* button and Alt/Option+P for extra slides and Alt/Option+T for the lesson. | slides remark and Playwright tests |
 
-The text is Dutch or English, as the course (`diagrams.locale`).
+The download link, *Download pptx*, is on the slides page of a dedicated deck (rule X3).
 
 #### Generated slides: what a section gives (#141)
 
@@ -897,9 +893,9 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 
 | # | Rule |
 | --- | --- |
-| X1 | A generated deck gets a pptx when the lesson option `pptx: true` says so, or when the course setting `slides.pptx` is `true` and the lesson does not say `pptx: false`. Without either, none. The option needs `generate: true`. |
+| X1 | Only a dedicated deck, one written by hand, is for download: a manual deck gets a pptx when its own `pptx: true` says so or the course setting `slides.pptx` is `true` (and the deck does not say `pptx: false`). A deck generated from a lesson gets none, whatever the course setting says, unless the lesson says `pptx: true` itself; it needs `generate: true`. |
 | X2 | The pptx holds the same slides as the HTML deck: the title slide, the contents slide, the sections, the nested pages with their sub-numbers, and the images and diagrams. |
-| X3 | The file is named after the lesson file, `<lesson>.pptx` (for `lesson-1-fizzbuzz.md`: `lesson-1-fizzbuzz.pptx`), next to the deck, and a lesson page and the slides page link to it like to the pptx of a manual deck; in the package it has the same name, next to the slides topic. A manual deck keeps its own name. |
+| X3 | The file is named after the lesson file, `<lesson>.pptx` (for `lesson-1-fizzbuzz.md`: `lesson-1-fizzbuzz.pptx`), and a manual deck after its own file; it sits next to the deck. The download link, *Download pptx*, is on the slides page, in the preview and in the cartridge; the lesson page has no link to it (B1). In the package the file has the same name next to the slides topic, with the lesson in front of the name of a manual deck. |
 | X4 | The generated deck carries its images as `data:` URLs (a diagram is an SVG that Kroki drew); the pptx writer accepts `data:image/png`, `jpeg`, `gif` and `svg+xml` and takes the proportions of an SVG from its `viewBox`. |
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 | X6 | *What does not fit goes on a next slide.* A slide whose text does not fit at the smallest font size continues on further slides with the same title and a counter, `Title (2/3)`: list items, table rows (the header repeated) and lines of code are spread; the speaker notes stay with the first slide, an image stays where it was, and a link to another slide (`#12`) follows the new numbering. A title slide is not split. | pptx tests |

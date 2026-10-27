@@ -569,9 +569,7 @@ export function withPptxLinks(html: string, names: string[]): string {
     `<style id="${PPTX_STYLE_ID}">.bso-pptx{position:fixed;top:10px;right:12px;z-index:20;display:flex;gap:8px;font:13px sans-serif}.bso-pptx a{background:#fff;color:#0b4a8f;border:1px solid #9aa4b2;border-radius:14px;padding:3px 10px;text-decoration:none}.bso-pptx a:hover{background:#eef4fb}@media print{.bso-pptx{display:none}}</style>`;
   const links = `<nav class="bso-pptx" aria-label="Downloads">${
     names.map((name) =>
-      `<a href="${escapeAttribute(name)}" download>Download ${
-        escapeAttribute(name)
-      }</a>`
+      `<a href="${escapeAttribute(name)}" download>Download pptx</a>`
     ).join("")
   }</nav>`;
   const withStyle = /<\/head>/i.test(html)
@@ -818,9 +816,6 @@ export const LESSON_KEY_PREFIX = "lesson:";
 
 /** Prefix of the entries with the first slide deck that a generated lesson links: its extra slides. */
 export const EXTRA_KEY_PREFIX = "extra:";
-
-/** Prefix of the entries with the links that the lesson page shows at the top: the same line as in the cartridge. */
-export const LINKS_KEY_PREFIX = "links:";
 
 /**
  * The slide decks that a lesson links to. The links are resolved relative to the
@@ -1173,8 +1168,6 @@ export async function renderPreviewSlides(
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
   const result: Record<string, string> = {};
-  // The pptx files that each deck got, by the URL of the deck.
-  const pptxByUrl = new Map<string, string[]>();
   let toolsPrepared = false;
   for (const plan of plans) {
     const chunks: string[] = [];
@@ -1358,10 +1351,10 @@ export async function renderPreviewSlides(
       const pptxNames: string[] = [];
       {
         const used = new Set<string>();
-        // The generated deck of a lesson, nested pages included. It is written
-        // when the lesson says `pptx: true`, or the course does and the lesson does not say no.
+        // The generated deck of a lesson, nested pages included, only when the lesson
+        // says `pptx: true`: the dedicated slides are the ones to download (rule X1).
         if (
-          generatedForPptx !== undefined && (plan.pptx ?? config.pptx === true)
+          generatedForPptx !== undefined && plan.pptx === true
         ) {
           let markdown = generatedForPptx;
           // Diagrams and some images carry a placeholder name for Marp; the pptx takes the data URL itself.
@@ -1444,7 +1437,6 @@ export async function renderPreviewSlides(
         ),
       );
       result[plan.lesson] = plan.url;
-      pptxByUrl.set(plan.url, pptxNames);
       if (plan.generate) result[LESSON_KEY_PREFIX + plan.lesson] = plan.url;
     } catch (error) {
       throw new Error(
@@ -1457,43 +1449,6 @@ export async function renderPreviewSlides(
         if (!(error instanceof Deno.errors.NotFound)) throw error;
       });
     }
-  }
-  // The line of links at the top of each lesson page, as in the cartridge.
-  const linkLocale = (diagrams ?? resolveDiagramsConfig({})).locale === "en"
-    ? "en"
-    : "nl";
-  const pptxLinks = (url: string): SlidesLink[] =>
-    (pptxByUrl.get(url) ?? []).map((name) => ({
-      kind: "pptx" as const,
-      href: `${url.split("/").slice(0, -1).join("/")}/${
-        encodeURIComponent(name)
-      }`,
-      label: name,
-    }));
-  for (const plan of plans) {
-    if (plan.lesson.startsWith(DECK_KEY_PREFIX)) continue;
-    const links: SlidesLink[] = [
-      {
-        kind: "slides",
-        href: plan.url,
-        label: "",
-        presentation: plan.generate,
-      },
-      ...pptxLinks(plan.url),
-    ];
-    const seen = new Set<string>();
-    for (const deck of linkedByLesson.get(plan.lesson) ?? []) {
-      const url = result[DECK_KEY_PREFIX + deck.path];
-      if (!url || seen.has(deck.path)) continue;
-      seen.add(deck.path);
-      links.push(
-        { kind: "slides", href: url, label: deck.title },
-        ...pptxLinks(url),
-      );
-    }
-    result[LINKS_KEY_PREFIX + plan.lesson] = JSON.stringify(
-      slideLinkItems(links, linkLocale),
-    );
   }
   // The extra slides of a lesson presentation: the first slide deck that the lesson links.
   for (const [lesson, decks] of linkedByLesson) {
@@ -1545,93 +1500,6 @@ function escapeAttribute(value: string): string {
   ).replace(/>/g, "&gt;");
 }
 
-/** A link in the paragraph of slide links on a lesson page. */
-export interface SlidesLink {
-  kind: "slides" | "pptx";
-  /** A file name next to the lesson. */
-  href: string;
-  /** The link text; empty for the presentation of the lesson itself. */
-  label: string;
-  /** The deck is generated from the lesson itself: the link reads *Present this lesson*. */
-  presentation?: boolean;
-}
-
-const SLIDES_LINK_TEXT = {
-  nl: {
-    slides: "Bekijk als slides",
-    present: "Presenteer deze les",
-    pptx: "Download PowerPoint",
-  },
-  en: {
-    slides: "View as slides",
-    present: "Present this lesson",
-    pptx: "Download PowerPoint",
-  },
-} as const;
-
-/** One link of the line at the top of a lesson page, with its text in the language of the course. */
-export interface SlidesLinkItem {
-  href: string;
-  text: string;
-  download: boolean;
-}
-
-/**
- * The texts of the links of a lesson page. The preview and the cartridge both
- * show this line (spec *The lesson as slides: Alt+T*, rule T6), so the texts are made here once.
- */
-export function slideLinkItems(
-  links: SlidesLink[],
-  locale: "nl" | "en",
-): SlidesLinkItem[] {
-  const text = SLIDES_LINK_TEXT[locale];
-  return links.map((link) =>
-    link.kind === "pptx"
-      ? {
-        href: link.href,
-        text: `${text.pptx} (${link.label})`,
-        download: true,
-      }
-      : {
-        href: link.href,
-        text: link.label
-          ? link.label
-          : link.presentation
-          ? text.present
-          : text.slides,
-        download: false,
-      }
-  );
-}
-
-/**
- * Adds one paragraph of links to the slides and to the editable pptx files of
- * a lesson page, after its first `<h1>` (spec *Slides on the lesson page in the cartridge*, rules B1-B5). Plain
- * links, no script, so it works in the Brightspace frame. A page that has the
- * paragraph already is left as it is.
- */
-export function withSlidesLinks(
-  html: string,
-  links: SlidesLink[],
-  locale: "nl" | "en",
-): string {
-  if (!links.length || html.includes("data-bso-slides-links")) return html;
-  const anchors = slideLinkItems(links, locale).map((item) =>
-    `<a href="${escapeAttribute(item.href)}"${
-      item.download ? " download" : ""
-    }>${escapeAttribute(item.text)}</a>`
-  );
-  const paragraph = `<p data-bso-slides-links style="margin:.5rem 0 1rem">${
-    anchors.join(" · ")
-  }</p>`;
-  if (/<\/h1>/i.test(html)) {
-    return html.replace(/<\/h1>/i, (heading) => `${heading}${paragraph}`);
-  }
-  return /<body[^>]*>/i.test(html)
-    ? html.replace(/<body[^>]*>/i, (body) => `${body}${paragraph}`)
-    : paragraph + html;
-}
-
 /**
  * Renders the lesson presentations like the preview and copies each one into
  * the build's content folder as `<lesson>-slides.html`, so `pack` lists it
@@ -1669,7 +1537,7 @@ export async function exportSlidesToContent(
     topic: string,
     title: string,
     copyName: (name: string) => string,
-  ): Promise<{ file: string; pptx: { href: string; label: string }[] }> => {
+  ): Promise<void> => {
     const rendered = await Deno.readTextFile(
       join(staticRoot, ...url.split("/").map(decodeURIComponent)),
     );
@@ -1693,11 +1561,7 @@ export async function exportSlidesToContent(
       linked = linked.replaceAll(
         `"${escapeAttribute(name)}"`,
         `"${escapeAttribute(copy)}"`,
-      )
-        .replaceAll(
-          `Download ${escapeAttribute(name)}`,
-          `Download ${escapeAttribute(copy)}`,
-        );
+      );
     }
     const withTitle = /<head[^>]*>/i.test(linked)
       ? linked.replace(/<head[^>]*>/i, (tag) => `${tag}${meta}`)
@@ -1706,13 +1570,6 @@ export async function exportSlidesToContent(
     await Deno.mkdir(dirname(destination), { recursive: true });
     await Deno.writeTextFile(destination, withTitle);
     exported.push(`${topic}.html`);
-    return {
-      file: basename(`${topic}.html`),
-      pptx: pptxLinkNames(html).map((name) => ({
-        href: copyName(name),
-        label: copyName(name),
-      })),
-    };
   };
   const lessonTitle = async (stem: string): Promise<string> => {
     const lessonHtml = await Deno.readTextFile(join(contentDir, `${stem}.html`))
@@ -1722,41 +1579,22 @@ export async function exportSlidesToContent(
   };
   const stemOf = (lesson: string) =>
     relative(sources, lesson).replaceAll("\\", "/").replace(/\.md$/i, "");
-  // The links that each lesson page gets to its slides and pptx files.
-  const lessonLinks = new Map<string, SlidesLink[]>();
-  const addLinks = (
-    stem: string,
-    topic: { file: string; pptx: { href: string; label: string }[] },
-    label: string,
-    presentation = false,
-  ) => {
-    const links = lessonLinks.get(stem) ?? [];
-    links.push({ kind: "slides", href: topic.file, label, presentation });
-    for (const file of topic.pptx) links.push({ kind: "pptx", ...file });
-    lessonLinks.set(stem, links);
-  };
   for (const [lesson, url] of Object.entries(rendered)) {
     if (
       lesson.startsWith(DECK_KEY_PREFIX) ||
       lesson.startsWith(LESSON_KEY_PREFIX) ||
-      lesson.startsWith(EXTRA_KEY_PREFIX) ||
-      lesson.startsWith(LINKS_KEY_PREFIX)
+      lesson.startsWith(EXTRA_KEY_PREFIX)
     ) continue;
     const stem = stemOf(lesson);
-    addLinks(
-      stem,
-      await exportTopic(
-        url,
-        `${stem}-slides`,
-        `Slides: ${await lessonTitle(stem)}`,
-        // The pptx of the lesson itself is already named after it.
-        (name) =>
-          name.startsWith(`${basename(stem)}.`)
-            ? name
-            : `${basename(stem)}-${name}`,
-      ),
-      "",
-      rendered[LESSON_KEY_PREFIX + lesson] !== undefined,
+    await exportTopic(
+      url,
+      `${stem}-slides`,
+      `Slides: ${await lessonTitle(stem)}`,
+      // The pptx of the lesson itself is already named after it.
+      (name) =>
+        name.startsWith(`${basename(stem)}.`)
+          ? name
+          : `${basename(stem)}-${name}`,
     );
   }
   // The standalone presentation of each slide deck a lesson links to, as a topic
@@ -1772,38 +1610,24 @@ export async function exportSlidesToContent(
       const url = rendered[DECK_KEY_PREFIX + deck.path];
       if (!url || seen.has(deck.path)) continue;
       seen.add(deck.path);
-      addLinks(
-        stem,
-        await exportTopic(
-          url,
-          join(
-            dirname(stem),
+      await exportTopic(
+        url,
+        join(
+          dirname(stem),
+          deckTopicName(
+            basename(stem),
+            basename(deck.path).replace(/\.md$/i, ""),
+          ),
+        ).replaceAll("\\", "/"),
+        `Slides: ${await lessonTitle(stem)} — ${deck.title}`,
+        () =>
+          `${
             deckTopicName(
               basename(stem),
               basename(deck.path).replace(/\.md$/i, ""),
-            ),
-          ).replaceAll("\\", "/"),
-          `Slides: ${await lessonTitle(stem)} — ${deck.title}`,
-          () =>
-            `${
-              deckTopicName(
-                basename(stem),
-                basename(deck.path).replace(/\.md$/i, ""),
-              )
-            }.pptx`,
-        ),
-        deck.title,
+            )
+          }.pptx`,
       );
-    }
-  }
-  const locale = (diagrams ?? resolveDiagramsConfig({})).locale === "en"
-    ? "en"
-    : "nl";
-  for (const [stem, links] of lessonLinks) {
-    const path = join(contentDir, `${stem}.html`);
-    const page = await Deno.readTextFile(path).catch(() => undefined);
-    if (page !== undefined) {
-      await Deno.writeTextFile(path, withSlidesLinks(page, links, locale));
     }
   }
   return exported;

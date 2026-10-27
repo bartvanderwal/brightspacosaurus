@@ -32,7 +32,7 @@ Explanation: look at the fixed title position, which does not move with the amou
 - **Code** gets its own slide, and long code continues on the next slide.
 - **PlantUML and Mermaid diagrams** are drawn through Kroki and get a slide each.
 - Page numbers read `4 / 10`. Appendix slides (a section titled *Appendix* or *Bijlage*) are left out of the total.
-- The preview shows a *Slides* button in the top right corner of every lesson that has extra slides (a deck written by hand). Alt+T presents the lesson itself and has no button. In Brightspace the lesson page has a line of links at the top instead: *View as slides*, a link for each linked deck, and *Download PowerPoint* for each editable pptx.
+- The preview shows a *Slides* button in the top right corner of every lesson that has extra slides (a deck written by hand). Alt+T presents the lesson itself and has no button. In Brightspace the slides are topics after the lesson in the module; the *Download pptx* link is on the slides page of a hand-written deck.
 
 **Try it in this course**
 
