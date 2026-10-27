@@ -1,4 +1,10 @@
-import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
+import { packagePath } from "./helpers/package-file.ts";
+import {
+  assertEquals,
+  assertMatch,
+  assertRejects,
+  assertStringIncludes,
+} from "@std/assert";
 import { DELIMITER, join, resolve } from "@std/path";
 import JSZip from "jszip";
 import { resolveConfig } from "../src/config-loader.ts";
@@ -217,9 +223,7 @@ Deno.test("runBuild en runPack bouwen een minimale cartridge met lessen, quiz en
         join(config.outputDir, "docusaurus-sidebars.json"),
       ),
     );
-    const archive = await Deno.stat(
-      join(config.outputDir, "coverage-course.v0.9.0.imscc"),
-    );
+    const archive = await Deno.stat(await packagePath(config.outputDir));
 
     assertStringIncludes(html, 'class="bso-flashcard-term">request</span>');
     assertStringIncludes(html, "<h1>Les 1.1 &#x26; intro</h1>");
@@ -269,9 +273,7 @@ Deno.test("runBuild en runPack bouwen een minimale cartridge met lessen, quiz en
     assertEquals(archive.isFile, true);
     assertStringIncludes(manifest, '<file href="content/week-1/starter.zip"/>');
     const packageZip = await JSZip.loadAsync(
-      await Deno.readFile(
-        join(config.outputDir, "coverage-course.v0.9.0.imscc"),
-      ),
+      await Deno.readFile(await packagePath(config.outputDir)),
     );
     assertEquals(
       [
@@ -514,12 +516,11 @@ Deno.test("runPack names the package after the course version and writes it to o
     for await (const entry of Deno.readDir(config.outputDir)) {
       if (entry.name.endsWith(".imscc")) names.push(entry.name);
     }
-    assertEquals(names, ["coverage-course.v0.9.0.imscc"]);
+    // Two packs of the same content give one file: the name has the hash of the content.
+    assertEquals(names.length, 1);
+    assertMatch(names[0], /^coverage-course\.v0\.9\.0\+[0-9a-f]{7}\.imscc$/);
     if (packageVersion !== "0.9.0") {
-      assertEquals(
-        names.includes(`coverage-course.v${packageVersion}.imscc`),
-        false,
-      );
+      assertEquals(names[0].includes(`.v${packageVersion}`), false);
     }
 
     const zip = await JSZip.loadAsync(
@@ -589,10 +590,7 @@ Deno.test("runPack lists a slide deck by its bso-title, after its lesson, withou
     );
     await runPack(config);
 
-    const packageFile = join(
-      config.outputDir,
-      `${config.name}.v${config.version}.imscc`,
-    );
+    const packageFile = await packagePath(config.outputDir);
     const zip = await JSZip.loadAsync(await Deno.readFile(packageFile));
     const manifest = await zip.file("imsmanifest.xml")!.async("string");
     assertStringIncludes(

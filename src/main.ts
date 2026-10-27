@@ -41,6 +41,7 @@ import {
   pandocAvailable,
 } from "./reader-pdf-converter.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
+import { computeContentHash, withContentHash } from "./content-version.ts";
 import {
   buildFeatureChapter,
   loadFeaturePages,
@@ -884,6 +885,16 @@ async function collectManifestEntries(
   return entries;
 }
 
+/** The version of the package: the course version and a hash of the content (rules CV1 to CV7). */
+async function contentVersionOf(config: ResolvedConfig): Promise<string> {
+  const hash = await computeContentHash({
+    buildDir: config.outputDir,
+    sourceDirs: config.readersDir ? [config.readersDir] : [],
+    bsoVersion: await loadPackageVersion(),
+  });
+  return withContentHash(config.version, hash);
+}
+
 async function writeManifestAndNavigation(
   config: ResolvedConfig,
   scannedQuizFiles?: string[],
@@ -1017,7 +1028,7 @@ async function writeManifestAndNavigation(
     {
       bsoVersion: await loadPackageVersion(),
       courseName: config.courseName,
-      courseVersion: config.version,
+      courseVersion: await contentVersionOf(config),
       buildTime: buildTimeFromEnv(),
     },
     navigation,
@@ -1068,8 +1079,8 @@ export async function runPack(
   }
   const repoRoot = config.repoRoot;
   const buildDir = config.outputDir;
-  // Course version, not BSO version: it identifies the imported content.
-  const outputPath = join(buildDir, `${config.name}.v${config.version}.imscc`);
+  // Course version, not BSO version, and a hash of the content: it identifies the imported content.
+  let outputPath = join(buildDir, `${config.name}.v${config.version}.imscc`);
 
   // Run build first if build/content/ does not exist
   try {
@@ -1085,11 +1096,14 @@ export async function runPack(
   console.log("Generating imsmanifest.xml...");
   await writeManifestAndNavigation(config);
   console.log("  ✓ imsmanifest.xml");
+  const versionWithHash = await contentVersionOf(config);
+  outputPath = join(buildDir, `${config.name}.v${versionWithHash}.imscc`);
+  console.log(`  content version ${versionWithHash}`);
 
   if (format === "brightspace") {
     // Experimental: a native Brightspace package, with module descriptions.
     console.log("Packaging into a native Brightspace package (experimental)...");
-    const nativePath = join(buildDir, nativePackageName(config.name, config.version));
+    const nativePath = join(buildDir, nativePackageName(config.name, versionWithHash));
     const result = await packNative({
       buildDir,
       outputPath: nativePath,

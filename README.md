@@ -171,7 +171,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    bso pack
    ```
 
-   The result is a file such as `build/brightspace/my-course.v1.0.0.imscc` that you can import into Brightspace (see [Importing into Brightspace](#importing-into-brightspace)).
+   The result is a file such as `build/brightspace/my-course.v1.0.0+3f9c2a1.imscc` (the digits are a hash of the content) that you can import into Brightspace (see [Importing into Brightspace](#importing-into-brightspace)).
 
 5. **Import into Brightspace** — upload the generated `.imscc` (see [Importing into Brightspace](#importing-into-brightspace)).
 

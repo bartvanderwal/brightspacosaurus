@@ -1,3 +1,4 @@
+import { packagePath } from "./helpers/package-file.ts";
 import {
   assertEquals,
   assertRejects,
@@ -613,10 +614,14 @@ Deno.test("#35 shuffle settings survive build and pack with deterministic answer
         {},
         root,
       );
+      // The content differs per setting, so each pack is a package of its own (content version).
+      await Deno.remove(config.outputDir, { recursive: true }).catch(() =>
+        undefined
+      );
       await runBuild(config, false, { skipReaders: true });
       await runPack(config);
       const zip = await JSZip.loadAsync(
-        await Deno.readFile(join(config.outputDir, "quiz.v1.0.imscc")),
+        await Deno.readFile(await packagePath(config.outputDir)),
       );
       const qtiFile = Object.keys(zip.files).find((name) =>
         name.endsWith(".xml") && name.includes("qti-")
@@ -673,10 +678,7 @@ Correct antwoord: A
     await runBuild(config, false, { skipReaders: true });
     await runPack(config);
 
-    const packageFile = join(
-      config.outputDir,
-      `${config.name}.v${config.version}.imscc`,
-    );
+    const packageFile = await packagePath(config.outputDir);
     const zip = await JSZip.loadAsync(await Deno.readFile(packageFile));
     const qtiName = Object.keys(zip.files).find((name) =>
       name.startsWith("quiz/") && name.endsWith(".xml")
@@ -693,8 +695,14 @@ Correct antwoord: A
       /<resource identifier="[^"]+_assets" type="webcontent"/.test(manifest),
       true,
     );
-    assertEquals(/<dependency identifierref="[^"]+_assets"\/>/.test(manifest), true);
-    assertEquals(/<item [^>]*identifierref="[^"]+_assets"/.test(manifest), false);
+    assertEquals(
+      /<dependency identifierref="[^"]+_assets"\/>/.test(manifest),
+      true,
+    );
+    assertEquals(
+      /<item [^>]*identifierref="[^"]+_assets"/.test(manifest),
+      false,
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

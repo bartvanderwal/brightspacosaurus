@@ -1,9 +1,10 @@
 {
   "courseName": "Demo Course",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "name": "demo-course",
   "sourcesDir": "examples/demo-course/lessons/",
   "readerCoverLogo": "assets/brightspacosaurus-favicon.png",
+  "readerChapterNewPage": false,
   "readersDir": "examples/demo-course/readers/",
   "outputDir": "build/brightspace",
   "docusaurusDir": "demo-course-docs",
