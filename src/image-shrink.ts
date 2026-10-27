@@ -17,6 +17,13 @@ const { PNG } = pngjs;
 /** The width that images of the slides are shrunk to, unless `slides.maxImageWidth` says otherwise. */
 export const DEFAULT_MAX_IMAGE_WIDTH = 1600;
 
+/**
+ * The width that the pictures on a lesson page are shrunk to. The column of a lesson page in
+ * Brightspace is about 600 pixels wide, so 1200 keeps a factor 2 for a sharp screen or a zoom
+ * (spec *Pictures on a lesson page*, rule P1).
+ */
+export const LESSON_IMAGE_MAX_WIDTH = 1200;
+
 /** More pixels than this are not decoded: a broken or hostile file could use all memory. */
 const MAX_PIXELS = 100_000_000;
 

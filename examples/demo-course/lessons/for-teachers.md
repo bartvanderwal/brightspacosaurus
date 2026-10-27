@@ -1,6 +1,6 @@
 # For teachers
 
-![A teacher inspects a package with a magnifying glass and a clipboard; a version tag and a light bulb float beside the dinosaur](images/for-teachers-inspect-package.png)
+![A teacher inspects a package with a magnifying glass and a clipboard; a version tag and a light bulb float beside the dinosaur](images/for-teachers-inspect-package.jpg)
 
 *Figure 1. Check which version is in Brightspace.*
 

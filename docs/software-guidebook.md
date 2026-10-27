@@ -351,7 +351,7 @@ This chapter lists the principles that guide design decisions, from configuratio
   }
   ```
 
-  BSO derives the rest: output goes to `build/brightspace/`, the package name `demo-course` comes from the course name, so the archive is `build/brightspace/demo-course.v1.0.0.imscc`. Each of these has a field to override it (`outputDir`, `name`).
+  BSO derives the rest: output goes to `build/brightspace/`, the package name `demo-course` comes from the course name, so the archive is `build/brightspace/demo-course.v1.0.0+3f9c2a1.imscc` (the digits after the `+` are a hash of the content, 7.13). Each of these has a field to override it (`outputDir`, `name`).
 - **Single source of truth.** Markdown in Git is authoritative. Every artifact (HTML, QTI, PDF, manifest, `.imscc`) is generated and never hand-edited. Brightspace is a distribution channel, not the store of record.
 - **Config-driven, no hardcoded paths.** Nothing project-specific lives in the code; it all comes from `brightspacosaurus.config.json` or CLI arguments.
 - **Separation of tool core from course content.** The tool ships no course-specific assets. Bundled assets (default CSS, LaTeX header, Lua filters) are generic scaffolding, not content.
@@ -1044,6 +1044,35 @@ Proposed in ADR 026, to be accepted by the owner. The tick state of phase 1 is k
 | OB10 | Every objective is in exactly one lesson and every quiz question tests exactly one objective (#66); `bso lint` reports the objective and question without the other. |
 
 Status: rules OB1 to OB10 are not built, and no test exists yet; the tests are written from these rules before the code (specification first). Open points are listed in ADR 026, among them the letters of the scale, the configuration key of the course code, the format that holds outcomes and criteria, and the link between a topic and a core concept.
+### 7.13 Content version
+
+Decided on 27 October 2026. A package is named after the course version that the author sets and a hash of the content: `demo-course.v0.11.0+7b6acb1.imscc`. The hash is semver *build metadata*, so the version for people stays the author's and the digits say whether the content changed. A counter that goes up at each change was rejected: it would make a build depend on the history, and break *commands are idempotent*. `src/content-version.ts` (`computeContentHash`); `contentVersionOf` in `src/main.ts` uses it for the manifest and the file name.
+
+| # | Rule |
+| --- | --- |
+| CV1 | The version of a package is `<version>+<hash>`, with the `version` of the configuration and seven hexadecimal digits. |
+| CV2 | The hash is made over the files of `content/` and `quiz/` in the build directory, the files of the source folders that the build does not copy as they are (the readers folder), and the version of BSO. Each file counts with its name, relative to its folder, and its content, in the order of the names. |
+| CV3 | The same input gives the same hash. A change in the content of a file, in its name, a file that is added or removed, or another BSO gives another hash. The order in which the files were written does not matter. |
+| CV4 | Not part of the hash: `imsmanifest.xml`, `navigation.json` and the sidebars (they carry the version), the folder `docenten/` (the teacher pages carry the version and the time), and the PDF that pandoc makes from a reader (it is not the same byte for byte after each run; the sources of the reader count instead). |
+| CV5 | The file is `<name>.v<version>+<hash>.imscc`, and for the native package `<name>.v<version>+<hash>.d2l.zip`. |
+| CV6 | The description in the manifest holds `course version: <version>+<hash>`. |
+| CV7 | A folder of publications (`publishDir`) treats packages with another hash as older versions of the same package and removes them. |
+| CV8 | Not built: the teacher page in Brightspace shows the `version` without the hash, because it is built before the hash exists. |
+
+Tests: `tests/content-version.test.ts` (CV1 to CV5 and CV7). CV6 was checked by hand on the demo course: two builds gave the same `0.11.0+7b6acb1` and the manifest carries it. The tests were written after the code.
+
+### 7.14 Pictures on a lesson page
+
+The column of a lesson page in Brightspace is about 600 pixels wide. A picture of 1672 pixels, as it came from an image generator, hung over the edge of the page and made the package heavy (a test import on 27 October 2026).
+
+| # | Rule |
+| --- | --- |
+| P1 | A PNG or JPEG that a lesson refers to is shrunk in the copy in the build to at most 1200 pixels wide (twice the column, for a sharp screen and a zoom); the source file is never changed, a narrower picture and every other type (SVG, GIF) is copied as it is. There is no setting for it. |
+| P2 | Every `<img>` in a lesson page has `style="max-width:100%;height:auto"` of its own, so it never gets wider than the page, also where the style sheet of the page does not reach it. A picture with a style of its own is left alone. |
+| P3 | A picture on a slide never gets taller than the slide: at most 500 pixels, and 300 pixels on a slide that also has a list, a table or code (`section:has(...)` in the slide layout). A background picture (`![bg]`) is not touched. |
+
+Tests: `tests/lesson-images.test.ts` (P1, P2). P3 was checked in the preview on the test pyramid slide of lesson 1.2; it has no automated test. The tests were written after the code. For a picture that is large because it is a photograph in a PNG, convert the source to JPEG: BSO does not change the type (the demo course did that for its illustrations).
+
 
 ## 8. Design Decisions
 

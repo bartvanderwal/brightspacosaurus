@@ -17,6 +17,7 @@ import {
   resolveDownloadableFile,
 } from "./downloadable-files.ts";
 import { basename, dirname, extname, join, relative, resolve } from "@std/path";
+import { LESSON_IMAGE_MAX_WIDTH, shrinkImage } from "./image-shrink.ts";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
@@ -99,6 +100,24 @@ function resolveIncludes(markdown: string, sourceDir: string): string {
     },
     warn: console.warn,
   });
+}
+
+/** The pictures that are shrunk, by extension. */
+const IMAGE_MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
+
+/**
+ * Gives every picture a style of its own, so that it never gets wider than the page, also where the
+ * style sheet of the page is not applied (rule P2).
+ */
+export function limitImageWidth(html: string): string {
+  return html.replace(
+    /<img\b(?![^>]*\bstyle=)/g,
+    '<img style="max-width:100%;height:auto"',
+  );
 }
 
 /**
@@ -204,7 +223,9 @@ async function wrapHtml(
   const navigationScript = await loadAssetText(
     "brightspacosaurus-navigation.js",
   );
-  const objectivesScript = await loadAssetText("brightspacosaurus-objectives.js");
+  const objectivesScript = await loadAssetText(
+    "brightspacosaurus-objectives.js",
+  );
   const tabsScript = await loadAssetText("brightspacosaurus-tabs.js");
   const copyButtonScript = await loadAssetText(
     "brightspacosaurus-copy-button.js",
@@ -478,14 +499,29 @@ export async function convertMarkdown(
     await Deno.mkdir(dirname(imgOutputPath), { recursive: true });
 
     try {
-      await Deno.copyFile(imgAbsSource, imgOutputPath);
+      // PNG and JPEG are shrunk in the copy (rule P1); the source stays as it is.
+      const mime = IMAGE_MIME[extname(imgAbsSource).toLowerCase()];
+      if (mime) {
+        await Deno.writeFile(
+          imgOutputPath,
+          shrinkImage(
+            await Deno.readFile(imgAbsSource),
+            mime,
+            LESSON_IMAGE_MAX_WIDTH,
+          ),
+        );
+      } else {
+        await Deno.copyFile(imgAbsSource, imgOutputPath);
+      }
       copiedImages.push(imgOutputPath);
     } catch {
       // Image not found — leave the reference intact but do not copy
     }
   }
 
-  const htmlBody = await processMarkdownBody(convertedMarkdown, options);
+  const htmlBody = limitImageWidth(
+    await processMarkdownBody(convertedMarkdown, options),
+  );
   const materializedDiagrams = await materializeDiagramImages(
     htmlBody,
     outputSubDir,

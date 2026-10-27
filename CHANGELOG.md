@@ -6,6 +6,9 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Changed
 
+- Pictures on a lesson page: a PNG or JPEG wider than 1200 pixels is shrunk in the copy in the build (the source stays), and every picture gets a style that keeps it inside the page; before, a large picture hung over the edge of the page in Brightspace. A picture on a slide is at most 500 pixels tall (300 with a list, a table or code beside it), so the test pyramid no longer runs off the slide.
+- The demo course has `readerChapterNewPage: false`, so the short chapters of its reader do not each get an almost empty page.
+- **The name of a package now carries a hash of the content:** `demo-course.v0.11.0+7b6acb1.imscc` (and `.d2l.zip`), with the same version in the manifest. The `version` stays yours; the seven digits after the `+` change when the content changes and are the same when it does not, so you can tell which build you imported without bumping `version`. A script that depends on the exact file name has to use the new name; `bso pack` prints the content version. The teacher page shows the `version` without the digits.
 - Only dedicated decks, the ones written by hand, get a pptx and a *Download pptx* link; a deck generated from a lesson gets none, whatever `slides.pptx` says, unless the lesson sets `pptx: true`. The link text is *Download pptx* without the file name, which stays the name of the downloaded file.
 - The task `deno task demo` is removed: the one name for starting the preview is `deno task preview` (`deno task demo:pack` stays for the package of the demo course).
 - In a reader PDF a diagram is shown first and its source (PlantUML or Mermaid) follows it on the same page; before, the source came first and the full-height picture on the next page. The picture is at most 45% of the page height.

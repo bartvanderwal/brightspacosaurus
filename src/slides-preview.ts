@@ -503,7 +503,7 @@ function slideTitle(section: string): string {
 export function withSlideLayout(html: string, logoUrl: string): string {
   // Marp scopes its theme CSS with an id selector, so these rules need !important.
   const style =
-    `<style id="bso-slide-layout">section:not(.lead){align-content:start!important;padding-top:52px!important}section[data-marpit-pagination]::after{right:96px!important;background:rgba(255,255,255,.85);padding:0 .3em;border-radius:.2em;content:attr(data-marpit-pagination) " / " attr(data-bso-total)!important}section[data-bso-appendix]::after{content:attr(data-marpit-pagination)!important}.bso-footer-logo{position:absolute;right:30px;bottom:22px;width:48px;height:44px;background:url(${logoUrl}) no-repeat center/contain}section.lead .bso-footer-logo{display:none}</style>`;
+    `<style id="bso-slide-layout">section:not(.lead){align-content:start!important;padding-top:52px!important}section[data-marpit-pagination]::after{right:96px!important;background:rgba(255,255,255,.85);padding:0 .3em;border-radius:.2em;content:attr(data-marpit-pagination) " / " attr(data-bso-total)!important}section[data-bso-appendix]::after{content:attr(data-marpit-pagination)!important}.bso-footer-logo{position:absolute;right:30px;bottom:22px;width:48px;height:44px;background:url(${logoUrl}) no-repeat center/contain}section.lead .bso-footer-logo{display:none}section img:not(.bso-slide-logo){max-width:100%;max-height:500px;object-fit:contain}section:has(ul,ol,table,pre) img:not(.bso-slide-logo){max-height:300px}</style>`;
   // Real slides carry a numeric id; Marp's extra sections for background images do not.
   const isSlide = (section: string) =>
     /^<section\b[^>]*\sid="\d+"/i.test(section);

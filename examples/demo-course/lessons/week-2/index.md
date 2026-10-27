@@ -2,7 +2,7 @@
 
 This week covers what ends up in the package: diagrams, SVG assets, reader PDFs and versioning. Each lesson is followed by its quiz.
 
-![Week 2: a teacher and the dinosaur pack a case with a diagram, a PDF and a version label; a conveyor belt leads to an open box](images/week-2-package-conveyor-pdf-diagram-version.png)
+![Week 2: a teacher and the dinosaur pack a case with a diagram, a PDF and a version label; a conveyor belt leads to an open box](images/week-2-package-conveyor-pdf-diagram-version.jpg)
 
 *Figure 1. Week 2 is about the package: diagrams, PDFs and versions.*
 

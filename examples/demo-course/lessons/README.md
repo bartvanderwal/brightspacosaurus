@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Demo Course Handbook
 
-![The demo course: Markdown course material becomes a package for Brightspace, with the Brightspacosaurus dinosaur on its sunburst behind a team of three](images/course-overview-markdown-to-package.png)
+![The demo course: Markdown course material becomes a package for Brightspace, with the Brightspacosaurus dinosaur on its sunburst behind a team of three](images/course-overview-markdown-to-package.jpg)
 
 *Figure 1. Markdown course material becomes one package for Brightspace.*
 
