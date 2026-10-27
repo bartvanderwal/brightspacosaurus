@@ -109,10 +109,12 @@ function CodeBlock(block)
   img_file:write(img_data)
   img_file:close()
 
-  -- Maak een pandoc Image-element
+  -- The image comes first and the source follows it. The image is limited in height
+  -- (keeping its proportions) so the picture and its source fit on one page, and a
+  -- page break between the two is discouraged.
   local caption = block.attributes["caption"] or ""
-  local img = pandoc.Image(caption, img_path)
+  local img = pandoc.Image(caption, img_path, "", pandoc.Attr("", {}, { height = "45%" }))
   local para = pandoc.Para({ img })
 
-  return { block, para }
+  return { para, pandoc.RawBlock("latex", "\\nopagebreak[4]"), block }
 end

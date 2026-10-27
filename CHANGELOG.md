@@ -6,6 +6,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Changed
 
+- In a reader PDF a diagram is shown first and its source (PlantUML or Mermaid) follows it on the same page; before, the source came first and the full-height picture on the next page. The picture is at most 45% of the page height.
 - The pptx of a generated lesson deck is named after the lesson file (`lesson-1-fizzbuzz.pptx`) and no longer `slides.pptx`, in the preview and in the package, so a download says what it is from.
 
 ### Added
