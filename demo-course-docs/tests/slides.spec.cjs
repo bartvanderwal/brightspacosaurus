@@ -1,15 +1,17 @@
 const { test, expect } = require("@playwright/test");
 
-async function setup(page) {
+async function setup(page, marks = { extra: "/slides/lesson/index.html" }) {
   await page.goto("/lessons/week-1/lesson-1-fizzbuzz");
   // Wait for hydration: React would replace a span inserted before it finished.
   await page.waitForLoadState("networkidle");
-  await page.evaluate(() => {
+  await page.evaluate((marks) => {
+    const extra = marks.extra ? ` data-bso-slides="${marks.extra}"` : "";
+    const lesson = marks.lesson ? ` data-bso-slides-lesson="${marks.lesson}"` : "";
     document.querySelector("article").insertAdjacentHTML(
       "beforeend",
-      '<span hidden data-bso-slides="/slides/lesson/index.html"></span>',
+      `<span hidden${extra}${lesson}></span>`,
     );
-  });
+  }, marks);
 }
 
 test("a visible button links to the slides; Option+P uses physical KeyP; both stay in the same tab", async ({ page }) => {
@@ -76,4 +78,39 @@ test("print, repeat and lessons without slides are untouched; navigation selects
   });
   await page.keyboard.press("Alt+p");
   await page.waitForURL(/\/slides\/next(\/index\.html)?$/);
+});
+
+function press(page, code, altKey = true) {
+  return page.evaluate(({ code, altKey }) => {
+    const event = new KeyboardEvent("keydown", {
+      key: code === "KeyT" ? "†" : "π", code, altKey, bubbles: true, cancelable: true,
+    });
+    document.body.dispatchEvent(event);
+    return event.defaultPrevented;
+  }, { code, altKey });
+}
+
+test("T3: Alt+T presents the lesson itself and Alt+P opens the extra slides, both in the same tab", async ({ page }) => {
+  await setup(page, { extra: "/slides/extra/index.html", lesson: "/slides/lesson/index.html" });
+  expect(await press(page, "KeyT")).toBe(true);
+  await page.waitForURL(/\/slides\/lesson(\/index\.html)?$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/lessons\/week-1\/lesson-1-fizzbuzz$/);
+  await setup(page, { extra: "/slides/extra/index.html", lesson: "/slides/lesson/index.html" });
+  expect(await press(page, "KeyP")).toBe(true);
+  await page.waitForURL(/\/slides\/extra(\/index\.html)?$/);
+});
+
+test("T4/T5: a lesson presentation without extra slides has no button and no Alt+P", async ({ page }) => {
+  await setup(page, { lesson: "/slides/lesson/index.html" });
+  await expect(page.locator("a.bso-slides-button")).toHaveCount(0);
+  expect(await press(page, "KeyP")).toBe(false);
+  expect(new URL(page.url()).pathname).toBe("/lessons/week-1/lesson-1-fizzbuzz");
+});
+
+test("T4/T5: a lesson with only extra slides keeps the button, and Alt+T does nothing", async ({ page }) => {
+  await setup(page, { extra: "/slides/extra/index.html" });
+  await expect(page.locator("a.bso-slides-button")).toBeVisible();
+  expect(await press(page, "KeyT")).toBe(false);
+  expect(new URL(page.url()).pathname).toBe("/lessons/week-1/lesson-1-fizzbuzz");
 });

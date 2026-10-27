@@ -5,8 +5,15 @@ import { generateLessonSlides } from "../src/lesson-slides.ts";
 const lessons = join("examples", "demo-course", "lessons");
 
 async function slidesOf(file: string): Promise<string[]> {
+  // The preview expands the include of the learning goals before it generates the deck.
+  const goals = await Deno.readTextFile(
+    join("examples", "demo-course", "partials", "learning-goals.md"),
+  );
   const deck = generateLessonSlides(
-    await Deno.readTextFile(join(lessons, file)),
+    (await Deno.readTextFile(join(lessons, file))).replace(
+      /\{@include: \[Learning goals\]\([^)]*\)\}/,
+      goals,
+    ),
     { contentsTitle: "Contents" },
   );
   return deck.replace(/^---\n[\s\S]*?\n---\n/, "").split("\n\n---\n\n");
@@ -34,10 +41,11 @@ Deno.test("a lesson with code sections shows that code on its slides (demo lesso
 Deno.test("the contents slide of demo lesson 1.1 lists the numbered sections without nested numbering", async () => {
   const slides = await slidesOf("week-1/lesson-1-fizzbuzz.md");
   const contents = slides.find((slide) => slide.startsWith("# Contents"))!;
-  assertStringIncludes(contents, "- 1\\. Introduction");
+  assertStringIncludes(contents, "- 1\\. Learning goals");
+  assertStringIncludes(contents, "- 2\\. Introduction");
   assertEquals(
     contents.split("\n").filter((line) => line.startsWith("- ")).length,
-    5,
+    6,
   );
   // a bare "- 1. Intro" would render as a nested ordered list (roman numbers)
   assert(!/^- \d+\. /m.test(contents));

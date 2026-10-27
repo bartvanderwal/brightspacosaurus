@@ -503,7 +503,7 @@ function slideTitle(section: string): string {
 export function withSlideLayout(html: string, logoUrl: string): string {
   // Marp scopes its theme CSS with an id selector, so these rules need !important.
   const style =
-    `<style id="bso-slide-layout">section:not(.lead){align-content:start!important;padding-top:52px!important}section[data-marpit-pagination]::after{right:96px!important;content:attr(data-marpit-pagination) " / " attr(data-bso-total)!important}section[data-bso-appendix]::after{content:attr(data-marpit-pagination)!important}.bso-footer-logo{position:absolute;right:30px;bottom:22px;width:48px;height:44px;background:url(${logoUrl}) no-repeat center/contain}section.lead .bso-footer-logo{display:none}</style>`;
+    `<style id="bso-slide-layout">section:not(.lead){align-content:start!important;padding-top:52px!important}section[data-marpit-pagination]::after{right:96px!important;background:rgba(255,255,255,.85);padding:0 .3em;border-radius:.2em;content:attr(data-marpit-pagination) " / " attr(data-bso-total)!important}section[data-bso-appendix]::after{content:attr(data-marpit-pagination)!important}.bso-footer-logo{position:absolute;right:30px;bottom:22px;width:48px;height:44px;background:url(${logoUrl}) no-repeat center/contain}section.lead .bso-footer-logo{display:none}</style>`;
   // Real slides carry a numeric id; Marp's extra sections for background images do not.
   const isSlide = (section: string) =>
     /^<section\b[^>]*\sid="\d+"/i.test(section);
@@ -812,6 +812,12 @@ function rewriteImagePaths(
  * that a lesson links to.
  */
 export const DECK_KEY_PREFIX = "deck:";
+
+/** Prefix of the entries that mark a lesson whose deck is generated from the lesson itself (a lesson presentation). */
+export const LESSON_KEY_PREFIX = "lesson:";
+
+/** Prefix of the entries with the first slide deck that a generated lesson links: its extra slides. */
+export const EXTRA_KEY_PREFIX = "extra:";
 
 /**
  * The slide decks that a lesson links to. The links are resolved relative to the
@@ -1367,12 +1373,13 @@ export async function renderPreviewSlides(
               : undefined,
             disclaimer,
           });
-          await Deno.writeFile(
-            join(dirname(destination), "slides.pptx"),
-            bytes,
-          );
-          pptxNames.push("slides.pptx");
-          used.add("slides.pptx");
+          // Named after the lesson file, so a download says what it is from.
+          const lessonPptx = `${
+            basename(plan.lesson).replace(/\.md$/i, "")
+          }.pptx`;
+          await Deno.writeFile(join(dirname(destination), lessonPptx), bytes);
+          pptxNames.push(lessonPptx);
+          used.add(lessonPptx);
         }
         for (const source of configured) {
           const markdown = expandSlideIncludes(
@@ -1432,6 +1439,7 @@ export async function renderPreviewSlides(
         ),
       );
       result[plan.lesson] = plan.url;
+      if (plan.generate) result[LESSON_KEY_PREFIX + plan.lesson] = plan.url;
     } catch (error) {
       throw new Error(
         `Slides preview: rendering lesson ${plan.lesson} (${
@@ -1444,8 +1452,18 @@ export async function renderPreviewSlides(
       });
     }
   }
+  // The extra slides of a lesson presentation: the first slide deck that the lesson links.
+  for (const [lesson, decks] of linkedByLesson) {
+    if (result[LESSON_KEY_PREFIX + lesson] === undefined) continue;
+    const first = decks.map((deck) => result[DECK_KEY_PREFIX + deck.path]).find(
+      (url) => url !== undefined,
+    );
+    if (first) result[EXTRA_KEY_PREFIX + lesson] = first;
+  }
   return result;
 }
+
+/**
 
 /**
  * Removes the presenter notes Marp writes as `<div class="bespoke-marp-note">`
@@ -1491,11 +1509,21 @@ export interface SlidesLink {
   href: string;
   /** The link text; empty for the presentation of the lesson itself. */
   label: string;
+  /** The deck is generated from the lesson itself: the link reads *Present this lesson*. */
+  presentation?: boolean;
 }
 
 const SLIDES_LINK_TEXT = {
-  nl: { slides: "Bekijk als slides", pptx: "Download PowerPoint" },
-  en: { slides: "View as slides", pptx: "Download PowerPoint" },
+  nl: {
+    slides: "Bekijk als slides",
+    present: "Presenteer deze les",
+    pptx: "Download PowerPoint",
+  },
+  en: {
+    slides: "View as slides",
+    present: "Present this lesson",
+    pptx: "Download PowerPoint",
+  },
 } as const;
 
 /**
@@ -1517,7 +1545,11 @@ export function withSlidesLinks(
         escapeAttribute(link.label)
       })</a>`
       : `<a href="${escapeAttribute(link.href)}">${
-        link.label ? escapeAttribute(link.label) : text.slides
+        link.label
+          ? escapeAttribute(link.label)
+          : link.presentation
+          ? text.present
+          : text.slides
       }</a>`
   );
   const paragraph = `<p data-bso-slides-links style="margin:.5rem 0 1rem">${
@@ -1627,14 +1659,19 @@ export async function exportSlidesToContent(
     stem: string,
     topic: { file: string; pptx: { href: string; label: string }[] },
     label: string,
+    presentation = false,
   ) => {
     const links = lessonLinks.get(stem) ?? [];
-    links.push({ kind: "slides", href: topic.file, label });
+    links.push({ kind: "slides", href: topic.file, label, presentation });
     for (const file of topic.pptx) links.push({ kind: "pptx", ...file });
     lessonLinks.set(stem, links);
   };
   for (const [lesson, url] of Object.entries(rendered)) {
-    if (lesson.startsWith(DECK_KEY_PREFIX)) continue;
+    if (
+      lesson.startsWith(DECK_KEY_PREFIX) ||
+      lesson.startsWith(LESSON_KEY_PREFIX) ||
+      lesson.startsWith(EXTRA_KEY_PREFIX)
+    ) continue;
     const stem = stemOf(lesson);
     addLinks(
       stem,
@@ -1642,9 +1679,14 @@ export async function exportSlidesToContent(
         url,
         `${stem}-slides`,
         `Slides: ${await lessonTitle(stem)}`,
-        (name) => `${basename(stem)}-${name}`,
+        // The pptx of the lesson itself is already named after it.
+        (name) =>
+          name.startsWith(`${basename(stem)}.`)
+            ? name
+            : `${basename(stem)}-${name}`,
       ),
       "",
+      rendered[LESSON_KEY_PREFIX + lesson] !== undefined,
     );
   }
   // The standalone presentation of each slide deck a lesson links to, as a topic

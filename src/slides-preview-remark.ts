@@ -2,22 +2,39 @@
  * Invisible per-document slide metadata, independent of Docusaurus slugs/routes.
  * @module
  */
+/** Prefix of the entries that mark a lesson presentation (see `slides-preview.ts`). */
+const LESSON_KEY_PREFIX = "lesson:";
+
+/** Prefix of the entries with the extra slides of a lesson presentation. */
+const EXTRA_KEY_PREFIX = "extra:";
+
 export function remarkPreviewSlides(
   options: { lessons: Record<string, string>; baseUrl?: string },
 ): (tree: { children: unknown[] }, file: { path?: string }) => void {
+  const base = (options.baseUrl ?? "/").replace(/\/?$/, "/");
   return (tree: { children: unknown[] }, file: { path?: string }) => {
-    const slides = file.path ? options.lessons[file.path] : undefined;
-    if (!slides) return;
+    if (!file.path) return;
+    // A lesson whose deck is generated from the lesson itself is presented with Alt+T;
+    // its extra slides (a deck the lesson links) are the ones of Alt+P and the button.
+    const presentation = options.lessons[LESSON_KEY_PREFIX + file.path];
+    const extra = presentation !== undefined
+      ? options.lessons[EXTRA_KEY_PREFIX + file.path]
+      : options.lessons[file.path];
+    if (!presentation && !extra) return;
+    const attribute = (name: string, value: string | null) => ({
+      type: "mdxJsxAttribute",
+      name,
+      value,
+    });
     tree.children.push({
       type: "mdxJsxFlowElement",
       name: "span",
       attributes: [
-        { type: "mdxJsxAttribute", name: "hidden", value: null },
-        {
-          type: "mdxJsxAttribute",
-          name: "data-bso-slides",
-          value: `${(options.baseUrl ?? "/").replace(/\/?$/, "/")}${slides}`,
-        },
+        attribute("hidden", null),
+        ...(extra ? [attribute("data-bso-slides", `${base}${extra}`)] : []),
+        ...(presentation
+          ? [attribute("data-bso-slides-lesson", `${base}${presentation}`)]
+          : []),
       ],
       children: [],
     });

@@ -8,7 +8,8 @@ Every lesson can be shown as slides, without writing a deck first. BSO turns the
 
 ## What students and teachers do
 
-- As a **student**, I open a lesson and click *Slides* (or press Alt+P, on a Mac Option+P) to read it as slides in the same tab. The browser's Back button, or Esc, returns me to the lesson.
+- As a **student**, I open a lesson and click *Slides* (or press Alt+P, on a Mac Option+P) to see its extra slides in the same tab. The browser's Back button, or Esc, returns me to the lesson.
+- As a **teacher**, I press Alt+T (Option+T on a Mac) to present the lesson itself, step by step, with the extra slides in the right place. No button, no setup per lesson.
 - As a **teacher**, I present straight from the lesson. The slides follow the lesson, so there is no second file to keep up to date.
 - As a **teacher**, I download an editable PowerPoint file of a hand-written deck when I want to adapt it for my own class.
 - As a **course author**, I link my own deck in the lesson, where it belongs. The link starts the deck on its own, its slides appear in the lesson's slides at that place, and BSO tells me when a slide would come out empty. Lesson 1.1 does this.
@@ -31,7 +32,17 @@ Explanation: look at the fixed title position, which does not move with the amou
 - **Code** gets its own slide, and long code continues on the next slide.
 - **PlantUML and Mermaid diagrams** are drawn through Kroki and get a slide each.
 - Page numbers read `4 / 10`. Appendix slides (a section titled *Appendix* or *Bijlage*) are left out of the total.
-- The preview shows a *Slides* button in the top right corner of every lesson that has slides. In Brightspace the lesson page has a line of links at the top instead: *View as slides*, a link for each linked deck, and *Download PowerPoint* for each editable pptx.
+- The preview shows a *Slides* button in the top right corner of every lesson that has extra slides (a deck written by hand). Alt+T presents the lesson itself and has no button. In Brightspace the lesson page has a line of links at the top instead: *View as slides*, a link for each linked deck, and *Download PowerPoint* for each editable pptx.
+
+**Try it in this course**
+
+| Lesson | What you can do |
+| --- | --- |
+| [Lesson 1.1: FizzBuzz](../week-1/lesson-1-fizzbuzz.md) | Alt+T presents the lesson as slides, generated from the lesson text; the *FizzBuzz, step by step* deck, which the lesson links, is part of it. Alt+P (or the button) opens that extra deck alone. |
+| [Lesson 1.2: Test strategy](../week-1/lesson-2-test-strategy.md) | A hand-written deck belongs to this lesson and is not generated: Alt+P and the button open it, Alt+T does nothing. |
+| [Lesson 2.5: Test levels](../week-2/lesson-5-test-levels.md) | Alt+T presents the lesson with the three pages it links as nested sets. |
+
+The lesson is not copied: the generated slides are made from the lesson file each time, so a change in the lesson shows in the slides. Only the extra deck is a separate file.
 
 <details>
 <summary>How to set up slides</summary>

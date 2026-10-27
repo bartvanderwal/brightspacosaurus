@@ -759,6 +759,23 @@ Use your app's actual `baseUrl` for subpath deployments. Start through `bso prev
 
 The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the top right corner, below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut and the button are the preview's way in; the cartridge gives the lesson page its own links to the slides and the pptx (rules B1-B5 under *Slides on the lesson page in the cartridge*). Hidden URLs are not access control.
 
+#### The lesson as slides: Alt+T (#159)
+
+Two kinds of slides are told apart. A **lesson presentation** is the deck generated from the lesson itself (`generate: true`, or a file that `slides.generateForPrefix` selects); the teacher presents the lesson, and the decks it links and the pages it nests are part of it. **Extra slides** are a deck written by hand next to the lesson: the configured decks (`decks`) of a lesson that is not presented, or the first deck that a lesson presentation links (L rules). The two have their own key: Alt/Option+T for the lesson, Alt/Option+P and the button for the extra slides. The speaker notes are not part of this: the teacher uses the presenter view of the Marp deck itself, and BSO adds no switch of its own (decision of 27 October 2026).
+
+| # | Rule |
+| --- | --- |
+| T1 | `renderPreviewSlides` records for each lesson whose deck is generated from the lesson an entry `lesson:<path>` with the URL of that deck. For such a lesson that links decks it also records `extra:<path>`, the URL of the first linked deck. A lesson with only configured decks has neither; its own entry is its extra slides. |
+| T2 | `remarkPreviewSlides` marks a lesson page with a hidden element. `data-bso-slides-lesson` holds the URL of the lesson presentation. `data-bso-slides` holds the URL of the extra slides, and is absent when there are none. |
+| T3 | Alt/Option+T opens the URL of `data-bso-slides-lesson` in the same tab, so the Back button returns to the lesson (ADR 022). Alt/Option+P opens the URL of `data-bso-slides`. Both use the physical key (`KeyT`, `KeyP`) and the same guards (editable fields, repeat, other modifiers, a link to another origin). |
+| T4 | A key does nothing on a page without the attribute it reads. |
+| T5 | The visible button follows `data-bso-slides` only: it is shown for extra slides, never for a lesson presentation without them. |
+| T6 | In the cartridge the link on the lesson page to the generated deck reads *Present this lesson* (*Presenteer deze les* for `nl`); a link to extra slides keeps *View as slides* (*Bekijk als slides*), and a linked deck keeps its title. |
+| T7 | Alt/Option+T opens the deck without any speaker notes setting of its own. |
+| T8 | The page number of a slide has a light background, so that it stays readable over a background image (`![bg right]`). |
+
+Tests: `tests/slides-preview.test.ts` (T1, T6), `tests/slides-remark.test.ts` (T2) and `demo-course-docs/tests/slides.spec.cjs` (T3 to T5). T7 and T8 have no automated test yet (T8 was seen on the demo screenshot). The tests were written after the code.
+
 #### Nested lesson pages (#147)
 
 An overview page can show the slides of the pages it links to as nested sets, without copying text: the student pages stay the only source. Which links nest is decided by a setting, because a lesson also links to other lessons for plain navigation and not every link is a slide set.
@@ -881,7 +898,7 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | --- | --- |
 | X1 | A generated deck gets a pptx when the lesson option `pptx: true` says so, or when the course setting `slides.pptx` is `true` and the lesson does not say `pptx: false`. Without either, none. The option needs `generate: true`. |
 | X2 | The pptx holds the same slides as the HTML deck: the title slide, the contents slide, the sections, the nested pages with their sub-numbers, and the images and diagrams. |
-| X3 | The file is `slides.pptx` next to the deck, and a lesson page and the slides page link to it like to the pptx of a manual deck; in the package it is named `<lesson>-slides.pptx`, next to the slides topic. |
+| X3 | The file is named after the lesson file, `<lesson>.pptx` (for `lesson-1-fizzbuzz.md`: `lesson-1-fizzbuzz.pptx`), next to the deck, and a lesson page and the slides page link to it like to the pptx of a manual deck; in the package it has the same name, next to the slides topic. A manual deck keeps its own name. |
 | X4 | The generated deck carries its images as `data:` URLs (a diagram is an SVG that Kroki drew); the pptx writer accepts `data:image/png`, `jpeg`, `gif` and `svg+xml` and takes the proportions of an SVG from its `viewBox`. |
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 | X6 | *What does not fit goes on a next slide.* A slide whose text does not fit at the smallest font size continues on further slides with the same title and a counter, `Title (2/3)`: list items, table rows (the header repeated) and lines of code are spread; the speaker notes stay with the first slide, an image stays where it was, and a link to another slide (`#12`) follows the new numbering. A title slide is not split. | pptx tests |

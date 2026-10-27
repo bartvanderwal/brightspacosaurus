@@ -12,6 +12,8 @@ import {
   DECK_KEY_PREFIX,
   deckWantsPptx,
   exportSlidesToContent,
+  EXTRA_KEY_PREFIX,
+  LESSON_KEY_PREFIX,
   renderDiagramFences,
   renderPreviewSlides,
   type SlidesConfig,
@@ -224,6 +226,7 @@ Deno.test("slides preview: a course prefix generates matching lessons with expli
     );
     assertEquals(Object.keys(result), [
       join(root, "lessons/week/lesoverzicht-1.md"),
+      LESSON_KEY_PREFIX + join(root, "lessons/week/lesoverzicht-1.md"),
       join(root, "lessons/week/lesoverzicht-manual.md"),
     ]);
     assertEquals(captured.length, 2);
@@ -262,7 +265,8 @@ Deno.test("slides preview: generated lesson slides combine with manual slide dec
       fake(captured),
     );
 
-    assertEquals(Object.keys(map).length, 1);
+    // The lesson and its marker as a lesson presentation (T1).
+    assertEquals(Object.keys(map).length, 2);
     assertStringIncludes(captured[0], "# Lesson title");
     assertStringIncludes(
       captured[0],
@@ -317,12 +321,12 @@ Deno.test("slides preview: a generated deck gets a pptx, nested pages and images
 
     // X1: nothing without a request.
     await run({ generate: true, nest: "levels/*.md" });
-    assertEquals(await exists(join(output, "slides.pptx")), false);
+    assertEquals(await exists(join(output, "lesson.pptx")), false);
 
     // X1: the lesson asks for it.
     await run({ generate: true, nest: "levels/*.md", pptx: true });
     const zip = await JSZip.loadAsync(
-      await Deno.readFile(join(output, "slides.pptx")),
+      await Deno.readFile(join(output, "lesson.pptx")),
     );
     const text = (await Promise.all(
       Object.keys(zip.files).filter((name) =>
@@ -340,11 +344,11 @@ Deno.test("slides preview: a generated deck gets a pptx, nested pages and images
 
     // X1: the course asks for it, and the lesson can say no.
     await run({ generate: true, nest: "levels/*.md" }, { pptx: true });
-    assertEquals(await exists(join(output, "slides.pptx")), true);
+    assertEquals(await exists(join(output, "lesson.pptx")), true);
     await run({ generate: true, nest: "levels/*.md", pptx: false }, {
       pptx: true,
     });
-    assertEquals(await exists(join(output, "slides.pptx")), false);
+    assertEquals(await exists(join(output, "lesson.pptx")), false);
   });
 });
 
@@ -2099,7 +2103,8 @@ Deno.test("N10: a change in a nested page shows at the next build, and the page 
       fake(first),
     );
     assertStringIncludes(first.join("\n"), "goal a");
-    assertEquals(Object.keys(result).length, 2);
+    // Two decks, and the marker of the generated lesson presentation (T1).
+    assertEquals(Object.keys(result).length, 4);
     await write(
       root,
       "lessons/week/levels/level-a.md",
@@ -2195,4 +2200,179 @@ Deno.test("I9: slides.maxImageWidth is a whole number of pixels or 0", () => {
       "slides.maxImageWidth",
     );
   }
+});
+
+// Spec *The lesson as slides: Alt+T*, rule T1.
+Deno.test("T1: only a lesson whose deck is generated from the lesson gets a lesson entry", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/generated.md",
+      "# Generated\n\n## 1. One\n\n- a\n",
+    );
+    await write(root, "lessons/week/extra.md", "# Extra\n\nText.\n");
+    await write(
+      root,
+      "decks/extra.md",
+      "---\nslides: true\n---\n\n# Extra slide\n",
+    );
+    const result = await renderPreviewSlides(
+      {
+        lessons: {
+          "week/generated.md": { generate: true },
+          "week/extra.md": { decks: "decks/extra.md" },
+        },
+      },
+      root,
+      "lessons",
+      "static",
+      fake([]),
+    );
+    const generated = Object.keys(result).find((key) =>
+      key.endsWith("generated.md") && !key.startsWith(LESSON_KEY_PREFIX)
+    )!;
+    const extra = Object.keys(result).find((key) =>
+      key.endsWith("week/extra.md") && !key.startsWith(LESSON_KEY_PREFIX)
+    )!;
+    assertEquals(result[LESSON_KEY_PREFIX + generated], result[generated]);
+    assertEquals(result[LESSON_KEY_PREFIX + extra], undefined);
+    assert(
+      result[extra] !== undefined,
+      "the extra slides still have their deck",
+    );
+  });
+});
+
+// Spec *The lesson as slides: Alt+T*, rule T6.
+Deno.test("T6: the link to a generated deck reads Present this lesson, the link to extra slides keeps View as slides", () => {
+  const page = "<html><body><h1>Lesson</h1></body></html>";
+  const present = [{
+    kind: "slides" as const,
+    href: "lesson-slides.html",
+    label: "",
+    presentation: true,
+  }];
+  assertStringIncludes(
+    withSlidesLinks(page, present, "en"),
+    ">Present this lesson</a>",
+  );
+  assertStringIncludes(
+    withSlidesLinks(page, present, "nl"),
+    ">Presenteer deze les</a>",
+  );
+  const extra = [{
+    kind: "slides" as const,
+    href: "lesson-slides.html",
+    label: "",
+  }];
+  assertStringIncludes(
+    withSlidesLinks(page, extra, "en"),
+    ">View as slides</a>",
+  );
+  const titled = [{ ...present[0], label: "Extra deck" }];
+  assertStringIncludes(withSlidesLinks(page, titled, "en"), ">Extra deck</a>");
+});
+
+// Spec *The lesson as slides: Alt+T*, rule T6, in the cartridge.
+Deno.test("T6: the exported lesson page links its generated deck as a lesson presentation", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. One\n\n- a\n",
+    );
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>Lesson</h1></body></html>",
+    );
+    await exportSlidesToContent(
+      { lessons: { "week/lesson.md": { generate: true } } },
+      root,
+      "lessons",
+      "static",
+      join(root, "content"),
+      fake([]),
+    );
+    const page = await Deno.readTextFile(
+      join(root, "content", "week", "lesson.html"),
+    );
+    // The course has no locale set, so the default is Dutch.
+    assertStringIncludes(page, ">Presenteer deze les</a>");
+  });
+});
+
+// Spec *Editable PowerPoint*, rule X3: the file is named after the lesson file.
+Deno.test("X3: the pptx of a generated deck is named after the lesson file, also in the cartridge", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson-1-fizz.md",
+      "# Lesson\n\n## 1. One\n\n- a\n",
+    );
+    await write(
+      root,
+      "content/week/lesson-1-fizz.html",
+      "<html><body><h1>Lesson</h1></body></html>",
+    );
+    await exportSlidesToContent(
+      { lessons: { "week/lesson-1-fizz.md": { generate: true, pptx: true } } },
+      root,
+      "lessons",
+      "static",
+      join(root, "content"),
+      fake([]),
+    );
+    const staticDir = join(root, "static", "slides", "week", "lesson-1-fizz");
+    assert((await Deno.stat(join(staticDir, "lesson-1-fizz.pptx"))).isFile);
+    assert(
+      (await Deno.stat(join(root, "content", "week", "lesson-1-fizz.pptx")))
+        .isFile,
+    );
+    const page = await Deno.readTextFile(
+      join(root, "content", "week", "lesson-1-fizz.html"),
+    );
+    assertStringIncludes(page, 'href="lesson-1-fizz.pptx" download');
+  });
+});
+
+// Spec *The lesson as slides: Alt+T*, rule T1.
+Deno.test("T1: a generated lesson that links a deck gets that deck as its extra slides", async () => {
+  await fixture(async (root) => {
+    await write(
+      root,
+      "lessons/week/lesson.md",
+      "# Lesson\n\n## 1. One\n\n- a\n\n[Extra](../../decks/extra.md)\n",
+    );
+    await write(root, "lessons/week/plain.md", "# Plain\n\n## 1. One\n\n- a\n");
+    await write(
+      root,
+      "decks/extra.md",
+      "---\nslides: true\n---\n\n# Extra slide\n",
+    );
+    const result = await renderPreviewSlides(
+      {
+        lessons: {
+          "week/lesson.md": { generate: true },
+          "week/plain.md": { generate: true },
+        },
+      },
+      root,
+      "lessons",
+      "static",
+      fake([]),
+    );
+    const key = (name: string) =>
+      Object.keys(result).find((each) =>
+        each.endsWith(name) && !each.includes(":")
+      )!;
+    const deck = Object.keys(result).find((each) =>
+      each.startsWith(DECK_KEY_PREFIX)
+    )!;
+    assertEquals(
+      result[EXTRA_KEY_PREFIX + key("week/lesson.md")],
+      result[deck],
+    );
+    assertEquals(result[EXTRA_KEY_PREFIX + key("week/plain.md")], undefined);
+  });
 });

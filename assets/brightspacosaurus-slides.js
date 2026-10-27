@@ -1,12 +1,14 @@
 // @ts-self-types="./brightspacosaurus-slides.d.ts"
 /**
- * Hidden preview-only presentation shortcut. Read the current document on each
+ * Hidden preview-only presentation shortcuts: Alt+P opens the extra slides of a
+ * lesson, Alt+T presents the lesson itself. Read the current document on each
  * keypress so client-side navigation cannot leave a previous lesson selected.
  */
 function presentLessonSlides(event, doc, browser) {
   if (
-    !event.altKey || event.code !== "KeyP" || event.ctrlKey ||
-    event.metaKey || event.shiftKey || event.repeat || event.defaultPrevented
+    !event.altKey || (event.code !== "KeyP" && event.code !== "KeyT") ||
+    event.ctrlKey || event.metaKey || event.shiftKey || event.repeat ||
+    event.defaultPrevented
   ) return;
 
   const editable = (element) =>
@@ -18,8 +20,12 @@ function presentLessonSlides(event, doc, browser) {
     return;
   }
 
-  const path = doc.querySelector("article [data-bso-slides]")?.getAttribute(
-    "data-bso-slides",
+  // Alt+P opens the extra slides, Alt+T presents the lesson itself.
+  const attribute = event.code === "KeyT"
+    ? "data-bso-slides-lesson"
+    : "data-bso-slides";
+  const path = doc.querySelector(`article [${attribute}]`)?.getAttribute(
+    attribute,
   );
   if (!path) return;
   const url = new URL(path, browser.location.href);
@@ -58,6 +64,7 @@ function showSlidesButton(doc, browser) {
     "data-bso-slides",
   );
   const existing = doc.querySelector("a.bso-slides-button");
+  // The button is for extra slides; a lesson presentation (Alt+T) has none.
   if (!path) {
     existing?.remove();
     return;
@@ -76,7 +83,7 @@ function showSlidesButton(doc, browser) {
   button.className = "bso-slides-button";
   button.href = url.href;
   button.title =
-    "Show this lesson as slides (Alt/Option+P); use Back to return";
+    "Show the extra slides of this lesson (Alt/Option+P); use Back to return";
   button.innerHTML =
     "<span aria-hidden='true'>▶</span> Slides <kbd>Alt+P</kbd>";
   doc.body.append(button);

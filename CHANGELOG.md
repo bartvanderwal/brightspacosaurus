@@ -4,8 +4,14 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## 0.34.0
 
+### Changed
+
+- The pptx of a generated lesson deck is named after the lesson file (`lesson-1-fizzbuzz.pptx`) and no longer `slides.pptx`, in the preview and in the package, so a download says what it is from.
+
 ### Added
 
+- Alt/Option+T presents a lesson whose slides are generated from the lesson itself, in the same tab and without a button (Back returns to the lesson). Alt/Option+P and the button now open the *extra* slides only (a deck written by hand next to the lesson, or the first deck that the lesson links) and are absent when there are none; before, they opened the generated deck. In the cartridge the lesson page links the generated deck as *Present this lesson* (*Presenteer deze les*). Speaker notes stay with the presenter view of Marp (#159).
+- The page number of a slide has a light background, so it stays readable over a background image (`![bg right]`).
 - Tickable learning goals: a bullet list under `Learning goals` or `Leerdoelen` gets a square checkbox per goal and a counter; the state stays in the browser (`localStorage`), nothing is sent. `learningGoals.sectionHeadings` sets the headings. In a course repo's own Docusaurus config, add `remarkLearningGoals` and a client module that calls `initializeGoals` (the user manual, 4.9). Later phases: tri-state, notes, traceability (#167).
 - `deno task audit` checks the dependencies for high and critical advisories, with a list of accepted exceptions and their reason (`utils/audit.ts`); it runs in the GitHub workflow and in `deno task release` before anything is published. The two known `image-size` advisories brought by `pptxgenjs` are accepted for now (the Software Guidebook, 5.3, #166).
 - Slides: `slides.maxImageWidth` (default 1600 pixels, `0` turns it off) shrinks wider PNG and JPEG pictures in the copy that is embedded in the slides and the pptx files, with pure JavaScript libraries (`jpeg-js`, `pngjs`), so it works on every platform without a network; the source pictures stay as they are (#162, ADR 025).
