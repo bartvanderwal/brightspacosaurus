@@ -232,3 +232,27 @@ Deno.test("Eigenschap 7: niet-bestaande bronmap geeft fout en geen artefact", as
     await removeDir(tempRoot);
   }
 });
+
+Deno.test("PN1: the folder teacher-pptx in the root of the build is not packed", async () => {
+  const tempRoot = await makeTempDir();
+  const sourceDir = join(tempRoot, "build");
+  try {
+    await Deno.mkdir(join(sourceDir, "content"), { recursive: true });
+    await Deno.mkdir(join(sourceDir, "teacher-pptx"), { recursive: true });
+    await Deno.writeTextFile(join(sourceDir, "imsmanifest.xml"), "<manifest/>");
+    await Deno.writeTextFile(join(sourceDir, "content", "les.html"), "<p/>");
+    await Deno.writeTextFile(
+      join(sourceDir, "teacher-pptx", "a.pptx"),
+      "with notes",
+    );
+    const outputPath = join(tempRoot, "out.imscc");
+    await pack({ sourceDir, outputPath });
+    const zip = await JSZip.loadAsync(await Deno.readFile(outputPath));
+    assertEquals(
+      Object.keys(zip.files).filter((name) => !zip.files[name].dir).sort(),
+      ["content/les.html", "imsmanifest.xml"],
+    );
+  } finally {
+    await removeDir(tempRoot);
+  }
+});

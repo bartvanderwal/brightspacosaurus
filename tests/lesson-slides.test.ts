@@ -5,6 +5,7 @@ import {
   assertThrows,
 } from "@std/assert";
 import {
+  dropLooseDeckTitle,
   generateLessonSlides,
   stripTitlePrefix,
 } from "../src/lesson-slides.ts";
@@ -622,4 +623,25 @@ Deno.test("TP3: a title that is only the prefix is left as it is", () => {
     stripTitlePrefix("## Slide 3 -\n", "Slide \\d+ -"),
     "## Slide 3 -\n",
   );
+});
+
+// Spec *Title of a deck*, rules DT1-DT3.
+Deno.test("DT1: a lone # title directly before the first ## of a deck with headingDivider is not a slide", () => {
+  const deck =
+    "---\nslides: true\nheadingDivider: 2\ntitle: Les\n---\n\n# Slides les 8.3\n\n## Standup\n\n- a\n";
+  assertEquals(
+    dropLooseDeckTitle(deck),
+    "---\nslides: true\nheadingDivider: 2\ntitle: Les\n---\n## Standup\n\n- a\n",
+  );
+});
+
+Deno.test("DT2: a deck without headingDivider, or with more than the title before the first ##, is left as it is", () => {
+  const plain = "---\nslides: true\n---\n\n# Title\n\n## One\n";
+  assertEquals(dropLooseDeckTitle(plain), plain);
+  const more =
+    "---\nslides: true\nheadingDivider: 2\n---\n\n# Title\n\nA subtitle.\n\n## One\n";
+  assertEquals(dropLooseDeckTitle(more), more);
+  const directive =
+    "---\nslides: true\nheadingDivider: 2\n---\n\n<!-- _class: lead -->\n\n# Title\n\n## One\n";
+  assertEquals(dropLooseDeckTitle(directive), directive);
 });

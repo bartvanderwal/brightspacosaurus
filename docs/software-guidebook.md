@@ -915,6 +915,23 @@ Some courses number the headings of their decks in the title (`## Slide 3 - Stan
 
 Tests: `tests/lesson-slides.test.ts` (TP1 to TP3), `tests/slides-config.test.ts` (TP4, the setting) and `tests/slides-preview.test.ts` (the HTML input and the pptx). The tests were written after the code.
 
+#### Title of a deck, image on the right and speaker notes in the pptx
+
+Three rules that came out of the comparison of the pptx of owe-1 with its own generator (#156).
+
+| # | Rule |
+| --- | --- |
+| DT1 | A hand-written deck with `headingDivider` that starts with a lone `# Title` line, directly followed by the first `##`, would give a slide with only that title. The line is the name of the deck, not a slide, so it is left out, in the HTML and in the pptx. The `title` in the front matter stays the name of the deck. |
+| DT2 | Anything else before the first `##` keeps the slide: a deck without `headingDivider`, a subtitle, a directive such as `_class: lead`. The rule does not apply to a generated deck. |
+| IR1 | The names in `slides.pptxImageRightClasses` (for example `["img-right"]`) are the classes of the course (`<!-- _class: img-right -->`) that put the picture of a slide on the right in the **pptx**: the first picture goes to the right, 40% of the width, and a paragraph that is all italic (`*Source: ...*`) is its caption, under the picture. The HTML slides come from the theme of the course, which knows its own classes; BSO does not guess a layout from a class name that is not in the list. |
+| IR2 | A slide without such a class, and a deck of a course without the setting, keep the picture where it is. |
+| IR3 | The picture and its caption are checked in the pptx: the picture starts in the right half and the caption box starts below the picture. |
+| PN1 | A deck with speaker notes (HTML comments) has two pptx files. The pptx in the package has the notes only when `slides.notes` is true, because students can open the package. A second file with the notes goes to `teacher-pptx/` next to `content/` in the build; that folder is not packed, and `publishDir/slides` gets that file instead of the one in the package. |
+| PN2 | With `slides.notes: true` the pptx in the package already has the notes, so there is no second file. |
+| PN3 | A deck without speaker notes has one pptx, in the package and in `publishDir/slides`. |
+
+Tests: `tests/lesson-slides.test.ts` (DT1, DT2), `tests/pptx.test.ts` (IR1 to IR3), `tests/slides-preview.test.ts` and `tests/publisher.test.ts` and `tests/packer.test.ts` (PN1 to PN3). The tests were written after the code. Not built from the same comparison: a theme for the pptx (`slides.pptxTheme`), the page number without the title slide, and notes in a generated deck.
+
 #### Step-by-step lists
 
 A hand-written deck can show a list one item at a time. BSO adds no syntax for it: it is the *fragmented list* of Marp (the HTML of the deck marks the items with `data-marpit-fragment`). In this guidebook and in the user manual it is called a **step-by-step list**, because *fragmented* says nothing about what the audience sees; PowerPoint calls the same effect animating bullet points one at a time (*Appear*; Microsoft, n.d.).
@@ -1078,7 +1095,7 @@ Decided on 27 October 2026. A package is named after the course version that the
 | CV1 | The version of a package is `<version>+<hash>`, with the `version` of the configuration and seven hexadecimal digits. |
 | CV2 | The hash is made over the files of `content/` and `quiz/` in the build directory, the files of the source folders that the build does not copy as they are (the readers folder), and the version of BSO. Each file counts with its name, relative to its folder, and its content, in the order of the names. |
 | CV3 | The same input gives the same hash. A change in the content of a file, in its name, a file that is added or removed, or another BSO gives another hash. The order in which the files were written does not matter. |
-| CV4 | Not part of the hash: `imsmanifest.xml`, `navigation.json` and the sidebars (they carry the version), the folder `docenten/` (the teacher pages carry the version and the time), and the PDF that pandoc makes from a reader (it is not the same byte for byte after each run; the sources of the reader count instead). |
+| CV4 | Not part of the hash: `imsmanifest.xml`, `navigation.json` and the sidebars (they carry the version), the folder `docenten/` (the teacher pages carry the version and the time), and the PDF that pandoc makes from a reader (it is not the same byte for byte after each run; the sources of the reader count instead). The folder `teacher-pptx/` counts: it has the pptx files with speaker notes (rule PN1 of *Title of a deck, image on the right and speaker notes in the pptx*). |
 | CV5 | The file is `<name>.v<version>+<hash>.imscc`, and for the native package `<name>.v<version>+<hash>.d2l.zip`. |
 | CV6 | The description in the manifest holds `course version: <version>+<hash>`. |
 | CV7 | A folder of publications (`publishDir`) treats packages with another hash as older versions of the same package and removes them. |

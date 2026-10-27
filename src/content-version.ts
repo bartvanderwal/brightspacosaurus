@@ -37,7 +37,7 @@ function hex(bytes: ArrayBuffer): string {
   ).join("");
 }
 
-/** What goes into the hash: the folders of the build that hold the content, and the folders with sources that the build does not copy. */
+/** What goes into the hash: the folders of the build that hold the content (and the pptx files with speaker notes for the teacher), and the folders with sources that the build does not copy. */
 export interface ContentHashInput {
   /** The build directory: its `content/` and `quiz/` folders count. */
   buildDir: string;
@@ -52,7 +52,7 @@ export async function computeContentHash(
   input: ContentHashInput,
 ): Promise<string> {
   const entries: { name: string; file: string }[] = [];
-  for (const folder of ["content", "quiz"]) {
+  for (const folder of ["content", "quiz", "teacher-pptx"]) {
     const root = join(input.buildDir, folder);
     for (const file of await listFiles(root)) {
       entries.push({

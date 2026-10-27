@@ -118,7 +118,15 @@ export async function publishPackages(
       relative(content, source),
     );
     await Deno.mkdir(dirname(target), { recursive: true });
-    await Deno.copyFile(source, target);
+    // The pptx with the speaker notes is for the teacher: the folder of publications gets it instead
+    // of the one in the package, which students can open (rule PN1).
+    const withNotes = join(
+      options.buildDir,
+      "teacher-pptx",
+      relative(content, source),
+    );
+    const hasNotes = await Deno.stat(withNotes).then(() => true, () => false);
+    await Deno.copyFile(hasNotes ? withNotes : source, target);
     result.copied.push(relative(options.publishDir, target));
   }
   return result;

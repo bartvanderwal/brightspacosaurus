@@ -41,6 +41,8 @@ export interface PptxRenderOptions {
   theme?: Partial<PptxTheme>;
   /** Shrink PNG and JPEG files that are wider than this many pixels (0: do not). */
   maxImageWidth?: number;
+  /** Names of the classes of the course that put the picture of a slide on the right (`slides.pptxImageRightClasses`). */
+  imageRightClasses?: string[];
   /** Date in the file properties, so the same slide deck gives the same file. */
   date?: string;
 }
@@ -453,14 +455,43 @@ async function addSlide(
     );
     const w = WIDTH * share;
     const x = side === "left" ? 0 : side === "right" ? WIDTH - w : 0;
+    // A caption stands under the picture, so the picture gets the height that is left.
+    const captionHeight = background.background.caption ? 0.6 : 0;
+    const available = HEIGHT - captionHeight - (captionHeight ? 1.2 : 0);
     const fit = contain
       ? (() => {
-        const scale = Math.min(w / picture.width, HEIGHT / picture.height);
+        const scale = Math.min(
+          (w - (captionHeight ? 0.3 : 0)) / picture.width,
+          available / picture.height,
+        );
         const iw = picture.width * scale;
         const ih = picture.height * scale;
-        return { x: x + (w - iw) / 2, y: (HEIGHT - ih) / 2, w: iw, h: ih };
+        return {
+          x: x + (w - iw) / 2,
+          y: captionHeight ? 1.0 : (HEIGHT - ih) / 2,
+          w: iw,
+          h: ih,
+        };
       })()
       : { x, y: 0, w, h: HEIGHT };
+    if (background.background.caption) {
+      page.addText(
+        background.background.caption.map((run) => ({
+          text: run.text,
+          options: { ...runOptions(run, theme, 12), italic: true },
+        })),
+        {
+          x: x + 0.15,
+          y: fit.y + fit.h + 0.1,
+          w: w - 0.3,
+          h: captionHeight,
+          fontSize: 12,
+          color: theme.mutedColor,
+          fontFace: theme.fontFace,
+          valign: "top",
+        },
+      );
+    }
     page.addImage({
       data: picture.data,
       ...fit,

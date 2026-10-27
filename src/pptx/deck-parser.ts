@@ -34,6 +34,8 @@ export interface PptxBackground {
   share: number;
   /** `fit`/`contain` shows the whole image; otherwise it covers the area. */
   contain: boolean;
+  /** A caption that stands under the picture (a paragraph that is all italic, next to a picture of a slide with an image-right class). */
+  caption?: PptxRun[];
 }
 
 /** A block on a slide. */
@@ -175,7 +177,38 @@ function background(alt: string): PptxBackground | undefined {
   };
 }
 
-function parseSlide(source: string, first: boolean): PptxSlide {
+/** What the parser needs to know about the deck beyond its Markdown. */
+export interface ParseOptions {
+  /** Names of `<!-- _class: ... -->` classes of the course that put the picture of a slide on the right (`slides.pptxImageRightClasses`). */
+  imageRightClasses?: string[];
+}
+
+/** The picture of a slide of an image-right class goes to the right, with an all-italic paragraph as its caption (rule IR1). */
+function placeImageRight(slide: PptxSlide): void {
+  const image = slide.blocks.find((block) =>
+    block.kind === "image" && !block.background
+  );
+  if (!image || image.kind !== "image") return;
+  const caption = slide.blocks.findIndex((block) =>
+    block.kind === "paragraph" && block.runs.length > 0 &&
+    block.runs.every((run) => run.italic || !run.text.trim())
+  );
+  image.background = {
+    side: "right",
+    share: 0.4,
+    contain: true,
+    ...(caption >= 0 && slide.blocks[caption].kind === "paragraph"
+      ? { caption: (slide.blocks[caption] as { runs: PptxRun[] }).runs }
+      : {}),
+  };
+  if (caption >= 0) slide.blocks.splice(caption, 1);
+}
+
+function parseSlide(
+  source: string,
+  first: boolean,
+  options: ParseOptions = {},
+): PptxSlide {
   const tree = unified().use(remarkParse).use(remarkGfm).parse(
     source,
   ) as MdNode;
@@ -187,6 +220,7 @@ function parseSlide(source: string, first: boolean): PptxSlide {
     appendix: false,
     footer: null,
   };
+  let imageRight = false;
   const note = (html: string) => {
     // Several comments on consecutive lines are one HTML node.
     const comments = [...html.matchAll(/<!--([\s\S]*?)-->/g)];
@@ -199,6 +233,11 @@ function parseSlide(source: string, first: boolean): PptxSlide {
         if (classes !== undefined) {
           if (/\blead\b/.test(classes)) slide.lead = true;
           if (/\bappendix\b/.test(classes)) slide.appendix = true;
+          if (
+            classes.split(/\s+/).some((name) =>
+              options.imageRightClasses?.includes(name)
+            )
+          ) imageRight = true;
         }
         const footer = body.match(/^\s*_?footer\s*:\s*["']?(.*?)["']?\s*$/)
           ?.[1];
@@ -258,11 +297,15 @@ function parseSlide(source: string, first: boolean): PptxSlide {
       if (plain(runs).trim()) slide.blocks.push({ kind: "quote", runs });
     }
   }
+  if (imageRight) placeImageRight(slide);
   return slide;
 }
 
 /** Parses a BSO slide deck (Marp Markdown) into slides. */
-export function parseDeck(markdown: string): PptxDeck {
+export function parseDeck(
+  markdown: string,
+  options: ParseOptions = {},
+): PptxDeck {
   const { front, slides } = splitDeck(markdown);
   const title =
     front.match(/^title:\s*(.+?)\s*$/m)?.[1]?.replace(/^["']|["']$/g, "") ??
@@ -270,6 +313,6 @@ export function parseDeck(markdown: string): PptxDeck {
   const parsed = slides
     .map((source, index) => ({ source, index }))
     .filter(({ source }) => source.trim() !== "")
-    .map(({ source }, position) => parseSlide(source, position === 0));
+    .map(({ source }, position) => parseSlide(source, position === 0, options));
   return { title, slides: parsed };
 }

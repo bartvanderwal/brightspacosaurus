@@ -2328,3 +2328,87 @@ Deno.test("TP4: slides.titlePrefix is left out of the titles in the HTML input a
     assert(!text.includes("Slide 2 - "));
   });
 });
+
+// Spec *Speaker notes in the pptx*, rule PN2: the teacher gets the notes, the package does not.
+Deno.test("PN2: a deck with speaker notes gets a pptx without them and a teacher pptx with them, unless slides.notes is true", async () => {
+  await fixture(async (root) => {
+    await write(root, "lessons/week/lesson.md", "# Lesson\n\nText.\n");
+    await write(
+      root,
+      "decks/les.md",
+      "---\nslides: true\n---\n\n# Start\n\n- one\n\n<!-- Say hello to the class. -->\n",
+    );
+    const slidesOf = async (path: string) => {
+      const zip = await JSZip.loadAsync(await Deno.readFile(path));
+      return (await Promise.all(
+        Object.keys(zip.files).filter((name) =>
+          /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(name)
+        ).map((name) => zip.file(name)!.async("string")),
+      )).join("\n");
+    };
+    const render = async (notes: boolean) => {
+      await Deno.remove(join(root, "static"), { recursive: true }).catch(() =>
+        undefined
+      );
+      await renderPreviewSlides(
+        {
+          lessons: { "week/lesson.md": { decks: "decks/les.md" } },
+          pptx: true,
+          notes,
+        } as SlidesConfig,
+        root,
+        "lessons",
+        "static",
+        fake([]),
+      );
+    };
+    await render(false);
+    const base = join(root, "static/slides/week/lesson");
+    assert(!(await slidesOf(join(base, "les.pptx"))).includes("Say hello"));
+    assertStringIncludes(
+      await slidesOf(join(base, "teacher", "les.pptx")),
+      "Say hello",
+    );
+    // With slides.notes the package already has the notes: there is no second file.
+    await render(true);
+    assertStringIncludes(await slidesOf(join(base, "les.pptx")), "Say hello");
+    assert(
+      !(await Deno.stat(join(base, "teacher", "les.pptx")).then(
+        () => true,
+        () => false,
+      )),
+    );
+  });
+});
+
+Deno.test("PN3: exporting the slides puts the pptx with notes next to content/, not into it", async () => {
+  await fixture(async (root) => {
+    await write(root, "lessons/week/lesson.md", "# Lesson\n\nText.\n");
+    await write(
+      root,
+      "decks/les.md",
+      "---\nslides: true\n---\n\n# Start\n\n- one\n\n<!-- Say hello. -->\n",
+    );
+    await write(
+      root,
+      "content/week/lesson.html",
+      "<html><body><h1>Lesson</h1></body></html>",
+    );
+    await exportSlidesToContent(
+      { lessons: { "week/lesson.md": { decks: "decks/les.md" } }, pptx: true },
+      root,
+      "lessons",
+      "static",
+      join(root, "content"),
+      fake([]),
+    );
+    assert(
+      (await Deno.stat(join(root, "content/week/lesson-les.pptx")))
+        .isFile,
+    );
+    assert(
+      (await Deno.stat(join(root, "teacher-pptx/week/lesson-les.pptx")))
+        .isFile,
+    );
+  });
+});

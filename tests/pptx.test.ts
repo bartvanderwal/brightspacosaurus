@@ -520,3 +520,67 @@ Deno.test("K4: lists written with * and 1) keep all their items in the pptx", as
     ]
   ) assertStringIncludes(text, item);
 });
+
+// Spec *Image on the right in the pptx*, rules IR1-IR3.
+const imageRightDeck =
+  "---\nslides: true\n---\n\n# Title\n\n---\n\n## Standup\n\n<!-- _class: img-right -->\n\n![w:480 A team](a.png)\n\n- Done, doing, blocked?\n\n*Source: generated illustration*\n\n---\n\n## Other\n\n![A team](a.png)\n\n- text\n";
+
+Deno.test("IR1: the picture of a slide with an image-right class goes to the right and its all-italic paragraph is its caption", () => {
+  const slides = parseDeck(imageRightDeck, { imageRightClasses: ["img-right"] })
+    .slides;
+  const image = slides[1].blocks.find((block) => block.kind === "image");
+  assertEquals(image?.kind === "image" && image.background?.side, "right");
+  assertEquals(image?.kind === "image" && image.background?.share, 0.4);
+  assertEquals(
+    image?.kind === "image" &&
+      image.background?.caption?.map((run) => run.text).join(""),
+    "Source: generated illustration",
+  );
+  // The caption is not left in the text column.
+  assertEquals(
+    slides[1].blocks.some((block) => block.kind === "paragraph"),
+    false,
+  );
+});
+
+Deno.test("IR2: a slide without that class, and a deck without the setting, keep the picture where it is", () => {
+  const withSetting =
+    parseDeck(imageRightDeck, { imageRightClasses: ["img-right"] }).slides;
+  const other = withSetting[2].blocks.find((block) => block.kind === "image");
+  assertEquals(other?.kind === "image" && other.background, undefined);
+  const without = parseDeck(imageRightDeck).slides[1].blocks.find((block) =>
+    block.kind === "image"
+  );
+  assertEquals(without?.kind === "image" && without.background, undefined);
+});
+
+// Spec *Image on the right in the pptx*, rule IR3: the picture is on the right half, the caption under it.
+Deno.test("IR3: the pptx has the picture in the right half and the caption under it", async () => {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect width="200" height="100" fill="red"/></svg>';
+  const url = `data:image/svg+xml;base64,${btoa(svg)}`;
+  const markdown =
+    `---\nslides: true\n---\n\n# Title\n\n---\n\n## Standup\n\n<!-- _class: img-right -->\n\n![A team](${url})\n\n- Done, doing, blocked?\n\n*Source: illustration*\n`;
+  const zip = await entries(
+    await convertDeckToPptx(markdown, {
+      baseDir: images,
+      imageRightClasses: ["img-right"],
+    }),
+  );
+  const slide = await zip.file("ppt/slides/slide2.xml")!.async("string");
+  assertStringIncludes(slide, "Source: illustration");
+  const picture = slide.match(
+    /<p:pic>[\s\S]*?<a:off x="(\d+)" y="(\d+)"\/>\s*<a:ext cx="(\d+)" cy="(\d+)"/,
+  )!;
+  // The slide is 10 inches wide (9144000 EMU): the picture starts in the right half.
+  assertEquals(Number(picture[1]) > 9144000 / 2, true);
+  // The caption box starts below the bottom of the picture.
+  const captionBox = slide.split("<p:sp>").find((part) =>
+    part.includes("Source: illustration")
+  )!;
+  const caption = captionBox.match(/<a:off x="(\d+)" y="(\d+)"/)!;
+  assertEquals(
+    Number(caption[2]) >= Number(picture[2]) + Number(picture[4]),
+    true,
+  );
+});

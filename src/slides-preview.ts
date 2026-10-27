@@ -27,6 +27,7 @@ import { resolveDiagramsConfig } from "./diagram-config.ts";
 import { loadAssetBytes, loadAssetText } from "./assets.ts";
 import { DEFAULT_MAX_IMAGE_WIDTH, shrinkImage } from "./image-shrink.ts";
 import {
+  dropLooseDeckTitle,
   generateLessonSlides,
   generateNestedAppendix,
   stripTitlePrefix,
@@ -35,7 +36,7 @@ import {
   dropEmptySlideSeparators,
   headingDividerLevels,
 } from "./slide-separators.ts";
-import { convertDeckToPptx } from "./pptx/mod.ts";
+import { convertDeckToPptx, parseDeck } from "./pptx/mod.ts";
 
 export type { SlidesConfig } from "./types.ts";
 
@@ -812,6 +813,9 @@ function rewriteImagePaths(
  */
 export const DECK_KEY_PREFIX = "deck:";
 
+/** The folder next to a deck, with the pptx file that has the speaker notes (rule PN1). */
+export const TEACHER_DIR = "teacher";
+
 /** Prefix of the entries that mark a lesson whose deck is generated from the lesson itself (a lesson presentation). */
 export const LESSON_KEY_PREFIX = "lesson:";
 
@@ -1243,10 +1247,10 @@ export async function renderPreviewSlides(
     for (const [index, source] of configured.entries()) {
       await confined(source, root);
       const embedded = await embedImages(
-        expandSlideIncludes(
+        dropLooseDeckTitle(expandSlideIncludes(
           (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
           source,
-        ),
+        )),
         source,
         root,
         svgImages,
@@ -1371,6 +1375,7 @@ export async function renderPreviewSlides(
             markdown = markdown.replaceAll(placeholder, url);
           }
           const bytes = await convertDeckToPptx(titled(markdown), {
+            imageRightClasses: config.pptxImageRightClasses,
             baseDir: dirname(plan.lesson),
             notes: config.notes === true,
             logo: config.logo
@@ -1389,10 +1394,10 @@ export async function renderPreviewSlides(
           used.add(lessonPptx);
         }
         for (const source of configured) {
-          const markdown = expandSlideIncludes(
+          const markdown = dropLooseDeckTitle(expandSlideIncludes(
             (await Deno.readTextFile(source)).replace(/\r\n/g, "\n"),
             source,
-          );
+          ));
           if (!deckWantsPptx(markdown, config.pptx === true)) continue;
           // The appendix slides of the lesson follow the last manual deck.
           let deckMarkdown = markdown;
@@ -1409,6 +1414,7 @@ export async function renderPreviewSlides(
           }
           used.add(name);
           const bytes = await convertDeckToPptx(titled(deckMarkdown), {
+            imageRightClasses: config.pptxImageRightClasses,
             maxImageWidth,
             baseDir: dirname(source),
             notes: config.notes === true,
@@ -1421,6 +1427,34 @@ export async function renderPreviewSlides(
           });
           await Deno.writeFile(join(dirname(destination), name), bytes);
           pptxNames.push(name);
+          // The pptx for the teacher has the speaker notes of the deck; the one in the package has
+          // them only when `slides.notes` is true, because students can open the package (rule PN1).
+          if (
+            config.notes !== true &&
+            parseDeck(titled(deckMarkdown)).slides.some((slide) =>
+              slide.notes.length > 0
+            )
+          ) {
+            const teacher = await convertDeckToPptx(titled(deckMarkdown), {
+              imageRightClasses: config.pptxImageRightClasses,
+              maxImageWidth,
+              baseDir: dirname(source),
+              notes: true,
+              logo: config.logo
+                ? (isAbsolute(config.logo)
+                  ? config.logo
+                  : resolve(root, config.logo))
+                : undefined,
+              disclaimer,
+            });
+            await Deno.mkdir(join(dirname(destination), TEACHER_DIR), {
+              recursive: true,
+            });
+            await Deno.writeFile(
+              join(dirname(destination), TEACHER_DIR, name),
+              teacher,
+            );
+          }
         }
       }
       html = withBackControls(
@@ -1570,6 +1604,18 @@ export async function exportSlidesToContent(
       const target = join(contentDir, dirname(topic), copy);
       await Deno.mkdir(dirname(target), { recursive: true });
       await Deno.copyFile(from, target);
+      // The pptx with the speaker notes goes next to `content/`, not into the package (rule PN1).
+      const teacherFrom = join(dirname(from), TEACHER_DIR, name);
+      if (await Deno.stat(teacherFrom).then(() => true, () => false)) {
+        const teacherTarget = join(
+          dirname(contentDir),
+          "teacher-pptx",
+          dirname(topic),
+          copy,
+        );
+        await Deno.mkdir(dirname(teacherTarget), { recursive: true });
+        await Deno.copyFile(teacherFrom, teacherTarget);
+      }
       linked = linked.replaceAll(
         `"${escapeAttribute(name)}"`,
         `"${escapeAttribute(copy)}"`,

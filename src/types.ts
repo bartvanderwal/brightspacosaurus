@@ -217,6 +217,12 @@ export interface SlidesConfig {
    * the slides in the HTML and in the pptx; the Markdown source stays as it is.
    */
   titlePrefix?: string;
+  /**
+   * Names of the classes of the course (`<!-- _class: img-right -->`) that put the picture of a
+   * slide on the right in the pptx, with an all-italic paragraph as its caption under it. The
+   * HTML slides come from the theme of the course, which knows the classes.
+   */
+  pptxImageRightClasses?: string[];
 }
 
 export interface BsoConfig {

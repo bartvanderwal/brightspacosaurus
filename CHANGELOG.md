@@ -7,6 +7,9 @@ All notable changes to Brightspacosaurus are documented here.
 ### Added
 
 - `slides.titlePrefix`: a regular expression for the start of a slide title that is left out, in the HTML slides and in the pptx, for example `Slide \\d+ - ` for `## Slide 3 - Standup` (the Software Guidebook, *Title prefix*; #156).
+- `slides.pptxImageRightClasses`: names of the classes of your theme (`img-right`) that put the picture of a slide on the right in the pptx, with an all-italic paragraph as its caption under the picture.
+- A hand-written deck with `headingDivider` that starts with a lone `# Title` line before the first `##` no longer gets a slide with only that title, in the HTML and in the pptx.
+- Speaker notes in the pptx for the teacher only: a deck with notes has a pptx with the notes in `publishDir/slides` and a pptx without them in the package, unless `slides.notes` is true (the Software Guidebook, 7.8, rules PN1 to PN3).
 
 ### Fixed
 

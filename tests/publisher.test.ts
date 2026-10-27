@@ -175,3 +175,47 @@ Deno.test("bso lint warns about a published package of another version, and abou
     assertEquals(result.diagnostics.length, 1);
   });
 });
+
+// Spec *Speaker notes in the pptx*, rule PN1.
+Deno.test("PN1: the folder of publications gets the pptx with the speaker notes, the package keeps the one without", async () => {
+  await fixture(async (root) => {
+    const build = join(root, "build");
+    const publish = join(root, "publicaties");
+    await Deno.mkdir(join(build, "content", "week-1"), { recursive: true });
+    await Deno.mkdir(join(build, "teacher-pptx", "week-1"), {
+      recursive: true,
+    });
+    await Deno.writeTextFile(
+      join(build, "content", "week-1", "a.pptx"),
+      "no notes",
+    );
+    await Deno.writeTextFile(
+      join(build, "content", "week-1", "b.pptx"),
+      "no notes either",
+    );
+    await Deno.writeTextFile(
+      join(build, "teacher-pptx", "week-1", "a.pptx"),
+      "with notes",
+    );
+    await Deno.writeTextFile(join(build, "demo.v1.0.0.imscc"), "package");
+    await publishPackages({
+      buildDir: build,
+      publishDir: publish,
+      name: "demo",
+      packages: [join(build, "demo.v1.0.0.imscc")],
+    });
+    assertEquals(
+      await Deno.readTextFile(join(publish, "slides", "week-1", "a.pptx")),
+      "with notes",
+    );
+    // A deck without notes has no teacher version: the pptx of the package is published.
+    assertEquals(
+      await Deno.readTextFile(join(publish, "slides", "week-1", "b.pptx")),
+      "no notes either",
+    );
+    assertEquals(
+      await Deno.readTextFile(join(build, "content", "week-1", "a.pptx")),
+      "no notes",
+    );
+  });
+});

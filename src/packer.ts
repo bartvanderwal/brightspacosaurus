@@ -26,6 +26,8 @@ async function collectFiles(
       if (entry.isDirectory) {
         // Instructor material (answer keys, manuals) must never reach students.
         if (currentDir === baseDir && entry.name === "docenten") continue;
+        // The pptx files with the speaker notes are for the teacher, not for the package.
+        if (currentDir === baseDir && entry.name === "teacher-pptx") continue;
         await walk(fullPath);
       } else if (entry.isFile) {
         // Exclude previously generated .imscc archives

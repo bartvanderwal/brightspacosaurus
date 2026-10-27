@@ -226,7 +226,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
         key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
         key !== "theme" && key !== "logo" && key !== "generateForPrefix" &&
         key !== "pptx" && key !== "maxImageWidth" &&
-        key !== "titlePrefix"
+        key !== "titlePrefix" && key !== "pptxImageRightClasses"
       ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
@@ -311,6 +311,15 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     if (slides.notes !== undefined && typeof slides.notes !== "boolean") {
       throw new Error("Field 'slides.notes' must be true or false.");
+    }
+    if (slides.pptxImageRightClasses !== undefined) {
+      const classes = slides.pptxImageRightClasses;
+      if (
+        !Array.isArray(classes) ||
+        classes.some((name) => typeof name !== "string" || !/^[\w-]+$/.test(name))
+      ) {
+        throw new Error("Field 'slides.pptxImageRightClasses' must be a list of class names, for example [\"img-right\"].");
+      }
     }
     if (slides.titlePrefix !== undefined) {
       if (typeof slides.titlePrefix !== "string" || !slides.titlePrefix) {

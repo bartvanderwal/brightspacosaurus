@@ -808,3 +808,19 @@ export function stripTitlePrefix(markdown: string, prefix: string): string {
     return line.replace(pattern, "$1 ");
   }).join("\n");
 }
+
+/**
+ * A hand-written deck with `headingDivider` that starts with a lone `# Title` line, directly followed
+ * by the first `##`, would give a slide with only that title. The line is the name of the deck, not
+ * a slide, so it is left out (spec *Title of a deck*, rules DT1-DT3). The `title` in the front matter
+ * stays the name of the deck. Anything else before the first `##` keeps the slide.
+ */
+export function dropLooseDeckTitle(markdown: string): string {
+  const front = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!front || !/^headingDivider\s*:/m.test(front[1])) return markdown;
+  const body = markdown.slice(front[0].length);
+  const loose = body.match(
+    /^(?:[ \t]*\r?\n)*#[ \t]+[^\r\n]+\r?\n(?:[ \t]*\r?\n)*(?=##[ \t])/,
+  );
+  return loose ? front[0] + body.slice(loose[0].length) : markdown;
+}

@@ -19,5 +19,8 @@ export async function convertDeckToPptx(
   markdown: string,
   options: PptxRenderOptions,
 ): Promise<Uint8Array> {
-  return await renderDeck(parseDeck(markdown), options);
+  return await renderDeck(
+    parseDeck(markdown, { imageRightClasses: options.imageRightClasses }),
+    options,
+  );
 }
