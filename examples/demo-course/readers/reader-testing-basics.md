@@ -6,9 +6,9 @@ date: 2026-09-06
 
 Example reader for the demo course of Brightspacosaurus
 
-## 1. Learning goals
+## 1. Learning objectives
 
-{@include: [Learning goals](../partials/learning-goals.md)}
+{@include: [Learning objectives](../partials/learning-objectives.md)}
 
 A short reference on the arrange-act-assert pattern for unit tests.
 

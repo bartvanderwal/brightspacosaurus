@@ -1,6 +1,6 @@
-import { initializeGoals } from "../../assets/brightspacosaurus-goals.js";
+import { initializeObjectives } from "../../assets/brightspacosaurus-objectives.js";
 
 // Docusaurus invokes this after hydration and after client-side page changes.
 export function onRouteDidUpdate() {
-  initializeGoals(document);
+  initializeObjectives(document);
 }

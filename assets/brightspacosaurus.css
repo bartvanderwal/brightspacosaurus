@@ -240,29 +240,29 @@ article.markdown pre code {
   color: var(--han-ink);
 }
 
-/* Learning goals that a student ticks off; the state stays in the browser (#167). */
-.bso-goals {
+/* Learning objectives that a student ticks off; the state stays in the browser. */
+.bso-objectives {
   margin: 1rem 0;
 }
 
-.bso-goals-list {
+.bso-objectives-list {
   list-style: none;
   margin: 0;
   padding-left: 0;
 }
 
-.bso-goal {
+.bso-objective {
   margin: 0.4rem 0;
 }
 
-.bso-goal-label {
+.bso-objective-label {
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
   cursor: pointer;
 }
 
-.bso-goal-check {
+.bso-objective-check {
   flex: none;
   width: 1.15rem;
   height: 1.15rem;
@@ -271,16 +271,16 @@ article.markdown pre code {
   cursor: pointer;
 }
 
-.bso-goal-check:focus-visible {
+.bso-objective-check:focus-visible {
   outline: 3px solid var(--han-red);
   outline-offset: 2px;
 }
 
-.bso-goal.is-done .bso-goal-text {
+.bso-objective.is-done .bso-objective-text {
   opacity: 0.75;
 }
 
-.bso-goals-progress {
+.bso-objectives-progress {
   margin: 0 0 0.5rem;
   font-size: 0.9em;
   color: var(--han-ink);

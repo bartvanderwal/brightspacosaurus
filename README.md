@@ -149,7 +149,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
   Includes use clickable Markdown-link syntax so the same source works in BSO, an editor and a Docusaurus preview:
 
   ```markdown
-  {@include: [Learning goals](../partials/learning-goals.md)}
+  {@include: [Learning objectives](../partials/learning-objectives.md)}
   ```
 
   A bare path or embedded HTML link is invalid and is reported by `bso lint`.

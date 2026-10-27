@@ -165,7 +165,7 @@ The most important fields:
 | `diagrams.locale`      | no       | Language of generated labels: diagram UI and reader PDF cover and document language (`nl` or `en`, default `nl`) |
 | `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
 | `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.4](#44-core-concept-flashcards) |
-| `learningGoals.sectionHeadings` | no | Headings whose bullet list becomes tickable learning goals (default `["Learning goals", "Leerdoelen"]`, `[]` disables); see [4.9](#49-tickable-learning-goals) |
+| `learningObjectives.sectionHeadings` | no | Headings whose bullet list becomes tickable learning objectives (default `["Learning objectives", "Leerdoelen", "Learning goals"]`, `[]` disables); see [4.9](#49-tickable-learning-objectives) |
 | `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.7](#47-teacher-page) |
 
 > **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
@@ -179,7 +179,7 @@ Missing optional configuration is silently skipped: without `readersDir` BSO ski
 An include inserts another Markdown file at the exact location of the directive. The include target must always be a Markdown link:
 
 ```markdown
-{@include: [Learning goals](../partials/learning-goals.md)}
+{@include: [Learning objectives](../partials/learning-objectives.md)}
 ```
 
 This syntax has two purposes. BSO can resolve the link during HTML and reader-PDF generation, while the source remains a normal, clickable Markdown link in an editor such as VS Code and in a Docusaurus preview. The visible link text is only an editor-facing label; BSO follows the link target and inserts the target file's Markdown content.
@@ -187,14 +187,14 @@ This syntax has two purposes. BSO can resolve the link during HTML and reader-PD
 The older bare-path form is deliberately invalid:
 
 ```markdown
-{@include: ../partials/learning-goals.md}
+{@include: ../partials/learning-objectives.md}
 ```
 
 It produces an error instead of silently accepting content that is not clickable in the source. HTML links such as `<a href="...">...</a>` are not accepted as include syntax either; use the Markdown-link form. `bso lint` reports invalid include directives before a build is started.
 
 Includes are resolved relative to the Markdown file that contains them. The same directive can therefore be used in lesson pages, reader Markdown and other included Markdown files, provided the relative path is correct.
 
-Include-only partials must not appear as pages of their own. Keep them outside `sourcesDir` (as the demo course does with `partials/`), or prefix the file or folder with an underscore, e.g. `lessons/_shared/learning-goals.md`. BSO skips `_`-prefixed files and folders when scanning, and Docusaurus excludes them by default. The Docusaurus preview expands includes with the same code as the export, so partials do not need to be in the docs `include` list.
+Include-only partials must not appear as pages of their own. Keep them outside `sourcesDir` (as the demo course does with `partials/`), or prefix the file or folder with an underscore, e.g. `lessons/_shared/learning-objectives.md`. BSO skips `_`-prefixed files and folders when scanning, and Docusaurus excludes them by default. The Docusaurus preview expands includes with the same code as the export, so partials do not need to be in the docs `include` list.
 
 ---
 
@@ -464,9 +464,9 @@ Cached data includes student identifiers, work-item titles and status, counts of
 
 ---
 
-### 4.9 Tickable learning goals
+### 4.9 Tickable learning objectives
 
-A bullet list under a heading `Learning goals` or `Leerdoelen` gets a square checkbox per goal, so a student can tick what they can do. No syntax is needed:
+A bullet list under a heading `Learning objectives` or `Leerdoelen` (`Learning objectives` works as a synonym) gets a square checkbox per objective, so a student can tick what they can do. No syntax is needed:
 
 ```markdown
 ## Leerdoelen
@@ -475,11 +475,11 @@ A bullet list under a heading `Learning goals` or `Leerdoelen` gets a square che
 - Je kunt een eenvoudige REST-aanroep lezen.
 ```
 
-The student sees "1 van 2 afgevinkt" (the text follows `diagrams.locale`) and the ticked goals are dimmed. To recognise other headings, set `learningGoals.sectionHeadings` in `brightspacosaurus.config.json`; `[]` turns it off. Heading matching works as for the flashcards (letter case and a leading section number are ignored, all levels work). A list whose items do not start with text (for example a list of only code blocks) stays an ordinary list.
+The student sees "1 van 2 afgevinkt" (the text follows `diagrams.locale`) and the ticked objectives are dimmed. To recognise other headings, set `learningObjectives.sectionHeadings` in `brightspacosaurus.config.json`; `[]` turns it off. Heading matching works as for the flashcards (letter case and a leading section number are ignored, all levels work). A list whose items do not start with text (for example a list of only code blocks) stays an ordinary list.
 
 **Privacy.** The state lives only in the browser of the student (`localStorage`), per page and per goal text. There is no server, no account and nothing is sent. The consequences: a student who uses another browser or device starts empty, clearing the site data clears the ticks, and if a teacher rewrites the text of a goal, that goal starts unticked. Where storage is blocked, the boxes still work for the visit but are forgotten. The ticks are not visible to the teacher.
 
-In your own Docusaurus app, add `remarkLearningGoals` (from `@bartvanderwal/brightspacosaurus/learning-goals`) to the remark plugins and run `initializeGoals(document)` from `@bartvanderwal/brightspacosaurus/goals-client` in an `onRouteDidUpdate` client module; see the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). The Brightspace HTML export has the script built in.
+In your own Docusaurus app, add `remarkLearningObjectives` (from `@bartvanderwal/brightspacosaurus/learning-objectives`) to the remark plugins and run `initializeObjectives(document)` from `@bartvanderwal/brightspacosaurus/objectives-client` in an `onRouteDidUpdate` client module; see the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). The Brightspace HTML export has the script built in.
 
 ## Kernbegrippen
 

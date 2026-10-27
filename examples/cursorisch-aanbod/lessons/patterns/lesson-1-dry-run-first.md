@@ -29,7 +29,7 @@ Agent: I found 12 invoices older than two years.
 
 While the agent then carries out the work, it keeps showing the steps; see [streaming and progress](lesson-3-streaming-and-progress.md).
 
-## Learning goals
+## Learning objectives
 
 After this lesson you can:
 

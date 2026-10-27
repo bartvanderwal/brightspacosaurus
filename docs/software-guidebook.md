@@ -269,7 +269,7 @@ C1 and C2 are about the **designed course** and can be computed from the source 
 
 C3 is the **student's view** and belongs to #167. The objectives are the common thread: the student ticks objectives (phase 1), and once an objective carries the codes of the outcomes and criteria it contributes to (the LUK/AC mapping of C1), the ticks add up to a picture per outcome: *ticked, partly ticked, not ticked*. That shows the student where the gaps are and feeds the plan for the unticked objectives (2.5.1). It needs an overview page that aggregates over all lessons; how it reads the ticks across pages (they are stored per page) is open.
 
-Privacy: C3 is the student's own data in the student's own browser (rule LG7 to LG10) and the designer does not see it. A course that wants group figures for C3 has to ask the students to share; BSO builds no server for it. C4 would need results from Brightspace, which BSO does not read; it is listed only so the question is not forgotten.
+Privacy: C3 is the student's own data in the student's own browser (rule LO7 to LO10) and the designer does not see it. A course that wants group figures for C3 has to ask the students to share; BSO builds no server for it. C4 would need results from Brightspace, which BSO does not read; it is listed only so the question is not forgotten.
 
 Status: none of C1 to C3 is built beyond the tick boxes of #167. Open: the format that holds the outcomes, the criteria and the codes on the objectives (see the two choices after Figure 1); the form of the assessment matrix for C2 (owe-1 epic on the matrix); and whether C1 and C2 are one command with two reports, as *easy to use, hard to make* suggests.
 
@@ -990,29 +990,29 @@ BSO **duplicates** the conventions of Docusaurus (`sidebar_position`, `draft`, t
 
 **Open points.** Whether a quiz takes `sidebar_position` and `draft` from a front matter block above a `quiz` block. How O11 compares the two orders. The key for "not ready" is `draft`, the Docusaurus name with BSO's own definition; Docusaurus has no `unpublished`. The SKILLS (`bso-course-setup`, `bso-content-authoring`) recommend layer C with an example.
 
-### 7.12 Tickable learning goals
+### 7.12 Tickable learning objectives
 
-Phase 1 of #167. `src/learning-goals.ts` (`remarkLearningGoals`) uses the same heading recognition as the flashcards (`normalizeSectionHeading`) and turns the bullet list under a learning-goals heading into `section.bso-goals`. `assets/brightspacosaurus-goals.js` adds the behaviour in the browser and is inlined in the Brightspace HTML (`wrapHtml`) and loaded by the preview through `demo-course-docs/src/goals-client.js`. Not built yet: tri-state (open / check with teacher / done), a personal note, traceability to LUK/AC, a coverage check and an aggregated overview.
+Phase 1 of #167. `src/learning-objectives.ts` (`remarkLearningObjectives`) uses the same heading recognition as the flashcards (`normalizeSectionHeading`) and turns the bullet list under a learning-objectives heading into `section.bso-objectives`. `assets/brightspacosaurus-objectives.js` adds the behaviour in the browser and is inlined in the Brightspace HTML (`wrapHtml`) and loaded by the preview through `demo-course-docs/src/objectives-client.js`. Not built yet: tri-state (open / check with teacher / done), a personal note, traceability to LUK/AC, a coverage check and an aggregated overview.
 
 | # | Rule |
 | --- | --- |
-| LG1 | The bullet list directly under a heading from `learningGoals.sectionHeadings` (default `Learning goals`, `Leerdoelen`) becomes a `section.bso-goals` with one `li.bso-goal` per item, each with a checkbox `input.bso-goal-check`. |
-| LG2 | Each box sits in a `label` with the goal text, so the whole text is clickable and a screen reader reads the goal as the name of the box. |
-| LG3 | Other lists and other sections are left as they are. A list whose first item child is not a paragraph is left alone. |
-| LG4 | Nested lists inside an item stay inside that item. |
-| LG5 | `sectionHeadings: []` turns it off; an empty or non-string heading is rejected with an actionable error. The labels follow `diagrams.locale`. |
-| LG6 | Unknown keys under `learningGoals` are rejected. |
-| LG7 | Ticking saves the goal in `localStorage` and the next visit shows it ticked; unticking removes the entry. The counter ("n of m checked") is updated in both cases, also without storage. |
-| LG8 | The key is `bso:goals:v1:<page>:<hash of the goal text>`. The page is normalised (`index.html`, a trailing slash); a rewritten goal starts empty; pages do not share. The `v1` makes a later change of the format explicit. |
-| LG9 | The order of the goals does not matter, because the key uses the text. |
-| LG10 | Missing, blocked or failing storage never throws: the boxes still work for the visit. |
-| LG11 | A section is set up once, also when the script runs again after a page change in the preview. |
+| LO1 | The bullet list directly under a heading from `learningObjectives.sectionHeadings` (default `Learning objectives`, `Leerdoelen`, and `Learning objectives` as a synonym) becomes a `section.bso-objectives` with one `li.bso-objective` per item, each with a checkbox `input.bso-objective-check`. |
+| LO2 | Each box sits in a `label` with the objective text, so the whole text is clickable and a screen reader reads the objective as the name of the box. |
+| LO3 | Other lists and other sections are left as they are. A list whose first item child is not a paragraph is left alone. |
+| LO4 | Nested lists inside an item stay inside that item. |
+| LO5 | `sectionHeadings: []` turns it off; an empty or non-string heading is rejected with an actionable error. The labels follow `diagrams.locale`. |
+| LO6 | Unknown keys under `learningObjectives` are rejected. |
+| LO7 | Ticking saves the objective in `localStorage` and the next visit shows it ticked; unticking removes the entry. The counter ("n of m checked") is updated in both cases, also without storage. |
+| LO8 | The key is `bso:objectives:v1:<page>:<hash of the objective text>`. The page is normalised (`index.html`, a trailing slash); a rewritten objective starts empty; pages do not share. The `v1` makes a later change of the format explicit. |
+| LO9 | The order of the objectives does not matter, because the key uses the text. |
+| LO10 | Missing, blocked or failing storage never throws: the boxes still work for the visit. |
+| LO11 | A section is set up once, also when the script runs again after a page change in the preview. |
 
-Tests: `tests/learning-goals.test.ts` (LG1-LG6) and `tests/goals-client.test.ts` (LG7-LG11). The client tests were written after the code; LG10 caught a real defect (the counter did not update without storage).
+Tests: `tests/learning-objectives.test.ts` (LO1-LO6) and `tests/objectives-client.test.ts` (LO7-LO11). The client tests were written after the code; LO10 caught a real defect (the counter did not update without storage).
 
 #### 7.12.1 Design: codes and traceability of objectives (not built)
 
-Proposed in ADR 026, to be accepted by the owner. The tick state of phase 1 is keyed by page and a hash of the text (LG8). The design below replaces that key with a code that the author writes, so ticks survive rewording, reordering and moving an objective to another lesson, and it carries the link to the criterion for coverage (2.5.2). The owner's observations that shaped it: a topic name alone is not unique, because one topic (for example the arrange-act-assert pattern) has several objectives, and a different cognitive level is a different objective.
+Proposed in ADR 026, to be accepted by the owner. The tick state of phase 1 is keyed by page and a hash of the text (LO8). The design below replaces that key with a code that the author writes, so ticks survive rewording, reordering and moving an objective to another lesson, and it carries the link to the criterion for coverage (2.5.2). The owner's observations that shaped it: a topic name alone is not unique, because one topic (for example the arrange-act-assert pattern) has several objectives, and a different cognitive level is a different objective.
 
 **The code** is `<level>-<topic>` with an optional `-<qualifier>`, for example `R-aaa-pattern` (reproduce) and `T-aaa-pattern` (apply) for two objectives about the same topic. The level is one letter of the cognitive scale (the owner: from *reproductie*, R, to *synthese*, S; the letters in between are to be set). The topic and the qualifier are lower-case words with hyphens. A qualifier tells apart two objectives of the same topic and level. The level is part of the identity on purpose: *explain the pattern* and *apply the pattern* are two objectives, and a student who reached the first has not reached the second. The topic can be the name of a core concept (the flashcards), so an objective, a term and later a question can share one name; whether BSO checks that link is open.
 
@@ -1026,7 +1026,7 @@ Proposed in ADR 026, to be accepted by the owner. The tick state of phase 1 is k
 | OB4 | An objective has at most one `ac=`: the main criterion. An objective that serves two criteria is written as two objectives. A second `ac=` is an error. |
 | OB5 | When the outcomes and criteria are configured (#65), the `ac=` must exist in them (error), and an `ac=` that names an outcome while the criteria exist is a warning. |
 | OB6 | The cognitive level is read from the code and is not stored twice. |
-| OB7 | The key of the tick state is `bso:goals:v2:<course code>:<code>`. The course code comes from the configuration; the key does not contain the page, the position or the text. |
+| OB7 | The key of the tick state is `bso:objectives:v2:<course code>:<code>`. The course code comes from the configuration; the key does not contain the page, the position or the text. |
 | OB8 | Rewording, reordering or moving an objective to another lesson keeps its ticks. Changing the level, topic or qualifier in the code makes it another objective with an empty tick. |
 | OB9 | An objective without a code keeps the key of phase 1 (`v1`, page and hash of the text). With traceability configured, `bso lint` warns about it. |
 | OB10 | Every objective is in exactly one lesson and every quiz question tests exactly one objective (#66); `bso lint` reports the objective and question without the other. |

@@ -5,13 +5,13 @@ import { generateLessonSlides } from "../src/lesson-slides.ts";
 const lessons = join("examples", "demo-course", "lessons");
 
 async function slidesOf(file: string): Promise<string[]> {
-  // The preview expands the include of the learning goals before it generates the deck.
+  // The preview expands the include of the learning objectives before it generates the deck.
   const goals = await Deno.readTextFile(
-    join("examples", "demo-course", "partials", "learning-goals.md"),
+    join("examples", "demo-course", "partials", "learning-objectives.md"),
   );
   const deck = generateLessonSlides(
     (await Deno.readTextFile(join(lessons, file))).replace(
-      /\{@include: \[Learning goals\]\([^)]*\)\}/,
+      /\{@include: \[Learning objectives\]\([^)]*\)\}/,
       goals,
     ),
     { contentsTitle: "Contents" },
@@ -41,7 +41,7 @@ Deno.test("a lesson with code sections shows that code on its slides (demo lesso
 Deno.test("the contents slide of demo lesson 1.1 lists the numbered sections without nested numbering", async () => {
   const slides = await slidesOf("week-1/lesson-1-fizzbuzz.md");
   const contents = slides.find((slide) => slide.startsWith("# Contents"))!;
-  assertStringIncludes(contents, "- 1\\. Learning goals");
+  assertStringIncludes(contents, "- 1\\. Learning objectives");
   assertStringIncludes(contents, "- 2\\. Introduction");
   assertEquals(
     contents.split("\n").filter((line) => line.startsWith("- ")).length,

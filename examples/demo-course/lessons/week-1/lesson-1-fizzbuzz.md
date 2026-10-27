@@ -1,8 +1,8 @@
 # Lesson 1.1: FizzBuzz
 
-## 1. Learning goals
+## 1. Learning objectives
 
-{@include: [Learning goals](../../partials/learning-goals.md)}
+{@include: [Learning objectives](../../partials/learning-objectives.md)}
 
 ## 2. Introduction
 

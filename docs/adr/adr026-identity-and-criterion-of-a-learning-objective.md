@@ -61,7 +61,7 @@ The coming traceability and coverage (#65, #66; Software Guidebook, 2.5.2) also 
 1. **Identity.** An objective has a code `<level>-<topic>` or `<level>-<topic>-<qualifier>`, for example `R-aaa-pattern`: a level letter from the cognitive scale (from reproduction, R, to synthesis, S; the letters between are to be set), then lower-case words with hyphens. It is unique in the course and written in braces at the end of the item, `{#R-aaa-pattern}`; BSO removes the braces from the visible text. It contains no lesson number, no position and no criterion.
 2. **Criterion.** An objective belongs to **exactly one** assessment criterion, the main one, in the same braces: `{#R-aaa-pattern ac=FUSTEN-01-02}`. The outcome follows from the criterion, so one reference is enough. An objective that serves two criteria is written as two objectives. Where the course description names only an outcome, the reference may be the outcome; `bso lint` warns when a criterion exists.
 3. **Structure.** An outcome has criteria, a criterion has objectives, a lesson has objectives, a quiz question tests one objective: every objective and every question has one parent in each hierarchy. Together they form a directed acyclic graph of two trees that share their leaves, the objectives. Coverage (#65, #66) counts along these edges.
-4. **Storage key.** `bso:goals:v2:<course code>:<code of the objective>`. The course code comes from the configuration, so two courses on one origin do not share keys. An objective **without** a code keeps the key of phase 1 (page and hash of the text, `v1`); this is an explicit second form, and `bso lint` can ask for a code once traceability is configured.
+4. **Storage key.** `bso:objectives:v2:<course code>:<code of the objective>`. The course code comes from the configuration, so two courses on one origin do not share keys. An objective **without** a code keeps the key of phase 1 (page and hash of the text, `v1`); this is an explicit second form, and `bso lint` can ask for a code once traceability is configured.
 5. **Level.** The cognitive level is read from the code, not stored a second time.
 
 ## Consequences
@@ -72,7 +72,7 @@ The coming traceability and coverage (#65, #66; Software Guidebook, 2.5.2) also 
 - Negative: raising the level of an objective starts its ticks again. Accepted: it is another objective.
 - Negative: two forms of the key exist (with and without code). Rejected alternative: demand a code on every objective now, which would make phase 1 harder to use for courses that only want boxes.
 - A change of the key format needs a new version in the key (`v3`) and a note for the students, because their ticks are in their browsers.
-- Not decided here: the format of the document that holds the outcomes and criteria (`traceability.oweDocument` in #65), the name of the configuration key for the course code, the letters of the cognitive scale, whether a topic must be the name of a core concept, and whether `learningGoals` is renamed `learningObjectives`.
+- Not decided here: the format of the document that holds the outcomes and criteria (`traceability.oweDocument` in #65), the name of the configuration key for the course code, the letters of the cognitive scale, whether a topic must be the name of a core concept.
 
 ## Sources
 

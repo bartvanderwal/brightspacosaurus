@@ -1,8 +1,8 @@
 # Lesson 1.2: Test Pyramid and Test Strategy
 
-## 1. Learning goals
+## 1. Learning objectives
 
-{@include: [Learning goals](../../partials/learning-goals.md)}
+{@include: [Learning objectives](../../partials/learning-objectives.md)}
 
 A test strategy chooses appropriate tests for different levels of a system.
 

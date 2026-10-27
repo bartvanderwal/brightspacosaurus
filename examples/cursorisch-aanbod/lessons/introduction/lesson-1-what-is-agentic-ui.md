@@ -12,7 +12,7 @@ An agentic user interface lets software act on the user's behalf: it plans steps
 - **Results are uncertain.** The same request can give different answers, so the UI must show confidence and sources.
 - **Actions have side effects.** An agent can send, change or delete things, so the user needs control and a way back.
 
-## Learning goals
+## Learning objectives
 
 After this module you can:
 

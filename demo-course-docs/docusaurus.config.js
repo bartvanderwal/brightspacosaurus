@@ -30,13 +30,13 @@ const flashcardOptions = resolveFlashcardsOptions(
     ? JSON.parse(process.env.BSO_PREVIEW_FLASHCARDS_CONFIG)
     : course.flashcards,
 );
-const { remarkLearningGoals, resolveLearningGoalsOptions } = require(
-  "../src/learning-goals.ts",
+const { remarkLearningObjectives, resolveLearningObjectivesOptions } = require(
+  "../src/learning-objectives.ts",
 );
-const goalOptions = resolveLearningGoalsOptions(
-  process.env.BSO_PREVIEW_GOALS_CONFIG
-    ? JSON.parse(process.env.BSO_PREVIEW_GOALS_CONFIG)
-    : course.learningGoals,
+const objectiveOptions = resolveLearningObjectivesOptions(
+  process.env.BSO_PREVIEW_OBJECTIVES_CONFIG
+    ? JSON.parse(process.env.BSO_PREVIEW_OBJECTIVES_CONFIG)
+    : course.learningObjectives,
 );
 // BSO_KROKI_URL points the build to another Kroki server, for example the
 // Kroki service container in the GitHub Pages workflow.
@@ -285,7 +285,7 @@ function courseDocsOptions(coursePath, routeBasePath) {
     remarkPlugins: [[remarkPreviewSlides, {
       lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
       baseUrl,
-    }], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [remarkLearningGoals, goalOptions], [
+    }], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [remarkLearningObjectives, objectiveOptions], [
       remarkDiagrams,
       diagramOptions,
     ]],
@@ -325,7 +325,7 @@ module.exports = {
   ],
   clientModules: [
     require.resolve("./src/flashcards-client.js"),
-    require.resolve("./src/goals-client.js"),
+    require.resolve("./src/objectives-client.js"),
     require.resolve("./src/teacher-tabs-client.js"),
     require.resolve("../assets/brightspacosaurus-slides.js"),
     require.resolve("remark-kroki-a11y/diagramTabs.js"),

@@ -22,7 +22,7 @@ import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkDirective from "remark-directive";
 import { remarkFlashcards } from "./flashcards.ts";
-import { remarkLearningGoals } from "./learning-goals.ts";
+import { remarkLearningObjectives } from "./learning-objectives.ts";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
@@ -204,7 +204,7 @@ async function wrapHtml(
   const navigationScript = await loadAssetText(
     "brightspacosaurus-navigation.js",
   );
-  const goalsScript = await loadAssetText("brightspacosaurus-goals.js");
+  const objectivesScript = await loadAssetText("brightspacosaurus-objectives.js");
   const tabsScript = await loadAssetText("brightspacosaurus-tabs.js");
   const copyButtonScript = await loadAssetText(
     "brightspacosaurus-copy-button.js",
@@ -253,7 +253,7 @@ ${body}
 </div>
 <script>${copyButtonScript}</script>
 <script>${flashcardScript}</script>
-<script>${goalsScript}</script>
+<script>${objectivesScript}</script>
 <script>${navigationScript}</script>
 <script>${tabsScript}</script>
 </body>
@@ -305,7 +305,7 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkGfm)
     .use(remarkDirective)
     .use(remarkFlashcards, options.flashcards)
-    .use(remarkLearningGoals, options.learningGoals);
+    .use(remarkLearningObjectives, options.learningObjectives);
 
   if (options.teacherPageVersions) {
     processor = processor.use(remarkTeacherDashboard, {

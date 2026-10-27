@@ -121,9 +121,9 @@ More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guid
 
 Term/definition lists become interactive flashcards, in a short and a long variant. See [the flashcards for core concepts page](features/flashcards.md).
 
-## Learning goals to tick off
+## Learning objectives to tick off
 
-The list under a heading *Learning goals* (or *Leerdoelen*) becomes a list of square checkboxes. A student ticks off the goals and the browser remembers it: in `localStorage` of that browser, not on a server. See [the learning goals page](features/learning-goals.md).
+The list under a heading *Learning objectives* (or *Leerdoelen*) becomes a list of square checkboxes. A student ticks off the objectives and the browser remembers it: in `localStorage` of that browser, not on a server. See [the learning objectives page](features/learning-objectives.md).
 
 ## Teacher-only page
 

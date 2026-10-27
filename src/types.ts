@@ -1,5 +1,5 @@
 import type { FlashcardsConfig } from "./flashcards.ts";
-import type { LearningGoalsConfig } from "./learning-goals.ts";
+import type { LearningObjectivesConfig } from "./learning-objectives.ts";
 import type { TeacherPageVersions } from "./teacher-page.ts";
 import type { QuizBiasOptions } from "./quiz-bias.ts";
 
@@ -52,8 +52,8 @@ export interface ConvertOptions {
   diagrams?: ResolvedDiagramConfig;
   /** Automatic flashcards for configured section headings. */
   flashcards?: FlashcardsConfig;
-  /** Tickable learning goals for configured section headings. */
-  learningGoals?: LearningGoalsConfig;
+  /** Tickable learning objectives for configured section headings. */
+  learningObjectives?: LearningObjectivesConfig;
   /** Set for the teacher page only: versions filled in at `{@bso-versions}`. */
   teacherPageVersions?: TeacherPageVersions;
   /**
@@ -263,8 +263,8 @@ export interface BsoConfig {
   menu?: MenuConfig;
   /** Automatic flashcards for configured section headings. */
   flashcards?: FlashcardsConfig;
-  /** Tickable learning goals under *Learning goals* / *Leerdoelen* (see `LearningGoalsConfig`). */
-  learningGoals?: LearningGoalsConfig;
+  /** Tickable learning objectives under *Learning objectives* / *Leerdoelen* (see `LearningObjectivesConfig`). */
+  learningObjectives?: LearningObjectivesConfig;
   /** Teacher page relative to sourcesDir, filled with versions. Default: "for-teachers.md". */
   teacherPage?: string;
   /** Optional lint input selection. */
@@ -366,8 +366,8 @@ export interface ResolvedConfig {
   diagrams: ResolvedDiagramConfig;
   /** Automatic flashcards; absent or empty disables heading recognition. */
   flashcards?: FlashcardsConfig;
-  /** Tickable learning goals, with the default headings when the course sets none. */
-  learningGoals?: Required<LearningGoalsConfig>;
+  /** Tickable learning objectives, with the default headings when the course sets none. */
+  learningObjectives?: Required<LearningObjectivesConfig>;
   /** Headings that mark the overview list of a module, never empty. */
   menu: { overviewHeadings: string[] };
   /** Teacher page that BSO fills with versions. Absent = no teacher page. */
