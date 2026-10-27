@@ -13,6 +13,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- Documented the step-by-step list in a hand-written slide deck: a list written with `*` or `1)` shows its items one at a time (a feature of Marp, where it is called a fragmented list; PowerPoint calls it animating bullet points one at a time). All items are shown in the pptx.
 - Alt/Option+T presents a lesson whose slides are generated from the lesson itself, in the same tab and without a button (Back returns to the lesson). Alt/Option+P and the button now open the *extra* slides only (a deck written by hand next to the lesson, or the first deck that the lesson links) and are absent when there are none; before, they opened the generated deck. The lesson page has no link to the generated deck; in the cartridge it stays the topic after the lesson. Speaker notes stay with the presenter view of Marp (#159).
 - The lesson page has no line of links to its slides, in the preview and in Brightspace: the slides are reached with the *Slides* button and Alt/Option+P (extra slides) and Alt/Option+T (the lesson) in the preview, as topics after the lesson in Brightspace, and with the links that the author writes in the lesson. The *Download pptx* link is on the slides page of a dedicated deck.
 - The page number of a slide has a light background, so it stays readable over a background image (`![bg right]`).

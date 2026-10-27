@@ -497,3 +497,26 @@ Deno.test("I10: a wide local image goes into the pptx shrunk when maxImageWidth 
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+// Spec *Step-by-step lists*, rule K4: a list that steps in Marp keeps all its items in the pptx.
+Deno.test("K4: lists written with * and 1) keep all their items in the pptx", async () => {
+  const markdown =
+    "---\nslides: true\n---\n\n# Title\n\n---\n\n# Steps\n\n* One star item.\n* Two star item.\n\n1) First paren item.\n2) Second paren item.\n\n- Plain dash item.\n";
+  const zip = await JSZip.loadAsync(
+    await convertDeckToPptx(markdown, { baseDir: "." }),
+  );
+  const text = (await Promise.all(
+    Object.keys(zip.files).filter((name) =>
+      /^ppt\/slides\/slide\d+\.xml$/.test(name)
+    ).map((name) => zip.file(name)!.async("string")),
+  )).join("\n");
+  for (
+    const item of [
+      "One star item.",
+      "Two star item.",
+      "First paren item.",
+      "Second paren item.",
+      "Plain dash item.",
+    ]
+  ) assertStringIncludes(text, item);
+});

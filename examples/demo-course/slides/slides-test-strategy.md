@@ -19,8 +19,9 @@ Practise the test strategy of the lesson on three cases.
 
 `fizzBuzz(15)` must return `"FizzBuzz"`.
 
-- One class, no database, no network.
-- Which level? A **unit test**.
+* One class, no database, no network.
+* *Which level?*
+* A **unit test**!
 
 ![bg right:42%](images/test-pyramid-platforms.jpg)
 
@@ -30,8 +31,8 @@ Practise the test strategy of the lesson on three cases.
 
 A service asks a repository for a film, and the repository reads from a database.
 
-- Two components meet, and a real query is involved.
-- Which level? An **integration test**.
+* Two components meet, and a real query is involved. *Which level?*
+* An **integration test**.
 
 ---
 
@@ -39,8 +40,8 @@ A service asks a repository for a film, and the repository reads from a database
 
 A student opens a quiz in the browser, answers and sees a score.
 
-- The whole system works together, through the user interface.
-- Which level? An **E2E test**, and only for a key journey.
+* The whole system works together, through the user interface. *Which level?*
+* An **E2E test**, and only for a key journey.
 
 ---
 

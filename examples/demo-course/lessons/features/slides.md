@@ -44,6 +44,8 @@ Explanation: look at the fixed title position, which does not move with the amou
 
 The lesson is not copied: the generated slides are made from the lesson file each time, so a change in the lesson shows in the slides. Only the extra deck is a separate file.
 
+**Step-by-step lists.** In a hand-written deck a list written with `*` or `1)` shows its items one at a time, on a click or a key press, for example to ask a question and show the answer on the next click. See the practice cases of [lesson 1.2](../week-1/lesson-2-test-strategy.md). A list written with `-` shows everything at once. (Marp calls this a fragmented list; PowerPoint calls it 'animating bullet points one at a time'.)
+
 <details>
 <summary>How to set up slides</summary>
 

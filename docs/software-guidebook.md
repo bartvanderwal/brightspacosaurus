@@ -900,6 +900,21 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 | X6 | *What does not fit goes on a next slide.* A slide whose text does not fit at the smallest font size continues on further slides with the same title and a counter, `Title (2/3)`: list items, table rows (the header repeated) and lines of code are spread; the speaker notes stay with the first slide, an image stays where it was, and a link to another slide (`#12`) follows the new numbering. A title slide is not split. | pptx tests |
 
+#### Step-by-step lists
+
+A hand-written deck can show a list one item at a time. BSO adds no syntax for it: it is the *fragmented list* of Marp (the HTML of the deck marks the items with `data-marpit-fragment`). In this guidebook and in the user manual it is called a **step-by-step list**, because *fragmented* says nothing about what the audience sees; PowerPoint calls the same effect animating bullet points one at a time (*Appear*; Microsoft, n.d.).
+
+| # | Rule |
+| --- | --- |
+| K1 | A list written with `*` (bullets) or `1)` (numbers) in a deck is shown one item at a time, on a click or a key press. A list written with `-` or `1.` is shown at once. |
+| K2 | Each such list is a unit: its first item is also hidden until the first click. What must be visible at once goes in a separate list or paragraph, with a blank line before the step-by-step list. |
+| K3 | BSO leaves the markers as they are. The lists of a generated deck keep their `-`, so a generated deck shows every list at once. |
+| K4 | In the pptx, in print and in a PDF every item is shown at once (a `*` or `1)` list is read as an ordinary list; a test checks that no item is lost). |
+| K5 | In the lesson as slides (Alt/Option+T) a linked hand-written deck is inserted as it is, so its step-by-step lists work there too. |
+| K6 | In the Brightspace slides topic it is the same Marp page and should step too; not verified in a sandbox. |
+
+Tests: `tests/pptx.test.ts` (K4). K1 was checked on 27 October 2026 with the Marp CLI of BSO on a deck with `*`, `-`, `1.` and `1)` lists: only `*` and `1)` got `data-marpit-fragment`, numbered in one sequence over the whole slide. K2 was seen in the preview, K3 to K6 by reading the code. The test was written after the code.
+
 #### Appendices in a generated deck
 
 Decided with the owner for #156; rules A1 to A6, each with a test in `tests/lesson-slides.test.ts`, `tests/pptx.test.ts` and `tests/course-linter.test.ts` (written after the code). Marp leaves a slide with `paginate: skip` out of both the number and the total (checked: the other slides read `3/4` when four slides are counted), so the numbering of the other slides needs no CSS.
