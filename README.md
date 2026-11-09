@@ -145,7 +145,7 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    - **Readers** — files with the `reader-` prefix in the configured `readersDir` are converted to PDF via pandoc (great for reference material students can download).
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso build` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
-  - **Flashcards** — use `::::flashcards` with inner `:::flashcard` cards, lightweight `- **term:** definition` lists inside `:::flashcards`, or automatically convert glossary sections via `flashcards.sectionHeadings: ["Kernbegrippen"]`. Definitions support normal Markdown and remain readable without JavaScript. See the [flashcard guide](docs/user-manual.md#44-core-concept-flashcards).
+  - **Flashcards** — use `::::flashcards` with inner `:::flashcard` cards, lightweight `- **term:** definition` lists inside `:::flashcards`, or automatically convert glossary sections via `flashcards.sectionHeadings: ["Kernbegrippen"]`. Definitions support normal Markdown and remain readable without JavaScript. See the [flashcard guide](docs/user-manual.md#45-core-concept-flashcards).
 
   Includes use clickable Markdown-link syntax so the same source works in BSO, an editor and a Docusaurus preview:
 
@@ -208,7 +208,7 @@ All project-specific settings are managed via `brightspacosaurus.config.json`. C
 | `quiz`                | `object` | `{ "maxAttempts": 0, "shuffleAnswers": false }`    | Configuration for generated Brightspace quizzes                  |
 | `diagrams`            | `object` | see below                 | Configuration for PlantUML/Mermaid rendering in lesson HTML      |
 | `teacherManual` | `object` | `null` (skip)             | Configuration for the instructor manual PDF                      |
-| `teacherPage`         | `string` | `"for-teachers.md"`       | Teacher page in `sourcesDir` on which BSO fills in the course and BSO versions; see the [user manual](docs/user-manual.md#47-teacher-page) |
+| `teacherPage`         | `string` | `"for-teachers.md"`       | Teacher page in `sourcesDir` on which BSO fills in the course and BSO versions; see the [user manual](docs/user-manual.md#48-teacher-page) |
 
 ### quiz object
 

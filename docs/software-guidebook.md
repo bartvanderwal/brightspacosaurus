@@ -602,7 +602,7 @@ When no config file exists but `--sources` is given, `resolveFromCliOnly` produc
 
 ## 7. Code
 
-### Project initialization
+### 7.1 Project initialization
 
 `bso init` creates a standalone course in the current directory.
 
@@ -628,7 +628,7 @@ This chapter describes code-level conventions and solutions that are not visible
 
 Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
-### 7.1 Conventions
+### 7.2 Conventions
 
 - **Idempotent commands** — repeated runs on identical input yield identical output. `build` clears its output subdirectories before regenerating.
 - **stderr / stdout discipline** — progress goes to `stdout`; errors and warnings go to `stderr`.
@@ -640,7 +640,7 @@ Each section names where the code lives and what it does, then lists the rules t
 
   A comment may refer to a specification by its heading and rule id (`Spec *Nested lesson pages*, rule N5`), never by a section number, because section numbers change when sections are added. Documentation (the CHANGELOG, this guidebook, the user manual and ADRs) may name issues, because it is read next to the tracker.
 
-### 7.2 Asset loading (JSR-safe)
+### 7.3 Asset loading (JSR-safe)
 
 Bundled assets in `assets/` are **never** loaded with `import.meta.url` + `Deno.readTextFile()`. That works locally (`file://`) but fails from the JSR cache with _"Must be a file URL"_, because JSR serves modules over `https://`.
 
@@ -651,19 +651,19 @@ Bundled assets in `assets/` are **never** loaded with `import.meta.url` + `Deno.
 
 Every new asset must also be added to `publish.include` in `deno.json`, otherwise it is missing from the JSR package.
 
-### 7.3 Path handling
+### 7.4 Path handling
 
 - **Where:** `convertMarkdown` in `markdown-converter.ts`.
 - **What:** it takes a `baseDir` option. Passing `sourcesDir` as the base flattens deep source directory structures.
 - **Why:** manifest grouping then uses the correct subdirectory (for example `week-1`) rather than the full nested path from the repo root.
 
-### 7.4 HTML entity handling
+### 7.5 HTML entity handling
 
 - **Where:** title extraction in `main.ts`, escaping in `manifest-builder.ts`.
 - **Problem:** page titles for the manifest come from the generated HTML (`<h1>`), which rehype has already escaped (`&amp;`, `&#x26;`, ...). `manifest-builder.ts` escapes again when writing XML.
 - **Solution:** titles are first decoded with `decodeHtmlEntities`, which handles named and numeric (hex and decimal) entities. This prevents double escaping, such as `&amp;` becoming `&amp;amp;`.
 
-### 7.5 Diagram rendering and error classification
+### 7.6 Diagram rendering and error classification
 
 Diagram rendering is split over four modules. Each has one job:
 
@@ -684,7 +684,7 @@ Error classification:
 - Rendering failures are wrapped in `DiagramError` with category `kroki-unreachable`, `invalid-source` or `invalid-parameter`.
 - The resolved `diagrams.failOnError` setting decides whether such an error fails the build or becomes a warning plus an original-code fallback.
 
-### 7.6 Syntax highlighting
+### 7.7 Syntax highlighting
 
 - **What:** the HTML export highlights fenced code blocks at build time with `rehype-prism-plus` (issue #28).
 - **Parity:** it emits the same Prism token classes (`token keyword`, `token comment`, ...) as the Docusaurus preview, so visual parity only needs CSS and Brightspace pages need no runtime JavaScript.
@@ -694,18 +694,18 @@ Error classification:
 
 Watch out: this relies on Docusaurus currently using Prism, and BSO imports nothing from Docusaurus. If Docusaurus switches highlighter (for example to Shiki), re-evaluate whether BSO follows for parity or deliberately stays on Prism.
 
-### 7.7 Docusaurus integration of the Voortgangsverkenner
+### 7.8 Docusaurus integration of the Voortgangsverkenner
 
 The Voortgangsverkenner (see [1.6](#16-voortgangsverkenner-in-context)) appears in the Docusaurus preview as a tab on the teacher page, with the same working dashboard as in Brightspace (dev/prod parity).
 
-#### How the files reach Docusaurus
+#### 7.8.1 How the files reach Docusaurus
 
 - `state.js` owns the versioned local progress cache and freshness selection (#61). Repository timestamps determine reuse: five minutes for current/future weeks, 24 hours for earlier weeks. A successful token check restores only matching course/class/configuration entries, then refreshes stale repositories; explicit refresh bypasses the TTL. Storage errors are surfaced in the UI. The token is not part of the serialized cache payload.
 - `bso preview` (`runPreview` in `main.ts`) writes the dashboard files to `preview-static/` next to the build directory.
 - It passes that directory to Docusaurus in the environment variable `BSO_PREVIEW_STATIC_DIR`.
 - Reader PDFs from an earlier `build` are copied to the same directory, so reader pages can embed them (#54).
 
-#### What a course with its own Docusaurus configuration needs
+#### 7.8.2 What a course with its own Docusaurus configuration needs
 
 | Addition | Detail |
 |---|---|
@@ -718,22 +718,22 @@ A course that loads BSO via the package, for example `npm:@jsr/bartvanderwal__br
 
 The stylesheet cannot be a package export: Deno rejects CSS entries in the module exports graph during both packing and JSR publication, so neither the JSR-generated npm package nor the npm release has a `/css` subpath. Instead `writePreviewStylesheet` in `src/preview-styles.ts` copies `assets/brightspacosaurus.css`, loaded with `loadAssetText` so it also works from the JSR cache, to `<docusaurusDir>/src/generated/brightspacosaurus.css` before `bso preview` starts `npm start`. It writes a `.gitignore` containing `*` next to it and only rewrites a file whose content changed, so a running dev server does not reload for nothing. The stylesheet stays in `publish.include`. A Playwright test runs the real `bso preview` on a fixture project and compiles the documented `@import` through Webpack and `css-loader`.
 
-#### Reference setup and fallback
+#### 7.8.3 Reference setup and fallback
 
 - `demo-course-docs/docusaurus.config.js` shows the same setup, loading BSO from source instead of from the package.
 - Without a dashboard URL, the `{@bso-teacher-dashboard}` directive renders a short note instead of the tab.
 
 ---
 
-### 7.8 Marp presentations in the preview and the cartridge
+### 7.9 Marp presentations in the preview and the cartridge
 
 `renderPreviewSlides` renders configured `slides.lessons` into `preview-static/slides/`, outside the cartridge build directory. `bso build` reuses it through `exportSlidesToContent` (#112): each presentation is copied to `content/<lesson>-slides.html` with a `bso-title` meta (`Slides: <lesson title>`), which `pack` prefers over the first `<h1>`, because that is a slide title. `pack` then lists it as a web content topic next to its lesson. The export removes the presenter notes (`stripPresenterNotes`, the `bespoke-marp-note` elements) unless `slides.notes` is true (#117); the preview keeps them. `--skip-slides` skips this step. The preview keeps its own entry point below. It passes a map of absolute lesson source paths to static presentation URLs through `BSO_PREVIEW_SLIDES`. The `remarkPreviewSlides` plugin adds a hidden metadata span to matching documents. Looking up the source file rather than the route keeps custom frontmatter slugs and client-side navigation working.
 
 `slides.generateForPrefix` selects every Markdown filename in `sourcesDir` beginning with the configured case-sensitive prefix. Explicit entries in `slides.lessons` take precedence, including `{ "generate": false }` opt-outs. Manual deck frontmatter uses `slides: true` as the semantic marker; the legacy `marp: true` marker remains accepted, and BSO normalizes either to the Marp CLI header.
 
-The two kinds of slides are named **lesson as slides** (the generated deck, Alt/Option+T) and **slides for a lesson** (a manual deck, also *extra slides*, Alt/Option+P); the first can contain the second through a linked deck. The words used for slides (lesson, lesson as slides, slides for a lesson, include, linked deck, nested page, appendix) are defined once, in the [user manual](user-manual.md#slides-in-the-preview-and-in-brightspace). This section holds the rules and the implementation: generated decks in `src/lesson-slides.ts`, the decks and the pptx in `src/slides-preview.ts` and `src/pptx/`, the lint rules in `src/course-linter.ts`.
+The two kinds of slides are named **lesson as slides** (the generated deck, Alt/Option+T) and **slides for a lesson** (a manual deck, also *extra slides*, Alt/Option+P); the first can contain the second through a linked deck. The words used for slides (lesson, lesson as slides, slides for a lesson, include, linked deck, nested page, appendix) are defined once, in the [user manual](user-manual.md#511-slides-in-the-preview-and-in-brightspace). This section holds the rules and the implementation: generated decks in `src/lesson-slides.ts`, the decks and the pptx in `src/slides-preview.ts` and `src/pptx/`, the lint rules in `src/course-linter.ts`.
 
-#### Authoring model: one source, two views
+#### 7.9.1 Authoring model: one source, two views
 
 Slides are an optional view of the lesson, not a second document to maintain. With no `slides` configuration, BSO generates and exports no decks; ordinary Markdown remains ordinary Markdown. No explicit `false` flag is needed to keep a lesson in reading mode. Courses opt in through `slides.generateForPrefix` or `slides.lessons`. For an authored deck, `slides: true` is BSO's semantic marker and `marp: true` remains supported for compatibility with Marp and its editor integrations. The marker identifies a deck; it does not mean every lesson must be presented as slides.
 
@@ -772,7 +772,7 @@ Use your app's actual `baseUrl` for subpath deployments. Start through `bso prev
 
 The browser module installs one keydown listener and reads the current article's metadata on every keypress. It uses `altKey` and physical `code === "KeyP"` (Option+P produces `key === "π"` on macOS), ignores editable focus, and leaves print shortcuts untouched. It goes only to same-origin URLs, in the same tab; the reader returns with the browser's Back button (ADR 022). A small button in the top right corner, below the navbar (`a.bso-slides-button` on `document.body`, outside the React-managed article; added and removed on client-side navigation) shows that slides exist and links to them. The shortcut and the button are the preview's way in; the cartridge gives the lesson page its own links to the slides and the pptx (rules B1-B5 under *Slides on the lesson page in the cartridge*). Hidden URLs are not access control.
 
-#### The lesson as slides: Alt+T (#159)
+#### 7.9.2 The lesson as slides: Alt+T (#159)
 
 Two kinds of slides are told apart. A **lesson presentation** is the deck generated from the lesson itself (`generate: true`, or a file that `slides.generateForPrefix` selects); the teacher presents the lesson, and the decks it links and the pages it nests are part of it. **Extra slides** are a deck written by hand next to the lesson: the configured decks (`decks`) of a lesson that is not presented, or the first deck that a lesson presentation links (L rules). The two have their own key: Alt/Option+T for the lesson, Alt/Option+P and the button for the extra slides. The speaker notes are not part of this: the teacher uses the presenter view of the Marp deck itself, and BSO adds no switch of its own (decision of 27 October 2026).
 
@@ -789,7 +789,7 @@ Two kinds of slides are told apart. A **lesson presentation** is the deck genera
 
 Tests: `tests/slides-preview.test.ts` (T1, T6), `tests/slides-remark.test.ts` (T2) and `demo-course-docs/tests/slides.spec.cjs` (T3 to T5). T7 and T8 have no automated test yet (T8 was seen on the demo screenshot). The tests were written after the code.
 
-#### Nested lesson pages (#147)
+#### 7.9.3 Nested lesson pages (#147)
 
 An overview page can show the slides of the pages it links to as nested sets, without copying text: the student pages stay the only source. Which links nest is decided by a setting, because a lesson also links to other lessons for plain navigation and not every link is a slide set.
 
@@ -822,7 +822,7 @@ An overview page can show the slides of the pages it links to as nested sets, wi
 
 **Not decided.** How the nested sets appear in a pptx, should generated decks ever get one.
 
-#### Slides on the lesson page in the cartridge (#146)
+#### 7.9.4 Slides on the lesson page in the cartridge (#146)
 
 Decision of 27 October 2026, after a test import: the lesson page has **no line of links** to its slides, and the slides are **not items of the menu**. A test import showed an extra menu item *Slides: …* after every lesson. The lesson page gets the same button and keys as in the preview instead (parity, 8.1).
 
@@ -834,7 +834,7 @@ Decision of 27 October 2026, after a test import: the lesson page has **no line 
 
 Not verified: that the keys and the button work inside the frame of Brightspace (they work on the extracted package in a browser), and that a relative link from a lesson page to a hidden file works after the import.
 
-#### Generated slides: what a section gives (#141)
+#### 7.9.5 Generated slides: what a section gives (#141)
 
 A lesson that becomes slides is read from top to bottom. The rules below say which slides come out; each is a testable statement, and `tests/lesson-slides.test.ts` follows them.
 
@@ -850,7 +850,7 @@ A lesson that becomes slides is read from top to bottom. The rules below say whi
 
 `bso lint` warns (`slides-section-without-content`) about a section that G4 leaves out, so the author knows that the section is not on the slides: *add a list, a table, an image, code or a diagram to it, or leave it as running text on purpose.* Sources are exempt.
 
-#### Linked decks (#144)
+#### 7.9.6 Linked decks (#144)
 
 **Status.** Implemented. The code is in `src/linked-decks.ts` (recognition), `src/lesson-slides.ts` (insertion and contents slide), `src/slides-preview.ts` (standalone presentations and export), `src/slides-preview-remark.ts` (preview link) and `src/markdown-converter.ts` (cartridge link).
 
@@ -901,7 +901,7 @@ The link is the only marker. There is no new syntax and no `decks` entry in the 
 
 **Open points.** The exact file name when two lessons link decks with the same file name; how global directives of a linked deck that differ from the lesson deck are reported (ignored silently is not acceptable under the no-magic principle); and whether the section marker for insertion should also be allowed between two sections.
 
-#### Generated deck pptx
+#### 7.9.7 Generated deck pptx
 
 A generated deck, with the pages it nests, can be written as an editable `.pptx` too. The rules, each with a test in `tests/slides-preview.test.ts` and `tests/pptx.test.ts` (written after the code):
 
@@ -914,7 +914,7 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 | X6 | *What does not fit goes on a next slide.* A slide whose text does not fit at the smallest font size continues on further slides with the same title and a counter, `Title (2/3)`: list items, table rows (the header repeated) and lines of code are spread; the speaker notes stay with the first slide, an image stays where it was, and a link to another slide (`#12`) follows the new numbering. A title slide is not split. | pptx tests |
 
-#### Title prefix
+#### 7.9.8 Title prefix
 
 Some courses number the headings of their decks in the title (`## Slide 3 - Standup`), so that a teacher can say "slide 3" in a lecture. The prefix is useful in the source and in the lecture but not on the slide or in the pptx, where the number of the slide is shown anyway. `slides.titlePrefix` is a regular expression for what to leave out.
 
@@ -927,7 +927,7 @@ Some courses number the headings of their decks in the title (`## Slide 3 - Stan
 
 Tests: `tests/lesson-slides.test.ts` (TP1 to TP3), `tests/slides-config.test.ts` (TP4, the setting) and `tests/slides-preview.test.ts` (the HTML input and the pptx). The tests were written after the code.
 
-#### Title of a deck, image on the right and speaker notes in the pptx
+#### 7.9.9 Title of a deck, image on the right and speaker notes in the pptx
 
 Three rules that came out of the comparison of the pptx of owe-1 with its own generator (#156).
 
@@ -944,7 +944,7 @@ Three rules that came out of the comparison of the pptx of owe-1 with its own ge
 
 Tests: `tests/lesson-slides.test.ts` (DT1, DT2), `tests/pptx.test.ts` (IR1 to IR3), `tests/slides-preview.test.ts` and `tests/publisher.test.ts` and `tests/packer.test.ts` (PN1 to PN3). The tests were written after the code. Not built from the same comparison: a theme for the pptx (`slides.pptxTheme`), the page number without the title slide, and notes in a generated deck.
 
-#### Step-by-step lists
+#### 7.9.10 Step-by-step lists
 
 A hand-written deck can show a list one item at a time. BSO adds no syntax for it: it is the *fragmented list* of Marp (the HTML of the deck marks the items with `data-marpit-fragment`). In this guidebook and in the user manual it is called a **step-by-step list**, because *fragmented* says nothing about what the audience sees; PowerPoint calls the same effect animating bullet points one at a time (*Appear*; Microsoft, n.d.).
 
@@ -959,7 +959,7 @@ A hand-written deck can show a list one item at a time. BSO adds no syntax for i
 
 Tests: `tests/pptx.test.ts` (K4). K1 was checked on 27 October 2026 with the Marp CLI of BSO on a deck with `*`, `-`, `1.` and `1)` lists: only `*` and `1)` got `data-marpit-fragment`, numbered in one sequence over the whole slide. K2 was seen in the preview, K3 to K6 by reading the code. The test was written after the code.
 
-#### Appendices in a generated deck
+#### 7.9.11 Appendices in a generated deck
 
 Decided with the owner for #156; rules A1 to A6, each with a test in `tests/lesson-slides.test.ts`, `tests/pptx.test.ts` and `tests/course-linter.test.ts` (written after the code). Marp leaves a slide with `paginate: skip` out of both the number and the total (checked: the other slides read `3/4` when four slides are counted), so the numbering of the other slides needs no CSS.
 
@@ -973,7 +973,7 @@ Decided with the owner for #156; rules A1 to A6, each with a test in `tests/less
 | A6 | **The pptx follows.** The parser reads the class `appendix` and the footer text; the writer numbers the other slides `3/12` and writes the footer text on an appendix slide. A manual deck gets this too when its slides carry the class and a footer. |
 | A7 | **No empty slide from a directive.** The directives of a slide (`_class`, `_paginate`, `_footer`) come after its heading, and the `<style>` after the last slide; a comment before a heading that `headingDivider` splits at is a slide of its own, and so is a `---` before such a heading, so BSO leaves those `---` out of the appendix when the manual deck has a `headingDivider`. | slides-preview test; checked with Marp on a real deck |
 
-#### Slide images
+#### 7.9.12 Slide images
 
 Decided in ADR 025 for #162; rules I1 to I10, with tests in `tests/image-shrink.test.ts`, `tests/slides-preview.test.ts` and `tests/pptx.test.ts` (written after the code). `src/image-shrink.ts`.
 
@@ -990,7 +990,7 @@ Decided in ADR 025 for #162; rules I1 to I10, with tests in `tests/image-shrink.
 | I9 | The setting is checked: a negative number, a fraction or a string is an error. |
 | I10 | The pptx writer shrinks a local image the same way when `maxImageWidth` is given; an image that arrives as a data URL is already shrunk. |
 
-### 7.9 The publication folder
+### 7.10 The publication folder
 
 `src/publisher.ts` (#145). The build output (`outputDir`) is temporary; some files are published on purpose and belong in version control. The rules, each with a test in `tests/publisher.test.ts`:
 
@@ -1009,7 +1009,7 @@ Decided in ADR 025 for #162; rules I1 to I10, with tests in `tests/image-shrink.
 
 P6 is checked by running `bso pack` with a `publishDir`; the output names the copied and the removed files.
 
-### 7.10 Quizzes in the native package
+### 7.11 Quizzes in the native package
 
 `src/native-packer.ts`. The reference exports of Brightspace show how a quiz travels in the native package: one `quiz_d2l_<n>.xml` per quiz, a QTI 1.2 file with `d2l_2p0` attributes; a manifest resource with `d2l_2p0:material_type="d2lquiz"`; a module topic of the type `contentlink` that points at the quiz with a quick link and the `rCode` of the quiz; images as plain files at the **root** of the package, written in the quiz by their bare file name. This is reverse-engineered, not documented by D2L, and not yet verified with an import (ADR 024). The rules, each with a test in `tests/native-packer.test.ts`:
 
@@ -1022,7 +1022,7 @@ P6 is checked by running `bso pack` with a `publishDir`; the output names the co
 
 **Open points.** Whether Brightspace accepts the QTI of BSO without the other `d2l_2p0` fields of its own quizzes (`itemproc_extension`, `assess_procextension`). Whether `{orgUnitId}` is filled in on import. Question types other than single and multiple choice. Parity with the Common Cartridge (#149).
 
-#### Module descriptions in the native package (D1)
+#### 7.11.1 Module descriptions in the native package (D1)
 
 The lead page of a module becomes the *description* of the module in the native package (ADR 024). Brightspace shows the description on the page of the module, not next to the course files, so a relative link to a lesson in it finds nothing (a test import of owe-1 on 27 October 2026: the links in the overview of a week did not work, while the pictures in it did).
 
@@ -1032,7 +1032,7 @@ The lead page of a module becomes the *description* of the module in the native 
 
 Not built: a working link from a description to a lesson. It needs the address of the topic or of the course file as Brightspace gives it after the import (the quick link of a topic has a code that BSO does not know); the layer for it is not designed. The overview list that makes the menu order (rule O1) is read from the source, so the plain text in the description does not change the order.
 
-### 7.11 Menu order
+### 7.12 Menu order
 
 Design decided on 25 October 2026 and built for #151, except the points below. `src/menu-plan.ts` makes the plan (listed files, positions, left-out files and the lint findings), `sortManifestEntriesForNavigation` in `src/manifest-builder.ts` orders by it, and `implicitOrderProblems` implements O11. BSO now derives the order of the pages in a module from numbers in the title or the file name (`extractNavigationCode` in `src/manifest-builder.ts`) and, after that, from the alphabetical order of the file name, and only lessons can take a `sidebar_position`. That is a leaky abstraction: the order hides in names, and a name does not say that it is an order. The order of a module now comes from three layers, the most specific wins, and none is required. The preview and Brightspace use the same navigation model, so the order is the same in both.
 
@@ -1056,7 +1056,7 @@ BSO **duplicates** the conventions of Docusaurus (`sidebar_position`, `draft`, t
 
 **Open points.** Whether a quiz takes `sidebar_position` and `draft` from a front matter block above a `quiz` block. How O11 compares the two orders. The key for "not ready" is `draft`, the Docusaurus name with BSO's own definition; Docusaurus has no `unpublished`. The SKILLS (`bso-course-setup`, `bso-content-authoring`) recommend layer C with an example.
 
-### 7.12 Tickable learning objectives
+### 7.13 Tickable learning objectives
 
 Phase 1 of #167. `src/learning-objectives.ts` (`remarkLearningObjectives`) uses the same heading recognition as the flashcards (`normalizeSectionHeading`) and turns the bullet list under a learning-objectives heading into `section.bso-objectives`. `assets/brightspacosaurus-objectives.js` adds the behaviour in the browser and is inlined in the Brightspace HTML (`wrapHtml`) and loaded by the preview through `demo-course-docs/src/objectives-client.js`. Not built yet: tri-state (open / check with teacher / done), a personal note, traceability to LUK/AC, a coverage check and an aggregated overview.
 
@@ -1076,7 +1076,7 @@ Phase 1 of #167. `src/learning-objectives.ts` (`remarkLearningObjectives`) uses 
 
 Tests: `tests/learning-objectives.test.ts` (LO1-LO6) and `tests/objectives-client.test.ts` (LO7-LO11). The client tests were written after the code; LO10 caught a real defect (the counter did not update without storage).
 
-#### 7.12.1 Design: codes and traceability of objectives (not built)
+#### 7.13.1 Design: codes and traceability of objectives (not built)
 
 Proposed in ADR 026, to be accepted by the owner. The tick state of phase 1 is keyed by page and a hash of the text (LO8). The design below replaces that key with a code that the author writes, so ticks survive rewording, reordering and moving an objective to another lesson, and it carries the link to the criterion for coverage (2.5.2). The owner's observations that shaped it: a topic name alone is not unique, because one topic (for example the arrange-act-assert pattern) has several objectives, and a different cognitive level is a different objective.
 
@@ -1098,7 +1098,7 @@ Proposed in ADR 026, to be accepted by the owner. The tick state of phase 1 is k
 | OB10 | Every objective is in exactly one lesson and every quiz question tests exactly one objective (#66); `bso lint` reports the objective and question without the other. |
 
 Status: rules OB1 to OB10 are not built, and no test exists yet; the tests are written from these rules before the code (specification first). Open points are listed in ADR 026, among them the letters of the scale, the configuration key of the course code, the format that holds outcomes and criteria, and the link between a topic and a core concept.
-### 7.13 Content version
+### 7.14 Content version
 
 Decided on 27 October 2026. A package is named after the course version that the author sets and a hash of the content: `demo-course.v0.11.0+7b6acb1.imscc`. The hash is semver *build metadata*, so the version for people stays the author's and the digits say whether the content changed. A counter that goes up at each change was rejected: it would make a build depend on the history, and break *commands are idempotent*. `src/content-version.ts` (`computeContentHash`); `contentVersionOf` in `src/main.ts` uses it for the manifest and the file name.
 
@@ -1115,7 +1115,7 @@ Decided on 27 October 2026. A package is named after the course version that the
 
 Tests: `tests/content-version.test.ts` (CV1 to CV5 and CV7). CV6 was checked by hand on the demo course: two builds gave the same `0.11.0+7b6acb1` and the manifest carries it. The tests were written after the code.
 
-### 7.14 Pictures on a lesson page
+### 7.15 Pictures on a lesson page
 
 The column of a lesson page in Brightspace is about 600 pixels wide. A picture of 1672 pixels, as it came from an image generator, hung over the edge of the page and made the package heavy (a test import on 27 October 2026).
 
@@ -1127,6 +1127,16 @@ The column of a lesson page in Brightspace is about 600 pixels wide. A picture o
 
 Tests: `tests/lesson-images.test.ts` (P1, P2). P3 was checked in the preview on the test pyramid slide of lesson 1.2; it has no automated test. The tests were written after the code. For a picture that is large because it is a photograph in a PNG, convert the source to JPEG: BSO does not change the type (the demo course did that for its illustrations).
 
+
+### 7.16 Heading numbers in BSO's own documentation
+
+The user manual and this guidebook are shipped and generated through the same publishing pipeline as reader PDFs. Keep their section headings numbered by the reader rules, and check both documents in CI.
+
+| Rule | Required behavior |
+| --- | --- |
+| DN1 | Every section heading in `docs/user-manual.md` and `docs/software-guidebook.md` has a consecutive hierarchical number, following `checkReaderHeadingNumbers`. |
+| DN2 | Back matter headings such as `References` remain unnumbered. |
+| DN3 | A test parses both documents and runs `checkReaderHeadingNumbers` over their headings; any issue fails the test. |
 
 ## 8. Design Decisions
 
@@ -1302,7 +1312,7 @@ The storage costs depend on the command and the course configuration. These are 
 | `build` | 31 MB shared BSO `node_modules`; add 129 MB only when matching slides need Marp | Writes course artifacts under `outputDir`. Pandoc and TeX are external, needed only for PDF generation. |
 | `pack` | No command-specific dependency install measured | Writes the `.imscc` into `outputDir`; package size depends on course content. |
 | `lint` | 31 MB shared BSO `node_modules` | Does not install course dependencies or create course output. |
-| `preview` | Docusaurus dependencies not measured; add the 129 MB Marp cache only when matching slides need rendering | Writes generated preview assets and may install Docusaurus dependencies in `<docusaurusDir>/node_modules`; Marp goes in `<parent of outputDir>/marp-tools`. Details are in the [user manual](user-manual.md#what-bso-preview-installs-and-where). |
+| `preview` | Docusaurus dependencies not measured; add the 129 MB Marp cache only when matching slides need rendering | Writes generated preview assets and may install Docusaurus dependencies in `<docusaurusDir>/node_modules`; Marp goes in `<parent of outputDir>/marp-tools`. Details are in the [user manual](user-manual.md#1011-what-bso-preview-installs-and-where). |
 | Readers | Pandoc and TeX sizes not measured; installed separately | BSO neither downloads nor removes these tools. PDF size depends on source material. |
 
 `deno compile` is technically possible, but not a useful distribution replacement today. On Linux x86_64 with Deno 2.9.7, the compiled BSO executable measured 124,989,504 bytes (119.2 MiB); Deno reported 19.48 MB of embedded files. The standalone `denort` runtime it contains measured 104,561,432 bytes (99.7 MiB), so the runtime dominates and minifying or tree-shaking application dependencies cannot materially remove that floor. In this proof of concept, `--help`, `lint` and `pack` worked; `--version` reported `unknown`, and `build` failed because `assets/brightspacosaurus.css` is not embedded in the executable. `preview` additionally relies on external npm and a Docusaurus app; configured slides rely on npm/Marp, and reader PDFs still require Pandoc and TeX. The measurement used the locked `@std/path` 1.1.4 source and dependency versions resolved from `deno.json`; JSR itself was unreachable from the measurement environment. Keep JSR/npm as the supported distribution; a binary would need explicit asset embedding and command-specific testing before it could be supported.
