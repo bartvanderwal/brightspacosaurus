@@ -28,4 +28,4 @@ Use this when an instructor configures the GitLab-backed BSO progress dashboard.
 - If permissions return 403, review the read-only scopes and project scope with the administrator; do not broaden access speculatively.
 - If mapping is ambiguous, stop and ask the instructor. Do not expose actual student records in prompts, fixtures, screenshots or logs.
 
-See the [dashboard guide](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#48-teacher-progress-dashboard-voortgangsverkenner) for current scope, cache behavior and traffic-light rules.
+See the [dashboard guide](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#49-teacher-progress-dashboard-voortgangsverkenner) for current scope, cache behavior and traffic-light rules.

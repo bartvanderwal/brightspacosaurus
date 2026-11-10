@@ -11,7 +11,7 @@ export interface ReaderHeadingNumberIssue {
 
 const NUMERIC_PREFIX = /^(\d+(?:\.\d+)*)(?:[.)])?\s+/;
 const EXEMPT_TITLES =
-  /^(?:Bronnen|Sources|Literatuurlijst|Versiegeschiedenis|Bijlagen|Appendices)(?:\b|$)/i;
+  /^(?:Bronnen|Sources|Literatuurlijst|Versiegeschiedenis|Bijlagen|Appendices)$/i;
 const APPENDIX_TITLE = /^(?:Bijlage|Appendix)\b/i;
 const APPENDIX_LABEL = /^(?:Bijlage|Appendix)\s+([A-Z]+)(?:\b|[.:)]|$)/i;
 
@@ -83,7 +83,7 @@ export function checkReaderHeadingNumbers(
       /^[A-Z][.)]?\s+/i,
       "",
     );
-    if (EXEMPT_TITLES.test(contentWithoutLabel)) {
+    if (EXEMPT_TITLES.test(contentWithoutLabel) || isSourcesHeading(text)) {
       if (numberMatch || letterMatch || APPENDIX_LABEL.test(text)) {
         issues.push({
           heading,

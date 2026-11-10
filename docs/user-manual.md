@@ -108,7 +108,7 @@ Images and HTML files used as content end up in Brightspace as course files / Ma
 
 ## 4. Installation and configuration
 
-### Quickstart
+### 4.1 Quickstart
 
 After installing BSO, open the directory for your new course and run:
 
@@ -127,13 +127,13 @@ The demo content comes from the **same installed BSO version**, including lesson
 
 `bso preview` is also printed as a next step, but **currently requires a separate Docusaurus setup** and `docusaurusDir`; standalone preview is not built yet ([#124](https://github.com/bartvanderwal/brightspacosaurus/issues/124)). See the [preview setup instructions](../README.md#preview-docusaurus-dev-server). Builds need access to Kroki for diagrams, pandoc/XeLaTeX for PDFs, and npm for slides. Use `bso build --skip-readers --skip-slides` when PDF/slide tooling is unavailable.
 
-### 4.1 Requirements
+### 4.2 Requirements
 
 - **Deno** ≥ 1.40: runtime for Brightspacosaurus
 - **Pandoc** (tested with 3.9): for reader PDF conversion via xelatex. Compatibility with other versions is not guaranteed (Pandoc does not follow semver but its own `EPOCH.MAJOR.MINOR.PATCH` scheme (Pandoc, n.d.)). Only needed if you generate readers or a teacher manual PDF.
 - **TeX Live** with `xelatex` — PDF engine (on macOS: `brew install --cask mactex` or `brew install basictex`)
 
-### 4.2 Configuration
+### 4.3 Configuration
 
 All project-specific settings are managed via a `brightspacosaurus.config.json` in the root of your course project. By default BSO looks for this file in the working directory (`Deno.cwd()`); with `--config <path>` you can specify a different path. CLI arguments always take precedence over values from the configuration file.
 
@@ -157,7 +157,7 @@ The most important fields:
 | `docusaurusDocsDir`    | no       | Docusaurus docs-plugin root for document IDs (default: parent of `sourcesDir`)                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
-| `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner) |
+| `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.9](#49-teacher-progress-dashboard-voortgangsverkenner) |
 | `menu.overviewHeadings` | no       | Headings of the overview section in a module's lead page, default `["Overview", "Overzicht"]`; see [8.2](#82-menu-module-and-order) |
 | `readersModule`        | no       | Menu module for the reader PDFs: `slug` (default `readers`) and `title`; see [8.2](#82-menu-module-and-order) |
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
@@ -185,9 +185,9 @@ The most important fields:
 | `diagrams.output`      | no       | Diagram embedding mode (default `img-html-base64`)                                           |
 | `diagrams.locale`      | no       | Language of generated labels: diagram UI and reader PDF cover and document language (`nl` or `en`, default `nl`) |
 | `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
-| `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.4](#44-core-concept-flashcards) |
-| `learningObjectives.sectionHeadings` | no | Headings whose bullet list becomes tickable learning objectives (default `["Learning objectives", "Leerdoelen", "Learning goals"]`, `[]` disables); see [4.9](#49-tickable-learning-objectives) |
-| `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.7](#47-teacher-page) |
+| `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.5](#45-core-concept-flashcards) |
+| `learningObjectives.sectionHeadings` | no | Headings whose bullet list becomes tickable learning objectives (default `["Learning objectives", "Leerdoelen", "Learning goals"]`, `[]` disables); see [4.10](#410-tickable-learning-objectives) |
+| `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.8](#48-teacher-page) |
 
 > **Full configuration reference:** see the [README.md](../README.md) for all configurable fields, default values, CLI flags and an extensive example. A ready-to-use example is available in `brightspacosaurus.config.example.json` and in the `examples/` directory.
 
@@ -195,7 +195,7 @@ Missing optional configuration is silently skipped: without `readersDir` BSO ski
 
 ---
 
-### 4.3 Reusable Markdown includes
+### 4.4 Reusable Markdown includes
 
 An include inserts another Markdown file at the exact location of the directive. The include target must always be a Markdown link:
 
@@ -219,7 +219,7 @@ Include-only partials must not appear as pages of their own. Keep them outside `
 
 ---
 
-### 4.4 Core-concept flashcards
+### 4.5 Core-concept flashcards
 
 Flashcards support **retrieval practice**: a student tries to recall the definition before revealing it. This is useful for short core concepts such as terminology, APIs and testing vocabulary. The Learning Scientists describe the same concept-card pattern as writing the concept name on one side and its definition on the other, then saying or writing the answer and revisiting concepts that were difficult: [Be Your Own Teacher: How to Study with Flashcards](https://www.learningscientists.org/blog/2016/2/20-1).
 
@@ -262,8 +262,7 @@ Sections titled `Core concepts` become flashcards automatically. To recognize ot
 
 This is an optional fragment to add to your existing course configuration. The list replaces the default `["Core concepts"]`; `[]` disables automatic heading recognition. With that setting, this plain Markdown becomes a flashcard set:
 
-```markdown
-### 4.5 Linting course material
+### 4.6 Linting course material
 
 `bso lint` applies developer best practices to course material: it checks flashcards, includes, diagrams, quiz authoring and source hygiene (frontmatter in lessons, hard-wrapped paragraphs) before you export, without building or contacting external services, so mistakes surface in your editor or CI instead of after the Brightspace import. It starts by saying which directories and how many files it scanned. It reports `file:line:column`, severity and rule. Errors return exit code 1; warnings alone return 0.
 
@@ -325,13 +324,13 @@ These paths are relative to the current working directory and replace the defaul
 
 For the repository's regression examples, run `bso lint` in `examples/demo-course` (no diagnostics) and in `examples/demo-course-antipatterns` (30 intentional diagnostics and exit code 1). The [antipattern course](../examples/demo-course-antipatterns/README.md) has its own configuration and exactly one file for each linter rule. `bso lint` starts with the directories and file counts it scanned.
 
-### 4.6 Links between lesson pages
+### 4.7 Links between lesson pages
 
 Link to other lesson pages with a normal relative Markdown link, such as `[FAQ](../faq.md)`. BSO turns it into a link to the generated HTML page, so it also works in editors and in the Docusaurus preview.
 
 In Brightspace a lesson page opens in a frame inside the course viewer. A plain link would open the next page inside that frame, while the content menu keeps showing the previous topic. Exported pages therefore contain a small script: after a click on a lesson link, it looks up the target topic in the course's table of contents (with the student's own Brightspace session) and lets Brightspace open that topic. The menu, previous/next navigation and progress then match the page on screen. If the lookup fails, for example because the target page is not a topic in the course, the plain link opens as before. Links with a new-tab target, external links and PDF links are left alone.
 
-### 4.7 Teacher page
+### 4.8 Teacher page
 
 A teacher page is a lesson page you write yourself for teachers, for example with import instructions and contact details. BSO fills in the imported versions, so teachers can check after an import that Brightspace shows the current material. Later, the GitLab progress dashboard ([#37](https://github.com/bartvanderwal/brightspacosaurus/issues/37)) will appear on the same page.
 
@@ -359,7 +358,7 @@ If the default page does not exist, BSO skips it without a message. If a configu
 
 ---
 
-### 4.8 Teacher progress dashboard (Voortgangsverkenner)
+### 4.9 Teacher progress dashboard (Voortgangsverkenner)
 
 When courses use GitLab for student assignments, instructors can monitor student work item progress across student repositories using the built-in **Voortgangsverkenner** (Teacher progress dashboard).
 
@@ -413,14 +412,14 @@ For date-aware week focus, optionally add a `weeks` calendar. Each repository pr
 
 The dashboard opens the current week by default, leaves earlier weeks collapsed and dims later weeks. Use **Weekfocus** to switch weeks manually. Work items are grouped by their configured repository; unfinished work in a future week is neutral and does not count as backlog. Refreshing a week updates its repositories and keeps the other weeks' cached data. Without `weeks`, refresh applies to the whole class. See the local-cache behavior and privacy warning under **Using the dashboard** below.
 
-#### Security and token handling
+#### 4.9.1 Security and token handling
 
 - The dashboard authenticates against GitLab with a **fine-grained personal access token** with read-only permissions. A classic token with scope `read_api` also works, but grants far more than the dashboard needs.
 - **No secrets in cartridge:** The token is never written into the configuration or the exported package.
 - **In-memory storage:** The dashboard keeps the token only in browser memory while the page is open. It is never persisted to `localStorage` or `sessionStorage` (preventing other scripts in Brightspace from reading it).
 - **Password manager support:** The token input uses `<input type="password" autocomplete="current-password">` with a hidden username field so instructors can securely store and autofill it via their browser password manager.
 
-#### Creating the access token
+#### 4.9.2 Creating the access token
 
 Create a fine-grained personal access token in GitLab under **User settings → Personal access tokens → Generate token**:
 
@@ -436,7 +435,7 @@ Create a fine-grained personal access token in GitLab under **User settings → 
 
 The screenshot shows a working token for FUSTEN. It grants more read permissions than the minimum listed above (need to know); the minimum is `Work Item: Read`, `Label: Read`, `Merge Request: Read`, `Commit: Read` and `Group: Read`. That minimum is derived from the API calls the dashboard makes and still has to be confirmed with a token that has only these permissions.
 
-#### Showing the dashboard on the teacher page
+#### 4.9.3 Showing the dashboard on the teacher page
 
 Put the directive on its own line in the teacher page (`teacherPage`, default `for-teachers.md`):
 
@@ -446,13 +445,13 @@ Put the directive on its own line in the teacher page (`teacherPage`, default `f
 
 BSO then shows the teacher page with two tabs: **Informatie** (the rest of the page) and **Voortgangsverkenner** (the dashboard in an embedded frame, at full width). Without JavaScript both parts are shown one after the other. The directive only works on the teacher page and needs `teacherDashboard` in the configuration; without it the page shows a short note instead.
 
-The Docusaurus preview (`bso preview`) shows the same tabs and the same working dashboard, so you can test it with your token before importing. A course with its own Docusaurus configuration needs a few additions; they are described in the [Software Guidebook](software-guidebook.md#77-docusaurus-integration-of-the-voortgangsverkenner).
+The Docusaurus preview (`bso preview`) shows the same tabs and the same working dashboard, so you can test it with your token before importing. A course with its own Docusaurus configuration needs a few additions; they are described in the [Software Guidebook](software-guidebook.md#78-docusaurus-integration-of-the-voortgangsverkenner).
 
 The dashboard stays a separate file (`docenten/voortgangsverkenner.html`) in the hidden instructor module. Hiding a topic in Brightspace does not necessarily block a direct URL for enrolled students; that is not a data leak, because the page contains no token or student data, only the group name and repository prefixes. Students cannot see other students' work without a token with read access to the course group.
 
 The dashboard ships its own fonts (Atkinson Hyperlegible, SIL OFL 1.1) and libraries, so it makes no requests to third parties besides your GitLab server.
 
-#### Using the dashboard
+#### 4.9.4 Using the dashboard
 
 1. Open **Voortgangsverkenner** in the hidden instructor module, paste the token and choose **Gebruik**.
 2. Choose the class and **Haal status uit GitLab**. The class overview shows a stoplight per student and per repository, with the share of green work items and a distribution bar.
@@ -469,7 +468,7 @@ Cached data includes student identifiers, work-item titles and status, counts of
 
 ![Voortgangsverkenner class overview with fictitious students](images/voortgangsverkenner-klasoverzicht.png)
 
-#### Progress calculation and stoplight rules
+#### 4.9.5 Progress calculation and stoplight rules
 
 - **Work item stoplight:**
   - **Green (Done):** Work item is closed or in a done state, with at least one commit by the student referencing the issue (`#<number>`), and non-teacher changes (and comments, if enabled).
@@ -485,7 +484,7 @@ Cached data includes student identifiers, work-item titles and status, counts of
 
 ---
 
-### 4.9 Tickable learning objectives
+### 4.10 Tickable learning objectives
 
 A bullet list under a heading `Learning objectives` or `Leerdoelen` (`Learning objectives` works as a synonym) gets a square checkbox per objective, so a student can tick what they can do. No syntax is needed:
 
@@ -502,6 +501,7 @@ The student sees "1 van 2 afgevinkt" (the text follows `diagrams.locale`) and th
 
 In your own Docusaurus app, add `remarkLearningObjectives` (from `@bartvanderwal/brightspacosaurus/learning-objectives`) to the remark plugins and add a client module that imports `@bartvanderwal/brightspacosaurus/objectives-client` and calls `globalThis.bsoObjectives?.initializeObjectives(document)` in `onRouteDidUpdate`. The script has no named export, so `import { initializeObjectives } from …` fails with *initializeObjectives is not a function*; use the global. See the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). The Brightspace HTML export has the script built in.
 
+```markdown
 ## Kernbegrippen
 
 - **request:** bericht waarmee een client een server om een handeling of gegevens vraagt.
@@ -580,7 +580,7 @@ With `--readers-only` you generate only the reader and teacher PDFs without the 
 
 For fast author feedback, use `bso preview` when `docusaurusDir` is configured. This starts the Docusaurus development server for the course repository, so most content and formatting issues can be caught locally before creating and importing a new `.imscc` package.
 
-#### Slides in the preview and in Brightspace
+#### 5.1.1 Slides in the preview and in Brightspace
 
 Use `slides.generateForPrefix` to generate slides for every Markdown filename in `sourcesDir` that starts with a course-specific prefix. This is useful when all lesson overviews share a naming convention. `slides.lessons` remains available for per-lesson selection and overrides the prefix rule:
 
@@ -629,7 +629,7 @@ The first can contain the second: when a lesson links a deck with an ordinary Ma
 
 Planned, not built (see the issues): *dual content* (the paragraphs of a lesson become the speaker notes of its slide).
 
-Slides are optional: without a `slides` setting, BSO creates no slide decks, and regular Markdown remains unchanged. For manual decks, `slides: true` is the semantic BSO marker; `marp: true` remains supported when you want Marp's own tools to recognize the deck. Generated slides are a concise view of the lesson rather than a replacement for its reading view. BSO currently omits paragraphs and keeps lists, tables and images; sections with no such visual content do not get a slide. The longer-term authoring goal is to keep explanations available as reader-accessible speaker notes, support quotations, and warn about sections too dense for a slide. H3 subsections and section-introduction slides are also a design goal, not current behavior. See [the slide authoring model](software-guidebook.md#authoring-model-one-source-two-views) for the distinction between current behavior and these goals.
+Slides are optional: without a `slides` setting, BSO creates no slide decks, and regular Markdown remains unchanged. For manual decks, `slides: true` is the semantic BSO marker; `marp: true` remains supported when you want Marp's own tools to recognize the deck. Generated slides are a concise view of the lesson rather than a replacement for its reading view. BSO currently omits paragraphs and keeps lists, tables and images; sections with no such visual content do not get a slide. The longer-term authoring goal is to keep explanations available as reader-accessible speaker notes, support quotations, and warn about sections too dense for a slide. H3 subsections and section-introduction slides are also a design goal, not current behavior. See [the slide authoring model](software-guidebook.md#791-authoring-model-one-source-two-views) for the distinction between current behavior and these goals.
 
 With a **manual deck** (`decks`) instead of `generate: true`, `nest` works too: the pages that the lesson links to and that `nest` selects follow the slides of the manual deck, in the order of the links, as appendix slides (`Bijlage 1/9`, not counted in the numbering of the manual slides), also in the pptx of the deck. The links are read in the lesson page, not in the deck. **Image size.** A deck is one HTML file with its images embedded, and the pptx holds them again, so large pictures make the package large. BSO therefore shrinks a PNG or JPEG that is wider than `slides.maxImageWidth` (1600 pixels by default) in the copy that goes into the slides and the pptx; the picture in your sources, and the one on the lesson page, stay as they are. A picture that is narrower is not touched, nor are SVG and GIF, a JPEG that is turned with an Exif tag, or a file that cannot be read. Set `0` to turn it off. A section `Bijlagen`, `Appendices`, `Bijlage ...` or `Appendix ...` starts the appendices of a generated deck: its slides and everything after it, nested pages included, are numbered apart (`Bijlage 5/127`) and do not count in the numbering of the other slides (`3/12`); the contents slide shows one line, `Bijlagen (B1 t/m B127)`. Put the appendices last: `bso lint` warns about a section after them (`slides-appendix-not-last`), and appendix headings need no number. A section that needs more than one slide (a long list, table or code block) shows a counter after its heading, such as `2. Context (1/3)`; a section with one slide has none. BSO does not rewrite the titles of a manual deck, so a `Slide 3 - ` prefix in a deck stays as written; remove it from the deck if you do not want it.
 
@@ -650,7 +650,7 @@ In the preview there are two keys, both in the same tab. Alt/Option+T (teacher m
 
 Keep slide source files outside `sourcesDir` and `readersDir`, or in an underscore-prefixed folder such as `_slides/`, so they are not also treated as regular course pages by the existing preview/export scanners.
 
-BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. Marp theme CSS can style `section`, headings such as `section h1`/`section h2`, pagination with `section::after`, title slides with `section.lead`, and `section header`/`section footer`. BSO reserves `section::before` for the disclaimer banner and `.bso-slide-logo` for the generated title logo; themes should not use those selectors. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#78-marp-presentations-in-the-preview-and-the-cartridge).
+BSO renders static HTML with Marp CLI (downloaded through npm on first use and cached next to `preview-static/`). Local images are included; HTML comments become Marp presenter notes, not slide content. Marp theme CSS can style `section`, headings such as `section h1`/`section h2`, pagination with `section::after`, title slides with `section.lead`, and `section header`/`section footer`. BSO reserves `section::before` for the disclaimer banner and `.bso-slide-logo` for the generated title logo; themes should not use those selectors. The disclaimer appears on every slide; set it to `""` to disable it. Restart the preview after changing slides or their configuration. Courses with their own Docusaurus app must add the [slides integration](software-guidebook.md#79-marp-presentations-in-the-preview-and-the-cartridge).
 
 `bso build` also adds the slides to the `.imscc`: each lesson with slides gets one extra topic `Slides: <lesson title>` right after the lesson in its module, a self-contained HTML file with the images embedded and the disclaimer on every slide. Every student who can see the module can open it, so keep the disclaimer for slides that are not final. The presenter notes (HTML comments in the deck) are removed from these slides, because Marp writes them into the HTML where students could read them; set `"notes": true` in `slides` to keep them anyway. The preview always shows them. Rendering needs npm and takes a while; skip it with `bso build --skip-slides`. A course without `slides` in its configuration needs neither. With `"pptx": true` in `slides` (or `pptx: true` in one deck's front matter), each manual deck also gets an editable `.pptx`, linked from the slides page and packed into the `.imscc`; `pptx: false` in a deck opts it out. A deck generated from a lesson gets none, whatever `slides.pptx` says, unless `pptx: true` is set on the lesson in `slides.lessons` (nested pages and appendices included). Check in your Brightspace sandbox that the topic opens and navigates before you rely on it: Marp's HTML contains a script.
 
@@ -1070,7 +1070,7 @@ BSO does not export the `README.md` above `sourcesDir` as a course page. To show
 
 `build`, `pack` and `preview` also write `navigation.json` and `docusaurus-sidebars.json` to `outputDir`. Both are generated from the same navigation model; the first is format-neutral and includes reader items (`kind: "reader"`), while the Docusaurus sidebar contains lesson and quiz documents. The sidebar has one category level per first-level folder in `sourcesDir`; deeper folders remain within that category. Readers can be placed in a content module with `readersModule`. The repository README is not included in the course navigation. Set `docusaurusDocsDir` to the docs-plugin root when it differs from the parent of `sourcesDir`; document IDs are paths relative to that root.
 
-The Voortgangsverkenner (see [4.8](#48-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
+The Voortgangsverkenner (see [4.9](#49-teacher-progress-dashboard-voortgangsverkenner)) has its own separate module by default. With `teacherDashboard.module` it joins a content module directly after the teacher page, before the other pages. If the same module also holds the readers, the order is: teacher page, Voortgangsverkenner, the other pages, readers.
 
 Moving the readers changes the menu structure: after the next import the old "Readers" module stays in Brightspace and you delete it once by hand. The reader topics keep their identifiers.
 
@@ -1130,7 +1130,7 @@ The import loads the complete shared stylesheet: practice quizzes, flashcards, t
 
 Start the preview with `bso preview` (or `deno task preview` from a BSO checkout). The file is created before Docusaurus starts, so a bare `npm start` on a fresh clone fails to resolve the import; run `bso preview` once first. Every start refreshes the file after you update BSO.
 
-#### What `bso preview` installs, and where
+#### 10.1.1 What `bso preview` installs, and where
 
 BSO does not install or remove dependencies silently. On the first preview, if the configured Docusaurus app has no `node_modules`, BSO runs `npm ci` when `package-lock.json` exists, or `npm install` otherwise. npm writes the app's dependencies to `<docusaurusDir>/node_modules`; subsequent previews reuse them. npm may also maintain its normal user-level download cache.
 

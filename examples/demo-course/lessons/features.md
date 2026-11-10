@@ -87,7 +87,7 @@ For courses where students work in their own GitLab repositories. A tab on the t
 
 See it in the demo: [For teachers](for-teachers.md), tab *Voortgangsverkenner*. The demo points to a fictitious GitLab server, so it loads but cannot fetch data.
 
-Turn it on: a `teacherDashboard` block in the configuration and `{@bso-teacher-dashboard}` on its own line in the teacher page. Each teacher creates a read-only GitLab token. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#48-teacher-progress-dashboard-voortgangsverkenner).
+Turn it on: a `teacherDashboard` block in the configuration and `{@bso-teacher-dashboard}` on its own line in the teacher page. Each teacher creates a read-only GitLab token. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#49-teacher-progress-dashboard-voortgangsverkenner).
 
 ```json
 {
@@ -131,7 +131,7 @@ One page in the course for teachers, hidden from students after import. BSO fill
 
 See it in the demo: [For teachers](for-teachers.md).
 
-Turn it on: create `for-teachers.md` (or set `"teacherPage"`) and put `{@bso-versions}` where the version table should go. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#47-teacher-page).
+Turn it on: create `for-teachers.md` (or set `"teacherPage"`) and put `{@bso-versions}` where the version table should go. More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#48-teacher-page).
 
 To choose a different teacher page, add its path relative to `sourcesDir` to the existing course configuration:
 
@@ -151,9 +151,8 @@ Lints your course material like code, so you apply developer best practices to c
 
 Turn it on: run `bso lint` in the course repository, or in CI (the GitHub Pages workflow of this demo does).
 
-See it in the user manual: [Linting course material](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#45-linting-course-material).
+See it in the user manual: [Linting course material](https://bartvanderwal.github.io/brightspacosaurus/guidebook/user-manual/#46-linting-course-material).
 
 ## Configurable menu order
 
 The Brightspace menu follows your folders, so a course per topic works as well as a course per week. See [the configurable menu order page](features/course-per-topic.md).
-

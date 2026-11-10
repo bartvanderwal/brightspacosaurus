@@ -4,6 +4,10 @@ All notable changes to Brightspacosaurus are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- The user manual and Software Guidebook now use consecutive hierarchical section numbers, enforced by a test. Reference-list headings remain unnumbered.
+
 ### Added
 
 - `bso init` creates a standalone config and the demo course bundled with the installed BSO version. It lists additions, confirms the absolute target directory (default no; `--yes`/`-y` for scripts), refuses conflicts without overwriting, and prints lint/build/preview/pack next steps. No Docusaurus app or npm setup is created; preview still requires a separate setup until #124. Quickstarts now begin with `bso init` (#170).
