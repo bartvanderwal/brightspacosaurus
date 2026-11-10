@@ -1136,7 +1136,7 @@ The user manual and this guidebook are shipped and generated through the same pu
 | --- | --- |
 | DN1 | Every section heading in `docs/user-manual.md` and `docs/software-guidebook.md` has a consecutive hierarchical number, following `checkReaderHeadingNumbers`. |
 | DN2 | Back matter headings such as `References` remain unnumbered. |
-| DN3 | A test parses both documents and runs `checkReaderHeadingNumbers` over their headings; any issue fails the test. |
+| DN3 | `bso lint` applies the reader heading-number rule to both shipped documents. A test checks both documents and verifies the rule catches an unnumbered heading there. |
 
 ## 8. Design Decisions
 
