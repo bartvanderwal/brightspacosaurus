@@ -627,8 +627,16 @@ function inspectMarkdown(
   checkNumberedSources();
 
   const filename = basename(sourceFile);
+  const sourcePath = sourceFile.replaceAll("\\", "/");
+  // The shipped manual and guidebook also use the reader PDF heading rules.
+  const isShippedDocumentation =
+    sourcePath === "docs/user-manual.md" ||
+    sourcePath === "docs/software-guidebook.md" ||
+    sourcePath.endsWith("/docs/user-manual.md") ||
+    sourcePath.endsWith("/docs/software-guidebook.md");
   if (
-    (filename.startsWith("reader-") || filename === "plantuml-essentials.md") &&
+    (filename.startsWith("reader-") || filename === "plantuml-essentials.md" ||
+      isShippedDocumentation) &&
     readerHeadingNumberLintEnabled(markdown)
   ) {
     const headingNodes: Node[] = [];
