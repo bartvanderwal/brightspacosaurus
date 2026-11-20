@@ -12,6 +12,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- Admonitions: a block quote that starts with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` or `[!OPTIONAL]` becomes a callout with a label, an icon and a border, with the same HTML and stylesheet in Brightspace and in the preview. `admonitions.labels` replaces the label of one type. `bso lint` warns about a mistyped marker (`admonition-unknown-type`) and an empty block (`admonition-empty`). Not built: slides, reader PDFs and a dark theme (#185).
 - Optional `lint.lessonTemplate` checks the ordered lesson sections for matching filename prefixes, with a frontmatter opt-out.
 - Authored slides with a heading but no content receive a `slides-nearly-empty` warning.
 - `bso init` creates a standalone config and the demo course bundled with the installed BSO version. It lists additions, confirms the absolute target directory (default no; `--yes`/`-y` for scripts), refuses conflicts without overwriting, and prints lint/build/preview/pack next steps. No Docusaurus app or npm setup is created; preview still requires a separate setup until #124. Quickstarts now begin with `bso init` (#170).

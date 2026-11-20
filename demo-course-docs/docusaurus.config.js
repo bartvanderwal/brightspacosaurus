@@ -30,6 +30,13 @@ const flashcardOptions = resolveFlashcardsOptions(
     ? JSON.parse(process.env.BSO_PREVIEW_FLASHCARDS_CONFIG)
     : course.flashcards,
 );
+const { remarkAdmonitions, resolveAdmonitionsOptions } = require("../src/admonitions.ts");
+const admonitionOptions = resolveAdmonitionsOptions(
+  process.env.BSO_PREVIEW_ADMONITIONS_CONFIG
+    ? JSON.parse(process.env.BSO_PREVIEW_ADMONITIONS_CONFIG)
+    : course.admonitions,
+  course.diagrams?.locale ?? "nl",
+);
 const { remarkLearningObjectives, resolveLearningObjectivesOptions } = require(
   "../src/learning-objectives.ts",
 );
@@ -305,7 +312,7 @@ function courseDocsOptions(coursePath, routeBasePath) {
     remarkPlugins: [[remarkPreviewSlides, {
       lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
       baseUrl,
-    }], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [remarkLearningObjectives, objectiveOptions], [
+    }], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [remarkAdmonitions, admonitionOptions], [remarkLearningObjectives, objectiveOptions], [
       remarkDiagrams,
       diagramOptions,
     ]],

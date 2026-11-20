@@ -51,6 +51,17 @@ export {
 } from "./flashcards.ts";
 export type { FlashcardNode, FlashcardsConfig } from "./flashcards.ts";
 export {
+  ADMONITION_LABELS,
+  ADMONITION_TYPES,
+  remarkAdmonitions,
+  resolveAdmonitionsOptions,
+} from "./admonitions.ts";
+export type {
+  AdmonitionsConfig,
+  AdmonitionType,
+  ResolvedAdmonitionsConfig,
+} from "./admonitions.ts";
+export {
   remarkLearningObjectives,
   resolveLearningObjectivesOptions,
 } from "./learning-objectives.ts";

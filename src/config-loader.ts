@@ -8,6 +8,7 @@
  */
 
 import { validatePptxSettings } from "./pptx/settings.ts";
+import { resolveAdmonitionsOptions } from "./admonitions.ts";
 import { normalizeSectionHeading, resolveFlashcardsOptions } from "./flashcards.ts";
 import { resolveLearningObjectivesOptions } from "./learning-objectives.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
@@ -170,6 +171,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     "quiz",
     "diagrams",
     "flashcards",
+    "admonitions",
     "learningObjectives",
     "menu",
     "teacherPage",
@@ -402,6 +404,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
 
   resolveQuizOptions(obj.quiz);
   resolveFlashcardsOptions(obj.flashcards);
+  resolveAdmonitionsOptions(obj.admonitions);
   resolveLearningObjectivesOptions(obj.learningObjectives);
   resolveTeacherPage(obj.teacherPage);
   resolveReadersModule(obj.readersModule);
@@ -1012,6 +1015,10 @@ export function resolveConfig(
       config.flashcards,
       config.diagrams?.locale ?? "nl",
     ),
+    admonitions: resolveAdmonitionsOptions(
+      config.admonitions,
+      config.diagrams?.locale ?? "nl",
+    ),
     learningObjectives: resolveLearningObjectivesOptions(
       config.learningObjectives,
       config.diagrams?.locale ?? "nl",
@@ -1075,6 +1082,7 @@ export function resolveFromCliOnly(
     teacherManual: null,
     quiz: { ...DEFAULT_QUIZ_CONFIG },
     flashcards: resolveFlashcardsOptions(undefined, "nl"),
+    admonitions: resolveAdmonitionsOptions(undefined, "nl"),
     learningObjectives: resolveLearningObjectivesOptions(undefined, "nl"),
     menu: {
       overviewHeadings: [...DEFAULT_OVERVIEW_HEADINGS],

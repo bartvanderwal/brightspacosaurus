@@ -1,3 +1,4 @@
+import type { AdmonitionsConfig, ResolvedAdmonitionsConfig } from "./admonitions.ts";
 import type { FlashcardsConfig } from "./flashcards.ts";
 import type { LearningObjectivesConfig } from "./learning-objectives.ts";
 import type { TeacherPageVersions } from "./teacher-page.ts";
@@ -52,6 +53,8 @@ export interface ConvertOptions {
   diagrams?: ResolvedDiagramConfig;
   /** Automatic flashcards for configured section headings. */
   flashcards?: FlashcardsConfig;
+  /** Callout blocks written as `> [!NOTE]`. */
+  admonitions?: AdmonitionsConfig;
   /** Tickable learning objectives for configured section headings. */
   learningObjectives?: LearningObjectivesConfig;
   /** Set for the teacher page only: versions filled in at `{@bso-versions}`. */
@@ -281,6 +284,8 @@ export interface BsoConfig {
   menu?: MenuConfig;
   /** Automatic flashcards for configured section headings. */
   flashcards?: FlashcardsConfig;
+  /** Labels of callout blocks (`> [!NOTE]`); the language follows `diagrams.locale`. */
+  admonitions?: AdmonitionsConfig;
   /** Tickable learning objectives under *Learning objectives* / *Leerdoelen* (see `LearningObjectivesConfig`). */
   learningObjectives?: LearningObjectivesConfig;
   /** Teacher page relative to sourcesDir, filled with versions. Default: "for-teachers.md". */
@@ -386,6 +391,8 @@ export interface ResolvedConfig {
   diagrams: ResolvedDiagramConfig;
   /** Automatic flashcards; absent or empty disables heading recognition. */
   flashcards?: FlashcardsConfig;
+  /** Resolved labels of callout blocks. */
+  admonitions?: ResolvedAdmonitionsConfig;
   /** Tickable learning objectives, with the default headings when the course sets none. */
   learningObjectives?: Required<LearningObjectivesConfig>;
   /** Headings that mark the overview list of a module, never empty. */

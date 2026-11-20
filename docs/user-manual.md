@@ -189,6 +189,7 @@ The most important fields:
 | `diagrams.locale`      | no       | Language of generated labels: diagram UI and reader PDF cover and document language (`nl` or `en`, default `nl`) |
 | `diagrams.failOnError` | no       | Fail on diagram errors (default `true`); when `false`, warn and keep the original code block |
 | `flashcards.sectionHeadings` | no | Headings whose term/definition lists become flashcards (default `["Core concepts"]`, `[]` disables); see [4.5](#45-core-concept-flashcards) |
+| `admonitions.labels` | no | Replaces the label of one callout type (`note`, `tip`, `important`, `warning`, `caution`, `optional`); the other labels follow `diagrams.locale`; see [4.11](#411-admonitions) |
 | `learningObjectives.sectionHeadings` | no | Headings whose bullet list becomes tickable learning objectives (default `["Learning objectives", "Leerdoelen", "Learning goals"]`, `[]` disables); see [4.10](#410-tickable-learning-objectives) |
 | `teacherPage`          | no       | Teacher page in `sourcesDir` that shows the imported versions (default `for-teachers.md`); see [4.8](#48-teacher-page) |
 
@@ -545,6 +546,28 @@ BSO renders the definitions as normal HTML first. JavaScript progressively adds 
 The current implementation does not persist a student preference across pages until Brightspace storage behavior has been validated in a real course. The fallback is intentionally safe: no storage is required for the cards to work.
 
 For Docusaurus preview parity and implementation details, see the [Software Guidebook](software-guidebook.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). The demo uses the same `remarkFlashcards` transformation, CSS and `brightspacosaurus-flashcards.js` initializer as Brightspace. Docusaurus invokes the initializer after hydration and every client-side navigation.
+
+### 4.11 Admonitions
+
+An admonition is a block that stands out from the running text, with a visible start and end: a note, a tip, something important, a warning, a caution, or optional content that a learner may skip. It looks the same in Brightspace and in the preview, and every type has its own label, icon and left border, so it does not rely on colour alone.
+
+Write a block quote whose first line is the type in brackets. The type is `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION` or `OPTIONAL`, in any letter case:
+
+```md
+> [!IMPORTANT]
+> The deadline is Friday.
+
+> [!TIP] Run the lint before you build
+> `bso lint` finds most mistakes in a few seconds.
+```
+
+Text after the marker on the same line is a custom title; without it the block shows the label of its type (in Dutch: Opmerking, Tip, Belangrijk, Let op, Pas op, Optioneel). This is the alert syntax of GitHub and GitLab, so a viewer without support shows a normal quote. `OPTIONAL` is a BSO addition. BSO has one form: the Docusaurus `:::note` form is not supported.
+
+To change the label of one type, add `"admonitions": { "labels": { "optional": "Extra" } }` to the course configuration. The colours are CSS variables (`--bso-adm-note-bg`, `--bso-adm-note-line` and so on) that your own CSS can change.
+
+`bso lint` warns about a mistyped marker such as `[!OPTIONL]`, which would otherwise show as a plain quote (`admonition-unknown-type`), and about a block without content (`admonition-empty`).
+
+Not built yet: admonitions in generated slides, in reader PDFs and in the instructor manual (a quote with the literal marker is shown there), and a dark theme. It is not verified that Brightspace keeps the styles of a page after an import. See the demo course page *Admonitions* and section 7.17 of the Software Guidebook.
 
 ## 5. Workflow: from Markdown to Brightspace
 

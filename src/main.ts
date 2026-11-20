@@ -383,6 +383,7 @@ export async function runBuild(
         customCssPath: config.customCss ?? undefined,
         diagrams: config.diagrams,
         flashcards: config.flashcards,
+        admonitions: config.admonitions,
         learningObjectives: config.learningObjectives,
         hiddenOverviewHeadings:
           !config.menu.overviewVisible && menuPlan.leads.has(resolve(mdFile))
@@ -1351,6 +1352,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
       BSO_PREVIEW_SLIDES: JSON.stringify(slides),
       BSO_PREVIEW_QUIZ_CONFIG: JSON.stringify(config.quiz),
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
+      BSO_PREVIEW_ADMONITIONS_CONFIG: JSON.stringify(config.admonitions ?? {}),
       BSO_PREVIEW_OBJECTIVES_CONFIG: JSON.stringify(config.learningObjectives ?? {}),
       BSO_PREVIEW_MENU_HEADINGS: JSON.stringify(config.menu.overviewHeadings),
       BSO_PREVIEW_MENU_VISIBLE: JSON.stringify(config.menu.overviewVisible),

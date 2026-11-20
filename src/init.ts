@@ -6,6 +6,7 @@ import { loadDemoCourseBytes } from "./assets.ts";
 export const DEMO_FILES: readonly string[] = [
   "lessons/README.md",
   "lessons/features.md",
+  "lessons/features/admonitions.md",
   "lessons/features/code-and-diagrams.md",
   "lessons/features/course-per-topic.md",
   "lessons/features/flashcards.md",

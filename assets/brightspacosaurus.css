@@ -613,3 +613,89 @@ article.markdown details[open] summary {
 .brightspace-content:has(#bso-panel-dashboard:not([hidden])) {
   max-width: none;
 }
+
+/*
+ * Admonitions (`> [!NOTE]`): the same block in Brightspace and in the preview.
+ * Type is shown by label, icon and left border, not by colour alone. The
+ * colours are tokens so that a course can change them in its own CSS; the
+ * contrast of the defaults is checked by tests/admonitions.test.ts.
+ */
+:root {
+  --bso-adm-note-bg: #e8f1fb;
+  --bso-adm-note-line: #1f5f9e;
+  --bso-adm-tip-bg: #e6f4ea;
+  --bso-adm-tip-line: #1e7a3c;
+  --bso-adm-important-bg: #f3e8fd;
+  --bso-adm-important-line: #7a2fb0;
+  --bso-adm-warning-bg: #fff4e0;
+  --bso-adm-warning-line: #9c5700;
+  --bso-adm-caution-bg: #fde8e8;
+  --bso-adm-caution-line: #b3261e;
+  --bso-adm-optional-bg: #eeeff4;
+  --bso-adm-optional-line: #555b78;
+  --bso-adm-text: #14213d;
+}
+
+.bso-admonition {
+  --bso-adm-bg: var(--bso-adm-note-bg);
+  --bso-adm-line: var(--bso-adm-note-line);
+  margin: 1.25rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--bso-adm-line);
+  border-left-width: 6px;
+  border-radius: 4px;
+  background: var(--bso-adm-bg);
+  color: var(--bso-adm-text);
+}
+
+.bso-admonition-tip { --bso-adm-bg: var(--bso-adm-tip-bg); --bso-adm-line: var(--bso-adm-tip-line); }
+.bso-admonition-important { --bso-adm-bg: var(--bso-adm-important-bg); --bso-adm-line: var(--bso-adm-important-line); }
+.bso-admonition-warning { --bso-adm-bg: var(--bso-adm-warning-bg); --bso-adm-line: var(--bso-adm-warning-line); }
+.bso-admonition-caution { --bso-adm-bg: var(--bso-adm-caution-bg); --bso-adm-line: var(--bso-adm-caution-line); }
+.bso-admonition-optional { --bso-adm-bg: var(--bso-adm-optional-bg); --bso-adm-line: var(--bso-adm-optional-line); }
+
+.bso-admonition > :last-child {
+  margin-bottom: 0;
+}
+
+.bso-admonition-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+/* The icon is decoration: the label next to it carries the meaning. */
+.bso-admonition-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  border: 2px solid var(--bso-adm-line);
+  border-radius: 50%;
+  color: var(--bso-adm-line);
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.bso-admonition-icon::before { content: "i"; font-style: italic; font-family: Georgia, serif; }
+.bso-admonition-tip .bso-admonition-icon::before { content: "\2605"; font-style: normal; }
+.bso-admonition-important .bso-admonition-icon::before { content: "!"; font-style: normal; }
+.bso-admonition-warning .bso-admonition-icon::before { content: "\25B2"; font-style: normal; font-size: 0.8em; }
+.bso-admonition-caution .bso-admonition-icon::before { content: "\2715"; font-style: normal; }
+.bso-admonition-optional .bso-admonition-icon::before { content: "\25CB"; font-style: normal; }
+
+@media (forced-colors: active) {
+  .bso-admonition {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+  .bso-admonition-icon {
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+}

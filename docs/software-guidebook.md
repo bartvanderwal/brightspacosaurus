@@ -616,15 +616,23 @@ When no config file exists but `--sources` is given, `resolveFromCliOnly` produc
 
 This chapter describes code-level conventions and solutions that are not visible in the architecture diagrams but matter when you change the code.
 
-- **7.1** Conventions
-- **7.2** Asset loading (JSR-safe)
-- **7.3** Path handling
-- **7.4** HTML entity handling
-- **7.5** Diagram rendering and error classification
-- **7.6** Syntax highlighting
-- **7.7** Docusaurus integration of the Voortgangsverkenner
-- **7.8** Marp presentations in the preview and the cartridge
-- **7.9** The publication folder
+- **7.1** Project initialization
+- **7.2** Conventions
+- **7.3** Asset loading (JSR-safe)
+- **7.4** Path handling
+- **7.5** HTML entity handling
+- **7.6** Diagram rendering and error classification
+- **7.7** Syntax highlighting
+- **7.8** Docusaurus integration of the Voortgangsverkenner
+- **7.9** Marp presentations in the preview and the cartridge
+- **7.10** The publication folder
+- **7.11** Quizzes in the native package
+- **7.12** Menu order
+- **7.13** Tickable learning objectives
+- **7.14** Content version
+- **7.15** Pictures on a lesson page
+- **7.16** Heading numbers in BSO's own documentation
+- **7.17** Admonitions
 
 Each section names where the code lives and what it does, then lists the rules to keep in mind when you change it.
 
@@ -1178,6 +1186,24 @@ The user manual and this guidebook are shipped and generated through the same pu
 | DN1 | Every section heading in `docs/user-manual.md` and `docs/software-guidebook.md` has a consecutive hierarchical number, following `checkReaderHeadingNumbers`. |
 | DN2 | Back matter headings such as `References` remain unnumbered. |
 | DN3 | `bso lint` applies the reader heading-number rule to both shipped documents. A test checks both documents and verifies the rule catches an unnumbered heading there. |
+
+### 7.17 Admonitions
+
+A callout block stands out from the running text, with a visible start and end. The code is `src/admonitions.ts` (the remark plugin, shared by the Brightspace HTML and the Docusaurus preview, like the flashcards) and the `.bso-admonition` rules in `assets/brightspacosaurus.css`, which both outputs load. The rules below were written first; the tests quote their ids.
+
+| # | Rule |
+| --- | --- |
+| AD1 | **Syntax.** A blockquote whose first line is `[!TYPE]` is an admonition, with TYPE one of `note`, `tip`, `important`, `warning`, `caution` or `optional`, in any letter case. Text after the marker on the same line is a custom title; the content is the rest of the blockquote. This is the alert syntax of GitHub and GitLab, so a viewer without support shows a normal blockquote. `optional` is a BSO addition to that set. A marker with another word, or a marker that is not on the first line, leaves the blockquote alone. There is one canonical form: the Docusaurus `:::note` form is not built. |
+| AD2 | **Output.** `<div class="bso-admonition bso-admonition-TYPE">` with a first `<p class="bso-admonition-title">` that holds a decorative `<span class="bso-admonition-icon" aria-hidden="true">` and the label, followed by the content. The output has no `role`: the blocks are static content and must not interrupt a screen reader. |
+| AD3 | **Labels.** Per type a label in the course language: *Opmerking, Tip, Belangrijk, Let op, Pas op, Optioneel* (nl) or *Note, Tip, Important, Warning, Caution, Optional* (en). The language follows `diagrams.locale`, as for flashcards. `admonitions.labels` replaces the label of one type. A custom title (AD1) replaces the label. |
+| AD4 | **Parity.** The Brightspace HTML and the Docusaurus preview use the same plugin, the same HTML and the same stylesheet. |
+| AD5 | **Accessibility.** Type is shown by a label, an icon and a border on the left, not by colour alone. Text on the tinted background has a contrast of at least 4.5:1, and border and icon at least 3:1 against the background of the block and against the page. In forced-colors mode the border and the text use system colours. |
+| AD6 | **Lint.** `admonition-unknown-type` (warning) for a first line `[!WORD]` whose word is not a known type, because a typo such as `[!OPTIONL]` would silently show as a plain quote. `admonition-empty` (warning) for an admonition without content besides its title. |
+| AD7 | **Code is left alone.** A marker in a code block or inline code is text, not a block. |
+| AD8 | **Not built:** in generated slides, in reader PDFs and in the instructor manual (a blockquote with the literal marker is shown there), and a dark theme (the shared stylesheet has none). |
+| AD9 | **Not verified:** that Brightspace keeps the classes and the `<style>` block of a page with admonitions after an import. If the style block is removed, the styles must become inline. |
+
+Tests: `tests/admonitions.test.ts` (AD1 to AD7, with a contrast check of the colours in the stylesheet for AD5). The tests were written after the specification and before the code.
 
 ## 8. Design Decisions
 

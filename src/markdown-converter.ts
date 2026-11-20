@@ -22,6 +22,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkDirective from "remark-directive";
+import { remarkAdmonitions } from "./admonitions.ts";
 import { remarkFlashcards } from "./flashcards.ts";
 import { remarkLearningObjectives } from "./learning-objectives.ts";
 import remarkGfm from "remark-gfm";
@@ -327,6 +328,7 @@ function createProcessor(options: ConvertOptions, renderDiagrams = true) {
     .use(remarkGfm)
     .use(remarkDirective)
     .use(remarkFlashcards, options.flashcards)
+    .use(remarkAdmonitions, options.admonitions)
     .use(remarkLearningObjectives, options.learningObjectives);
 
   if (options.teacherPageVersions) {

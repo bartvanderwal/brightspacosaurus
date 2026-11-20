@@ -25,6 +25,7 @@ import {
 } from "@std/path";
 import { unified } from "unified";
 import { parse as parseYaml } from "@std/yaml";
+import { admonitionIssues, type AdmonitionNode } from "./admonitions.ts";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
@@ -737,6 +738,9 @@ function inspectMarkdown(
   checkNearlyEmptySlides();
   checkGeneratedSlides();
   checkNumberedSources();
+  for (const issue of admonitionIssues(tree as unknown as AdmonitionNode)) {
+    report(issue.node as Node, issue.rule, issue.message, "warning");
+  }
 
   const filename = basename(sourceFile);
   const sourcePath = sourceFile.replaceAll("\\", "/");
