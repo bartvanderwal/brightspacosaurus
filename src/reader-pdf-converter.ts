@@ -326,6 +326,27 @@ export function readerDiagramEnv(
   return env;
 }
 
+/** Give the Pandoc include filter the same filtered lead pages as the HTML build. */
+export async function materializeHiddenOverviews(
+  outputDir: string,
+  sources?: Record<string, string>,
+  aliases: Record<string, string> = {},
+): Promise<string | undefined> {
+  if (!sources || Object.keys(sources).length === 0) return undefined;
+  const file = await Deno.makeTempFile({
+    dir: outputDir,
+    prefix: ".bso-hidden-overviews-",
+    suffix: ".json",
+  });
+  try {
+    await Deno.writeTextFile(file, JSON.stringify({ sources, aliases }));
+    return file;
+  } catch (error) {
+    await Deno.remove(file);
+    throw error;
+  }
+}
+
 /** The warnings of the diagram filter in the stderr of pandoc. */
 export function diagramFilterWarnings(stderr: string): string[] {
   return stderr.split(/\r?\n/).filter((line) =>
@@ -403,6 +424,10 @@ export async function convertReaderToPdf(
     await Deno.writeTextFile(coverHeaderPath, coverHeaders.join(""));
   }
 
+  const overviewMap = await materializeHiddenOverviews(
+    outputDir,
+    options.hiddenOverviewSources,
+  );
   // Invoke pandoc
   const command = new Deno.Command("pandoc", {
     args: buildReaderPandocArgs({
@@ -417,13 +442,17 @@ export async function convertReaderToPdf(
       metadata,
       coverHeaderPath,
     }),
-    env: readerDiagramEnv(options),
+    env: {
+      ...readerDiagramEnv(options),
+      ...(overviewMap ? { BSO_HIDDEN_OVERVIEWS: overviewMap } : {}),
+    },
     stdout: "piped",
     stderr: "piped",
   });
   const process = await command.output().finally(async () => {
     if (coverHeaderPath) await Deno.remove(coverHeaderPath).catch(() => {});
     if (coverHeaderPath) await Deno.remove(coverHeaderPath).catch(() => {});
+    if (overviewMap) await Deno.remove(overviewMap);
   });
 
   if (!process.success) {

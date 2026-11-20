@@ -21,6 +21,7 @@ import {
   unknownCommandMessage,
 } from "../src/main.ts";
 import { loadPackageVersion } from "../src/assets.ts";
+import { lintCourse } from "../src/course-linter.ts";
 import type { ResolvedConfig } from "../src/types.ts";
 
 function testConfig(repoRoot: string): ResolvedConfig {
@@ -48,7 +49,7 @@ function testConfig(repoRoot: string): ResolvedConfig {
       subquestionPrefix: "Subquestion",
     },
     flashcards: { sectionHeadings: ["Kernbegrippen"] },
-    menu: { overviewHeadings: ["Overview", "Overzicht"] },
+    menu: { overviewHeadings: ["Overview", "Overzicht"], overviewVisible: true },
     diagrams: {
       krokiUrl: "https://kroki.io",
       output: "img-html-base64",
@@ -148,6 +149,51 @@ Deno.test("runBuild with skipReaders converts no reader Markdown but still copie
     );
   } finally {
     await Deno.remove(repoRoot, { recursive: true });
+  }
+});
+
+// Spec *Menu order*, rule O2a.
+Deno.test("O2a: hidden overview still controls the packaged menu and lint", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({ dir: resolve("build"), prefix: "hidden-overview-" });
+  try {
+    const config = testConfig(root);
+    config.menu.overviewVisible = false;
+    config.readersDir = null;
+    const week = join(config.sourcesDir, "week-1");
+    await Deno.mkdir(week, { recursive: true });
+    const intro = join(week, "weekintro-1.md");
+    await Deno.writeTextFile(intro, "# Week\n\nIntroduction.\n\n<!--\n## Overview\n- [B](b.md)\n- [A](a.md)\n- [Missing](missing.md)\n-->\n");
+    await Deno.writeTextFile(join(week, "a.md"), "# A\n\n## Overview\n\nOrdinary content.\n");
+    await Deno.writeTextFile(join(week, "b.md"), "# B\n");
+    await Deno.writeTextFile(join(week, "c.md"), "# C\n");
+    const lint = await lintCourse(config);
+    assertEquals(lint.diagnostics.some((issue) => issue.rule === "menu-link-missing"), true);
+    assertEquals(lint.diagnostics.some((issue) => issue.rule === "menu-unlisted"), true);
+    await Deno.writeTextFile(join(week, "missing.md"), "# Missing\n");
+    await runBuild(config, false, { skipReaders: true });
+    await runPack(config, "brightspace");
+    const html = await Deno.readTextFile(join(config.outputDir, "content/week-1/weekintro-1.html"));
+    const body = html.split('<div class="brightspace-content">')[1].split("</div>")[0];
+    assertStringIncludes(body, "Introduction.");
+    assertEquals(body.includes("<!--"), false);
+    assertEquals(body.includes("b.html"), false);
+    const lesson = await Deno.readTextFile(join(config.outputDir, "content/week-1/a.html"));
+    assertStringIncludes(lesson, "Ordinary content.");
+    const navigation = JSON.parse(await Deno.readTextFile(join(config.outputDir, "navigation.json")));
+    assertEquals(navigation.modules[0].items.map((item: { title: string }) => item.title), ["Week", "B", "A", "Missing"]);
+    assertEquals(await exists(join(config.outputDir, "content/week-1/c.html")), false);
+    let archive: string | undefined;
+    for await (const entry of Deno.readDir(config.outputDir)) {
+      if (entry.name.endsWith(".d2l.zip")) archive = join(config.outputDir, entry.name);
+    }
+    if (!archive) throw new Error("Native package was not generated");
+    const zip = await JSZip.loadAsync(await Deno.readFile(archive));
+    const manifest = await zip.file("imsmanifest.xml")!.async("string");
+    assertEquals(manifest.indexOf("<title>B</title>") < manifest.indexOf("<title>A</title>"), true);
+    assertStringIncludes(manifest, "@scope (.bso-module-description)");
+  } finally {
+    await Deno.remove(root, { recursive: true });
   }
 });
 

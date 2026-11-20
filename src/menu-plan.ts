@@ -26,6 +26,8 @@ export interface MenuIssue {
 
 /** The plan of the menu of a whole course. */
 export interface MenuPlan {
+  /** The selected lead page of each module. */
+  leads: Set<string>;
   /** Files that are not in the menu: `draft: true`, or not listed in a module that has an overview. */
   excluded: Set<string>;
   /** Index in the overview list of a module, for the listed files. */
@@ -62,6 +64,7 @@ export async function planMenu(options: MenuPlanOptions): Promise<MenuPlan> {
     (options.alwaysIncluded ?? []).map((file) => resolve(file)),
   );
   const plan: MenuPlan = {
+    leads: new Set(),
     excluded: new Set(),
     listed: new Map(),
     positions: new Map(),
@@ -86,6 +89,7 @@ export async function planMenu(options: MenuPlanOptions): Promise<MenuPlan> {
   const listedIn = new Map<string, string>();
   for (const [module, moduleFiles] of modules) {
     const lead = moduleFiles.find((file) => isLeadPageName(basename(file)));
+    if (lead) plan.leads.add(lead);
     const links = lead
       ? overviewLinks(texts.get(lead)!, options.overviewHeadings)
       : undefined;

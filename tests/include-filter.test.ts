@@ -1,5 +1,6 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { dirname, fromFileUrl, join } from "@std/path";
+import { dirname, fromFileUrl, join, resolve } from "@std/path";
+import { withoutOverviewSections } from "../src/menu-overview.ts";
 
 const testDir = dirname(fromFileUrl(import.meta.url));
 const filterPath = join(testDir, "..", "assets", "include-filter.lua");
@@ -11,6 +12,35 @@ async function runPandoc(sourcePath: string): Promise<Deno.CommandOutput> {
     stderr: "piped",
   }).output();
 }
+
+// Spec *Menu order*, rule O2a.
+Deno.test("O2a: a reader include uses the lead page without its hidden overview", async () => {
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({ dir: resolve("build"), prefix: "overview-pdf-" });
+  try {
+    const intro = join(root, "index.md");
+    const reader = join(root, "reader.md");
+    const map = join(root, "overviews.json");
+    const source = "# Week\n\nIntroduction.\n\n## Overview\n\n- [Lesson](lesson.md)\n\n## After\n\nPreserved.\n";
+    await Deno.writeTextFile(intro, source);
+    await Deno.writeTextFile(reader, "{@include: [Week](index.md)}\n");
+    await Deno.writeTextFile(map, JSON.stringify({ sources: { [intro]: withoutOverviewSections(source, ["Overview"]) } }));
+    const result = await new Deno.Command("pandoc", {
+      args: [reader, `--lua-filter=${filterPath}`, "--to=markdown"],
+      env: { BSO_HIDDEN_OVERVIEWS: map },
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assertEquals(result.success, true, new TextDecoder().decode(result.stderr));
+    const output = new TextDecoder().decode(result.stdout);
+    assertStringIncludes(output, "Introduction.");
+    assertStringIncludes(output, "Preserved.");
+    assertEquals(output.includes("Overview"), false);
+    assertEquals(output.includes("lesson.md"), false);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
 
 Deno.test({
   name: "include-filter voegt Markdown relatief aan het bronbestand in",

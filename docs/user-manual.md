@@ -159,6 +159,7 @@ The most important fields:
 | `readerCoverLogo`      | no       | Logo on every reader PDF cover page, relative to the repository root                         |
 | `teacherDashboard.module` | no    | Content module (`slug`, optional `title`) that holds the Voortgangsverkenner after the teacher page; default a separate instructor module; see [4.9](#49-teacher-progress-dashboard-voortgangsverkenner) |
 | `menu.overviewHeadings` | no       | Headings of the overview section in a module's lead page, default `["Overview", "Overzicht"]`; see [8.2](#82-menu-module-and-order) |
+| `menu.overviewVisible` | no | Show the overview section on lead pages; default `true`. Set `false` to hide it while keeping menu order and lint; see [8.2](#82-menu-module-and-order) |
 | `readersModule`        | no       | Menu module for the reader PDFs: `slug` (default `readers`) and `title`; see [8.2](#82-menu-module-and-order) |
 | `readerChapterNewPage` | no       | Start every chapter of a reader PDF on a new page (default `true`)                           |
 | `assetsDir`            | no       | Directory with static assets (banners, logos)                                                |
@@ -1050,6 +1051,8 @@ Within a module BSO orders the pages in three layers; the most specific wins, an
    - [Quiz 1.1](quiz-1.md)
    - [Lesson 1.2](lesson-2.md)
    ```
+
+   To keep the list for the menu without showing it on the lead page, set `"menu": { "overviewVisible": false }` in the course configuration. The list still determines publication and order, and `bso lint` still checks missing and unlisted files. Existing lists enclosed in a standalone HTML comment also work; with the setting off, BSO removes the commented section from the generated page.
 
 3. `sidebar_position` in the front matter of a lesson, a quiz or a slide deck (one shared system), ascending;
 4. the rest in the natural order of the file name (`lesson-2` before `lesson-10`).

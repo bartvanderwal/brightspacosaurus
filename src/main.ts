@@ -38,8 +38,10 @@ import {
   coverImageHeader,
   deriveReaderPdfMetadata,
   gitLastCommitDate,
+  materializeHiddenOverviews,
   pandocAvailable,
 } from "./reader-pdf-converter.ts";
+import { withoutOverviewSections } from "./menu-overview.ts";
 import { loadPackageVersion, materializeAsset } from "./assets.ts";
 import { computeContentHash, withContentHash } from "./content-version.ts";
 import {
@@ -303,6 +305,15 @@ export async function runBuild(
     ...scanResult.markdownFiles,
     ...scanResult.quizFiles,
   ]);
+  const hiddenOverviewSources: Record<string, string> = {};
+  if (!skipReaders && !config.menu.overviewVisible) {
+    for (const lead of menuPlan.leads) {
+      hiddenOverviewSources[lead] = withoutOverviewSections(
+        await Deno.readTextFile(lead),
+        config.menu.overviewHeadings,
+      );
+    }
+  }
   if (menuPlan.excluded.size) {
     const names = [...menuPlan.excluded].sort().map((file) =>
       relative(config.sourcesDir, file)
@@ -373,6 +384,10 @@ export async function runBuild(
         diagrams: config.diagrams,
         flashcards: config.flashcards,
         learningObjectives: config.learningObjectives,
+        hiddenOverviewHeadings:
+          !config.menu.overviewVisible && menuPlan.leads.has(resolve(mdFile))
+            ? config.menu.overviewHeadings
+            : undefined,
         deckLinks: config.slides !== undefined,
         teacherPageVersions: mdFile === teacherPage?.path
           ? {
@@ -457,6 +472,7 @@ export async function runBuild(
             chapterNewPage: config.readerChapterNewPage ?? true,
             krokiUrl: config.diagrams.krokiUrl,
             failOnError: config.diagrams.failOnError,
+            hiddenOverviewSources,
           });
           console.log(`  ✓ readers/${result.filename}`);
           succeeded++;
@@ -529,9 +545,36 @@ export async function runBuild(
       const headerPath = await materializeAsset("reader-header.tex");
       const includeFilterPath = await materializeAsset("include-filter.lua");
 
-      const cmd = new Deno.Command("pandoc", {
+      const temporaryInputs: string[] = [];
+      const aliases: Record<string, string> = {};
+      let overviewMap: string | undefined;
+      let pandocOutput: Deno.CommandOutput;
+      try {
+        const inputs: string[] = [];
+        for (const file of existingFiles) {
+          const filtered = hiddenOverviewSources[resolve(file)];
+          if (filtered === undefined) {
+            inputs.push(file);
+            continue;
+          }
+          const temp = await Deno.makeTempFile({
+            dir: teacherOutputDir,
+            prefix: ".bso-manual-source-",
+            suffix: ".md",
+          });
+          temporaryInputs.push(temp);
+          await Deno.writeTextFile(temp, filtered);
+          aliases[temp] = resolve(file);
+          inputs.push(temp);
+        }
+        overviewMap = await materializeHiddenOverviews(
+          teacherOutputDir,
+          hiddenOverviewSources,
+          aliases,
+        );
+        const cmd = new Deno.Command("pandoc", {
         args: [
-          ...existingFiles,
+          ...inputs,
           "-o",
           outputFile,
           `--resource-path=${resourcePath}`,
@@ -554,9 +597,13 @@ export async function runBuild(
         ],
         stdout: "piped",
         stderr: "piped",
+        ...(overviewMap ? { env: { BSO_HIDDEN_OVERVIEWS: overviewMap } } : {}),
       });
-
-      const pandocOutput = await cmd.output();
+        pandocOutput = await cmd.output();
+      } finally {
+        if (overviewMap) await Deno.remove(overviewMap);
+        for (const input of temporaryInputs) await Deno.remove(input);
+      }
       if (pandocOutput.success) {
         console.log(`  ✓ ${relative(buildDir, outputFile)}`);
       } else {
@@ -1306,6 +1353,7 @@ export async function runPreview(config: ResolvedConfig): Promise<void> {
       BSO_PREVIEW_FLASHCARDS_CONFIG: JSON.stringify(config.flashcards ?? {}),
       BSO_PREVIEW_OBJECTIVES_CONFIG: JSON.stringify(config.learningObjectives ?? {}),
       BSO_PREVIEW_MENU_HEADINGS: JSON.stringify(config.menu.overviewHeadings),
+      BSO_PREVIEW_MENU_VISIBLE: JSON.stringify(config.menu.overviewVisible),
       BSO_PREVIEW_READERS_MODULE: JSON.stringify(config.readersModule),
       BSO_PREVIEW_TEACHER_PAGE: JSON.stringify({
         path: config.teacherPage?.path ?? null,

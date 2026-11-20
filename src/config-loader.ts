@@ -452,7 +452,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     const menu = obj.menu as Record<string, unknown>;
     for (const key of Object.keys(menu)) {
-      if (key !== "overviewHeadings") {
+      if (key !== "overviewHeadings" && key !== "overviewVisible") {
         throw new Error(`Unknown configuration field 'menu.${key}'.`);
       }
     }
@@ -468,6 +468,12 @@ export function validateConfig(config: unknown): config is BsoConfig {
       throw new Error(
         "Field 'menu.overviewHeadings' must be a non-empty array of non-empty headings.",
       );
+    }
+    if (
+      menu.overviewVisible !== undefined &&
+      typeof menu.overviewVisible !== "boolean"
+    ) {
+      throw new Error("Field 'menu.overviewVisible' must be a boolean.");
     }
   }
 
@@ -983,6 +989,7 @@ export function resolveConfig(
       overviewHeadings: config.menu?.overviewHeadings?.map((heading) =>
         heading.trim()
       ) ?? [...DEFAULT_OVERVIEW_HEADINGS],
+      overviewVisible: config.menu?.overviewVisible ?? true,
     },
     teacherPage: {
       path: resolve(sourcesDir, resolveTeacherPage(config.teacherPage)),
@@ -1037,7 +1044,10 @@ export function resolveFromCliOnly(
     quiz: { ...DEFAULT_QUIZ_CONFIG },
     flashcards: resolveFlashcardsOptions(undefined, "nl"),
     learningObjectives: resolveLearningObjectivesOptions(undefined, "nl"),
-    menu: { overviewHeadings: [...DEFAULT_OVERVIEW_HEADINGS] },
+    menu: {
+      overviewHeadings: [...DEFAULT_OVERVIEW_HEADINGS],
+      overviewVisible: true,
+    },
     teacherPage: {
       path: resolve(sourcesDir, resolveTeacherPage()),
       explicit: false,

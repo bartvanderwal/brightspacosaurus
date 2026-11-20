@@ -44,6 +44,7 @@ export { readSidebarPosition };
 import { detectDiagramIssues } from "./diagram-validation.ts";
 import { expandIncludes, parseIncludeTarget } from "./includes.ts";
 import { insertVersionTable, remarkTeacherDashboard } from "./teacher-page.ts";
+import { withoutOverviewSections } from "./menu-overview.ts";
 
 /** Regex for recognizing QTI-marked sections in Markdown. */
 const QTI_SECTION_REGEX = /<!--\s*QTI\s*-->[\s\S]*?<!--\s*\/QTI\s*-->/gi;
@@ -427,7 +428,11 @@ export async function convertMarkdown(
       `⚠ ${sourcePath}: {@bso-teacher-dashboard} found, but teacherDashboard is not configured.`,
     );
   }
-  const cleanedMarkdown = stripQtiSections(includedMarkdown);
+  const cleanedMarkdown = stripQtiSections(
+    options.hiddenOverviewHeadings
+      ? withoutOverviewSections(includedMarkdown, options.hiddenOverviewHeadings)
+      : includedMarkdown,
+  );
   // 1 for content/ plus the page's subdirectories below baseDir.
   const htmlDepth = 1 +
     relative(baseDir, sourceDir).split(/[\\/]/).filter((part) =>

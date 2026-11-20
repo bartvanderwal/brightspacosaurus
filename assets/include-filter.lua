@@ -21,6 +21,19 @@ local function read_file(file_path)
   return content
 end
 
+local overview_path = os.getenv("BSO_HIDDEN_OVERVIEWS")
+local hidden_overviews = overview_path and pandoc.json.decode(read_file(overview_path))
+  or { sources = {}, aliases = {} }
+local hidden_sources = hidden_overviews.sources or {}
+local aliases = hidden_overviews.aliases or {}
+
+local function absolute(file_path)
+  if not file_path:match("^/") and not file_path:match("^%a:[/\\]") then
+    file_path = pandoc.path.join({ pandoc.system.get_working_directory(), file_path })
+  end
+  return pandoc.path.normalize(file_path)
+end
+
 local function include_path_from(block)
   if block.t ~= "Para" and block.t ~= "Plain" then
     return nil
@@ -59,7 +72,8 @@ local function expand_blocks(blocks, base_dir)
       end
 
       active_includes[include_path] = true
-      local included = pandoc.read(read_file(include_path), "markdown")
+      local content = hidden_sources[absolute(include_path)] or read_file(include_path)
+      local included = pandoc.read(content, "markdown")
       local included_blocks = expand_blocks(included.blocks, pandoc.path.directory(include_path))
       active_includes[include_path] = nil
       expanded:extend(included_blocks)
@@ -75,6 +89,11 @@ function Pandoc(document)
     error("include-filter: een Markdown-bronbestand is vereist voor relatieve includes")
   end
 
-  document.blocks = expand_blocks(document.blocks, pandoc.path.directory(input_file))
+  local original = aliases[absolute(input_file)] or input_file
+  local filtered = hidden_sources[absolute(original)]
+  if filtered and #PANDOC_STATE.input_files == 1 then
+    document = pandoc.read(filtered, "markdown")
+  end
+  document.blocks = expand_blocks(document.blocks, pandoc.path.directory(original))
   return document
 end

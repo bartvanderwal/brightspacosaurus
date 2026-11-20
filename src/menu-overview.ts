@@ -24,6 +24,68 @@ function sectionHeading(text: string): string {
   return text.replace(/^\d+(?:\.\d+)*[.)]?\s+/, "").trim().toLowerCase();
 }
 
+/** Remove the overview from rendered Markdown without changing its source. */
+export function withoutOverviewSections(
+  markdown: string,
+  headings: string[],
+): string {
+  const wanted = new Set(
+    headings.map((heading) => heading.trim().toLowerCase()),
+  );
+  const kept: string[] = [];
+  let inside: number | undefined;
+  let fence: string | undefined;
+  let comment = false;
+  let commentStart = -1;
+  let commentHasOverview = false;
+  let overviewInComment = false;
+  for (const line of markdown.split(/\r?\n/)) {
+    if (/^\s*<!--\s*$/.test(line)) {
+      comment = true;
+      commentStart = kept.length;
+      commentHasOverview = false;
+      if (inside === undefined) kept.push(line);
+      continue;
+    }
+    if (/^\s*-->\s*$/.test(line) && comment) {
+      comment = false;
+      if (overviewInComment) inside = undefined;
+      overviewInComment = false;
+      if (
+        commentHasOverview && kept[commentStart]?.trim() === "<!--" &&
+        kept.slice(commentStart + 1).every((part) => !part.trim())
+      ) {
+        kept.splice(commentStart);
+      } else if (inside === undefined) {
+        kept.push(line);
+      }
+      continue;
+    }
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      if (!fence) fence = fenceMatch[1][0];
+      else if (fenceMatch[1][0] === fence) fence = undefined;
+      if (inside === undefined) kept.push(line);
+      continue;
+    }
+    if (!fence) {
+      const heading = line.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/);
+      if (heading) {
+        const depth = heading[1].length;
+        if (inside !== undefined && depth <= inside) inside = undefined;
+        if (inside === undefined && wanted.has(sectionHeading(heading[2]))) {
+          inside = depth;
+          overviewInComment = comment;
+          if (comment) commentHasOverview = true;
+        }
+      }
+    }
+    if (inside === undefined) kept.push(line);
+  }
+  const newline = markdown.includes("\r\n") ? "\r\n" : "\n";
+  return kept.join(newline);
+}
+
 /**
  * The links of the overview section of a lead page, in order. A section ends at
  * the next heading of the same or a higher level. Fenced code is ignored.
@@ -77,4 +139,3 @@ export function overviewLinks(
   }
   return found ? links : undefined;
 }
-

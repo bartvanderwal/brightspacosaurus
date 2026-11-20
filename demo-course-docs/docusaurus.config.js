@@ -17,7 +17,7 @@ const {
 const { remarkQuizPreview } = require("../src/quiz-preview.ts");
 const { resolveQuizOptions } = require("../src/quiz-config.ts");
 const { resolveDiagramsConfig } = require("../src/diagram-config.ts");
-const { isLeadPageName, overviewLinks } = require("../src/menu-overview.ts");
+const { isLeadPageName, overviewLinks, withoutOverviewSections } = require("../src/menu-overview.ts");
 const { remarkPreviewSlides, remarkPreviewDeckLinks } = require("../src/slides-preview-remark.ts");
 const course = require("../brightspacosaurus.config.json");
 const quizOptions = resolveQuizOptions(
@@ -218,7 +218,7 @@ function titleReadersCategory(items) {
 function overviewOrders(docs) {
   const headings = process.env.BSO_PREVIEW_MENU_HEADINGS
     ? JSON.parse(process.env.BSO_PREVIEW_MENU_HEADINGS)
-    : ["Overview", "Overzicht"];
+    : course.menu?.overviewHeadings ?? ["Overview", "Overzicht"];
   const absolute = new Map(docs.map((doc) => [
     path.resolve(__dirname, doc.source.replace(/^@site\//, "")),
     doc.id,
@@ -234,6 +234,26 @@ function overviewOrders(docs) {
     });
   }
   return orders;
+}
+
+function isPreviewLead(filePath) {
+  const sources = path.resolve(process.env.BSO_PREVIEW_SOURCES_DIR || path.resolve(__dirname, "..", course.sourcesDir));
+  const file = path.resolve(filePath);
+  const relative = path.relative(sources, file);
+  if (!relative || relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) return false;
+  const parts = relative.split(path.sep);
+  const root = parts.length === 1 ? sources : path.join(sources, parts[0]);
+  const candidates = [];
+  function collect(dir, recursive) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith("_")) continue;
+      const current = path.join(dir, entry.name);
+      if (entry.isDirectory() && recursive) collect(current, true);
+      else if (entry.isFile() && isLeadPageName(entry.name)) candidates.push(current);
+    }
+  }
+  collect(root, parts.length > 1);
+  return candidates.sort()[0] === file;
 }
 
 // Reorders doc items per sidebar level like the Brightspace manifest; categories keep their slots.
@@ -309,8 +329,17 @@ module.exports = {
       if (path.resolve(filePath).startsWith(path.resolve(__dirname, "../docs") + path.sep)) {
         return fileContent;
       }
+      const overviewVisible = process.env.BSO_PREVIEW_MENU_VISIBLE
+        ? JSON.parse(process.env.BSO_PREVIEW_MENU_VISIBLE)
+        : course.menu?.overviewVisible ?? true;
+      const headings = process.env.BSO_PREVIEW_MENU_HEADINGS
+        ? JSON.parse(process.env.BSO_PREVIEW_MENU_HEADINGS)
+        : course.menu?.overviewHeadings ?? ["Overview", "Overzicht"];
+      const source = !overviewVisible && isLeadPageName(path.basename(filePath)) && isPreviewLead(filePath)
+        ? withoutOverviewSections(fileContent, headings)
+        : fileContent;
       const markdown = expandIncludes(
-        fileContent,
+        source,
         path.dirname(filePath),
         includeHost,
       );

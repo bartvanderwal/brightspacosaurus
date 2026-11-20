@@ -67,6 +67,8 @@ export interface ConvertOptions {
    * next to the lesson.
    */
   deckLinks?: boolean;
+  /** Headings of a lead page overview to omit from the rendered page. */
+  hiddenOverviewHeadings?: string[];
 }
 
 /** Resultaat van de Markdown-naar-HTML-conversie. */
@@ -145,6 +147,8 @@ export interface ReaderConvertOptions {
   krokiUrl?: string;
   /** Stop on a diagram that cannot be rendered (`diagrams.failOnError`), default true. */
   failOnError?: boolean;
+  /** Filtered lead-page Markdown for includes in reader PDFs. */
+  hiddenOverviewSources?: Record<string, string>;
 }
 
 /** Resultaat van de reader-Markdown-naar-PDF-conversie. */
@@ -338,6 +342,8 @@ export interface MenuConfig {
    * for example `["Weekoverzicht"]`.
    */
   overviewHeadings?: string[];
+  /** Show the overview section on the lead page. Defaults to true. */
+  overviewVisible?: boolean;
 }
 
 export interface ResolvedConfig {
@@ -381,7 +387,7 @@ export interface ResolvedConfig {
   /** Tickable learning objectives, with the default headings when the course sets none. */
   learningObjectives?: Required<LearningObjectivesConfig>;
   /** Headings that mark the overview list of a module, never empty. */
-  menu: { overviewHeadings: string[] };
+  menu: { overviewHeadings: string[]; overviewVisible: boolean };
   /** Teacher page that BSO fills with versions. Absent = no teacher page. */
   teacherPage?: ResolvedTeacherPageConfig;
   /** Optional lint input selection, with absolute directory paths. */

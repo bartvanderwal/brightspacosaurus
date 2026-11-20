@@ -2,10 +2,31 @@ import { assertEquals, assertThrows } from "@std/assert";
 import { resolveConfig, validateConfig } from "../src/config-loader.ts";
 import { join, resolve } from "@std/path";
 import { isLeadPageName, overviewLinks, planMenu } from "../src/menu-plan.ts";
+import { withoutOverviewSections } from "../src/menu-overview.ts";
 
 // Spec *Menu order*, rules O1-O10.
 
 const headings = ["Overview", "Overzicht"];
+
+// Spec *Menu order*, rule O2a.
+Deno.test("O2a: hidden overviews remove the section but preserve surrounding content and fenced examples", () => {
+  const input =
+    "# Week\n\nBefore.\n\n## Overview\n- [B](b.md)\n### Detail\nText\n\n## After\nKeep.\n\n```md\n## Overview\nExample\n```\n";
+  assertEquals(
+    withoutOverviewSections(input, headings),
+    "# Week\n\nBefore.\n\n## After\nKeep.\n\n```md\n## Overview\nExample\n```\n",
+  );
+  const commented =
+    "# Week\n\n<!--\n## Overzicht\n- [B](b.md)\n- [A](a.md)\n-->\n\nAfter.\n";
+  assertEquals(
+    withoutOverviewSections(commented, headings),
+    "# Week\n\n\nAfter.\n",
+  );
+  assertEquals(
+    overviewLinks(commented, headings)?.map((link) => link.target),
+    ["b.md", "a.md"],
+  );
+});
 
 Deno.test("O1/O2: the overview lists the links of its section in order and ignores other sections, code and external links", () => {
   const markdown = [
@@ -202,6 +223,17 @@ Deno.test("O2: menu.overviewHeadings is validated and has a default", () => {
   assertEquals(
     resolveConfig(base, {}, Deno.cwd()).menu.overviewHeadings,
     ["Overview", "Overzicht"],
+  );
+  assertEquals(resolveConfig(base, {}, Deno.cwd()).menu.overviewVisible, true);
+  assertEquals(
+    resolveConfig({ ...base, menu: { overviewVisible: false } }, {}, Deno.cwd())
+      .menu.overviewVisible,
+    false,
+  );
+  assertThrows(
+    () => validateConfig({ ...base, menu: { overviewVisible: "false" } }),
+    Error,
+    "menu.overviewVisible",
   );
   assertEquals(
     resolveConfig(
