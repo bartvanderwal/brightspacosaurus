@@ -522,6 +522,13 @@ export interface CliOverrides {
 }
 
 /** Input selection for offline course linting. */
+export interface LessonTemplateConfig {
+  /** Case-sensitive filename prefix selecting lesson pages. */
+  prefix: string;
+  /** Ordered section names, excluding their numbers. */
+  sections: { heading: string; optional?: boolean }[];
+}
+
 export interface LintConfig {
   /** Directories scanned recursively instead of sourcesDir/readersDir. */
   includeDirs?: string[];
@@ -532,4 +539,6 @@ export interface LintConfig {
    * example `[".xml"]`. Any other file gets the warning `unexpected-file`.
    */
   allowedFileTypes?: string[];
+  /** Optional ordered heading template for matching lesson pages. */
+  lessonTemplate?: LessonTemplateConfig;
 }

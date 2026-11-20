@@ -146,6 +146,21 @@ Deno.test("a contents slide lists all sections after the title slide, only when 
   );
 });
 
+// Spec *Generated slides: what a section gives*, rule G2.
+Deno.test("G2: contents entries continue on slides of at most eight, including linked decks", () => {
+  const sections = Array.from({ length: 8 }, (_, i) =>
+    `## ${i + 1}. Section ${i + 1}\n\n- Content`
+  );
+  const lesson = `# Lesson\n\n${sections.join("\n\n")}\n\n[Extra](extra.md)\n`;
+  const slides = generateLessonSlides(lesson, {
+    contentsTitle: "Contents",
+    linkedDeck: () => ({ id: "extra", title: "Extra", markdown: "# Extra" }),
+  }).split("\n\n---\n\n");
+  assertEquals(slides[1].split("\n").filter((line) => /^ *- /.test(line)).length, 8);
+  assertStringIncludes(slides[2], "# Contents\n\n- Extra");
+  assertStringIncludes(slides[3], "# 1. Section 1");
+});
+
 Deno.test("a linked slide deck is inserted after the section with the link and listed in the contents slide", () => {
   const lesson = [
     "# Lesson",

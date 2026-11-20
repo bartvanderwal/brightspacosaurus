@@ -1,4 +1,5 @@
 import {
+  assert,
   assertEquals,
   assertRejects,
   assertStringIncludes,
@@ -24,6 +25,75 @@ import { MAX_DOWNLOADABLE_FILE_SIZE } from "../src/downloadable-files.ts";
 
 const card = ":::flashcard\nterm: Test\n\nA **definition**.\n:::";
 const valid = `::::flashcards\n\n${card}\n\n${card}\n\n::::`;
+
+// Spec *Lesson template lint*, rules LT1-LT3.
+Deno.test("lesson template checks order, missing and unexpected sections, and opt-out", () => {
+  const lessonTemplate = {
+    prefix: "lesson-",
+    sections: [
+      { heading: "Recap", optional: true },
+      { heading: "Introduction" },
+      { heading: "Practice" },
+    ],
+  };
+  const check = (text: string) =>
+    lintMarkdown(text, "lesson-one.md", { lessonFile: true, lessonTemplate })
+      .filter((d) => d.rule === "lesson-template");
+  assertEquals(check("# Lesson\n\n## 1. INTRODUCTION\n\n## 2. Practice\n\n```\n## Fake\n```\n"), []);
+  const findings = check("# Lesson\n\n## Practice\n\n## Extra\n\n## Introduction\n\n## Practice\n");
+  assertEquals(findings.length, 3);
+  assert(findings.some((d) => d.message.includes("order")));
+  assert(findings.some((d) => d.message.includes("Extra")));
+  assert(findings.some((d) => d.message.includes("duplicate")));
+  assert(check("# Lesson\n\n## Introduction\n").some((d) => d.message.includes("Practice")));
+  assertEquals(check("---\nlessonTemplate: false\n---\n\n# Lesson\n"), []);
+  assert(check("---\nlessonTemplate: no\n---\n\n# Lesson\n").some((d) => d.message.includes("boolean")));
+});
+
+// Spec *Lesson template lint*, rule LT4.
+Deno.test("generated lesson warns at nine sections, not eight", () => {
+  const source = (count: number) => "# Lesson\n\n" + Array.from(
+    { length: count },
+    (_, i) => `## ${i + 1}. Section\n\n- Content\n`,
+  ).join("\n");
+  const warnings = (count: number) =>
+    lintMarkdown(source(count), "lesson.md", { generatedSlides: true })
+      .filter((d) => d.rule === "slides-too-many-sections");
+  assertEquals(warnings(8).length, 0);
+  assertEquals(warnings(9).length, 1);
+});
+
+// Spec *Lesson template lint*, rule LT1.
+Deno.test("course lint applies validated templates only to matching lesson filenames", async () => {
+  const lessonTemplate = {
+    prefix: "lesson-",
+    sections: [{ heading: "Introduction" }, { heading: "Practice", optional: true }],
+  };
+  const base = { courseName: "Course", version: "1", sourcesDir: "lessons" };
+  for (const invalid of [
+    { prefix: "", sections: lessonTemplate.sections },
+    { prefix: "../", sections: lessonTemplate.sections },
+    { prefix: "lesson-", sections: [] },
+    { prefix: "lesson-", sections: [{ heading: "One", optional: "yes" }] },
+    { prefix: "lesson-", sections: [{ heading: "One" }, { heading: "1. ONE" }] },
+  ]) {
+    assertThrows(() => validateConfig({ ...base, lint: { lessonTemplate: invalid } }));
+  }
+  await Deno.mkdir("build", { recursive: true });
+  const root = await Deno.makeTempDir({ dir: "build", prefix: "lesson-template-" });
+  try {
+    await Deno.mkdir(join(root, "lessons"));
+    await Deno.writeTextFile(join(root, "lessons", "lesson-a.md"), "# A\n");
+    await Deno.writeTextFile(join(root, "lessons", "other.md"), "# Other\n");
+    const config = resolveConfig({ ...base, lint: { lessonTemplate } }, {}, root);
+    const result = await lintCourse(config);
+    const findings = result.diagnostics.filter((d) => d.rule === "lesson-template");
+    assertEquals(findings.length, 1);
+    assertEquals(relative(root, findings[0].sourceFile), "lessons/lesson-a.md");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
 
 Deno.test("lint catches prematurely closed flashcard sets at the inner fence", () => {
   assertEquals(lintMarkdown(valid, "lesson.md"), []);
@@ -1172,6 +1242,31 @@ Deno.test("lint warns about a section of a lesson that becomes slides when it ha
   assertEquals(
     lintMarkdown(lesson, "lesson.md").filter((d) =>
       d.rule === "slides-section-without-content"
+    ),
+    [],
+  );
+});
+
+// Spec *Title of a deck, image on the right and speaker notes in the pptx*, rule DT3.
+Deno.test("DT3: authored slides with only headings warn; images and intentionally sparse slides do not", () => {
+  const markdown = [
+    "---", "slides: true", "headingDivider: 2", "---", "",
+    "# Title only", "",
+    "## Has image", "", "![Logo](logo.png)", "",
+    "## Empty content", "", "<!-- Presenter note -->", "",
+    "## Intentional", "", "<!-- _class: center -->", "",
+    "## Has code", "", "```js", "run()", "```",
+  ].join("\n");
+  const found = lintMarkdown(markdown, "deck.md").filter((d) =>
+    d.rule === "slides-nearly-empty"
+  );
+  assertEquals(found.map((d) => [d.line, d.severity]), [[6, "warning"], [12, "warning"]]);
+  assertStringIncludes(found[0].message, "Slide 1");
+  assertStringIncludes(found[0].message, "Title only");
+  assertStringIncludes(found[1].message, "Slide 3");
+  assertEquals(
+    lintMarkdown("# Ordinary lesson\n\n## Empty\n", "lesson.md").filter((d) =>
+      d.rule === "slides-nearly-empty"
     ),
     [],
   );

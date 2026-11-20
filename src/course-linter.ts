@@ -24,6 +24,7 @@ import {
   resolve,
 } from "@std/path";
 import { unified } from "unified";
+import { parse as parseYaml } from "@std/yaml";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
@@ -48,7 +49,7 @@ import {
 } from "./quiz-bias.ts";
 import { isUnpublishedPath, parseIncludeTarget } from "./markdown-converter.ts";
 import { scanSources } from "./source-scanner.ts";
-import type { ResolvedConfig, SlidesConfig } from "./types.ts";
+import type { LessonTemplateConfig, ResolvedConfig, SlidesConfig } from "./types.ts";
 import {
   checkReaderHeadingNumbers,
   hasSectionNumber,
@@ -107,6 +108,8 @@ export interface LintOptions extends QuizHeadingOptions {
   moduleIndex?: boolean;
   /** The lesson is turned into slides (`slides.lessons` or `slides.generateForPrefix`). */
   generatedSlides?: boolean;
+  /** Template applied to this selected lesson. */
+  lessonTemplate?: LessonTemplateConfig;
 }
 
 interface Node {
@@ -344,7 +347,7 @@ function inspectMarkdown(
     );
     const ignored = [
       ...new Set(
-        keys.filter((key) => key !== "sidebar_position" && key !== "draft"),
+        keys.filter((key) => key !== "sidebar_position" && key !== "draft" && key !== "lessonTemplate"),
       ),
     ];
     if (ignored.length > 0) {
@@ -355,7 +358,7 @@ function inspectMarkdown(
           ignored.map((key) => `'${key}'`).join(", ")
         } ${
           ignored.length > 1 ? "are" : "is"
-        } ignored in lesson pages; only 'sidebar_position' (menu order) and 'draft' (left out of the menu) are used. Put the title as '# heading' and remove the rest.`,
+        } ignored in lesson pages; 'sidebar_position' (menu order), 'draft' and 'lessonTemplate' are used. Put the title as '# heading' and remove the rest.`,
         "warning",
       );
     }
@@ -371,6 +374,55 @@ function inspectMarkdown(
       );
     }
   }
+
+  function checkLessonTemplate(): void {
+    const template = options.lessonTemplate;
+    if (!template || isSlideDeck) return;
+    if (frontmatter?.type === "yaml") {
+      let value: unknown;
+      try {
+        value = parseYaml(frontmatter.value ?? "");
+      } catch {
+        report(frontmatter, "lesson-template", "Cannot read lessonTemplate: fix the YAML front matter.", "warning");
+        return;
+      }
+      if (typeof value === "object" && value !== null && !Array.isArray(value) &&
+        Object.hasOwn(value, "lessonTemplate") &&
+        typeof (value as Record<string, unknown>).lessonTemplate !== "boolean") {
+        report(frontmatter, "lesson-template", "'lessonTemplate' must be true or false.", "warning");
+      } else if (typeof value === "object" && value !== null && !Array.isArray(value) &&
+        (value as Record<string, unknown>).lessonTemplate === false) {
+        return;
+      }
+    }
+    const byName = new Map(template.sections.map((section, index) =>
+      [normalizeSectionHeading(section.heading), index] as const
+    ));
+    const seen = new Set<number>();
+    let previous = -1;
+    for (const heading of tree.children ?? []) {
+      if (heading.type !== "heading" || heading.depth !== 2) continue;
+      const name = nodeText(heading).trim();
+      const index = byName.get(normalizeSectionHeading(name));
+      if (index === undefined) {
+        report(heading, "lesson-template", `Unexpected section '${name}' for template '${template.prefix}'.`, "warning");
+      } else if (seen.has(index)) {
+        report(heading, "lesson-template", `The section '${name}' is a duplicate in template '${template.prefix}'.`, "warning");
+      } else {
+        if (index < previous) {
+          report(heading, "lesson-template", `The section '${name}' is out of order in template '${template.prefix}'.`, "warning");
+        }
+        previous = Math.max(previous, index);
+        seen.add(index);
+      }
+    }
+    for (const [index, section] of template.sections.entries()) {
+      if (!section.optional && !seen.has(index)) {
+        report(undefined, "lesson-template", `Missing required section '${section.heading}' from template '${template.prefix}'.`, "warning");
+      }
+    }
+  }
+  checkLessonTemplate();
 
   // Text wrapped at a fixed column (editor or tool wrap) gives noisy diffs and
   // breaks AI-assisted editing; the output does not change, since Markdown
@@ -433,8 +485,67 @@ function inspectMarkdown(
     }
   }
 
+  function checkNearlyEmptySlides(): void {
+    if (!isSlideDeck || frontmatter?.type !== "yaml" || deckMarkerConflict(markdown)) return;
+    const levels = headingDividerLevels(frontmatter.value ?? "");
+    let number = 1;
+    let heading: Node | undefined;
+    let content = false;
+    let localSparse = false;
+    let globalSparse = false;
+    const finish = () => {
+      if (heading && !content && !localSparse && !globalSparse) {
+        report(
+          heading,
+          "slides-nearly-empty",
+          `Slide ${number} ('${nodeText(heading).trim()}') has a heading but no other content. Add content or mark an intentionally sparse slide with class 'center' or 'full-image'.`,
+          "warning",
+        );
+      }
+      heading = undefined;
+      content = false;
+      localSparse = false;
+    };
+    for (const node of tree.children ?? []) {
+      if (node.type === "yaml") continue;
+      if (node.type === "thematicBreak") {
+        finish();
+        number++;
+        continue;
+      }
+      if (node.type === "heading") {
+        if (levels.includes(node.depth ?? 0) && (heading || content)) {
+          finish();
+          number++;
+        }
+        heading ??= node;
+        if (node.children?.some((child) => child.type === "image")) {
+          content = true;
+        }
+        continue;
+      }
+      if (node.type === "html") {
+        const html = node.value ?? "";
+        for (const directive of html.matchAll(/<!--\s*(_?class)\s*:\s*([^]*?)-->/g)) {
+          const sparse = directive[2].split(/\s+/).some((name) =>
+            name === "center" || name === "full-image"
+          );
+          if (directive[1] === "_class") localSparse = sparse;
+          else globalSparse = sparse;
+        }
+        const visible = html.replace(/<!--[\s\S]*?-->/g, "");
+        if (/<img\b/i.test(visible) || visible.replace(/<[^>]*>/g, "").trim()) {
+          content = true;
+        }
+        continue;
+      }
+      content = true;
+    }
+    finish();
+  }
+
   // A lesson that becomes slides gets one slide per `##` section and a contents
-  // slide: numbered headings and at most nine sections keep that readable.
+  // slide: numbered headings and at most eight sections keep that readable.
   function checkGeneratedSlides(): void {
     if (!options.generatedSlides) return;
     const all = ((tree as Node).children ?? []).filter((node) =>
@@ -491,11 +602,11 @@ function inspectMarkdown(
           `The section '${section.heading}' has no list, table, image, code or diagram, so it gets no slide and is not in the contents slide. Add one, or leave it as running text on purpose.`,
       });
     }
-    if (sections.length > 9) {
+    if (sections.length > 8) {
       report(
-        sections[9],
+        sections[8],
         "slides-too-many-sections",
-        `This lesson becomes slides and has ${sections.length} sections ('##'); more than 9 makes a long contents slide and a long slide deck. Split the lesson or merge sections.`,
+        `This lesson becomes slides and has ${sections.length} sections ('##'); more than 8 makes a long slide deck. Split the lesson or merge sections.`,
         "warning",
       );
     }
@@ -623,6 +734,7 @@ function inspectMarkdown(
   }
   walk(tree);
   checkSlideSeparators();
+  checkNearlyEmptySlides();
   checkGeneratedSlides();
   checkNumberedSources();
 
@@ -1226,6 +1338,10 @@ export async function lintCourse(config: ResolvedConfig): Promise<LintResult> {
       flashcards: config.flashcards,
       lessonFile: lessonFiles.has(file),
       generatedSlides: slideLessons.has(file),
+      lessonTemplate: lessonFiles.has(file) &&
+          basename(file).startsWith(config.lint?.lessonTemplate?.prefix ?? "\0")
+        ? config.lint?.lessonTemplate
+        : undefined,
       moduleIndex: moduleIndexFiles.has(file),
       quizBias: config.lint?.quizBias,
       locale: config.quiz.locale,

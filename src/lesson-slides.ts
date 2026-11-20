@@ -672,29 +672,30 @@ export function generateLessonSlides(
     // `1. Intro` after `- ` would start a nested ordered list (roman numbers)
     const entry = (text: string, indent = "") =>
       `${indent}- ${text.replace(/^(\d+(?:\.\d+)*)([.)])(?=\s)/, "$1\\$2")}`;
-    slides.push(
-      `# ${options.contentsTitle}\n\n${
-        [
-          ...introDecks.map((deck) => entry(deck.title)),
-          ...sections.flatMap((each, index) =>
-            appendixStart >= 0 && index >= appendixStart ? [] : [
-              ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
-              ...each.decks.map((deck) => entry(deck.title)),
-              ...each.nested.map((set) =>
-                entry(`${set.number ? `${set.number} ` : ""}${set.title}`, "  ")
-              ),
-            ]
+    const entries = [
+      ...introDecks.map((deck) => entry(deck.title)),
+      ...sections.flatMap((each, index) =>
+        appendixStart >= 0 && index >= appendixStart ? [] : [
+          ...(each.blocks.length > 0 ? [entry(each.heading)] : []),
+          ...each.decks.map((deck) => entry(deck.title)),
+          ...each.nested.map((set) =>
+            entry(`${set.number ? `${set.number} ` : ""}${set.title}`, "  ")
           ),
-          ...(appendixTotal > 0
-            ? [
-              entry(
-                `${words.many} (${words.letter}1 ${words.range} ${words.letter}${appendixTotal})`,
-              ),
-            ]
-            : []),
-        ].join("\n")
-      }`,
-    );
+        ]
+      ),
+      ...(appendixTotal > 0
+        ? [
+          entry(
+            `${words.many} (${words.letter}1 ${words.range} ${words.letter}${appendixTotal})`,
+          ),
+        ]
+        : []),
+    ];
+    for (let index = 0; index < entries.length; index += 8) {
+      slides.push(
+        `# ${options.contentsTitle}\n\n${entries.slice(index, index + 8).join("\n")}`,
+      );
+    }
   }
   slides.push(...introDecks.map((deck) => deck.markdown));
   // The index in `slides` of the divider slide of each nested page, for links.

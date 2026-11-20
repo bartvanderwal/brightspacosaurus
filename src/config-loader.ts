@@ -8,7 +8,7 @@
  */
 
 import { validatePptxSettings } from "./pptx/settings.ts";
-import { resolveFlashcardsOptions } from "./flashcards.ts";
+import { normalizeSectionHeading, resolveFlashcardsOptions } from "./flashcards.ts";
 import { resolveLearningObjectivesOptions } from "./learning-objectives.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
 import { resolveTeacherPage } from "./teacher-page.ts";
@@ -417,8 +417,36 @@ export function validateConfig(config: unknown): config is BsoConfig {
     }
     const lint = obj.lint as Record<string, unknown>;
     for (const key of Object.keys(lint)) {
-      if (key !== "includeDirs" && key !== "quizBias" && key !== "allowedFileTypes") {
+      if (key !== "includeDirs" && key !== "quizBias" && key !== "allowedFileTypes" && key !== "lessonTemplate") {
         throw new Error(`Unknown configuration field 'lint.${key}'.`);
+      }
+    }
+    if (lint.lessonTemplate !== undefined) {
+      const template = lint.lessonTemplate;
+      if (typeof template !== "object" || template === null || Array.isArray(template)) {
+        throw new Error("Field 'lint.lessonTemplate' must be an object.");
+      }
+      const value = template as Record<string, unknown>;
+      if (Object.keys(value).some((key) => key !== "prefix" && key !== "sections")) {
+        throw new Error("Field 'lint.lessonTemplate' accepts only 'prefix' and 'sections'.");
+      }
+      if (typeof value.prefix !== "string" || !value.prefix.trim() || /[\\/]/.test(value.prefix)) {
+        throw new Error("Field 'lint.lessonTemplate.prefix' must be a non-empty filename prefix without path separators.");
+      }
+      if (!Array.isArray(value.sections) || value.sections.length === 0) {
+        throw new Error("Field 'lint.lessonTemplate.sections' must be a non-empty array.");
+      }
+      const names = new Set<string>();
+      for (const section of value.sections) {
+        if (typeof section !== "object" || section === null || Array.isArray(section) ||
+          Object.keys(section).some((key) => key !== "heading" && key !== "optional") ||
+          typeof section.heading !== "string" || !section.heading.trim() ||
+          (section.optional !== undefined && typeof section.optional !== "boolean")) {
+          throw new Error("Each 'lint.lessonTemplate.sections' entry needs a non-empty heading and an optional boolean 'optional'.");
+        }
+        const name = normalizeSectionHeading(section.heading);
+        if (names.has(name)) throw new Error(`Duplicate lesson template heading '${section.heading}'.`);
+        names.add(name);
       }
     }
     if (
@@ -1004,6 +1032,7 @@ export function resolveConfig(
         : config.lint?.includeDirs?.map((dir) => resolve(repoRoot, dir)),
       quizBias: config.lint?.quizBias,
       allowedFileTypes: config.lint?.allowedFileTypes,
+      lessonTemplate: config.lint?.lessonTemplate,
     },
     diagrams: resolveDiagramsConfig(config),
     teacherDashboard: resolveTeacherDashboardConfig(config.teacherDashboard),

@@ -233,7 +233,7 @@ Question "0..*" -- "1" Objective : tests >
 
 Two things in the figure are choices to confirm with the owner and not yet decisions:
 
-1. **The first part of every lesson is the learning objectives and outcomes, before the lesson overview** (decided by the owner, as in owe-1). The standard lesson template then grows from 8 to 9 parts (#160 still lists 7 for the demo course and needs the same change). Open: whether this is one part that lists the lesson's own objectives with the LUK codes they contribute to, or two parts (*Learning outcomes*, then *Learning objectives*); this model assumes one part, because the tickable list of #167 already carries the codes.
+1. **The first part of every lesson is the learning objectives and outcomes, before the lesson overview** (decided by the owner, as in owe-1). Owe-1 now has eight numbered parts; course templates can choose their own section names. Open: whether objectives and outcomes are one part or two.
 2. **How the course-level concepts are written down (the outcomes and criteria themselves).** Candidates are a table in the course description (the `traceability.oweDocument` of #65) or front matter per lesson. The syntax is not decided; the principle of one canonical form (*strict, not forgiving*) applies.
 
 The vocabulary follows the Poorvu Center at Yale for goal, objective and outcome. The link with the teaching model of the course (4C/ID, with learning tasks, supportive and procedural information and part-task practice) is *not drawn yet*: it would add the learning task as a lesson part and is a candidate for a later version of this model.
@@ -834,6 +834,15 @@ Decision of 27 October 2026, after a test import: the lesson page has **no line 
 
 Not verified: that the keys and the button work inside the frame of Brightspace (they work on the extracted package in a browser), and that a relative link from a lesson page to a hidden file works after the import.
 
+**Lesson template lint**
+
+| # | Rule |
+| --- | --- |
+| LT1 | An optional `lint.lessonTemplate` names a filename `prefix` and an ordered, nonempty list of `sections`, each with a `heading` and optional boolean `optional`. It applies only to lesson files with that prefix. No template means no template check. |
+| LT2 | Match top-level H2 headings to template names case-insensitively, ignoring a leading section number. Warn for missing required sections, unexpected or duplicate sections and sections out of order. Code fences are not headings. |
+| LT3 | A lesson may opt out with `lessonTemplate: false` in its front matter. Other values must be boolean and invalid values produce a warning instead of opting out. |
+| LT4 | A generated lesson with more than eight sections, excluding sources and appendices, gets a `slides-too-many-sections` warning. |
+
 #### 7.9.5 Generated slides: what a section gives (#141)
 
 A lesson that becomes slides is read from top to bottom. The rules below say which slides come out; each is a testable statement, and `tests/lesson-slides.test.ts` follows them.
@@ -841,10 +850,10 @@ A lesson that becomes slides is read from top to bottom. The rules below say whi
 | # | Rule |
 | --- | --- |
 | G1 | *Title slide.* The H1 gives one `lead` slide, with the images that stand between the H1 and the first section. |
-| G2 | *Contents slide.* With two or more sections with content, a slide lists them as plain `1. Introduction` lines, in lesson order, followed by the titles of linked decks (rule L6). |
+| G2 | *Contents slides.* With two or more sections with content, list them in lesson order, including linked decks, nested pages and the appendix entry. Put at most eight entries on each contents slide; preserve their order and indentation across slides. |
 | G3 | *A section gives slides only for what is on a slide:* lists, tables, images, code and diagrams. Running text is left out. |
 | G4 | *A section without anything of that is left out.* A `##` section that has only running text gets no slide and no entry in the contents slide, and does not count as a section for the contents slide. A linked deck in such a section is still inserted, and its title is still listed. |
-| G5 | *Sources are not sections.* A `Sources`, `Bronnen` or `References` section has slides by the same rules, but needs no number, does not count towards the nine sections and gets no `slides-section-without-content` warning. |
+| G5 | *Sources are not sections.* A `Sources`, `Bronnen` or `References` section has slides by the same rules, but needs no number, does not count towards the eight sections and gets no `slides-section-without-content` warning. |
 | G6 | *Long content continues.* More than 6 list items, 12 table lines (a long cell counts as several: about 130 characters fit on a line, shared by the columns) or 16 code lines continue on a next slide under the same heading. Tables repeat their header line. A section with more than one slide shows a counter after the heading: `Heading (1/3)`, `Heading (2/3)`, `Heading (3/3)`. |
 | G7 | *No empty slide.* A `---` that Marp would turn into an empty slide is not written (headingDivider, #141). |
 
@@ -964,6 +973,7 @@ Three rules that came out of the comparison of the pptx of owe-1 with its own ge
 | --- | --- |
 | DT1 | A hand-written deck with `headingDivider` that starts with a lone `# Title` line, directly followed by the first `##`, would give a slide with only that title. The line is the name of the deck, not a slide, so it is left out, in the HTML and in the pptx. The `title` in the front matter stays the name of the deck. |
 | DT2 | Anything else before the first `##` keeps the slide: a deck without `headingDivider`, a subtitle, a directive such as `_class: lead`. The rule does not apply to a generated deck. |
+| DT3 | `bso lint` warns `slides-nearly-empty` when a slide in an authored deck has a heading but no content besides headings and comments. An image, paragraph, list, table, code block or diagram counts as content. A slide explicitly marked with class `center` or `full-image` is exempt. The finding names the slide number and heading. |
 | IR1 | The names in `slides.pptxImageRightClasses` (for example `["img-right"]`) are the classes of the course (`<!-- _class: img-right -->`) that put the picture of a slide on the right in the **pptx**: the first picture goes to the right, 40% of the width, and a paragraph that is all italic (`*Source: ...*`) is its caption, under the picture. The HTML slides come from the theme of the course, which knows its own classes; BSO does not guess a layout from a class name that is not in the list. |
 | IR2 | A slide without such a class, and a deck of a course without the setting, keep the picture where it is. |
 | IR3 | The picture and its caption are checked in the pptx: the picture starts in the right half and the caption box starts below the picture. |
