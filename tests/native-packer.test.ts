@@ -20,7 +20,7 @@ Deno.test("escapeXml escapes markup and keeps newlines as character references",
   );
 });
 
-Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles, roots the paths of pictures and drops links to course files", () => {
+Deno.test("moduleDescriptionFromHtml keeps the body without scripts, roots the paths of pictures and drops links to course files", () => {
   const html =
     '<html><head><style>x{}</style></head><body><div><h1>Week</h1><img src="../images/pic.png" alt="p"><a href="other.html#a">o</a><a href="https://e.org/x.png">e</a></div><script>alert(1)</script></body></html>';
   const description = moduleDescriptionFromHtml(
@@ -32,9 +32,36 @@ Deno.test("moduleDescriptionFromHtml keeps the body without scripts and styles, 
   assertStringIncludes(description, "<img");
   assert(!description.includes("other.html"));
   assertStringIncludes(description, 'href="https://e.org/x.png"');
-  assert(!description.includes("script"));
-  assert(!description.includes("style"));
-  assert(description.startsWith("<div><h1>Week</h1>"));
+  assert(!description.includes("<script"));
+  assertStringIncludes(
+    description,
+    "<style>@scope (.bso-module-description) {\nx{}\n}</style>",
+  );
+  assertStringIncludes(description, "<div><h1>Week</h1>");
+});
+
+// Spec *Module descriptions in the native package*, rule D2.
+Deno.test("D2: the module description carries its theme and font link, but no scripts", () => {
+  const html =
+    '<html><head><link rel="stylesheet" href="https://fonts.example/font.css"><style>:root { --ink: red } .brightspace-content { color: var(--ink) }</style></head><body><div class="brightspace-content"><p>Text</p></div><script>run()</script></body></html>';
+  const description = moduleDescriptionFromHtml(
+    html,
+    "content/week/index.html",
+  );
+  assertStringIncludes(
+    description,
+    '<link rel="stylesheet" href="https://fonts.example/font.css">',
+  );
+  assertStringIncludes(
+    description,
+    "<style>@scope (.bso-module-description) {\n:scope { --ink: red } .brightspace-content { color: var(--ink) }\n}</style>",
+  );
+  assertStringIncludes(description, '<div class="bso-module-description">');
+  assertStringIncludes(
+    description,
+    '<div class="brightspace-content"><p>Text</p></div>',
+  );
+  assert(!description.includes("<script"));
 });
 
 Deno.test("buildNativeManifest has module descriptions, backslash paths and is deterministic", () => {

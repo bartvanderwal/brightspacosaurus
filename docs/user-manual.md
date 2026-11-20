@@ -783,6 +783,8 @@ A Common Cartridge import drops the text and the images of a main menu item (the
 
 The lead page of each module (`index.md`, `weekintro-1.md`, ...; see 8.2) becomes the module description, with its images; the other lessons and the reader PDFs are topics, and `content/` and `readers/` are the course files. **Quizzes (experimental):** each quiz becomes a `quiz_d2l_<n>.xml` file with a link topic in its module, and the images of the quizzes (diagrams too) go to the root of the package, as Brightspace does itself. BSO writes the same QTI as for the `.imscc` with the extra attributes Brightspace expects; whether Brightspace accepts that, and shows the diagrams, is not yet verified with an import. Until it is, import the quizzes from the `.imscc` as well and compare.
 
+The module description includes the BSO theme, including custom CSS and the Barlow font link. Its CSS is scoped to the description, not the surrounding Brightspace page; lesson pages keep their own theme as before. Verify after import that Brightspace retains the CSS and font link and that the browser can load the font. This has not yet been verified in Brightspace.
+
 The format is reverse-engineered from exports, not documented by D2L, so treat the package as a test: import it into a sandbox course first and check the module descriptions on the main menu items (issue #21).
 
 ### 6.2 The publication folder

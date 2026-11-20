@@ -257,8 +257,8 @@ export function withoutCourseFileLinks(
 
 /**
  * The module description from the HTML of its lead page: the inside of
- * `<body>` without scripts and styles, with relative `src` and `href` paths made relative to the root of
- * the course files, because that is where Brightspace looks for them.
+ * `<body>` without scripts, with its styles isolated from the surrounding
+ * Brightspace page and relative paths rooted in the course files.
  */
 export function moduleDescriptionFromHtml(
   html: string,
@@ -272,13 +272,25 @@ export function moduleDescription(
   html: string,
   leadHref: string,
 ): { html: string; linksRemoved: number } {
-  // A description is rich text: no scripts or styles, only the content.
+  const head = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? "";
+  const fonts = [
+    ...head.matchAll(/<link\b[^>]*\brel=["']stylesheet["'][^>]*>/gi),
+  ]
+    .map((match) => match[0]).join("\n");
+  const styles = [...head.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)]
+    .map((match) =>
+      `<style>@scope (.bso-module-description) {\n${
+        match[1].replace(/:root\b/g, ":scope")
+      }\n}</style>`
+    ).join("\n");
   const stripped = withoutCourseFileLinks(
     (html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html)
-      .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ""),
+      .replace(/<script\b[\s\S]*?<\/script>/gi, ""),
   );
   const directory = posix.dirname(leadHref);
-  const rooted = stripped.html.replace(
+  const description =
+    `${fonts}\n${styles}\n<div class="bso-module-description">\n${stripped.html}\n</div>`;
+  const rooted = description.replace(
     /\b(src|href)="([^"#?]+)([^"]*)"/gi,
     (whole, attribute, path, rest) =>
       /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(path)

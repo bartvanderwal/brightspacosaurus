@@ -1029,6 +1029,7 @@ The lead page of a module becomes the *description* of the module in the native 
 | # | Rule | Test |
 | --- | --- | --- |
 | D1 | In a module description a link to a file of the course (a relative address) is shown as plain text: the link text stays, the link goes. Links to other sites, to an anchor on the page and to an address from the root stay. `bso pack --format brightspace` says for each module how many links it took out. The pages are in the menu of the module. | `tests/native-packer.test.ts` |
+| D2 | The native module description carries the same BSO theme and custom CSS as its lead page, and the font link needed by that theme. The description's styles are scoped to a wrapper so they do not style the surrounding Brightspace page. Scripts are not included. Whether Brightspace retains and applies these elements on import must be verified in Brightspace. | `tests/native-packer.test.ts` |
 
 Not built: a working link from a description to a lesson. It needs the address of the topic or of the course file as Brightspace gives it after the import (the quick link of a topic has a code that BSO does not know); the layer for it is not designed. The overview list that makes the menu order (rule O1) is read from the source, so the plain text in the description does not change the order.
 
