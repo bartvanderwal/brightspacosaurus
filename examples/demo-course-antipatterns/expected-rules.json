@@ -106,5 +106,9 @@
   "lessons/menu-link-excluded/draft.md": null,
   "lessons/metadata/old-quiz.xml": "unexpected-file",
   "lessons/metadata/slides-appendix-not-last.md": "slides-appendix-not-last",
-  "lessons/metadata/link-to-unpublished-page.md": "link-to-unpublished-page"
+  "lessons/metadata/link-to-unpublished-page.md": "link-to-unpublished-page",
+  "lessons/metadata/admonition-unknown-type.md": "admonition-unknown-type",
+  "lessons/metadata/admonition-empty.md": "admonition-empty",
+  "lessons/metadata/slides-nearly-empty.md": "slides-nearly-empty",
+  "lessons/metadata/template-unexpected-section.md": "lesson-template"
 }

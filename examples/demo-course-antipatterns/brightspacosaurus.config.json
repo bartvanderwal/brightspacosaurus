@@ -16,6 +16,14 @@
       "giveawayWords": [
         "only"
       ]
+    },
+    "lessonTemplate": {
+      "prefix": "template-",
+      "sections": [
+        {
+          "heading": "Introduction"
+        }
+      ]
     }
   },
   "slides": {
