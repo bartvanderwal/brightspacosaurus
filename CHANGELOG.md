@@ -7,10 +7,12 @@ All notable changes to Brightspacosaurus are documented here.
 ### Fixed
 
 - The user manual and Software Guidebook now use consecutive hierarchical section numbers, enforced by a test. Reference-list headings remain unnumbered.
+- `reader-heading-numbering` exempts back matter only when the heading is exactly the back-matter title: `References`/`Referenties` are now exempt like `Sources`, and a section that merely starts with such a word (for example *Appendices in a generated deck*) needs a number again (#179).
 
 ### Added
 
 - `bso init` creates a standalone config and the demo course bundled with the installed BSO version. It lists additions, confirms the absolute target directory (default no; `--yes`/`-y` for scripts), refuses conflicts without overwriting, and prints lint/build/preview/pack next steps. No Docusaurus app or npm setup is created; preview still requires a separate setup until #124. Quickstarts now begin with `bso init` (#170).
+
 ## 0.36.0
 
 ### Added

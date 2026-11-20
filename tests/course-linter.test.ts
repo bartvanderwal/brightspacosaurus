@@ -194,6 +194,7 @@ title: Reader demo
 ### 1.2 Second
 ## 2. Next
 ## Bronnen
+## References
 ## Literatuurlijst
 ## Versiegeschiedenis
 ## Bijlage A: Eerste
@@ -259,6 +260,22 @@ title: Reader demo
 
   assertEquals(
     lintMarkdown("## 1. One\n## 3. Three\n", "lesson.md"),
+    [],
+  );
+  // Exemption needs the whole title: a section *about* appendices or sources
+  // is a normal section and keeps its number.
+  assertEquals(
+    lintMarkdown(
+      "# Reader\n## 1. Intro\n## Appendices in a generated deck\n",
+      "reader-demo.md",
+    ).filter((issue) => issue.rule === "reader-heading-numbering").length,
+    1,
+  );
+  assertEquals(
+    lintMarkdown(
+      "# Reader\n## 1. Intro\n## 2. Sources of bias\n## Bronnen\n",
+      "reader-demo.md",
+    ),
     [],
   );
   assertEquals(
