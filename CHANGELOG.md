@@ -11,6 +11,18 @@ All notable changes to Brightspacosaurus are documented here.
 ### Added
 
 - `bso init` creates a standalone config and the demo course bundled with the installed BSO version. It lists additions, confirms the absolute target directory (default no; `--yes`/`-y` for scripts), refuses conflicts without overwriting, and prints lint/build/preview/pack next steps. No Docusaurus app or npm setup is created; preview still requires a separate setup until #124. Quickstarts now begin with `bso init` (#170).
+## 0.36.0
+
+### Added
+
+- Browser-rendered PowerPoint export in two explicit modes: `raster` (default, one full-slide image) and `native` (measured editable text/code, shapes, images and hyperlinks). `pptxMode` in the root deck/lesson frontmatter overrides `slides.pptxMode`; the existing `pptx` switch still controls whether export runs (#156, #177).
+- A source warning on the title in both modes, configurable with `pptxSourceNotice` (deck) or `slides.pptxSourceNotice` (course). Known Git source metadata supplies a clickable source link without publishing local paths.
+- Explicit, pinned Chromium setup: `deno task slides:browser`. Both modes share Playwright/Chromium; no browser downloads or fallback exporters during a build.
+
+### Changed
+
+- The CLI no longer uses the approximate editable Markdown-to-PPTX layout. The default has changed to raster; choose `native` explicitly for editable content. The Markdown-only library converter remains available.
+- The private owe-1/PowerPoint visual comparison remains a release gate; the existing course workaround must not be removed on the strength of public fixture tests alone.
 
 ## 0.35.0
 

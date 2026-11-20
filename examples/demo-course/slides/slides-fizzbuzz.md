@@ -2,6 +2,7 @@
 slides: true
 title: FizzBuzz
 paginate: true
+pptxMode: native
 ---
 
 # FizzBuzz

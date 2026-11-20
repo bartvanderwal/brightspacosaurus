@@ -169,11 +169,13 @@ The most important fields:
 | `slides.generateForPrefix` | no    | Generate slides for source Markdown filenames beginning with this case-sensitive prefix; explicit `slides.lessons` entries override it |
 | `slides.notes`         | no       | `true` keeps presenter notes in `.imscc` slides; default `false` removes them (the preview always shows them) |
 | `slides.disclaimer`    | no       | Banner on every presented slide; default `Preview`; `""` disables it |
-| `slides.pptx`          | no       | `true` also writes every manual deck as an editable PowerPoint file; default `false`. A deck overrides it with `pptx: true`, `pptx: false` or `pptx: auto` in its front matter |
+| `slides.pptx`          | no       | `true` also writes every manual deck as a PowerPoint file; default `false`. A deck overrides it with `pptx: true`, `pptx: false` or `pptx: auto` in its front matter |
+| `slides.pptxMode` | no | `raster` (default): one full-slide image. `native`: measured, editable PowerPoint elements. Root deck/lesson frontmatter `pptxMode` overrides it. This does not enable export. |
+| `slides.pptxSourceNotice` | no | Source warning on the title: default `true`, `false` hides it, a nonempty string replaces the text. Root deck/lesson `pptxSourceNotice` overrides it. |
 | `slides.maxImageWidth` | no       | Largest width in pixels of a PNG or JPEG in the slides and the pptx files, default `1600`; wider pictures are shrunk in the embedded copy, never in the source; `0` turns it off |
 | `slides.titlePrefix` | no | A regular expression for the start of a slide title that is left out, for example `Slide \\d+ - ` for the headings `## Slide 3 - Standup`. It is removed from the titles in the HTML slides and in the pptx; the Markdown source stays as it is. A title that is only the prefix is kept. |
-| `slides.pptxImageRightClasses` | no | The classes of your theme (`<!-- _class: img-right -->`) that put the picture of a slide on the right. Only the pptx needs the list; the HTML slides use your theme. In the pptx the first picture goes to the right (40% of the width) and a paragraph that is all italic (`*Source: ...*`) becomes its caption under the picture. |
-| `slides.lessons.<lesson>.pptx` | no | `true` also writes the generated deck of that lesson, nested pages included, as an editable PowerPoint file. Without it, a generated deck has no pptx, whatever `slides.pptx` says: only the dedicated decks, the ones written by hand, are for download. Needs `generate: true` |
+| `slides.pptxImageRightClasses` | no | Legacy compatibility setting for the estimated layout. Rendered PPTX export now follows the actual CSS in `slides.theme`, just like the HTML, rather than separately interpreting class names. |
+| `slides.lessons.<lesson>.pptx` | no | `true` also writes the generated deck of that lesson, nested pages included, as a PowerPoint file. Without it, a generated deck has no pptx, whatever `slides.pptx` says: only the dedicated decks, the ones written by hand, are for download. Needs `generate: true` |
 | `slides.theme`         | no       | Marp theme CSS file, relative to the repository root; overrides deck-level theme selection in preview and the `.imscc` |
 | `slides.logo`          | no       | Logo on `.lead` slides, relative to the repository root; defaults to `readerCoverLogo` |
 | `quiz.shuffleAnswers` | no       | Random answer order in QTI and quiz preview (boolean, default `false`)                       |
@@ -624,9 +626,58 @@ The prefix is case-sensitive and matches the filename (not its parent directory)
 | What it is | The lesson itself, as a presentation: made by BSO from the lesson, so there is no second file to keep up to date. | A deck that you write by hand, for extra material: an exercise, a deeper explanation, a case. |
 | Who writes it | BSO (`generate: true` or `generateForPrefix`). | You (`slides: true` in a Markdown file). |
 | Preview | Alt/Option+T, no button. | Alt/Option+P and the *Slides* button. |
-| Download | None, unless the lesson says `pptx: true`. | An editable pptx (`slides.pptx`, or `pptx: true` in the deck). |
+| Download | None, unless the lesson configuration says `pptx: true`. | A raster or native pptx (`slides.pptx`, or `pptx: true` in the deck). |
 
 The first can contain the second: when a lesson links a deck with an ordinary Markdown link, the slides for the lesson are also inserted into the lesson as slides, at the place of the link, and still open on their own. A lesson can have only one kind, or both.
+
+**PowerPoint output: raster and native.** Raster means one image of the complete slide: text and code cannot be selected as PowerPoint text. Native means real PowerPoint elements: selectable text/code, hyperlinks, shapes and separate images, positioned from the rendered Marp layout. Raster raises the threshold for copying an answer, but is not copy protection: screenshots, OCR and LLMs can still read it. Both modes are available during development and publication; neither is universally faster or smaller.
+
+First install the pinned Chromium browser explicitly, from the course repository:
+
+```sh
+deno run -A jsr:@bartvanderwal/brightspacosaurus/slide-browser
+# In a BSO checkout: deno task slides:browser
+```
+
+The browser is stored under `build/slide-browser` and shared by raster/native (and the demo Playwright tests). It uses Playwright 1.63.0; profiles and scratch files stay under `build/browser-tmp`. No browser downloads happen during export. Lint and ordinary content commands do not need it. Linux may also need system libraries: install them explicitly with the matching Playwright `install-deps chromium` command. Deno needs read/write, subprocess, environment and system-information permissions for browser export (`-A` or the checkout's build/preview tasks). `bso pack` copies existing outputs and needs no browser.
+
+Set the course default:
+
+```json
+{ "slides": {
+  "generateForPrefix": "lesson-",
+  "pptx": true,
+  "pptxMode": "raster",
+  "pptxSourceNotice": true
+} }
+```
+
+Override it in a manual deck, or in the **lesson's own frontmatter** for its generated deck:
+
+```yaml
+---
+slides: true
+pptxMode: native
+pptxSourceNotice: "Edit the Markdown source in Git, not this PowerPoint."
+---
+```
+
+A generated lesson does not need `slides: true`; its existing `generate: true, pptx: true` lesson configuration still controls generation. Resolution is **root frontmatter > course configuration > raster**; child pages and appendices never change their parent's mode. A mode does not turn an export on. Invalid values fail explicitly. Logs and download labels state the mode. **Migration:** before 0.36.0 the CLI produced an approximate editable layout; it now defaults to raster. Set `native` explicitly to keep editable text, now positioned from Marp instead of the old approximation. `pptxImageRightClasses` is retained for configuration compatibility; use the course CSS theme for positioning in both HTML and PowerPoint.
+
+The default title warning is: “Generated from Markdown. Edit the source in its Git repository, not this PowerPoint; changes here will be lost on the next export.” It is independent of the `Preview` disclaimer. The title content scales proportionally into the space above a small warning band; no author content is removed and no slide is added. A known GitHub/GitLab origin and committed source file supply a clickable link to the Markdown; without them the warning is plain text, never an absolute local path. Set `pptxSourceNotice: false` to hide it. Both modes keep hyperlinks (raster uses transparent clickable overlays). Student files respect `slides.notes`; teacher files retain the notes.
+
+**Limits and verification.** GIFs are static and fragment animations are not exported. Native text/code is editable per measured line/token, not as one reflowing code block. Missing assets, unsupported native content and overflow fail with an actionable error instead of silently switching exporters. Public fixture tests do not prove PowerPoint rendering: visual comparison of the original owe-1 decks in Microsoft PowerPoint is still required before retiring its workaround.
+
+**Reproducible timing.** Run `deno task benchmark:pptx` in the BSO checkout after browser setup. The fixed fixture has 30 slides (title + 29 content slides), 100 bullets (five on each of the first 20 content slides), 10 distinct content illustrations (first 10 content slides) and nine code/reference slides. Automatic footer logos are separate, not counted among the ten illustrations. It measures the complete Markdown → PPTX route, including Marp, browser startup, assets, warning, compression and student/teacher files. It excludes fixture creation, installation, opening PowerPoint and rendering a PDF. One initial run per mode is reported separately, then three alternating runs; the report records versions, viewport, sizes and median/range under `build/pptx-benchmark/results.json`. Fonts are Arial and Courier New; missing system fonts can change layout. Use the same installed fonts when comparing environments.
+
+Measured locally on 30 October 2026: BSO 0.36.0, Apple M2 Pro, 16 GiB RAM, macOS arm64 (Darwin 24.6.0), Deno 2.9.8, Node 22.22.0, Playwright 1.63.0 and Chromium 153.0.8010.12. Viewport 1280 × 720, device scale 1, image limit 1600 pixels. Both modes ran serially on the same fixture, without concurrent BSO tests. Tool caches were already populated: the initial run is a warm-up, **not** a clean-install/cold-cache measurement.
+
+| Mode | Initial run (excluded) | Median, next 3 runs | Range, next 3 runs | Student PPTX |
+| --- | --- | --- | --- | --- |
+| raster | 12.61 s | 9.68 s | 9.05–10.19 s | 4.41 MiB |
+| native | 7.16 s | 6.75 s | 5.05–8.10 s | 1.15 MiB |
+
+These are **indications, not guarantees**. Images, code, fonts, caching and the system affect the result. Raster uses complete-slide PNG screenshots; native uses separate source/positioned-crop illustrations, so this is not identical image encoding. The benchmark checked 30 slides in each output, 100 complete native bullet texts and the code-section identifiers, and identical SHA-256 hashes across four exports per mode. It did not render the PPTX in PowerPoint. The repository-local browser cache occupied about 365 MiB (Chromium plus Playwright's FFmpeg); the existing Marp tool cache about 129 MiB. Clean-install duration was not measured, and a remote CI clean-install run has not yet been observed.
 
 Planned, not built (see the issues): *dual content* (the paragraphs of a lesson become the speaker notes of its slide).
 

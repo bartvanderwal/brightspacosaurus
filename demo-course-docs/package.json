@@ -22,6 +22,6 @@
     "remark-kroki-a11y": "0.6.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0"
+    "@playwright/test": "1.63.0"
   }
 }

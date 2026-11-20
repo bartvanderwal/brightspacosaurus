@@ -25,6 +25,7 @@ const TASKS: Record<string, string[]> = {
     "--allow-write",
     "--allow-run",
     "--allow-env",
+    "--allow-sys",
     "--allow-net=127.0.0.1",
     "tests/",
   ],
@@ -34,6 +35,7 @@ const TASKS: Record<string, string[]> = {
     "--allow-write",
     "--allow-run",
     "--allow-env",
+    "--allow-sys",
     "--allow-net=127.0.0.1",
     "--ignore=tests/reader-pdf-pages.test.ts,tests/reader-pdf-converter.test.ts,tests/reader-pdf-converter-unit.test.ts,tests/include-filter.test.ts,tests/details-filter.test.ts,tests/diagram-filter.test.ts",
     "tests/",
@@ -80,7 +82,7 @@ if (import.meta.main) {
   let exitCode = 1;
   try {
     const status = await new Deno.Command("deno", {
-      args,
+      args: [...args, ...Deno.args.slice(1)],
       stdin: "inherit",
       stdout: "inherit",
       stderr: "inherit",

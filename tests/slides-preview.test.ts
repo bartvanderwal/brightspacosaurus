@@ -11,11 +11,11 @@ import { validateConfig } from "../src/config-loader.ts";
 import {
   DECK_KEY_PREFIX,
   deckWantsPptx,
-  exportSlidesToContent,
+  exportSlidesToContent as exportSlidesToContentActual,
   EXTRA_KEY_PREFIX,
   LESSON_KEY_PREFIX,
   renderDiagramFences,
-  renderPreviewSlides,
+  renderPreviewSlides as renderPreviewSlidesActual,
   type SlidesConfig,
   type SlidesRunner,
   stripBackControls,
@@ -23,6 +23,37 @@ import {
   withBackControls,
   withSlideLayout,
 } from "../src/slides-preview.ts";
+import { convertDeckToPptx, parseDeck } from "../src/pptx/mod.ts";
+import type { RenderedPptxExporter } from "../src/pptx/rendered.ts";
+
+// These tests isolate selection/packaging. Real browser geometry is tested separately.
+const fakePptx: RenderedPptxExporter = async (request) => ({
+  bytes: await convertDeckToPptx(request.markdown, {
+    baseDir: request.repoRoot,
+    notes: request.notes,
+  }),
+  teacher: !request.notes &&
+      parseDeck(request.markdown).slides.some((slide) => slide.notes.length)
+    ? await convertDeckToPptx(request.markdown, {
+      baseDir: request.repoRoot,
+      notes: true,
+    })
+    : undefined,
+});
+
+function renderPreviewSlides(
+  ...args: Parameters<typeof renderPreviewSlidesActual>
+) {
+  args[7] ??= fakePptx;
+  return renderPreviewSlidesActual(...args);
+}
+
+function exportSlidesToContent(
+  ...args: Parameters<typeof exportSlidesToContentActual>
+) {
+  args[7] ??= fakePptx;
+  return exportSlidesToContentActual(...args);
+}
 
 async function fixture(run: (root: string) => Promise<void>): Promise<void> {
   await Deno.mkdir("build", { recursive: true });

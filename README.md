@@ -63,6 +63,7 @@ Brightspacosaurus was created by Bart van der Wal, lecturer in Software Engineer
 
 - [Deno](https://deno.com/) ≥ 2.0 — see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the rationale
 - [pandoc](https://pandoc.org/) (optional) — required for reader-PDF generation and the instructor manual
+- Chromium (optional) — for PowerPoint export only; install explicitly from the course repository with `deno run -A jsr:@bartvanderwal/brightspacosaurus/slide-browser`. Raster (default) captures complete slides; `slides.pptxMode: "native"` keeps editable elements. See the [user manual](docs/user-manual.md) for inheritance, source warnings and limitations.
 
 ## Install and update
 
@@ -96,7 +97,7 @@ A project can also pin the version in its own scripts (`deno run -A jsr:@bartvan
 
 ### Permissions
 
-`-A` grants all permissions, for brevity. For least privilege, replace it with `--allow-read --allow-write --allow-run=pandoc,git,npm --allow-env`; `git` is only used for deterministic reader-PDF cover dates, and `npm` for the preview and the slides (see [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the security rationale).
+`-A` grants all permissions, for brevity. For ordinary content commands, replace it with `--allow-read --allow-write --allow-run=pandoc,git,npm --allow-env`; `git` supplies reader dates and optional PPTX source links, and `npm` runs the preview and Marp. Browser-backed PowerPoint export additionally needs `--allow-sys` and permission to run the pinned Chromium executable (or `--allow-run`). See [ADR 008](docs/adr/adr008-brightspacosaurus-runtime-deno-vs-nodejs.md) for the runtime rationale.
 
 ### Without installing
 

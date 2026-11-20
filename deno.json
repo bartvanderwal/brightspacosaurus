@@ -1,6 +1,6 @@
 {
   "name": "@bartvanderwal/brightspacosaurus",
-  "version": "0.35.1",
+  "version": "0.36.0",
   "description": "CLI that turns Markdown course material into a Brightspace/D2L Common Cartridge (.imscc): quizzes become native QTI 1.2 assessments, readers become PDFs, PlantUML/Mermaid diagrams render automatically, and a Docusaurus preview lets you check formatting before import.",
   "license": "MIT",
   "exports": {
@@ -23,18 +23,21 @@
     "./flashcards-client": "./assets/brightspacosaurus-flashcards.js",
     "./objectives-client": "./assets/brightspacosaurus-objectives.js",
     "./slides-client": "./assets/brightspacosaurus-slides.js",
-    "./slides-remark": "./src/slides-preview-remark.ts"
+    "./slides-remark": "./src/slides-preview-remark.ts",
+    "./slide-browser": "./utils/slide-browser.ts"
   },
   "tasks": {
-    "build": "deno run --allow-read --allow-write --allow-run=pandoc,git,npm --allow-env --allow-net --node-modules-dir=auto src/main.ts build",
+    "build": "deno run --allow-read --allow-write --allow-run --allow-env --allow-sys --allow-net --node-modules-dir=auto src/main.ts build",
     "pack": "deno run --allow-read --allow-write --allow-env src/main.ts pack",
     "check": "deno check src/mod.ts src/main.ts",
     "lint": "deno lint",
+    "slides:browser": "deno run -A utils/slide-browser.ts",
+    "benchmark:pptx": "deno run -A utils/benchmark-pptx.ts",
     "test": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts all",
     "audit": "deno run --allow-run=deno utils/audit.ts",
     "test:fast": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts fast",
     "test:pdf": "deno run --allow-read=build --allow-write=build --allow-run=deno utils/test-runner.ts pdf",
-    "preview": "deno run --allow-read --allow-write=build,demo-course-docs --allow-env --allow-run=npm --allow-net src/main.ts preview",
+    "preview": "deno run --allow-read --allow-write=build,demo-course-docs --allow-env --allow-sys --allow-run --allow-net src/main.ts preview",
     "demo:pack": "cd examples/demo-course && deno run -A ../../src/main.ts build && deno run -A ../../src/main.ts pack",
     "stop": "deno run --allow-run=lsof,ps utils/stop-preview.ts",
     "lint:demo": "deno run --allow-read --allow-env src/main.ts lint",
@@ -56,6 +59,7 @@
       "write": true,
       "run": true,
       "env": true,
+      "sys": true,
       "net": ["127.0.0.1"]
     }
   },
@@ -72,6 +76,8 @@
     "fast-check": "npm:fast-check@^4.7.0",
     "jszip": "npm:jszip@^3.10.0",
     "pptxgenjs": "npm:pptxgenjs@^4.0.1",
+    "playwright": "npm:playwright@1.63.0",
+    "@std/yaml": "jsr:@std/yaml@^1.0.0",
     "image-size": "npm:image-size@^2.0.2",
     "jpeg-js": "npm:jpeg-js@0.4.4",
     "pngjs": "npm:pngjs@7.0.0",
@@ -104,6 +110,7 @@
       "assets/brightspacosaurus-tabs.js",
       "assets/brightspacosaurus-tabs.d.ts",
       "assets/brightspacosaurus-slides.js",
+      "assets/pptx-extract.js",
       "assets/brightspacosaurus-slides.d.ts",
       "assets/brightspacosaurus-copy-button.js",
       "assets/reader-header.tex",
@@ -117,6 +124,7 @@
       "docs/software-guidebook.md",
       "README.md",
       "deno.json",
+      "utils/slide-browser.ts",
       "assets/brightspacosaurus-quizzes.js",
       "assets/teacher-dashboard/",
       "examples/demo-course/lessons/",

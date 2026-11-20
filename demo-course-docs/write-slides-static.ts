@@ -5,7 +5,7 @@
  * `BSO_PREVIEW_SLIDES` (it makes Alt/Option+P work on the lesson pages).
  * Usage:
  *
- * deno run --config deno.json --allow-read --allow-write=build --allow-env --allow-run=npm demo-course-docs/write-slides-static.ts build/preview-static
+ * deno run --config deno.json --allow-read --allow-write=build --allow-env --allow-sys --allow-run demo-course-docs/write-slides-static.ts build/preview-static
  *
  * Marp is installed with npm on first use, next to the static directory.
  */

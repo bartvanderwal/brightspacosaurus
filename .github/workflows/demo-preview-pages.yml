@@ -67,7 +67,12 @@ jobs:
         run: deno task audit
 
       - name: Fast tests (without pandoc PDFs)
-        run: deno task test:fast
+        # A pinned browser is shared by raster/native; there is no runtime download.
+        # Linux browser libraries are installed explicitly in CI.
+        run: |
+          deno run -A npm:playwright@1.63.0 install-deps chromium
+          deno task slides:browser
+          deno task test:fast
 
       - name: Voortgangsverkenner files for the preview
         if: github.event_name != 'pull_request'
@@ -88,7 +93,7 @@ jobs:
       # and the build reads their list from BSO_PREVIEW_SLIDES.
       - name: Slide decks for the preview
         if: github.event_name != 'pull_request'
-        run: deno run --config deno.json --allow-read --allow-write=build --allow-net=localhost:8000 --allow-env --allow-run=npm demo-course-docs/write-slides-static.ts build/preview-static
+        run: deno run --config deno.json --allow-read --allow-write=build --allow-net=localhost:8000 --allow-env --allow-sys --allow-run demo-course-docs/write-slides-static.ts build/preview-static
 
       # Readers are PDFs in Brightspace; the demo shows those PDFs too.
       - name: Install pandoc 3.9 and LuaLaTeX

@@ -914,7 +914,36 @@ A generated deck, with the pages it nests, can be written as an editable `.pptx`
 | X5 | The pptx of a deck splits it where Marp does: at `---` and at the headings of `headingDivider` (a number N for levels 1 to N, or a list), unless the heading is the first thing on its slide, and never inside a code fence. A slide that stays empty is left out. |
 | X6 | *What does not fit goes on a next slide.* A slide whose text does not fit at the smallest font size continues on further slides with the same title and a counter, `Title (2/3)`: list items, table rows (the header repeated) and lines of code are spread; the speaker notes stay with the first slide, an image stays where it was, and a link to another slide (`#12`) follows the new numbering. A title slide is not split. | pptx tests |
 
-#### 7.9.8 Title prefix
+#### 7.9.8 Rendered PowerPoint export
+
+The rules below supersede the estimated layout and continuation slides of *Generated deck pptx* for the CLI. The library's Markdown-only converter remains available for callers that explicitly choose that approximation. These rules and the migration matrix were written before implementation. Settings tests preceded their code; the browser and wiring regression tests were written after the implementation.
+
+| # | Rule |
+| --- | --- |
+| E1 | `slides.pptx` and the existing deck/lesson `pptx` switch still control whether a file is made. `pptxMode` in the root deck's frontmatter overrides `slides.pptxMode`, which overrides `raster`. A generated deck reads its override from the lesson frontmatter. Children never change the parent's mode. Invalid settings fail with the key and source. Each export logs the effective mode and its origin. |
+| E2 | Both modes use the same rendered Marp HTML, theme, dimensions, ordered slides and browser. Raster stores one complete slide image, not native body text. Native stores measured text/code runs, links, shapes and separate illustrations. It must not substitute the old estimated Markdown renderer. |
+| E3 | Notes come from Marp's indexed presenter-note elements, not a second split on headings. The student file respects `slides.notes`; a separate teacher file keeps notes. No new slides, continuation slides or renumbering are introduced by export. |
+| E4 | `pptxSourceNotice` is a boolean or nonempty string, inherited deck > course > default English warning. It is on by default and separate from `disclaimer`. The title reserves a bottom band by proportionally scaling its original content, without overlap or an extra slide. A known HTTP(S) Git origin and commit can supply the source link; absent metadata means plain text, never a guessed URL or a local path. Raster uses a clickable overlay. |
+| E5 | Playwright 1.63.0 and its Chromium build are shared by both modes. Installation is explicit (`deno task slides:browser`); lint and ordinary content commands require no browser. Missing browsers, fonts/assets that fail to load, unsupported visible content and overflowing content are actionable failures, never a fallback to estimated or raster export. Browser profiles, downloads and scratch output stay below `build/`. |
+| E6 | Both modes preserve local/embedded images and transparency. Image shrinking follows *Slide images*. Native code autoscaling uses measured glyph geometry. Fonts follow the theme, not hardcoded course fonts. GIF is static; fragment animations are not exported. Native runs are editable per measured line/token, not a reflowing whole code block. |
+| E7 | A mode/notice change rebuilds the PPTX; downloads, cartridge and `publishDir` use that rebuilt file. ZIP entries, metadata dates and ordering are deterministic for the same browser/font environment. |
+
+Migration baseline: the public literal snapshot in [the export handover](https://github.com/bartvanderwal/brightspacosaurus/issues/177#issuecomment-6517681516), originally `rendered-to-pptx.js` at owe-1 commit `e9b7225`, last changed in `fd00fcc`. Private lessons and images are not copied into this repository.
+
+| Reference mechanism | BSO destination | Preserve or change | Verification |
+| --- | --- | --- | --- |
+| Browser launch and image loading (snapshot lines 15–34) | `src/pptx/browser.ts` | Playwright instead of Puppeteer; pinned, explicit Chromium install; fail on missing assets | Real-browser integration tests; clean-install CI |
+| Section geometry (35–52) | `src/pptx/browser.ts` | Measure complete Marp SVG slides, including background/content/pseudo sections; not every `section` as a slide | Heading-divider, background and title fixtures |
+| Images/shapes (53–97) | `src/pptx/browser.ts` | Preserve transparency, frames and separate illustrations; crop `cover` instead of stretching it. Deliberate change: retain small embedded PNG/JPEG bytes instead of re-encoding everything, following ADR 025 | Image dimensions, alpha, original-byte and positioned-crop assertions |
+| Text walker and autoscaling (98–129) | `src/pptx/browser.ts` | Preserve measured scaling; do not exclude text because an outer Marp SVG is its ancestor | Full code manifest, scaled-code and SVG-ancestor regressions |
+| Footer/page number (130–140) | `src/pptx/browser.ts` | Read rendered pseudo content rather than inventing numbering | Appendix/footer tests |
+| Notes split (151–157) | `src/pptx/browser.ts` | Replace fragile `##` splitting with Marp's indexed notes | H1/title, heading-divider and notes tests |
+| PowerPoint assembly (158–204) | `src/pptx/rendered.ts` | Retain measured shapes/images/runs and links; deterministic ZIP; raster alternative | XML, hyperlink, notes, byte-repeatability tests |
+| Missing source warning | shared browser preparation | Add inherited notice and source-link overlay in both modes | Notice/override/no-metadata tests |
+
+**Release gate, not waived by unit tests:** compare the original Big Refactor, lesson 8.1 and a nested appendix deck through the public BSO commands in owe-1, then render both modes in Microsoft PowerPoint with recorded browser, fonts and PowerPoint version. Check title, full code, columns, proxy, Storybook, references, links, notes, appendix order and image quality. ZIP/XML tests prove content, not PowerPoint layout. Keep both issues open and leave the entire owe-1 workaround and publications intact until this gate passes. No access outside this workspace is needed for the public implementation and fixture tests.
+
+#### 7.9.9 Title prefix
 
 Some courses number the headings of their decks in the title (`## Slide 3 - Standup`), so that a teacher can say "slide 3" in a lecture. The prefix is useful in the source and in the lecture but not on the slide or in the pptx, where the number of the slide is shown anyway. `slides.titlePrefix` is a regular expression for what to leave out.
 
@@ -927,7 +956,7 @@ Some courses number the headings of their decks in the title (`## Slide 3 - Stan
 
 Tests: `tests/lesson-slides.test.ts` (TP1 to TP3), `tests/slides-config.test.ts` (TP4, the setting) and `tests/slides-preview.test.ts` (the HTML input and the pptx). The tests were written after the code.
 
-#### 7.9.9 Title of a deck, image on the right and speaker notes in the pptx
+#### 7.9.10 Title of a deck, image on the right and speaker notes in the pptx
 
 Three rules that came out of the comparison of the pptx of owe-1 with its own generator (#156).
 
@@ -944,7 +973,7 @@ Three rules that came out of the comparison of the pptx of owe-1 with its own ge
 
 Tests: `tests/lesson-slides.test.ts` (DT1, DT2), `tests/pptx.test.ts` (IR1 to IR3), `tests/slides-preview.test.ts` and `tests/publisher.test.ts` and `tests/packer.test.ts` (PN1 to PN3). The tests were written after the code. Not built from the same comparison: a theme for the pptx (`slides.pptxTheme`), the page number without the title slide, and notes in a generated deck.
 
-#### 7.9.10 Step-by-step lists
+#### 7.9.11 Step-by-step lists
 
 A hand-written deck can show a list one item at a time. BSO adds no syntax for it: it is the *fragmented list* of Marp (the HTML of the deck marks the items with `data-marpit-fragment`). In this guidebook and in the user manual it is called a **step-by-step list**, because *fragmented* says nothing about what the audience sees; PowerPoint calls the same effect animating bullet points one at a time (*Appear*; Microsoft, n.d.).
 
@@ -959,7 +988,7 @@ A hand-written deck can show a list one item at a time. BSO adds no syntax for i
 
 Tests: `tests/pptx.test.ts` (K4). K1 was checked on 27 October 2026 with the Marp CLI of BSO on a deck with `*`, `-`, `1.` and `1)` lists: only `*` and `1)` got `data-marpit-fragment`, numbered in one sequence over the whole slide. K2 was seen in the preview, K3 to K6 by reading the code. The test was written after the code.
 
-#### 7.9.11 Appendices in a generated deck
+#### 7.9.12 Appendices in a generated deck
 
 Decided with the owner for #156; rules A1 to A6, each with a test in `tests/lesson-slides.test.ts`, `tests/pptx.test.ts` and `tests/course-linter.test.ts` (written after the code). Marp leaves a slide with `paginate: skip` out of both the number and the total (checked: the other slides read `3/4` when four slides are counted), so the numbering of the other slides needs no CSS.
 
@@ -973,7 +1002,7 @@ Decided with the owner for #156; rules A1 to A6, each with a test in `tests/less
 | A6 | **The pptx follows.** The parser reads the class `appendix` and the footer text; the writer numbers the other slides `3/12` and writes the footer text on an appendix slide. A manual deck gets this too when its slides carry the class and a footer. |
 | A7 | **No empty slide from a directive.** The directives of a slide (`_class`, `_paginate`, `_footer`) come after its heading, and the `<style>` after the last slide; a comment before a heading that `headingDivider` splits at is a slide of its own, and so is a `---` before such a heading, so BSO leaves those `---` out of the appendix when the manual deck has a `headingDivider`. | slides-preview test; checked with Marp on a real deck |
 
-#### 7.9.12 Slide images
+#### 7.9.13 Slide images
 
 Decided in ADR 025 for #162; rules I1 to I10, with tests in `tests/image-shrink.test.ts`, `tests/slides-preview.test.ts` and `tests/pptx.test.ts` (written after the code). `src/image-shrink.ts`.
 

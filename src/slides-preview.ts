@@ -36,7 +36,12 @@ import {
   dropEmptySlideSeparators,
   headingDividerLevels,
 } from "./slide-separators.ts";
-import { convertDeckToPptx, parseDeck } from "./pptx/mod.ts";
+import { resolvePptxSettings } from "./pptx/settings.ts";
+import {
+  exportRenderedPptx,
+  type RenderedPptxExporter,
+} from "./pptx/rendered.ts";
+import { sourceLink } from "./pptx/source-link.ts";
 
 export type { SlidesConfig } from "./types.ts";
 
@@ -533,9 +538,20 @@ export function withSlideLayout(html: string, logoUrl: string): string {
       );
     },
   );
-  return /<\/head>/i.test(withLogos)
-    ? withLogos.replace(/<\/head>/i, `${style}</head>`)
-    : style + withLogos;
+  // Background slides render their page number on a separate pseudo section.
+  const withTotals = withLogos.replace(/<section\b[^>]*>/gi, (opening) => {
+    if (opening.includes("data-bso-total=")) return opening;
+    const page = Number(opening.match(/\bdata-marpit-pagination="(\d+)"/)?.[1]);
+    return opening.replace(
+      /^<section\b/i,
+      `<section data-bso-total="${total}"${
+        firstAppendix >= 0 && page > firstAppendix ? " data-bso-appendix" : ""
+      }`,
+    );
+  });
+  return /<\/head>/i.test(withTotals)
+    ? withTotals.replace(/<\/head>/i, `${style}</head>`)
+    : style + withTotals;
 }
 
 /** The BSO logo as a data URL, for slide decks of a course without a logo of its own. */
@@ -565,13 +581,19 @@ export function deckWantsPptx(deck: string, courseDefault = false): boolean {
 }
 
 /** A link to each `.pptx` in the top corner of the slides page. */
-export function withPptxLinks(html: string, names: string[]): string {
+export function withPptxLinks(
+  html: string,
+  names: string[],
+  modes: Record<string, "raster" | "native"> = {},
+): string {
   if (!names.length) return html;
   const style =
     `<style id="${PPTX_STYLE_ID}">.bso-pptx{position:fixed;top:10px;right:12px;z-index:20;display:flex;gap:8px;font:13px sans-serif}.bso-pptx a{background:#fff;color:#0b4a8f;border:1px solid #9aa4b2;border-radius:14px;padding:3px 10px;text-decoration:none}.bso-pptx a:hover{background:#eef4fb}@media print{.bso-pptx{display:none}}</style>`;
   const links = `<nav class="bso-pptx" aria-label="Downloads">${
     names.map((name) =>
-      `<a href="${escapeAttribute(name)}" download>Download pptx</a>`
+      `<a href="${escapeAttribute(name)}" download>Download pptx${
+        modes[name] ? ` (${modes[name]})` : ""
+      }</a>`
     ).join("")
   }</nav>`;
   const withStyle = /<\/head>/i.test(html)
@@ -974,6 +996,7 @@ export async function renderPreviewSlides(
   runner: SlidesRunner = runNpm,
   diagrams?: ResolvedDiagramConfig,
   previewFavicon?: string,
+  pptxExporter: RenderedPptxExporter = exportRenderedPptx,
 ): Promise<Record<string, string>> {
   if (!config) return {};
   const maxImageWidth = config.maxImageWidth ?? DEFAULT_MAX_IMAGE_WIDTH;
@@ -1362,8 +1385,101 @@ export async function renderPreviewSlides(
       if (!config.theme) html = withSlideLayout(html, slideLogo!);
       const disclaimer = config.disclaimer ?? DEFAULT_DISCLAIMER;
       const pptxNames: string[] = [];
+      const pptxModes: Record<string, "raster" | "native"> = {};
       {
         const used = new Set<string>();
+        const exportDeck = async (
+          markdown: string,
+          source: string,
+          name: string,
+        ) => {
+          const settings = resolvePptxSettings(
+            await Deno.readTextFile(source),
+            config,
+            relative(root, source),
+          );
+          console.log(`  pptx: ${name}: ${settings.mode} (${settings.origin})`);
+          const sourceUrl = settings.notice
+            ? await sourceLink(root, source)
+            : undefined;
+          if (settings.notice && !sourceUrl) {
+            console.log(
+              `  pptx: ${name}: source notice has no link (no supported Git origin/commit).`,
+            );
+          }
+          const pptxHtml = join(dirname(destination), ".bso-pptx.html");
+          const pptxInput = join(dirname(destination), ".bso-pptx.md");
+          try {
+            const embedded = await renderDiagramFences(
+              await embedImages(
+                markdown,
+                source,
+                root,
+                svgImages,
+                maxImageWidth,
+              ),
+              diagrams,
+              undefined,
+              svgImages,
+            );
+            const front = frontmatter(embedded)!;
+            const prepared = titled(
+              themeName
+                ? setTheme(front.header, themeName) + front.body
+                : embedded,
+            );
+            await Deno.writeTextFile(pptxInput, prepared);
+            const args = [...marpArgs];
+            args[args.indexOf("marp") + 1] = pptxInput;
+            args[args.indexOf("--output") + 1] = pptxHtml;
+            await runner(args, root);
+            let rendered = await Deno.readTextFile(pptxHtml);
+            for (const [placeholder, url] of svgImages) {
+              rendered = rendered.replaceAll(placeholder, url);
+            }
+            if (slideLogo) rendered = addLogo(rendered, slideLogo);
+            if (!config.theme) rendered = withSlideLayout(rendered, slideLogo!);
+            if (disclaimer) {
+              rendered = rendered.replace(
+                /<\/head>/i,
+                `${banner(disclaimer)}</head>`,
+              );
+            }
+            await Deno.writeTextFile(pptxHtml, rendered);
+            const result = await pptxExporter({
+              htmlPath: pptxHtml,
+              markdown: prepared,
+              repoRoot: root,
+              mode: settings.mode,
+              notice: settings.notice,
+              sourceUrl,
+              maxImageWidth,
+              notes: config.notes === true,
+            });
+            await Deno.writeFile(
+              join(dirname(destination), name),
+              result.bytes,
+            );
+            if (result.teacher) {
+              await Deno.mkdir(join(dirname(destination), TEACHER_DIR), {
+                recursive: true,
+              });
+              await Deno.writeFile(
+                join(dirname(destination), TEACHER_DIR, name),
+                result.teacher,
+              );
+            }
+            pptxNames.push(name);
+            pptxModes[name] = settings.mode;
+            used.add(name);
+          } finally {
+            for (const file of [pptxInput, pptxHtml]) {
+              await Deno.remove(file).catch((error) => {
+                if (!(error instanceof Deno.errors.NotFound)) throw error;
+              });
+            }
+          }
+        };
         // The generated deck of a lesson, nested pages included, only when the lesson
         // says `pptx: true`: the dedicated slides are the ones to download (rule X1).
         if (
@@ -1374,24 +1490,11 @@ export async function renderPreviewSlides(
           for (const [placeholder, url] of svgImages) {
             markdown = markdown.replaceAll(placeholder, url);
           }
-          const bytes = await convertDeckToPptx(titled(markdown), {
-            imageRightClasses: config.pptxImageRightClasses,
-            baseDir: dirname(plan.lesson),
-            notes: config.notes === true,
-            logo: config.logo
-              ? (isAbsolute(config.logo)
-                ? config.logo
-                : resolve(root, config.logo))
-              : undefined,
-            disclaimer,
-          });
           // Named after the lesson file, so a download says what it is from.
           const lessonPptx = `${
             basename(plan.lesson).replace(/\.md$/i, "")
           }.pptx`;
-          await Deno.writeFile(join(dirname(destination), lessonPptx), bytes);
-          pptxNames.push(lessonPptx);
-          used.add(lessonPptx);
+          await exportDeck(markdown, plan.lesson, lessonPptx);
         }
         for (const source of configured) {
           const markdown = dropLooseDeckTitle(expandSlideIncludes(
@@ -1412,49 +1515,7 @@ export async function renderPreviewSlides(
           for (let n = 2; used.has(name); n++) {
             name = `${basename(source).replace(/\.md$/i, "")}-${n}.pptx`;
           }
-          used.add(name);
-          const bytes = await convertDeckToPptx(titled(deckMarkdown), {
-            imageRightClasses: config.pptxImageRightClasses,
-            maxImageWidth,
-            baseDir: dirname(source),
-            notes: config.notes === true,
-            logo: config.logo
-              ? (isAbsolute(config.logo)
-                ? config.logo
-                : resolve(root, config.logo))
-              : undefined,
-            disclaimer,
-          });
-          await Deno.writeFile(join(dirname(destination), name), bytes);
-          pptxNames.push(name);
-          // The pptx for the teacher has the speaker notes of the deck; the one in the package has
-          // them only when `slides.notes` is true, because students can open the package (rule PN1).
-          if (
-            config.notes !== true &&
-            parseDeck(titled(deckMarkdown)).slides.some((slide) =>
-              slide.notes.length > 0
-            )
-          ) {
-            const teacher = await convertDeckToPptx(titled(deckMarkdown), {
-              imageRightClasses: config.pptxImageRightClasses,
-              maxImageWidth,
-              baseDir: dirname(source),
-              notes: true,
-              logo: config.logo
-                ? (isAbsolute(config.logo)
-                  ? config.logo
-                  : resolve(root, config.logo))
-                : undefined,
-              disclaimer,
-            });
-            await Deno.mkdir(join(dirname(destination), TEACHER_DIR), {
-              recursive: true,
-            });
-            await Deno.writeFile(
-              join(dirname(destination), TEACHER_DIR, name),
-              teacher,
-            );
-          }
+          await exportDeck(deckMarkdown, source, name);
         }
       }
       html = withBackControls(
@@ -1477,6 +1538,7 @@ export async function renderPreviewSlides(
             ? html.replace(/<\/head>/i, `${banner(disclaimer)}</head>`)
             : html,
           pptxNames,
+          pptxModes,
         ),
       );
       result[plan.lesson] = plan.url;
@@ -1561,6 +1623,7 @@ export async function exportSlidesToContent(
   contentDir: string,
   runner: SlidesRunner = runNpm,
   diagrams?: ResolvedDiagramConfig,
+  pptxExporter: RenderedPptxExporter = exportRenderedPptx,
 ): Promise<string[]> {
   if (!config) return [];
   const rendered = await renderPreviewSlides(
@@ -1570,6 +1633,8 @@ export async function exportSlidesToContent(
     staticDir,
     runner,
     diagrams,
+    undefined,
+    pptxExporter,
   );
   const root = await Deno.realPath(resolve(repoRoot));
   const sources = resolve(root, sourcesDir);

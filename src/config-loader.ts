@@ -7,6 +7,7 @@
  * @module
  */
 
+import { validatePptxSettings } from "./pptx/settings.ts";
 import { resolveFlashcardsOptions } from "./flashcards.ts";
 import { resolveLearningObjectivesOptions } from "./learning-objectives.ts";
 import { resolveQuizOptions } from "./quiz-config.ts";
@@ -226,7 +227,8 @@ export function validateConfig(config: unknown): config is BsoConfig {
         key !== "lessons" && key !== "disclaimer" && key !== "notes" &&
         key !== "theme" && key !== "logo" && key !== "generateForPrefix" &&
         key !== "pptx" && key !== "maxImageWidth" &&
-        key !== "titlePrefix" && key !== "pptxImageRightClasses"
+        key !== "titlePrefix" && key !== "pptxImageRightClasses" &&
+        key !== "pptxMode" && key !== "pptxSourceNotice"
       ) {
         throw new Error(`Unknown configuration field 'slides.${key}'.`);
       }
@@ -340,6 +342,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
     if (slides.pptx !== undefined && typeof slides.pptx !== "boolean") {
       throw new Error("Field 'slides.pptx' must be true or false.");
     }
+    validatePptxSettings(slides, "slides");
     for (const field of ["theme", "logo"] as const) {
       const path = slides[field];
       if (path !== undefined) {

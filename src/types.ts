@@ -203,10 +203,10 @@ export interface SlidesConfig {
    */
   notes?: boolean;
   /**
-   * Course-wide default for writing a manual slide deck as an editable PowerPoint
+   * Course-wide default for writing a manual slide deck as a PowerPoint
    * file (`.pptx`) next to the slides. Off by default. A slide deck overrides it with
    * `pptx: true`, `pptx: false` or `pptx: auto` (course value) in its own front
-   * matter. Slides generated from a lesson are never converted.
+   * matter. A generated deck needs its lesson's explicit `pptx: true` setting.
    */
   pptx?: boolean;
   /**
@@ -222,11 +222,13 @@ export interface SlidesConfig {
    */
   titlePrefix?: string;
   /**
-   * Names of the classes of the course (`<!-- _class: img-right -->`) that put the picture of a
-   * slide on the right in the pptx, with an all-italic paragraph as its caption under it. The
-   * HTML slides come from the theme of the course, which knows the classes.
+   * Legacy estimated-layout setting. Browser-rendered PPTX uses the course's theme CSS.
    */
   pptxImageRightClasses?: string[];
+  /** Full-slide images by default; native preserves measured editable elements. */
+  pptxMode?: "raster" | "native";
+  /** Source warning on the title: default on, false hides it, text customises it. */
+  pptxSourceNotice?: boolean | string;
 }
 
 export interface BsoConfig {

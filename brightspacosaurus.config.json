@@ -19,7 +19,9 @@
       }
     },
     "disclaimer": "",
-    "pptx": true
+    "pptx": true,
+    "pptxMode": "raster",
+    "pptxSourceNotice": true
   },
   "diagrams": {
     "locale": "en",

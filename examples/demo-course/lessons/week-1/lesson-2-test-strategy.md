@@ -33,6 +33,7 @@ Figure 1 shows the shape: the higher a layer, the fewer tests it holds. The reas
 - Add an E2E test for a few key user journeys.
 
 [Extra slides: where does this test belong?](../../slides/slides-test-strategy.md)
+[Extra slides: full-stack refactor walkthrough](../../slides/slides-full-stack-refactor.md)
 
 ## 5. Reader
 

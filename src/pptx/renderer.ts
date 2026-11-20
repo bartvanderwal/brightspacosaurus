@@ -704,7 +704,10 @@ export function singleParagraphProperties(xml: string): string {
 }
 
 /** Same slide deck, same bytes: fixed file dates and a fixed order of the entries. */
-async function stabilize(bytes: Uint8Array, date: string): Promise<Uint8Array> {
+export async function stabilize(
+  bytes: Uint8Array,
+  date: string,
+): Promise<Uint8Array> {
   const source = await JSZip.loadAsync(bytes);
   const fixed = new Date(date);
   const target = new JSZip();

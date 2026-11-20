@@ -14,7 +14,7 @@ Slides come in two forms, and a lesson can have both.
 - As a **student**, I open a lesson and click *Slides* (or press Alt+P, on a Mac Option+P) to see its extra slides in the same tab. The browser's Back button, or Esc, returns me to the lesson.
 - As a **teacher**, I press Alt+T (Option+T on a Mac) to present the lesson itself, step by step, with the extra slides in the right place. No button, no setup per lesson.
 - As a **teacher**, I present straight from the lesson. The slides follow the lesson, so there is no second file to keep up to date.
-- As a **teacher**, I download an editable PowerPoint file of a hand-written deck when I want to adapt it for my own class.
+- As a **teacher**, I download a PowerPoint of a hand-written deck: raster keeps the slide as an image; native keeps editable text and separate illustrations. The Markdown in Git remains the source.
 - As a **course author**, I link my own deck in the lesson, where it belongs. The link starts the deck on its own, its slides appear in the lesson's slides at that place, and BSO tells me when a slide would come out empty. Lesson 1.1 does this.
 
 ![A title slide with the lesson title and the BSO logo](images/slides-title.png)
@@ -42,12 +42,14 @@ Explanation: look at the fixed title position, which does not move with the amou
 | Lesson | What you can do |
 | --- | --- |
 | [Lesson 1.1: FizzBuzz](../week-1/lesson-1-fizzbuzz.md) | Alt+T presents the lesson as slides, generated from the lesson text; the *FizzBuzz, step by step* deck, which the lesson links, is part of it. Alt+P (or the button) opens that extra deck alone. |
-| [Lesson 1.2: Test strategy](../week-1/lesson-2-test-strategy.md) | Like lesson 1.1: Alt+T presents the lesson, and the extra slides *Where does this test belong?* (three practice cases that are not in the lesson text) are linked in the lesson and open with Alt+P or the button. |
+| [Lesson 1.2: Test strategy](../week-1/lesson-2-test-strategy.md) | Like lesson 1.1: Alt+T presents the lesson, and two extra decks are linked in the lesson and open with Alt+P or the button: *Where does this test belong?* (practice cases) and *Full-stack refactor walkthrough* (code-heavy front-end/back-end refactor with PlantUML architecture and sequence slides). |
 | [Lesson 2.5: Test levels](../week-2/lesson-5-test-levels.md) | Alt+T presents the lesson with the three pages it links as nested sets. |
 
 The lesson is not copied: the generated slides are made from the lesson file each time, so a change in the lesson shows in the slides. Only the extra deck is a separate file.
 
 **Step-by-step lists.** In a hand-written deck a list written with `*` or `1)` shows its items one at a time, on a click or a key press, for example to ask a question and show the answer on the next click. See the practice cases of [lesson 1.2](../week-1/lesson-2-test-strategy.md). A list written with `-` shows everything at once. (Marp calls this a fragmented list; PowerPoint calls it 'animating bullet points one at a time'.)
+
+**Try both PowerPoint modes.** FizzBuzz overrides the course default with `pptxMode: native` in its deck frontmatter: text/code is selectable, with separate images and working links. Test Strategy has no override and inherits `raster`: one image per complete slide, so code cannot be selected as text. OCR and screenshots are still possible; raster is not copy protection. Both exports are static, without fragment animations, and show a small source warning on the title. Change the Markdown, not the generated PowerPoint. A known committed Git source provides a clickable source link; without that metadata the warning is plain text.
 
 <details>
 <summary>How to set up slides</summary>
@@ -59,14 +61,20 @@ Slides need no setup for lessons whose file name starts with a prefix you choose
   "slides": {
     "generateForPrefix": "lesson-",
     "logo": "shared/logo.png",
-    "pptx": true
+    "pptx": true,
+    "pptxMode": "raster",
+    "pptxSourceNotice": true
   }
 }
 ```
 
 - `generateForPrefix` turns every lesson whose file name starts with the prefix into slides.
 - `logo` is shown on the title slide and in the footer. Without it, BSO uses its own logo.
-- `pptx` also writes an editable PowerPoint file for every hand-written deck. A deck overrides it with `pptx: true`, `pptx: false` or `pptx: auto` in its front matter.
+- `pptx` also writes a PowerPoint file for every hand-written deck. A deck overrides it with `pptx: true`, `pptx: false` or `pptx: auto` in its front matter.
+- `pptxMode` chooses `raster` (the default) or `native`; the deck's own `pptxMode` wins. A generated deck reads its override from the lesson frontmatter; nested pages inherit the root's choice.
+- `pptxSourceNotice` is on by default. A deck can hide it with `false` or supply its own text.
+
+Install the shared Chromium browser once, explicitly, from the course repository: `deno run -A jsr:@bartvanderwal/brightspacosaurus/slide-browser` (`deno task slides:browser` in a BSO checkout). Both modes use the rendered Marp layout, and neither downloads a browser during export.
 
 A hand-written deck is a Markdown file with `slides: true` in its front matter. Link it in the lesson with an ordinary Markdown link (`[Extra slides](../../slides/slides-fizzbuzz.md)`): the link starts the deck on its own and its slides are inserted in the lesson's slides at that place. A deck without a lesson can also be attached with `slides.lessons`. Use `{@include: [text](path.md)}` to reuse another file on the slides, one level deep.
 

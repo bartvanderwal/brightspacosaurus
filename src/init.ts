@@ -62,6 +62,7 @@ export const DEMO_FILES: readonly string[] = [
   "slides/images/test-pyramid-platforms.jpg",
   "slides/images/test-pyramid-platforms.png",
   "slides/slides-fizzbuzz.md",
+  "slides/slides-full-stack-refactor.md",
   "slides/slides-test-strategy.md",
 ];
 

@@ -1,6 +1,5 @@
 ---
 slides: true
-pptx: false
 title: Where does this test belong?
 paginate: true
 ---
