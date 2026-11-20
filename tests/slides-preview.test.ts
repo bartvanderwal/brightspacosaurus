@@ -84,7 +84,7 @@ async function write(
 function lessonsOnly(result: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(result).filter(([key]) =>
-      ![LESSON_KEY_PREFIX, EXTRA_KEY_PREFIX].some((prefix) =>
+      ![LESSON_KEY_PREFIX, EXTRA_KEY_PREFIX, DECK_KEY_PREFIX].some((prefix) =>
         key.startsWith(prefix)
       )
     ),
@@ -1851,6 +1851,28 @@ Deno.test("a slide deck that is both linked and configured is inserted at the li
     );
     const lessonDeck = captured.find((input) => input.includes("# 1. One"))!;
     assertEquals(lessonDeck.match(/# Extra slide/g)?.length, 1);
+  });
+});
+
+// Spec *The lesson as slides: Alt+T*, rule T1.
+Deno.test("T1: a configured manual deck is part of the lesson presentation and separately available", async () => {
+  await fixture(async (root) => {
+    await write(root, "lessons/week/lesson.md", "# Lesson\n\n## 1. Topic\n\n- Content\n");
+    await write(root, "decks/extra.md", "---\nslides: true\ntitle: Extra deck\n---\n\n# Extra slide\n\nText.\n");
+    await write(root, "content/week/lesson.html", "<html><body><h1>Lesson</h1></body></html>");
+    const config = { lessons: { "week/lesson.md": { generate: true, decks: "decks/extra.md" } } };
+    const captured: string[] = [];
+    const map = await renderPreviewSlides(config, root, "lessons", "static", fake(captured));
+    const lesson = join(root, "lessons/week/lesson.md");
+    assertEquals(map[LESSON_KEY_PREFIX + lesson], "slides/week/lesson/index.html");
+    assertEquals(map[EXTRA_KEY_PREFIX + lesson], "slides/decks/decks/extra/index.html");
+    assert(captured.some((text) => text.includes("# 1. Topic") && text.includes("# Extra slide")));
+    assert(captured.some((text) => !text.includes("# 1. Topic") && text.includes("# Extra slide")));
+    const exported = await exportSlidesToContent(config, root, "lessons", "static", join(root, "content"), fake([]));
+    assertEquals(exported, ["week/lesson-slides.html", "week/lesson-slides-extra.html"]);
+    const page = await Deno.readTextFile(join(root, "content/week/lesson.html"));
+    assertStringIncludes(page, 'data-bso-slides-lesson="lesson-slides.html"');
+    assertStringIncludes(page, 'data-bso-slides="lesson-slides-extra.html"');
   });
 });
 

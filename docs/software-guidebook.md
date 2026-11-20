@@ -778,7 +778,7 @@ Two kinds of slides are told apart. A **lesson presentation** is the deck genera
 
 | # | Rule |
 | --- | --- |
-| T1 | `renderPreviewSlides` records for each lesson whose deck is generated from the lesson an entry `lesson:<path>` with the URL of that deck. For such a lesson that links decks it also records `extra:<path>`, the URL of the first linked deck. A lesson with only configured decks has neither; its own entry is its extra slides. |
+| T1 | `renderPreviewSlides` records for each lesson whose deck is generated from the lesson an entry `lesson:<path>` with the URL of that deck. It also records `extra:<path>` for the first linked deck, or, if none is linked, the first configured deck. A configured deck is appended to the lesson presentation and is also available on its own. A lesson with only configured decks has neither entry; its own entry is its extra slides. |
 | T2 | `remarkPreviewSlides` marks a lesson page with a hidden element. `data-bso-slides-lesson` holds the URL of the lesson presentation. `data-bso-slides` holds the URL of the extra slides, and is absent when there are none. |
 | T3 | Alt/Option+T opens the URL of `data-bso-slides-lesson` in the same tab, so the Back button returns to the lesson (ADR 022). Alt/Option+P opens the URL of `data-bso-slides`. Both use the physical key (`KeyT`, `KeyP`) and the same guards (editable fields, repeat, other modifiers, a link to another origin). |
 | T4 | A key does nothing on a page without the attribute it reads. |

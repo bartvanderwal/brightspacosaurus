@@ -15,6 +15,7 @@ import {
 } from "./includes.ts";
 import {
   type DeckLink,
+  deckTitle,
   deckTopicName,
   findDeckLinks,
   rewriteLinkTargets,
@@ -1167,6 +1168,9 @@ export async function renderPreviewSlides(
   for (const decks of linkedByLesson.values()) {
     for (const deck of decks) standalone.add(deck.path);
   }
+  for (const plan of plans) {
+    if (plan.generate && plan.decks.length) standalone.add(plan.decks[0]);
+  }
   for (const deckPath of [...standalone].sort()) {
     const slug = relative(root, deckPath).replaceAll("\\", "/").replace(
       /\.md$/i,
@@ -1555,13 +1559,17 @@ export async function renderPreviewSlides(
       });
     }
   }
-  // The extra slides of a lesson presentation: the first slide deck that the lesson links.
-  for (const [lesson, decks] of linkedByLesson) {
-    if (result[LESSON_KEY_PREFIX + lesson] === undefined) continue;
-    const first = decks.map((deck) => result[DECK_KEY_PREFIX + deck.path]).find(
+  // Linked decks take precedence over a configured deck for the extra-slides key.
+  for (const plan of plans) {
+    if (!plan.generate) continue;
+    const candidates = [
+      ...(linkedByLesson.get(plan.lesson) ?? []).map((deck) => deck.path),
+      ...plan.decks,
+    ];
+    const first = candidates.map((path) => result[DECK_KEY_PREFIX + path]).find(
       (url) => url !== undefined,
     );
-    if (first) result[EXTRA_KEY_PREFIX + lesson] = first;
+    if (first) result[EXTRA_KEY_PREFIX + plan.lesson] = first;
   }
   return result;
 }
@@ -1774,6 +1782,26 @@ export async function exportSlidesToContent(
           }.pptx`,
       );
     }
+  }
+  for (const [key, url] of Object.entries(rendered)) {
+    if (!key.startsWith(EXTRA_KEY_PREFIX)) continue;
+    const lesson = key.slice(EXTRA_KEY_PREFIX.length);
+    const stem = stemOf(lesson);
+    if (markers.get(stem)?.extra) continue;
+    const deckEntry = Object.entries(rendered).find(([name, value]) =>
+      name.startsWith(DECK_KEY_PREFIX) && value === url
+    );
+    if (!deckEntry) throw new Error(`Slides export: missing extra deck for ${lesson}`);
+    const deck = deckEntry[0].slice(DECK_KEY_PREFIX.length);
+    const topic = deckTopicName(basename(stem), basename(deck).replace(/\.md$/i, ""));
+    const title = deckTitle(await Deno.readTextFile(deck), basename(deck));
+    mark(stem, "extra", `${topic}.html`);
+    await exportTopic(
+      url,
+      join(dirname(stem), topic).replaceAll("\\", "/"),
+      `Slides: ${await lessonTitle(stem)} — ${title}`,
+      () => `${topic}.pptx`,
+    );
   }
   // The lesson page opens its slides with the button and the keys of the preview (rule S2).
   const script = await loadAssetText("brightspacosaurus-slides.js");

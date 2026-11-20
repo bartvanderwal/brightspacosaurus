@@ -8,6 +8,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 - The user manual and Software Guidebook now use consecutive hierarchical section numbers, enforced by a test. Reference-list headings remain unnumbered.
 - `reader-heading-numbering` exempts back matter only when the heading is exactly the back-matter title: `References`/`Referenties` are now exempt like `Sources`, and a section that merely starts with such a word (for example *Appendices in a generated deck*) needs a number again (#179).
+- A manual deck configured alongside a generated lesson is also available on its own with Alt/Option+P, in preview and export.
 
 ### Added
 
