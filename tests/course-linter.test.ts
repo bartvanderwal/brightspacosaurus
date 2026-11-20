@@ -47,7 +47,7 @@ Deno.test("lesson template checks order, missing and unexpected sections, and op
   assert(findings.some((d) => d.message.includes("duplicate")));
   assert(check("# Lesson\n\n## Introduction\n").some((d) => d.message.includes("Practice")));
   assertEquals(check("---\nlessonTemplate: false\n---\n\n# Lesson\n"), []);
-  assert(check("---\nlessonTemplate: no\n---\n\n# Lesson\n").some((d) => d.message.includes("boolean")));
+  assert(check("---\nlessonTemplate: no\n---\n\n# Lesson\n").some((d) => d.message.includes("true or false")));
 });
 
 // Spec *Lesson template lint*, rule LT4.
