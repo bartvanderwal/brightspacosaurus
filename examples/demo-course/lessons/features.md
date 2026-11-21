@@ -125,6 +125,10 @@ Term/definition lists become interactive flashcards, in a short and a long varia
 
 The list under a heading *Learning objectives* (or *Leerdoelen*) becomes a list of square checkboxes. A student ticks off the objectives and the browser remembers it: in `localStorage` of that browser, not on a server. See [the learning objectives page](features/learning-objectives.md).
 
+## Admonitions
+
+A block quote that starts with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` or `[!OPTIONAL]` becomes a callout block with a label, an icon and a border, so a learner sees where it starts and ends. It looks the same in Brightspace and in the preview. See [the admonitions page](features/admonitions.md).
+
 ## Teacher-only page
 
 One page in the course for teachers, hidden from students after import. BSO fills in which version of the course material and which BSO version were used for the package, so after an import you see at a glance whether Brightspace shows the current material. The page also hosts the Voortgangsverkenner.
