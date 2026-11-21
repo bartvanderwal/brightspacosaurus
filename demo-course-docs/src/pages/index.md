@@ -14,7 +14,7 @@ Each example has its own `brightspacosaurus.config.json` and shows a different w
 
 | Example | Organised by | What it shows |
 | --- | --- | --- |
-| [Example: weeks](/lessons/) | a folder per week | the features one by one, with a page per feature (WAT and HOE), quizzes, flashcards, diagrams, a reader and slides without a banner |
+| [Example: weeks](/lessons/) | a folder per week | the features one by one, with a page per feature (WHAT and HOW), quizzes, flashcards, diagrams, a reader and slides without a banner |
 | [Example: topics](/cursorisch-aanbod/lessons/introduction/) | a folder per topic | the menu per topic from the title of each `index.md`, readers in a content module, and slides with a banner text |
 
 The sources are in [`examples/`](https://github.com/bartvanderwal/brightspacosaurus/tree/main/examples).
