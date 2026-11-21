@@ -259,7 +259,7 @@ Sections titled `Core concepts` become flashcards automatically. To recognize ot
 ```json
 {
   "flashcards": {
-    "sectionHeadings": ["Kernbegrippen", "Kern begrippen", "kern concepten"]
+    "sectionHeadings": ["Key terms", "Glossary", "Vocabulary"]
   }
 }
 ```
@@ -526,16 +526,16 @@ The student sees "1 van 2 afgevinkt" (the text follows `diagrams.locale`) and th
 In your own Docusaurus app, add `remarkLearningObjectives` (from `@bartvanderwal/brightspacosaurus/learning-objectives`) to the remark plugins and add a client module that imports `@bartvanderwal/brightspacosaurus/objectives-client` and calls `globalThis.bsoObjectives?.initializeObjectives(document)` in `onRouteDidUpdate`. The script has no named export, so `import { initializeObjectives } from …` fails with *initializeObjectives is not a function*; use the global. See the [demo configuration](https://github.com/bartvanderwal/brightspacosaurus/blob/main/demo-course-docs/docusaurus.config.js). The Brightspace HTML export has the script built in.
 
 ```markdown
-## Kernbegrippen
+## Key terms
 
-- **request:** bericht waarmee een client een server om een handeling of gegevens vraagt.
-- **response:** bericht waarmee de server het resultaat van een request terugstuurt.
-- **statuscode:** HTTP-code die het resultaat van een request aanduidt, bijvoorbeeld `200`.
+- **request:** message with which a client asks a server for an action or for data.
+- **response:** message with which the server sends the result of a request back.
+- **status code:** HTTP code that shows the result of a request, for example `200`.
 ```
 
 BSO always supports both syntaxes, without a setting. Lists under these headings stay real bulleted lists: each clickable term and its short definition share a line, and only the definition is hidden, so a long glossary stays compact. Rich definitions with multiple paragraphs or lists keep their block layout. Explicit `::::flashcards` sets show boxed cards, also under a flashcard heading. The "Show definitions" / "Hide definitions" button follows `diagrams.locale` (`Toon definities` / `Verberg definities` for `nl`). Terms are real buttons with `aria-expanded`, so keyboard and screen readers work.
 
-Heading titles match exactly after trimming and ignoring letter case and a leading section number, so `## 7. Kernbegrippen` and `### 2.3 Kernbegrippen` match `Kernbegrippen`; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists or a `::::flashcards` set, so a heading without any flashcards is reported. The default heading `Core concepts` (any letter case) is checked even when `flashcards` is not configured. Place introductory prose before the heading or in a separate section.
+Heading titles match exactly after trimming and ignoring letter case and a leading section number, so `## 7. Key terms` and `### 2.3 Key terms` match `Key terms`; all heading levels work. The section includes subsections and ends at the next heading of the same or a higher level. Conversion preserves headings and other content, but `bso lint` warns if the section contains anything other than complete term/definition bullet lists or a `::::flashcards` set, so a heading without any flashcards is reported. The default heading `Core concepts` (any letter case) is checked even when `flashcards` is not configured. Place introductory prose before the heading or in a separate section.
 
 Each unordered list is converted only when every item has a non-empty term before the first colon (`:`) and a non-empty definition after it. Plain, **bold** and `inline-code` terms work, with the colon inside or outside their formatting. Definitions retain Markdown formatting, links, subsequent paragraphs and nested lists. Additional colons belong to the definition. Numbered lists, task lists and lists with incomplete items remain ordinary Markdown in full; other sections are unaffected.
 
