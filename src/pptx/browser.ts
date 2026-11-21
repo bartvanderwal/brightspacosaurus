@@ -66,6 +66,12 @@ export async function measureSlides(
   const scratch = resolve(options.repoRoot, "build/browser-tmp");
   await Deno.mkdir(scratch, { recursive: true });
   const profile = await Deno.makeTempDir({ dir: scratch, prefix: "pptx-" });
+  // Playwright runs in this process and puts its artifacts in the system temp
+  // folder, which a restricted write permission (the preview task) would ask
+  // about on every start. Pointing it at the scratch folder keeps all writes
+  // inside the build directory.
+  const previousTemp = Deno.env.get("TMPDIR");
+  Deno.env.set("TMPDIR", scratch);
   try {
     const context = await chromium.launchPersistentContext(profile, {
       executablePath,
@@ -134,6 +140,8 @@ export async function measureSlides(
       await context.close();
     }
   } finally {
+    if (previousTemp === undefined) Deno.env.delete("TMPDIR");
+    else Deno.env.set("TMPDIR", previousTemp);
     await Deno.remove(profile, { recursive: true });
   }
 }
