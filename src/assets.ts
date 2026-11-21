@@ -33,7 +33,9 @@ export async function loadAssetText(assetName: string): Promise<string> {
   const url = assetUrl(assetName);
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Cannot load asset: ${assetName} (${url}) — status ${response.status}`);
+    throw new Error(
+      `Cannot load asset: ${assetName} (${url}) — status ${response.status}`,
+    );
   }
   const text = await response.text();
   _assetCache.set(assetName, text);
@@ -49,7 +51,9 @@ export async function loadAssetBytes(assetName: string): Promise<Uint8Array> {
   const url = assetUrl(assetName);
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Cannot load asset: ${assetName} (${url}) — status ${response.status}`);
+    throw new Error(
+      `Cannot load asset: ${assetName} (${url}) — status ${response.status}`,
+    );
   }
   return new Uint8Array(await response.arrayBuffer());
 }
@@ -66,21 +70,87 @@ export async function loadDemoCourseBytes(path: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
+/** The folder of this process and the files in it, by asset name (spec *Asset loading*, rules M1-M3). */
+const materialized = new Map<string, Promise<string>>();
+let materializedDir: Promise<string> | undefined;
+let removeOnExit = false;
+
+/** Remove the folder when the process ends, also after an uncaught error (rule M3). */
+function removeFolderOnExit(): void {
+  if (removeOnExit) return;
+  removeOnExit = true;
+  globalThis.addEventListener("unload", () => {
+    // `unload` handlers cannot await, so the folder is removed synchronously.
+    const dir = lastDir;
+    if (!dir) return;
+    try {
+      Deno.removeSync(dir, { recursive: true });
+    } catch {
+      // Already removed by disposeMaterializedAssets().
+    }
+  });
+}
+let lastDir: string | undefined;
+
 /**
  * Materializes an asset to a temporary local file and returns the path.
  * Needed for external tools such as pandoc that require an actual file path on disk
  * (--include-in-header, --lua-filter) and do not accept a URL or stdin content.
  *
- * @param assetName File name relative to the assets/ directory
+ * All assets of a process go in one temporary folder, under their own name, and the
+ * same asset gives the same path again. The folder is removed when the process ends
+ * and by {@link disposeMaterializedAssets}; callers delete nothing themselves.
+ *
+ * @param assetName File name relative to the assets/ directory, without a path
  * @returns Absolute path to a temporary file containing the asset content
  */
-export async function materializeAsset(assetName: string): Promise<string> {
-  const text = await loadAssetText(assetName);
-  // Keep the extension so pandoc/tex recognizes the file type
-  const ext = assetName.includes(".") ? assetName.slice(assetName.lastIndexOf(".")) : "";
-  const tmpPath = await Deno.makeTempFile({ prefix: "bso-asset-", suffix: ext });
-  await Deno.writeTextFile(tmpPath, text);
-  return tmpPath;
+export function materializeAsset(assetName: string): Promise<string> {
+  if (
+    !assetName || assetName === ".." || /[\\/]/.test(assetName) ||
+    assetName.includes("..")
+  ) {
+    return Promise.reject(
+      new Error(
+        `Invalid asset name '${assetName}': use a file name without a path.`,
+      ),
+    );
+  }
+  const known = materialized.get(assetName);
+  if (known) return known;
+  const written = (async () => {
+    const text = await loadAssetText(assetName);
+    materializedDir ??= Deno.makeTempDir({ prefix: "bso-assets-" }).then(
+      (dir) => {
+        lastDir = dir;
+        removeFolderOnExit();
+        return dir;
+      },
+    );
+    const path = `${await materializedDir}/${assetName}`;
+    await Deno.writeTextFile(path, text);
+    return path;
+  })();
+  // A failed write must not be remembered: the next call tries again.
+  written.catch(() => materialized.delete(assetName));
+  materialized.set(assetName, written);
+  return written;
+}
+
+/**
+ * Remove the temporary folder of {@link materializeAsset} now. A later call makes a new
+ * folder. Safe to call when nothing was written.
+ */
+export async function disposeMaterializedAssets(): Promise<void> {
+  const dir = materializedDir;
+  materialized.clear();
+  materializedDir = undefined;
+  lastDir = undefined;
+  if (!dir) return;
+  try {
+    await Deno.remove(await dir, { recursive: true });
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
 }
 
 /**

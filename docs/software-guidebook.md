@@ -659,6 +659,18 @@ Bundled assets in `assets/` are **never** loaded with `import.meta.url` + `Deno.
 
 Every new asset must also be added to `publish.include` in `deno.json`, otherwise it is missing from the JSR package.
 
+The lifecycle of the temporary files is owned by `src/assets.ts` alone:
+
+| # | Rule |
+| --- | --- |
+| M1 | `materializeAsset(name)` writes into one temporary folder per process (`bso-assets-<random>`), under the name of the asset, so the file keeps its extension. A caller deletes nothing itself. |
+| M2 | The same asset gives the same path for the rest of the process, so repeated conversions (many readers) write each asset once. Concurrent calls for one asset share one write. |
+| M3 | The folder is removed when the process ends, also after an uncaught error, and by `disposeMaterializedAssets()`, which tests and long-running callers can use. A call after a dispose makes a new folder. |
+| M4 | A name that holds a path separator or `..` is rejected, so an asset can never be written outside the folder. |
+| M5 | No file called `bso-asset-*` is left in the temporary folder by a build. |
+
+Tests: `tests/assets.test.ts` (M1 to M5; M3 is also checked in a child process that exits normally and one that throws). The tests were written after the specification and before the code; the leak itself was found by counting `build/bso-asset-*` files in a working copy (514 files after two days).
+
 ### 7.4 Path handling
 
 - **Where:** `convertMarkdown` in `markdown-converter.ts`.
