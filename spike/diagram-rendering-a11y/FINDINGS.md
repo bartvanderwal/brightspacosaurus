@@ -1,29 +1,19 @@
 # SPIKE FINDINGS — diagram-rendering-a11y, task 1.1 (Beslissing 1)
 
-**Goal (informative prototype, not the real feature).** Determine whether
-`remark-kroki-a11y` runs **in-process under Deno** (Option A) or whether a Node
-subprocess is needed (Option B, pure fallback). No production code under `src/`,
-existing tests, or the production parts of `deno.json` were modified.
+**Goal (informative prototype, not the real feature).** Determine whether `remark-kroki-a11y` runs **in-process under Deno** (Option A) or whether a Node subprocess is needed (Option B, pure fallback). No production code under `src/`, existing tests, or the production parts of `deno.json` were modified.
 
-**Environment.** Deno 2.9.6 (aarch64-apple-darwin). Dependency pinned to
-`remark-kroki-a11y@0.6.2` (`npm view remark-kroki-a11y@0.6.2 version` → `0.6.2`;
-the `latest` tag has since caught up to `0.6.2`). Kroki server: the public
-`https://kroki.io` (HTTP 200, ~90 ms), so both PlantUML and Mermaid render
+**Environment.** Deno 2.9.6 (aarch64-apple-darwin). Dependency pinned to `remark-kroki-a11y@0.6.2` (`npm view remark-kroki-a11y@0.6.2 version` → `0.6.2`;
+the `latest` tag has since caught up to `0.6.2`). Kroki server: the public `https://kroki.io` (HTTP 200, ~90 ms), so both PlantUML and Mermaid render
 **without** a local Docker companion.
 
 ---
 
 ## DECISION: GO → Option A (in-process plugin)
 
-The in-process npm-compat path **works** under Deno 2.9.6. The CJS a11y wrapper
-loaded, its dynamic `import('remark-kroki')` (ESM backend) resolved, its Node
-`fs`/`path`/`process.env` usage worked, and the async unified pipeline produced
-valid diagram HTML for **both** PlantUML and Mermaid in **both** output modes,
-with **no `<script>`** and native `<details>`/`<summary>`.
+The in-process npm-compat path **works** under Deno 2.9.6. The CJS a11y wrapper loaded, its dynamic `import('remark-kroki')` (ESM backend) resolved, its Node `fs`/`path`/`process.env` usage worked, and the async unified pipeline produced valid diagram HTML for **both** PlantUML and Mermaid in **both** output modes, with **no `<script>`** and native `<details>`/`<summary>`.
 
 → Task 4 should register `remark-kroki-a11y` **in-process** in the BSO unified
-pipeline. **Option B (Node subprocess) is NOT needed.** The no-JS adaptation
-layer (Option C, task 5) is still required regardless (see "Gotchas").
+pipeline. **Option B (Node subprocess) is NOT needed.** The no-JS adaptation layer (Option C, task 5) is still required regardless (see "Gotchas").
 
 ---
 
@@ -211,13 +201,7 @@ but it did not break loading under Deno.)
    node `index` (e.g. `diagram-a11y-text-0`). That is stable for identical input
    order but the adapter should still assign content-hash/`sourceFile+index` ids
    (`ctx.makeId`) to guarantee idempotence (Requirements 1.6, 9.6).
-7. **Mermaid + local Docker Kroki.** With `kroki.io`, Mermaid renders out of the
-   box (verified). A self-hosted Docker Kroki needs the `yuzutech/kroki-mermaid`
-   companion for Mermaid (Requirement 2.9) — document this. (During the run a
-   transient `Error 500` line was logged by a fetch retry but did not affect the
-   final output; all fixtures produced valid SVG. kroki.io can occasionally 5xx
-   under load, which reinforces the `failOnError`/transient-vs-author-error
-   handling in Requirement 2/12.)
+7. **Mermaid + local Docker Kroki.** With `kroki.io`, Mermaid renders out of the box (verified). A self-hosted Docker Kroki needs the `yuzutech/kroki-mermaid` companion for Mermaid (Requirement 2.9) — document this. (During the run a transient `Error 500` line was logged by a fetch retry but did not affect the final output; all fixtures produced valid SVG. kroki.io can occasionally 5xx under load, which reinforces the `failOnError`/transient-vs-author-error handling in Requirement 2/12.)
 8. **Default output mode** is `img-html-base64` (base64 `<img>`), matching the
    design default; `inline-svg` confirmed working as the configurable alternative.
 

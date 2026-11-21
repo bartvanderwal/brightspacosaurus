@@ -147,7 +147,6 @@ The package is published to [npm](https://www.npmjs.com/package/@bartvanderwal/b
    - **Diagrams** — PlantUML and Mermaid fenced blocks in lesson pages are rendered during `bso build` via `remark-kroki-a11y` and Kroki. The Brightspace HTML output uses native no-JavaScript disclosure controls for source and textual descriptions.
    - **Instructor answer keys** — files with the `-antwoorden-docent` suffix are deliberately excluded from the student-facing package.
   - **Flashcards** — use `::::flashcards` with inner `:::flashcard` cards, lightweight `- **term:** definition` lists inside `:::flashcards`, or automatically convert glossary sections via `flashcards.sectionHeadings: ["Kernbegrippen"]`. Definitions support normal Markdown and remain readable without JavaScript. See the [flashcard guide](docs/user-manual.md#45-core-concept-flashcards).
-  - **Admonitions** — write `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]` or `> [!OPTIONAL]` for a callout block with a label, an icon and a border, the same in Brightspace and in the preview. See the [guide](docs/user-manual.md#411-admonitions).
 
   Includes use clickable Markdown-link syntax so the same source works in BSO, an editor and a Docusaurus preview:
 
