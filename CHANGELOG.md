@@ -12,6 +12,7 @@ All notable changes to Brightspacosaurus are documented here.
 
 ### Added
 
+- Optional `bsoVersion` in `brightspacosaurus.config.json` pins the exact BSO version a course is written for. Every command stops with an error naming both the required and the installed version when they differ, and says how to reconcile (install the required version, or update `bsoVersion` and the course material). Without the field nothing is checked.
 - Admonitions: a block quote that starts with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` or `[!OPTIONAL]` becomes a callout with a label, an icon and a border, with the same HTML and stylesheet in Brightspace and in the preview. `admonitions.labels` replaces the label of one type. `bso lint` warns about a mistyped marker (`admonition-unknown-type`) and an empty block (`admonition-empty`). Not built: slides, reader PDFs and a dark theme (#185).
 - Optional `lint.lessonTemplate` checks the ordered lesson sections for matching filename prefixes, with a frontmatter opt-out.
 - Authored slides with a heading but no content receive a `slides-nearly-empty` warning.

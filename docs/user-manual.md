@@ -153,6 +153,7 @@ The most important fields:
 | ---------------------- | -------- | -------------------------------------------------------------------------------------------- |
 | `courseName`           | yes      | Course name as shown in the manifest                                                         |
 | `version`              | yes      | Version number (semver), used in the `.imscc` filename and HTML badge                        |
+| `bsoVersion`           | no       | Exact BSO version this course is written for; every command stops with an error naming both versions when the installed BSO differs |
 | `sourcesDir`           | yes      | Source directory for lesson pages and quizzes                                                |
 | `docusaurusDocsDir`    | no       | Docusaurus docs-plugin root for document IDs (default: parent of `sourcesDir`)                |
 | `readersDir`           | no       | Source directory for reader Markdown (PDF conversion via pandoc)                             |

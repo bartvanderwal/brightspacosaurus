@@ -7,6 +7,7 @@
 
 // Config
 export {
+  checkBsoVersion,
   EXAMPLE_CONFIG,
   findConfigFile,
   loadConfig,

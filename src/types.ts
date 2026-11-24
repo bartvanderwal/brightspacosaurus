@@ -239,6 +239,11 @@ export interface BsoConfig {
   courseName: string;
   /** Versienummer (gebruikt in .imscc-bestandsnaam en HTML-badge). Verplicht. */
   version: string;
+  /**
+   * The exact BSO version this course is written for. Optional. When set, every
+   * command refuses to run with a different installed BSO version.
+   */
+  bsoVersion?: string;
   /** Bronmap voor lespagina's en quizzen (relatief aan Repo_Root). Verplicht. */
   sourcesDir: string;
   /** Bronmap voor readers (relatief aan Repo_Root). Optioneel. */

@@ -71,6 +71,7 @@ import type { ManifestEntry, ResolvedConfig } from "./types.ts";
 import {
   EXAMPLE_CONFIG,
   findConfigFile,
+  checkBsoVersion,
   loadConfig,
   resolveConfig,
   resolveFromCliOnly,
@@ -1502,6 +1503,7 @@ async function main(): Promise<void> {
     if (configPath) {
       // Config file found: load, validate and merge with CLI overrides
       const config = await loadConfig(configPath);
+      checkBsoVersion(config, version, configPath);
       resolvedConfig = resolveConfig(
         config,
         {

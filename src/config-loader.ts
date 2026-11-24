@@ -135,6 +135,26 @@ export async function loadConfig(configPath: string): Promise<BsoConfig> {
   return parsed;
 }
 
+/**
+ * Rejects a run when the config pins a `bsoVersion` that differs from the installed BSO version.
+ * Strict: exact match, no ranges. Both ways to reconcile are named in the message.
+ * @throws Error naming both versions
+ */
+export function checkBsoVersion(
+  config: BsoConfig,
+  installedVersion: string,
+  configPath: string,
+): void {
+  const required = config.bsoVersion;
+  if (required === undefined || required === installedVersion) return;
+  throw new Error(
+    `${configPath} requires BSO version ${required}, but the installed BSO version is ${installedVersion}.\n` +
+      `Either install BSO ${required} (for example 'deno install -A -g -f -n bso jsr:@bartvanderwal/brightspacosaurus@${required}/cli'),\n` +
+      `or change "bsoVersion" in ${configPath} to ${installedVersion} and then fix what changed between the versions\n` +
+      `(see CHANGELOG.md: features may be dropped or renamed, so the course material may need updating).`,
+  );
+}
+
 /** The headings that mark the overview list of a module unless `menu.overviewHeadings` says otherwise. */
 export const DEFAULT_OVERVIEW_HEADINGS = ["Overview", "Overzicht"];
 
@@ -154,6 +174,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
   const allowedTopLevelFields = new Set([
     "courseName",
     "version",
+    "bsoVersion",
     "sourcesDir",
     "readersDir",
     "readersModule",
@@ -200,6 +221,7 @@ export function validateConfig(config: unknown): config is BsoConfig {
 
   // Validate optional string fields
   const optionalStringFields = [
+    "bsoVersion",
     "readersDir",
     "readerCoverLogo",
     "assetsDir",
