@@ -27,6 +27,9 @@ Deno.test("checkBsoVersion: mismatch names both versions and both ways out", () 
   );
   assertStringIncludes(error.message, "0.35.0");
   assertStringIncludes(error.message, "0.36.0");
-  assertStringIncludes(error.message, "install BSO 0.35.0");
-  assertStringIncludes(error.message, 'change "bsoVersion"');
+  assertStringIncludes(error.message, "jsr:@bartvanderwal/brightspacosaurus@0.35.0/cli");
+  assertStringIncludes(error.message, 'Change "bsoVersion" in x.json to 0.36.0');
+  assertStringIncludes(error.message, "CHANGELOG.md");
+  assertStringIncludes(error.message, "Breaking");
+  assertStringIncludes(error.message, "user-manual.md");
 });

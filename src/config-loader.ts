@@ -147,11 +147,19 @@ export function checkBsoVersion(
 ): void {
   const required = config.bsoVersion;
   if (required === undefined || required === installedVersion) return;
+  const repo = "https://github.com/bartvanderwal/brightspacosaurus";
   throw new Error(
-    `${configPath} requires BSO version ${required}, but the installed BSO version is ${installedVersion}.\n` +
-      `Either install BSO ${required} (for example 'deno install -A -g -f -n bso jsr:@bartvanderwal/brightspacosaurus@${required}/cli'),\n` +
-      `or change "bsoVersion" in ${configPath} to ${installedVersion} and then fix what changed between the versions\n` +
-      `(see CHANGELOG.md: features may be dropped or renamed, so the course material may need updating).`,
+    `${configPath} requires BSO version ${required}, but the installed BSO version is ${installedVersion}.\n\n` +
+      `Choose one of two ways to make them match:\n\n` +
+      `  1. Change the installed BSO to ${required} (the version this course is written for):\n` +
+      `       deno install -A -g -f -n bso jsr:@bartvanderwal/brightspacosaurus@${required}/cli\n` +
+      `     If that version was published only recently, add --min-dep-age 0. Check the result with: bso --version\n\n` +
+      `  2. Change "bsoVersion" in ${configPath} to ${installedVersion}, and update the course material to that version.\n` +
+      `     Features may have been changed or dropped, so the build can then report new errors in your lessons.\n\n` +
+      `To see what differs between ${required} and ${installedVersion}, read the release notes for every version in between:\n` +
+      `  ${repo}/blob/main/CHANGELOG.md\n` +
+      `They list breaking changes (marked "Breaking"), new features (Added), changes (Changed) and bug fixes (Fixed).\n` +
+      `Installing and configuring: ${repo}#install and ${repo}/blob/main/docs/user-manual.md`,
   );
 }
 
