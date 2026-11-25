@@ -699,3 +699,64 @@ article.markdown details[open] summary {
     color: CanvasText;
   }
 }
+
+/* Collapsible admonitions (note, optional) use the native <details> element. */
+details.bso-admonition > summary.bso-admonition-title {
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 0;
+}
+
+details.bso-admonition > summary.bso-admonition-title::-webkit-details-marker {
+  display: none;
+}
+
+details.bso-admonition[open] > summary.bso-admonition-title {
+  margin-bottom: 0.5rem;
+}
+
+details.bso-admonition > summary.bso-admonition-title::after {
+  content: "\25B8";
+  margin-left: auto;
+  color: var(--bso-adm-line);
+}
+
+details.bso-admonition[open] > summary.bso-admonition-title::after {
+  content: "\25BE";
+}
+
+details.bso-admonition > summary.bso-admonition-title:focus-visible {
+  outline: 3px solid var(--bso-adm-line);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  details.bso-admonition > summary.bso-admonition-title::after {
+    color: CanvasText;
+  }
+  details.bso-admonition > summary.bso-admonition-title:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+/* The general rules for <details> above must not flatten the frame of a collapsible admonition. */
+.brightspace-content details.bso-admonition,
+article.markdown details.bso-admonition {
+  border: 1px solid var(--bso-adm-line);
+  border-left-width: 6px;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 1.25rem 0;
+}
+
+.brightspace-content details.bso-admonition > summary.bso-admonition-title,
+article.markdown details.bso-admonition > summary.bso-admonition-title {
+  color: var(--bso-adm-text);
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.brightspace-content details.bso-admonition[open] > summary.bso-admonition-title,
+article.markdown details.bso-admonition[open] > summary.bso-admonition-title {
+  margin-bottom: 0.5rem;
+}

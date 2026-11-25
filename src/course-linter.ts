@@ -25,7 +25,11 @@ import {
 } from "@std/path";
 import { unified } from "unified";
 import { parse as parseYaml } from "@std/yaml";
-import { admonitionIssues, type AdmonitionNode } from "./admonitions.ts";
+import {
+  admonitionIssues,
+  type AdmonitionNode,
+  isAdmonitionType,
+} from "./admonitions.ts";
 import remarkParse from "remark-parse";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
@@ -647,6 +651,22 @@ function inspectMarkdown(
         i++
       ) ignoredLines.add(i);
       return;
+    }
+    if (node.type === "containerDirective" && isAdmonitionType(node.name)) {
+      const end = node.position!.end;
+      const closing = lines[end.line - 1].slice(0, end.column - 1).match(
+        /(:{3,})\s*$/,
+      );
+      if (!closing || closing[1].length < fenceLength(node)) {
+        report(
+          node,
+          "admonition-unclosed",
+          `Close ${node.name} with ${
+            ":".repeat(fenceLength(node))
+          } on its own line; without it the block takes in the rest of the page.`,
+          "warning",
+        );
+      }
     }
     const isFlashcard =
       ["containerDirective", "leafDirective", "textDirective"].includes(

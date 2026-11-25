@@ -110,5 +110,6 @@
   "lessons/metadata/admonition-unknown-type.md": "admonition-unknown-type",
   "lessons/metadata/admonition-empty.md": "admonition-empty",
   "lessons/metadata/slides-nearly-empty.md": "slides-nearly-empty",
-  "lessons/metadata/template-unexpected-section.md": "lesson-template"
+  "lessons/metadata/template-unexpected-section.md": "lesson-template",
+  "lessons/metadata/admonition-unclosed.md": "admonition-unclosed"
 }

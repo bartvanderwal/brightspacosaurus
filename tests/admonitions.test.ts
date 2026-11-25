@@ -8,6 +8,7 @@ import {
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
+import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 import { join } from "@std/path";
@@ -17,7 +18,7 @@ import {
   admonitionIssues,
   type AdmonitionNode,
   type AdmonitionsConfig,
-  parseAdmonitionMarker,
+  OTHER_DIRECTIVES,
   remarkAdmonitions,
   resolveAdmonitionsOptions,
 } from "../src/admonitions.ts";
@@ -35,6 +36,7 @@ async function render(
     await unified()
       .use(remarkParse)
       .use(remarkGfm)
+      .use(remarkDirective)
       .use(remarkAdmonitions, options)
       .use(remarkRehype)
       .use(rehypeStringify)
@@ -42,90 +44,131 @@ async function render(
   );
 }
 
-Deno.test("AD1: every type, in any letter case, becomes a block", async () => {
+const COLLAPSIBLE = ["note", "optional"];
+
+Deno.test("AD1/AD2: every type becomes a block; note and optional are details, the others a div", async () => {
   for (const type of ADMONITION_TYPES) {
-    for (
-      const word of [
-        type,
-        type.toUpperCase(),
-        type[0].toUpperCase() + type.slice(1),
-      ]
-    ) {
-      const html = await render(`> [!${word}]\n> Body text.\n`);
-      assertStringIncludes(
-        html,
-        `<div class="bso-admonition bso-admonition-${type}">`,
-      );
-      assertStringIncludes(html, "<p>Body text.</p>");
-      assert(!html.includes("[!"), html);
-      assert(!html.includes("<blockquote"), html);
-    }
+    const html = await render(`:::${type}\nBody text.\n:::\n`);
+    const tag = COLLAPSIBLE.includes(type) ? "details" : "div";
+    assertStringIncludes(
+      html,
+      `<${tag} class="bso-admonition bso-admonition-${type}"`,
+    );
+    assertStringIncludes(html, `</${tag}>`);
+    assertStringIncludes(html, "<p>Body text.</p>");
+    assert(!html.includes(":::"), html);
   }
 });
 
-Deno.test("AD1: text after the marker is a custom title, the rest is content", async () => {
-  const html = await render(
-    "> [!TIP] Run it twice\n> Body.\n\n> Second paragraph\n",
+Deno.test("AD2: a note starts open and an optional block starts closed", async () => {
+  assertStringIncludes(
+    await render(":::note\nx\n:::\n"),
+    '<details class="bso-admonition bso-admonition-note" open>',
   );
-  assertStringIncludes(html, "Run it twice</p>");
+  const optional = await render(":::optional\nx\n:::\n");
+  assertStringIncludes(
+    optional,
+    '<details class="bso-admonition bso-admonition-optional">',
+  );
+  assert(!optional.includes(" open"), optional);
+});
+
+Deno.test("AD2: the title holds a decorative icon and the label, and the block has no role", async () => {
+  const optional = await render(":::optional\nRead on.\n:::\n");
+  assertStringIncludes(
+    optional,
+    '<summary class="bso-admonition-title"><span class="bso-admonition-icon" aria-hidden="true"></span>Optional</summary>',
+  );
+  const warning = await render(":::warning\nCareful.\n:::\n");
+  assertStringIncludes(
+    warning,
+    '<p class="bso-admonition-title"><span class="bso-admonition-icon" aria-hidden="true"></span>Warning</p>',
+  );
+  assert(!optional.includes("role=") && !warning.includes("role="));
+});
+
+Deno.test("AD1: [Title] is a custom title, and it may hold inline Markdown", async () => {
+  const html = await render(":::tip[Run it *twice*]\nBody.\n:::\n");
+  assertStringIncludes(html, "Run it <em>twice</em></p>");
   assert(!html.includes(">Tip<"), html);
   assertStringIncludes(html, "<p>Body.</p>");
 });
 
-Deno.test("AD1: the marker may stand alone before the paragraphs", async () => {
-  const html = await render("> [!NOTE]\n>\n> First.\n>\n> Second.\n");
-  assertStringIncludes(html, "<p>First.</p>");
-  assertStringIncludes(html, "<p>Second.</p>");
-  assertEquals(html.match(/<p/g)?.length, 3); // title + two paragraphs
-});
-
-Deno.test("AD1: another word, a later line or a plain quote leaves the block quote alone", async () => {
+Deno.test("AD1: the content is ordinary Markdown: paragraphs, lists, tables, code and pictures", async () => {
+  const html = await render([
+    ":::optional[Extra depth]",
+    "A first paragraph with **bold**, `code` and a [link](https://example.org).",
+    "",
+    "A second paragraph.",
+    "",
+    "- one",
+    "- two",
+    "",
+    "| a | b |",
+    "| - | - |",
+    "| 1 | 2 |",
+    "",
+    "```ts",
+    "const x = 1;",
+    "```",
+    "",
+    "![A picture](images/picture.png)",
+    ":::",
+    "",
+  ].join("\n"));
   for (
-    const source of [
-      "> [!OPTIONL]\n> text\n",
-      "> text\n> [!NOTE]\n",
-      "> Just a quote.\n",
-      "[!NOTE] not in a quote\n",
+    const part of [
+      "<strong>bold</strong>",
+      "<code>code</code>",
+      "<ul>",
+      "<table>",
+      "const x = 1;",
+      '<img src="images/picture.png" alt="A picture">',
     ]
-  ) {
-    const html = await render(source);
-    assert(!html.includes("bso-admonition"), source);
-  }
+  ) assertStringIncludes(html, part);
+  assertEquals(html.match(/<details/g)?.length, 1);
+  assert(html.indexOf("A second paragraph") < html.indexOf("</details>"));
 });
 
-Deno.test("AD1: markers inside a block quote inside a list still work", async () => {
-  const html = await render("- item\n\n  > [!WARNING]\n  > Careful.\n");
-  assertStringIncludes(html, "bso-admonition-warning");
-});
-
-Deno.test("AD2: the title holds a decorative icon and the label, and the block has no role", async () => {
-  const html = await render("> [!IMPORTANT]\n> Read this.\n");
-  assertStringIncludes(
-    html,
-    '<p class="bso-admonition-title"><span class="bso-admonition-icon" aria-hidden="true"></span>Important</p>',
+Deno.test("AD1: blocks nest when the outer one has more colons", async () => {
+  const html = await render(
+    "::::note\nOuter.\n\n:::warning\nInner.\n:::\n\n::::\n",
   );
-  assert(!html.includes("role="), html);
+  assertStringIncludes(html, "bso-admonition-note");
+  assertStringIncludes(html, "bso-admonition-warning");
+  assert(html.indexOf("Inner.") < html.indexOf("</details>"), html);
+});
+
+Deno.test("AD1: the blockquote form is not an admonition", async () => {
+  const html = await render("> [!NOTE]\n> text\n");
+  assert(!html.includes("bso-admonition"), html);
+  assertStringIncludes(html, "<blockquote>");
+});
+
+Deno.test("AD1: other directives and plain text are left alone", async () => {
+  const html = await render(
+    ":::flashcards\ntext\n:::\n\nPlain text: with a colon.\n",
+  );
+  assert(!html.includes("bso-admonition"), html);
 });
 
 Deno.test("AD3: labels follow the locale, and a configured label replaces one type", async () => {
-  const nl = await render("> [!WARNING]\n> x\n\n> [!OPTIONAL]\n> y\n", {
+  const nl = await render(":::warning\nx\n:::\n\n:::optional\ny\n:::\n", {
     locale: "nl",
   });
   assertStringIncludes(nl, "Let op</p>");
-  assertStringIncludes(nl, "Optioneel</p>");
-  const custom = await render("> [!NOTE]\n> x\n", {
+  assertStringIncludes(nl, "Optioneel</summary>");
+  const custom = await render(":::note\nx\n:::\n", {
     locale: "nl",
     labels: { note: "Extra uitleg" },
   });
-  assertStringIncludes(custom, "Extra uitleg</p>");
-  assertEquals(
-    Object.keys(ADMONITION_LABELS.nl).sort(),
-    [...ADMONITION_TYPES].sort(),
-  );
-  assertEquals(
-    Object.keys(ADMONITION_LABELS.en).sort(),
-    [...ADMONITION_TYPES].sort(),
-  );
+  assertStringIncludes(custom, "Extra uitleg</summary>");
+  for (const locale of ["nl", "en"] as const) {
+    assertEquals(
+      Object.keys(ADMONITION_LABELS[locale]).sort(),
+      [...ADMONITION_TYPES].sort(),
+    );
+  }
 });
 
 Deno.test("AD3: options are validated", () => {
@@ -194,7 +237,7 @@ Deno.test("AD4: the Brightspace HTML uses the same plugin and the same styleshee
     const source = join(root, "lesson.md");
     await Deno.writeTextFile(
       source,
-      "# Lesson\n\n> [!OPTIONAL]\n> Extra depth.\n",
+      "# Lesson\n\n:::optional\nExtra depth.\n\nA second paragraph.\n:::\n",
     );
     const result = await convertMarkdown({
       sourcePath: source,
@@ -206,9 +249,9 @@ Deno.test("AD4: the Brightspace HTML uses the same plugin and the same styleshee
     const html = await Deno.readTextFile(result.outputPath);
     assertStringIncludes(
       html,
-      '<div class="bso-admonition bso-admonition-optional">',
+      '<details class="bso-admonition bso-admonition-optional">',
     );
-    assertStringIncludes(html, "Optioneel</p>");
+    assertStringIncludes(html, "Optioneel</summary>");
     assertStringIncludes(html, ".bso-admonition-optional");
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -230,7 +273,24 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-Deno.test("AD5: the colours in the stylesheet have enough contrast, and forced colours are handled", async () => {
+Deno.test("AD2/AD5: a collapsible admonition keeps its frame against the general details rule", async () => {
+  const css = await Deno.readTextFile("assets/brightspacosaurus.css");
+  // `.brightspace-content details` has a higher specificity than `.bso-admonition`, so the
+  // frame of a note or optional block needs a rule that is at least as specific.
+  for (const scope of [".brightspace-content", "article.markdown"]) {
+    const rule = css.match(
+      new RegExp(
+        `${
+          scope.replace(".", "\\.")
+        } details\\.bso-admonition[,\\s{][^}]*\\{[^}]*\\}`,
+      ),
+    );
+    assert(rule, `no frame rule for ${scope}`);
+    assertStringIncludes(rule[0], "border-left-width: 6px");
+  }
+});
+
+Deno.test("AD5: the colours in the stylesheet have enough contrast, and forced colours and focus are handled", async () => {
   const css = await Deno.readTextFile("assets/brightspacosaurus.css");
   const token = (name: string) => {
     const match = css.match(
@@ -258,7 +318,7 @@ Deno.test("AD5: the colours in the stylesheet have enough contrast, and forced c
     );
   }
   assertStringIncludes(css, "@media (forced-colors: active)");
-  assertStringIncludes(css, ".bso-admonition-icon");
+  assertStringIncludes(css, "summary.bso-admonition-title:focus-visible");
   for (const type of ADMONITION_TYPES) {
     // Not colour alone: every type has its own icon glyph.
     assert(
@@ -275,65 +335,80 @@ function lintRules(markdown: string): string[] {
     .map((d) => d.rule);
 }
 
-Deno.test("AD6: a mistyped marker and an empty block are warnings", () => {
-  assertEquals(lintRules("# L\n\n> [!OPTIONL]\n> text\n"), [
+Deno.test("AD6: a mistyped or Docusaurus-only name, an empty block and an unclosed block are warnings", () => {
+  assertEquals(lintRules("# L\n\n:::optionl\ntext\n:::\n"), [
     "admonition-unknown-type",
   ]);
-  assertEquals(lintRules("# L\n\n> [!NOTE]\n"), ["admonition-empty"]);
-  assertEquals(lintRules("# L\n\n> [!NOTE] Only a title\n"), [
+  assertEquals(lintRules("# L\n\n:::info\ntext\n:::\n"), [
+    "admonition-unknown-type",
+  ]);
+  assertEquals(lintRules("# L\n\n:::danger\ntext\n:::\n"), [
+    "admonition-unknown-type",
+  ]);
+  assertEquals(lintRules("# L\n\n:::note\n:::\n"), ["admonition-empty"]);
+  assertEquals(lintRules("# L\n\n:::note[Only a title]\n:::\n"), [
     "admonition-empty",
   ]);
-  assertEquals(lintRules("# L\n\n> [!NOTE]\n> text\n"), []);
-  assertEquals(lintRules("# L\n\n> [!NOTE]\n>\n> text\n"), []);
-  assertEquals(lintRules("# L\n\n> A plain quote.\n"), []);
-});
-
-Deno.test("AD7: markers in code are text", async () => {
   assertEquals(
-    lintRules("# L\n\n```md\n> [!OPTIONL]\n```\n\nUse `> [!NOTE]` here.\n"),
+    lintRules("# L\n\n:::optional\ntext without a closing fence\n"),
+    ["admonition-unclosed"],
+  );
+  assertEquals(lintRules("# L\n\n:::note\ntext\n:::\n"), []);
+  assertEquals(lintRules("# L\n\n:::tip[Title]\ntext\n\nmore\n:::\n"), []);
+  assertEquals(
+    lintRules("# L\n\n::::note\nOuter.\n\n:::warning\nInner.\n:::\n\n::::\n"),
     [],
   );
-  const html = await render("```md\n> [!NOTE]\n> x\n```\n");
+});
+
+Deno.test("AD6: flashcards are not reported as unknown admonitions", () => {
+  assertEquals(
+    lintRules(
+      "# L\n\n::::flashcards\n\n:::flashcard\nterm: a\n\nb\n:::\n\n::::\n",
+    ),
+    [],
+  );
+});
+
+Deno.test("AD7: directives in code are text", async () => {
+  assertEquals(
+    lintRules(
+      "# L\n\n```md\n:::optionl\ntext\n:::\n```\n\nUse `:::note` here.\n",
+    ),
+    [],
+  );
+  const html = await render("```md\n:::note\nx\n:::\n```\n");
   assert(!html.includes("bso-admonition"), html);
 });
 
-Deno.test("AD1/AD6: the marker parser and the issue finder agree on any marker word", () => {
+Deno.test("AD6: any directive name is reported exactly when it is not an admonition or flashcard name", () => {
   fc.assert(
-    fc.property(
-      fc.stringMatching(/^[A-Za-z][A-Za-z-]{0,12}$/),
-      fc.stringMatching(/^[A-Za-z0-9 ]{0,20}$/),
-      (word, title) => {
-        const marker = parseAdmonitionMarker(`[!${word}] ${title}\nbody`);
-        assert(marker);
-        assertEquals(marker.word, word);
-        assertEquals(marker.title, title.trim());
-        const known = (ADMONITION_TYPES as readonly string[]).includes(
-          word.toLowerCase(),
-        );
-        assertEquals(marker.type !== undefined, known);
-        const tree: AdmonitionNode = {
-          type: "root",
+    fc.property(fc.stringMatching(/^[a-z][a-z-]{0,10}$/), (name) => {
+      const tree: AdmonitionNode = {
+        type: "root",
+        children: [{
+          type: "containerDirective",
+          name,
           children: [{
-            type: "blockquote",
-            children: [{
-              type: "paragraph",
-              children: [{ type: "text", value: `[!${word}] ${title}\nbody` }],
-            }],
+            type: "paragraph",
+            children: [{ type: "text", value: "x" }],
           }],
-        };
-        assertEquals(
-          admonitionIssues(tree).some((issue) =>
-            issue.rule === "admonition-unknown-type"
-          ),
-          !known,
-        );
-      },
-    ),
+        }],
+      };
+      const known = (ADMONITION_TYPES as readonly string[]).includes(name) ||
+        OTHER_DIRECTIVES.includes(name);
+      assertEquals(
+        admonitionIssues(tree).some((issue) =>
+          issue.rule === "admonition-unknown-type"
+        ),
+        !known,
+      );
+    }),
     { numRuns: 100 },
   );
 });
 
 Deno.test("AD2: the plugin is deterministic", async () => {
-  const source = "> [!CAUTION]\n> Sharp.\n\n> [!TIP] Hint\n> Soft.\n";
+  const source = ":::caution\nSharp.\n:::\n\n:::tip[Hint]\nSoft.\n:::\n";
   assertEquals(await render(source), await render(source));
 });

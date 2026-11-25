@@ -1,3 +1,4 @@
 # Admonition without content
 
-> [!NOTE] A title and nothing else
+:::note[A title and nothing else]
+:::

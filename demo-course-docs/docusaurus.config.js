@@ -305,14 +305,14 @@ function courseDocsOptions(coursePath, routeBasePath) {
         args.docs.find((doc) => path.resolve(__dirname, doc.source.replace(/^@site\//, "")) === teacherPage.path)?.id,
         overviewOrders(args.docs),
       )),
-    beforeDefaultRemarkPlugins: [[remarkQuizPreview, quizOptions], [remarkPreviewDeckLinks, {
+    beforeDefaultRemarkPlugins: [[remarkAdmonitions, admonitionOptions], [remarkQuizPreview, quizOptions], [remarkPreviewDeckLinks, {
       lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
       baseUrl,
     }]],
     remarkPlugins: [[remarkPreviewSlides, {
       lessons: JSON.parse(process.env.BSO_PREVIEW_SLIDES || "{}"),
       baseUrl,
-    }], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [remarkAdmonitions, admonitionOptions], [remarkLearningObjectives, objectiveOptions], [
+    }], remarkTeacherPageTabs, remarkReaderPdfLink, remarkDownloadLinks, [remarkFlashcards, flashcardOptions], [remarkLearningObjectives, objectiveOptions], [
       remarkDiagrams,
       diagramOptions,
     ]],

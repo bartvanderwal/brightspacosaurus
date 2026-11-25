@@ -256,6 +256,21 @@ export function withoutCourseFileLinks(
 }
 
 /**
+ * Leave out the first `<h1>` when it repeats the title of the module, which
+ * Brightspace already shows above the description (rule D3).
+ */
+function withoutModuleTitle(html: string, moduleTitle?: string): string {
+  if (!moduleTitle) return html;
+  const heading = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>\s*/i);
+  if (!heading) return html;
+  const text = heading[1].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  return text.toLowerCase() ===
+      moduleTitle.replace(/\s+/g, " ").trim().toLowerCase()
+    ? html.replace(heading[0], "")
+    : html;
+}
+
+/**
  * The module description from the HTML of its lead page: the inside of
  * `<body>` without scripts, with its styles isolated from the surrounding
  * Brightspace page and relative paths rooted in the course files.
@@ -263,14 +278,16 @@ export function withoutCourseFileLinks(
 export function moduleDescriptionFromHtml(
   html: string,
   leadHref: string,
+  moduleTitle?: string,
 ): string {
-  return moduleDescription(html, leadHref).html;
+  return moduleDescription(html, leadHref, moduleTitle).html;
 }
 
 /** {@link moduleDescriptionFromHtml}, with the number of links to files that were taken out. */
 export function moduleDescription(
   html: string,
   leadHref: string,
+  moduleTitle?: string,
 ): { html: string; linksRemoved: number } {
   const head = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i)?.[1] ?? "";
   const fonts = [
@@ -284,8 +301,11 @@ export function moduleDescription(
       }\n}</style>`
     ).join("\n");
   const stripped = withoutCourseFileLinks(
-    (html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html)
-      .replace(/<script\b[\s\S]*?<\/script>/gi, ""),
+    withoutModuleTitle(
+      (html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? html)
+        .replace(/<script\b[\s\S]*?<\/script>/gi, ""),
+      moduleTitle,
+    ),
   );
   const directory = posix.dirname(leadHref);
   const description =
@@ -364,6 +384,7 @@ export async function packNative(
       ? moduleDescription(
         await Deno.readTextFile(join(options.buildDir, lead.href)),
         lead.href,
+        module.title,
       )
       : { html: "", linksRemoved: 0 };
     const descriptionHtml = description.html;

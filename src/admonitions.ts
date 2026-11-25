@@ -1,7 +1,7 @@
 /**
- * Callout blocks written as the alert syntax of GitHub and GitLab
- * (`> [!NOTE]`), shared by the Brightspace HTML and Docusaurus/MDX like the
- * flashcards. The block gets the same HTML and the same stylesheet in both.
+ * Callout blocks written as container directives (`:::optional` ... `:::`),
+ * shared by the Brightspace HTML and Docusaurus/MDX like the flashcards. The
+ * block gets the same HTML and the same stylesheet in both.
  *
  * @module
  */
@@ -112,37 +112,26 @@ export function resolveAdmonitionsOptions(
   return { labels, locale };
 }
 
-/** What a first line `[!WORD] title` says. */
-export interface AdmonitionMarker {
-  /** The word between `[!` and `]`, as written. */
-  word: string;
-  /** The type, when the word is a known one. */
-  type?: AdmonitionType;
-  /** Text after the marker on the same line. */
-  title: string;
-  /** What follows the first line break; empty when the marker line is all. */
-  rest: string;
-}
+/** Directive names of other BSO features, which are not admonitions. */
+export const OTHER_DIRECTIVES: readonly string[] = ["flashcards", "flashcard"];
 
-/** The marker on the first line of a block quote's text, if there is one. */
-export function parseAdmonitionMarker(
-  text: string,
-): AdmonitionMarker | undefined {
-  const match = text.match(
-    /^\[!([A-Za-z][A-Za-z-]*)\][ \t]*([^\n]*)(?:\n([\s\S]*))?$/,
-  );
-  if (!match) return undefined;
-  const word = match[1];
-  const type = ADMONITION_TYPES.find((each) => each === word.toLowerCase());
-  return { word, type, title: match[2].trim(), rest: match[3] ?? "" };
-}
+/** Types that fold open and shut, and whether they start open (spec *Admonitions*, AD2). */
+const COLLAPSIBLE: Partial<Record<AdmonitionType, { open: boolean }>> = {
+  note: { open: true },
+  optional: { open: false },
+};
 
 /** The part of a Markdown syntax tree that this module reads and writes. */
 export interface AdmonitionNode {
   type: string;
+  name?: string;
   value?: string;
   children?: AdmonitionNode[];
-  data?: { hName?: string; hProperties?: Record<string, unknown> };
+  data?: {
+    hName?: string;
+    hProperties?: Record<string, unknown>;
+    directiveLabel?: boolean;
+  };
 }
 
 function element(
@@ -158,24 +147,23 @@ function element(
   };
 }
 
-/** The marker of a block quote: its first paragraph starts with a text node. */
-function markerOf(
-  node: AdmonitionNode,
-): { marker: AdmonitionMarker; paragraph: AdmonitionNode } | undefined {
-  if (node.type !== "blockquote") return undefined;
-  const paragraph = node.children?.[0];
-  const first = paragraph?.children?.[0];
-  if (paragraph?.type !== "paragraph" || first?.type !== "text") {
-    return undefined;
-  }
-  const marker = parseAdmonitionMarker(first.value ?? "");
-  return marker ? { marker, paragraph } : undefined;
+/** Whether a directive name is one of the admonition types. */
+export function isAdmonitionType(
+  name: string | undefined,
+): name is AdmonitionType {
+  return (ADMONITION_TYPES as readonly string[]).includes(name ?? "");
+}
+
+/** `:::type[Title]`: the label is the first child, a paragraph marked by remark-directive. */
+function hasLabel(node: AdmonitionNode): boolean {
+  const first = node.children?.[0];
+  return first?.type === "paragraph" && first.data?.directiveLabel === true;
 }
 
 /**
- * Turn block quotes that start with `[!TYPE]` into admonition elements,
- * without raw HTML: remark-rehype and Docusaurus/MDX both honor the
- * hName/hProperties fields.
+ * Turn `:::TYPE` container directives into admonition elements, without raw
+ * HTML: remark-rehype and Docusaurus/MDX both honor the hName/hProperties
+ * fields. `note` and `optional` become a native `<details>` element.
  */
 export function remarkAdmonitions(
   options?: AdmonitionsConfig,
@@ -183,26 +171,29 @@ export function remarkAdmonitions(
   const resolved = resolveAdmonitionsOptions(options);
   return function walk(node: AdmonitionNode): void {
     for (const child of node.children ?? []) walk(child);
-    const found = markerOf(node);
-    const type = found?.marker.type;
-    if (!found || !type) return;
-    const { marker, paragraph } = found;
-    const first = paragraph.children![0];
-    // The rest of the first paragraph is content; an empty one disappears.
-    if (marker.rest) first.value = marker.rest;
-    else paragraph.children!.shift();
-    if (paragraph.children!.length === 0) node.children!.shift();
-    node.children!.unshift(
-      element("p", "bso-admonition-title", [
+    if (node.type !== "containerDirective" || !isAdmonitionType(node.name)) {
+      return;
+    }
+    const type = node.name;
+    const children = node.children ?? [];
+    const title: AdmonitionNode[] = hasLabel(node)
+      ? children[0].children ?? []
+      : [{ type: "text", value: resolved.labels[type] }];
+    const content = hasLabel(node) ? children.slice(1) : children;
+    const collapsible = COLLAPSIBLE[type];
+    node.children = [
+      element(collapsible ? "summary" : "p", "bso-admonition-title", [
         element("span", "bso-admonition-icon", [], { ariaHidden: "true" }),
-        { type: "text", value: marker.title || resolved.labels[type] },
+        ...title,
       ]),
-    );
+      ...content,
+    ];
     node.data = {
       ...node.data,
-      hName: "div",
+      hName: collapsible ? "details" : "div",
       hProperties: {
         className: `bso-admonition bso-admonition-${type}`,
+        ...(collapsible?.open ? { open: true } : {}),
       },
     };
   };
@@ -215,31 +206,29 @@ export interface AdmonitionIssue {
   message: string;
 }
 
-/** Block quotes with a marker that is mistyped, and admonitions without content. */
+/** Container directives with a name that is not an admonition type, and admonitions without content. */
 export function admonitionIssues(tree: AdmonitionNode): AdmonitionIssue[] {
   const issues: AdmonitionIssue[] = [];
   (function walk(node: AdmonitionNode): void {
-    const found = markerOf(node);
-    if (found) {
-      const { marker, paragraph } = found;
-      if (!marker.type) {
+    if (node.type === "containerDirective" && node.name) {
+      if (isAdmonitionType(node.name)) {
+        const content = (node.children ?? []).slice(hasLabel(node) ? 1 : 0);
+        if (content.length === 0) {
+          issues.push({
+            node,
+            rule: "admonition-empty",
+            message:
+              `The ':::${node.name}' block has no content besides its title. Add the text, or remove the block.`,
+          });
+        }
+      } else if (!OTHER_DIRECTIVES.includes(node.name)) {
         issues.push({
           node,
           rule: "admonition-unknown-type",
           message:
-            `'[!${marker.word}]' is not an admonition type, so this block shows as a plain quote. Use one of ${
-              ADMONITION_TYPES.map((type) => type.toUpperCase()).join(", ")
+            `':::${node.name}' is not an admonition type, so this block does not look the same in Brightspace. Use one of ${
+              ADMONITION_TYPES.map((type) => `:::${type}`).join(", ")
             }.`,
-        });
-      } else if (
-        !marker.rest.trim() && (node.children?.length ?? 0) === 1 &&
-        paragraph.children?.length === 1
-      ) {
-        issues.push({
-          node,
-          rule: "admonition-empty",
-          message:
-            `The '[!${marker.word}]' block has no content besides its title. Add the text, or remove the block.`,
         });
       }
     }

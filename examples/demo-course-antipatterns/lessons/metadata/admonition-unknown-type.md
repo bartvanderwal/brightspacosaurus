@@ -1,4 +1,5 @@
-# Admonition with a mistyped marker
+# Admonition with a mistyped type
 
-> [!OPTIONL]
-> The marker has a typo, so this block would show as a plain quote.
+:::optionl
+The type has a typo, so this block does not look like the others.
+:::

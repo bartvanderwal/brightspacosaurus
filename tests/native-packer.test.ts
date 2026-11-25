@@ -276,3 +276,38 @@ Deno.test("D1: links to files of the course in a module description are shown as
     'src="content/week-1/images/p.png"',
   );
 });
+
+// Spec *Module descriptions in the native package*, rule D3.
+Deno.test("D3: the first h1 is left out of the description when it is the module title", () => {
+  const html =
+    "<html><body><h1>Week 1: <em>Authoring</em></h1><p>Intro.</p><h1>Second</h1></body></html>";
+  const description = moduleDescriptionFromHtml(
+    html,
+    "content/week-1/index.html",
+    "week 1: authoring",
+  );
+  assert(!description.includes("Authoring"));
+  assertStringIncludes(description, "<p>Intro.</p>");
+  assertStringIncludes(description, "<h1>Second</h1>");
+  // Another first heading, or no module title, leaves the page as it is.
+  assertStringIncludes(
+    moduleDescriptionFromHtml(
+      html,
+      "content/week-1/index.html",
+      "Something else",
+    ),
+    "Authoring",
+  );
+  assertStringIncludes(
+    moduleDescriptionFromHtml(html, "content/week-1/index.html"),
+    "Authoring",
+  );
+  assertStringIncludes(
+    moduleDescriptionFromHtml(
+      "<body><p>No heading.</p></body>",
+      "content/x/index.html",
+      "X",
+    ),
+    "No heading.",
+  );
+});
