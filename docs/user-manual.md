@@ -550,25 +550,30 @@ For Docusaurus preview parity and implementation details, see the [Software Guid
 
 ### 4.11 Admonitions
 
-An admonition is a block that stands out from the running text, with a visible start and end: a note, a tip, something important, a warning, a caution, or optional content that a learner may skip. It looks the same in Brightspace and in the preview, and every type has its own label, icon and left border, so it does not rely on colour alone.
+An admonition is a block that stands out from the running text, with a visible start and end: a note, a tip, something important, a warning, a caution, or optional content that a learner may skip. It looks the same in Brightspace and in the preview, and every type has its own label, icon and left border, so it does not rely on colour alone. A *note* and an *optional* block fold open and shut: a note starts open, an optional block starts folded.
 
-Write a block quote whose first line is the type in brackets. The type is `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION` or `OPTIONAL`, in any letter case:
+Write a container directive: `:::` and the type, the content, and a closing `:::` on its own line. The type is `note`, `tip`, `important`, `warning`, `caution` or `optional`. The content is ordinary Markdown, so a block can hold several paragraphs, lists, tables, code, pictures and diagrams:
 
 ```md
-> [!IMPORTANT]
-> The deadline is Friday.
+:::important
+The deadline is Friday.
+:::
 
-> [!TIP] Run the lint before you build
-> `bso lint` finds most mistakes in a few seconds.
+:::optional[Going deeper]
+A long explanation, with more than one paragraph.
+
+- a list
+- and a picture or a diagram
+:::
 ```
 
-Text after the marker on the same line is a custom title; without it the block shows the label of its type (in Dutch: Opmerking, Tip, Belangrijk, Let op, Pas op, Optioneel). This is the alert syntax of GitHub and GitLab, so a viewer without support shows a normal quote. `OPTIONAL` is a BSO addition. BSO has one form: the Docusaurus `:::note` form is not supported.
+Text in square brackets after the type is a custom title; without it the block shows the label of its type (in Dutch: Opmerking, Tip, Belangrijk, Let op, Pas op, Optioneel). A block that holds another block needs more colons on the outside (`::::note` around `:::warning`), as for flashcards. BSO has one form: the quote form (`> [!NOTE]`) is not supported, because every line of a long block would need a `>`.
 
 To change the label of one type, add `"admonitions": { "labels": { "optional": "Extra" } }` to the course configuration. The colours are CSS variables (`--bso-adm-note-bg`, `--bso-adm-note-line` and so on) that your own CSS can change.
 
-`bso lint` warns about a mistyped marker such as `[!OPTIONL]`, which would otherwise show as a plain quote (`admonition-unknown-type`), and about a block without content (`admonition-empty`).
+`bso lint` warns about a mistyped type such as `:::optionl` or a Docusaurus-only name such as `:::info` (`admonition-unknown-type`), about a block without content (`admonition-empty`) and about a block without its closing `:::` (`admonition-unclosed`).
 
-Not built yet: admonitions in generated slides, in reader PDFs and in the instructor manual (a quote with the literal marker is shown there), and a dark theme. It is not verified that Brightspace keeps the styles of a page after an import. See the demo course page *Admonitions* and section 7.17 of the Software Guidebook.
+Not built yet: admonitions in generated slides, in reader PDFs and in the instructor manual (the text is shown there, without the frame), and a dark theme. See the demo course page *Admonitions* and section 7.17 of the Software Guidebook.
 
 ## 5. Workflow: from Markdown to Brightspace
 

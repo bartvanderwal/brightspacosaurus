@@ -42,7 +42,7 @@ Second take for the whole course, kept as an alternative:
 
 ![Week 2, package features: a teacher and the logo dinosaur pack a transparent case with a diagram, a PDF sheet and a version label; a conveyor belt leads to an open box](lessons/week-2/images/week-2-package-conveyor-pdf-diagram-version.jpg)
 
-## BSO Features
+## Brightspacosaurus Features
 
 > "De dinosaurus staat voor een prikbord met zes kleine pictogrammen (quiz, diagram, flashcards, slides, controle-vinkje, menu), elk in een eigen kleurvlak. Divers publiek kijkt toe. Geel en turquoise."
 

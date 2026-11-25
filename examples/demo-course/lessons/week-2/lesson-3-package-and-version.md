@@ -1,6 +1,8 @@
 # Lesson 2.3: Package and Version
 
-**Manual test:** inspect IMSCC contents, the manifest, menu order and version sources.
+:::optional[Manual test]
+inspect IMSCC contents, the manifest, menu order and version sources.
+:::
 
 The BSO version comes from `deno.json` and appears as the `.imscc` filename postfix. The content version comes from `brightspacosaurus.config.json` and appears separately in the generated HTML badge.
 

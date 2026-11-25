@@ -36,7 +36,9 @@ deno task build
 deno task pack
 ```
 
-Do not omit `task`: `deno build` tries to run a module named `build`, not the project task. BSO 0.23.0 replaces `prepare` with `build`, without an alias. Updating the source repository does not update an installed `bso`; install the matching release or use the local tasks.
+:::warning[Do not omit `task`]
+`deno build` tries to run a module named `build`, not the project task. BSO 0.23.0 replaces `prepare` with `build`, without an alias. Updating the source repository does not update an installed `bso`; install the matching release or use the local tasks.
+:::
 
 ## Native quizzes
 
@@ -121,13 +123,13 @@ More in the [user manual](https://bartvanderwal.github.io/brightspacosaurus/guid
 
 Term/definition lists become interactive flashcards, in a short and a long variant. See [the flashcards for core concepts page](features/flashcards.md).
 
-## Learning objectives to tick off
+## Tickable objectives
 
 The list under a heading *Learning objectives* (or *Leerdoelen*) becomes a list of square checkboxes. A student ticks off the objectives and the browser remembers it: in `localStorage` of that browser, not on a server. See [the learning objectives page](features/learning-objectives.md).
 
 ## Admonitions
 
-A block quote that starts with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` or `[!OPTIONAL]` becomes a callout block with a label, an icon and a border, so a learner sees where it starts and ends. It looks the same in Brightspace and in the preview. See [the admonitions page](features/admonitions.md).
+A block between `:::note`, `:::tip`, `:::important`, `:::warning`, `:::caution` or `:::optional` and a closing `:::` becomes a callout block with a label, an icon and a border, so a learner sees where it starts and ends. A note and an optional block can be folded. It looks the same in Brightspace and in the preview. See [the admonitions page](features/admonitions.md).
 
 ## Teacher-only page
 

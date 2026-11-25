@@ -1,4 +1,4 @@
-# BSO Features
+# Brightspacosaurus Features
 
 ![BSO features: the dinosaur points at a board with six pictograms: quiz, diagram, flashcards, slide, check mark and menu](images/bso-features-pictogram-board.jpg)
 

@@ -49,7 +49,9 @@ The lesson is not copied: the generated slides are made from the lesson file eac
 
 **Step-by-step lists.** In a hand-written deck a list written with `*` or `1)` shows its items one at a time, on a click or a key press, for example to ask a question and show the answer on the next click. See the practice cases of [lesson 1.2](../week-1/lesson-2-test-strategy.md). A list written with `-` shows everything at once. (Marp calls this a fragmented list; PowerPoint calls it 'animating bullet points one at a time'.)
 
-**Try both PowerPoint modes.** FizzBuzz overrides the course default with `pptxMode: native` in its deck frontmatter: text/code is selectable, with separate images and working links. Test Strategy has no override and inherits `raster`: one image per complete slide, so code cannot be selected as text. OCR and screenshots are still possible; raster is not copy protection. Both exports are static, without fragment animations, and show a small source warning on the title. Change the Markdown, not the generated PowerPoint. A known committed Git source provides a clickable source link; without that metadata the warning is plain text.
+:::note[Try both PowerPoint modes]
+FizzBuzz overrides the course default with `pptxMode: native` in its deck frontmatter: text/code is selectable, with separate images and working links. Test Strategy has no override and inherits `raster`: one image per complete slide, so code cannot be selected as text. OCR and screenshots are still possible; raster is not copy protection. Both exports are static, without fragment animations, and show a small source warning on the title. Change the Markdown, not the generated PowerPoint. A known committed Git source provides a clickable source link; without that metadata the warning is plain text.
+:::
 
 <details>
 <summary>How to set up slides</summary>

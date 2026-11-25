@@ -2,7 +2,7 @@
 sidebar_position: 5
 ---
 
-# Learning objectives to tick off
+# Tickable objectives
 
 Students can tick off the learning objectives of a lesson. BSO turns the list under a heading *Learning objectives* (or *Leerdoelen*) into a list of square checkboxes. What a student ticks stays in **the browser of that student** (`localStorage`): not on a server and not tied to an account. Someone who opens the page in another browser starts again, and a objective whose text you rewrite starts empty.
 

@@ -1,6 +1,8 @@
 # Lesson 1.4: Core Concepts Flashcards
 
-**Manual test:** verify that each card can be revealed/flipped with the keyboard and mouse, that nested Markdown is rendered in the definition, and that the content remains readable when JavaScript is unavailable.
+:::optional[Manual test]
+verify that each card can be revealed/flipped with the keyboard and mouse, that nested Markdown is rendered in the definition, and that the content remains readable when JavaScript is unavailable.
+:::
 
 This section contains the core concepts students should practise. The `term:` line is intentionally short; everything after it is the Markdown definition until the closing `:::`.
 

@@ -4,7 +4,9 @@
 
 *Figure 1. Check which version is in Brightspace.*
 
-> Teachers only: hide this page for students in Brightspace after each import.
+:::important[Teachers only]
+Hide this page for students in Brightspace after each import.
+:::
 
 ## Version information
 

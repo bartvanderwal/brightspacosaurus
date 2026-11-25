@@ -1,6 +1,8 @@
 # Lesson 1.3: Links, Includes and Export
 
-**Manual test:** test internal links (#7/#8), external links, Markdown includes and content ordering.
+:::optional[Manual test]
+test internal links (#7/#8), external links, Markdown includes and content ordering.
+:::
 
 ## 1. Learning objectives
 

@@ -1,6 +1,8 @@
 # Lesson 2.2: Readers and PDF
 
-**Manual test:** verify the reader link, PDF cover, table of contents, includes and diagram rendering in the PDF.
+:::optional[Manual test]
+verify the reader link, PDF cover, table of contents, includes and diagram rendering in the PDF.
+:::
 
 Read the [Testing Basics reader](../../readers/reader-testing-basics.md). The reader contains both Mermaid and PlantUML plus a linked include.
 
